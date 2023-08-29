@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Генерация случайного числа</title>
+    	<style>
+		body {
+			color: black;
+			background-color: grey;
+		}
+	</style>
+		<script>
+		function runTool(toolName) {
+			var url = toolName + ".html";
+			window.open(url, "_blank");
+		}
+	</script>
+    <script>
+      function generateNumber() {
+        const randomNumber = Math.floor(Math.random() * 100) + 1;
+        document.getElementById("generate-btn").innerHTML = randomNumber;
+      }
+    </script>
+  </head>
+  <body>
+    <button onclick="generateNumber()" id="generate-btn">Сгенерировать</button>
+  </body>
+</html>
+
+  <button onclick="runTool('glist')">НАЗАД</button>
+    <button onclick="generateNumber()" id="generate-btn">Сгенерировать</button>
+  </body>
+</html>
