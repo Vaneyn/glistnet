@@ -1,0 +1,22 @@
+<audio id="beep" src="beep.mp3"></audio>
+
+<script>
+  function playBeep() {
+    var beep = document.getElementById("beep");
+    beep.play();
+    var delay = Math.floor(Math.random() * 120000) + 1000; // случайный промежуток времени от 1 до 120 секунд
+    setTimeout(playBeep, delay);
+  }
+
+  var delay = Math.floor(Math.random() * 120000) + 1000; // случайный промежуток времени от 1 до 120 секунд
+  setTimeout(playBeep, delay); // начать проигрывание звука через случайный промежуток времени от 1 до 120 секунд
+</script>
+</script>
+  <button onclick="runTool('glist')">НАЗАД</button>
+</script>
+	<script>
+		function runTool(toolName) {
+			var url = toolName + ".html";
+			window.open(url, "_blank");
+		}
+  </script>
