@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Парабола</title>
+	<style>
+		body {
+			color: white;
+			background-color: grey;
+		}
+	</style>
+	<meta charset="UTF-8">
+	</script>
+  <button onclick="runTool('glist')">НАЗАД</button>
+</script>
+	<script>
+		function runTool(toolName) {
+			var url = toolName + ".html";
+			window.open(url, "_blank");
+		}
+	</script>
+	<script>
+		function calculate() {
+			// Получаем значения коэффициентов из полей ввода
+			var a = Number(document.getElementById("a").value);
+			var b = Number(document.getElementById("b").value);
+			var c = Number(document.getElementById("c").value);
+
+			// Вычисляем координаты вершины параболы и её нули
+			var vertexX = -b / (2 * a);
+			var vertexY = a * vertexX * vertexX + b * vertexX + c;
+			var zero1 = (-b + Math.sqrt(b * b - 4 * a * c)) / (2 * a);
+			var zero2 = (-b - Math.sqrt(b * b - 4 * a * c)) / (2 * a);
+
+			// Выводим результаты на страницу
+			document.getElementById("vertex").innerHTML = "Координаты вершины: (" + vertexX + ", " + vertexY + ")";
+			document.getElementById("zeros").innerHTML = "Нули функции: " + zero1 + ", " + zero2;
+		}
+	</script>
+</head>
+<body>
+	<h1>Парабола</h1>
+	<p>Введите коэффициенты параболы:</p>
+	<p>a: <input type="number" id="a"></p>
+	<p>b: <input type="number" id="b"></p>
+	<p>c: <input type="number" id="c"></p>
+	<button onclick="calculate()">Вычислить</button>
+	<p id="vertex"></p>
+	<p id="zeros"></p>
+</body>
+</html>
