@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>3D комната со шарами</title>
+    <style>
+      #container {
+        width: 80%;
+        height: 100%;
+        position: absolute;
+        top: 0;
+        left: 0;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  	<script>
+		function runTool(toolName) {
+			var url = toolName + ".html";
+			window.open(url, "_blank");
+		}
+	</script>
+	</script>
+  <button onclick="runTool('glist')"> ---------------------------------------------------------------------------НАЗАД</button>
+</script>
+  <body>
+    <div id="container"></div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+      // Создаем сцену
+      var scene = new THREE.Scene();
+
+      // Создаем камеру
+      var camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.z = 10;
+
+      // Создаем рендерер
+      var renderer = new THREE.WebGLRenderer();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      document.getElementById('container').appendChild(renderer.domElement);
+
+      // Создаем геометрию для шара
+      var geometry = new THREE.SphereGeometry(1, 32, 32);
+
+      // Создаем материал для шара
+      var material = new THREE.MeshBasicMaterial({ color: 0xffffff });
+
+      // Создаем массив шаров
+      var spheres = [];
+
+      // Создаем функцию для создания нового шара
+      function createSphere() {
+        var sphere = new THREE.Mesh(geometry, material);
+        sphere.position.x = Math.random() * 20 - 10;
+        sphere.position.y = Math.random() * 20 - 10;
+        sphere.position.z = Math.random() * 20 - 10;
+        scene.add(sphere);
+        spheres.push(sphere);
+      }
+
+      // Создаем первые шары
+      for (var i = 0; i < 10; i++) {
+        createSphere();
+      }
+
+      // Создаем функцию для обновления сцены
+      function update() {
+        // Двигаем шары
+        for (var i = 0; i < spheres.length; i++) {
+          spheres[i].position.x += Math.random() * 0.35 - 0.1;
+          spheres[i].position.y += Math.random() * 0.35 - 0.1;
+          spheres[i].position.z += Math.random() * 0.35 - 0.1;
+        }
+
+        // Проверяем столкновения
+        for (var i = 0; i < spheres.length; i++) {
+          for (var j = i + 1; j < spheres.length; j++) {
+            var dx = spheres[i].position.x - spheres[j].position.x;
+            var dy = spheres[i].position.y - spheres[j].position.y;
+            var dz = spheres[i].position.z - spheres[j].position.z;
+            var distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            if (distance < 2) {
+              spheres[i].position.x += dx / distance * 0.05;
+              spheres[i].position.y += dy / distance * 0.05;
+              spheres[i].position.z += dz / distance * 0.05;
+              spheres[j].position.x -= dx / distance * 0.05;
+              spheres[j].position.y -= dy / distance * 0.05;
+              }
+}
+}
+    // Создаем новые шары периодически
+    if (spheres.length < 50 && Math.random() < 0.01) {
+      createSphere();
+    }
+
+    // Рендерим сцену
+    renderer.render(scene, camera);
+
+    // Вызываем эту же функцию снова после обновления экрана
+    requestAnimationFrame(update);
+  }
+
+  // Запускаем функцию обновления
+  update();
+</script>
+	
