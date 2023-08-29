@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Игра со звуком</title>
+</head>
+<body>
+  <h1>Выберите длительность звука:</h1>
+  <select id="soundDuration">
+    <option value="0-5">0-5 секунд</option>
+    <option value="6-9">6-9 секунд</option>
+    <option value="10-15">10-15 секунд</option>
+  </select>
+  <br><br>
+  <button onclick="playSound()">Начать</button>
+  <button onclick="runTool('glist')">НАЗАД</button>
+	<script>
+		function runTool(toolName) {
+			var url = toolName + ".html";
+			window.open(url, "_blank");
+		}
+	</script>
+  <script>
+    function playSound() {
+      var soundDuration = document.getElementById("soundDuration").value;
+      var ticSound = new Audio('tic.m4a');
+      var readySound = new Audio('ready.mp3');
+
+      ticSound.addEventListener('timeupdate', function() {
+        var currentTime = ticSound.currentTime;
+        if (soundDuration === "0-5" && currentTime >= 5) {
+          ticSound.pause();
+          ticSound.currentTime = 0;
+          readySound.play();
+        } else if (soundDuration === "6-9" && currentTime >= 9) {
+          ticSound.pause();
+          ticSound.currentTime = 6;
+          readySound.play();
+        } else if (soundDuration === "10-15" && currentTime >= 15) {
+          ticSound.pause();
+          ticSound.currentTime = 0;
+          readySound.play();
+        }
+      });
+
+      ticSound.play();
+    }
+  </script>
+</body>
+</html>
