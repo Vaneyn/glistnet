@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+		body {
+			color: white;
+			background-color: grey;
+		}
+	</style>
+	<title>Калькулятор</title>
+</head>
+<body>
+	<h1>Калькулятор</h1>
+	<form>
+		<input type="text" name="num1" placeholder="Введите первое число">
+		<br>
+		<input type="text" name="num2" placeholder="Введите второе число">
+		<br><br>
+		<input type="button" value="Сложить" onclick="document.getElementById('result').value=parseFloat(document.getElementsByName('num1')[0].value)+parseFloat(document.getElementsByName('num2')[0].value)">
+		<input type="button" value="Вычесть" onclick="document.getElementById('result').value=parseFloat(document.getElementsByName('num1')[0].value)-parseFloat(document.getElementsByName('num2')[0].value)">
+		<input type="button" value="Умножить" onclick="document.getElementById('result').value=parseFloat(document.getElementsByName('num1')[0].value)*parseFloat(document.getElementsByName('num2')[0].value)">
+		<input type="button" value="Разделить" onclick="document.getElementById('result').value=parseFloat(document.getElementsByName('num1')[0].value)/parseFloat(document.getElementsByName('num2')[0].value)">
+		<br><br>
+		<input type="text" id="result" name="result" placeholder="Результат">
+	</form>
+</body>
+</script>
+  <button onclick="runTool('glist')">НАЗАД</button>
+</script>
+	<script>
+		function runTool(toolName) {
+			var url = toolName + ".html";
+			window.open(url, "_blank");
+		}
+	</script>
+</html>
