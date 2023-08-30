@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<style>
+		body {
+			color: black;
+			background-color: grey;
+		}
+		button {
+		font-size: 20px;
+			color: white;
+			background-color: black;
+		}
+	</style>
+  <title>Получение HTML кода страницы</title>
+  	<script>
+		function runTool(toolName) {
+			var url = toolName + ".html";
+			window.open(url, "_blank");
+		}
+	</script>
+	<button onclick="runTool('glist')">НАЗАД</button>
+  <script>
+    function showCode() {
+      var url = document.getElementById('urlInput').value;
+      
+      fetch(url)
+        .then(response => response.text())
+        .then(data => {
+          var encodedHTML = document.createElement('textarea');
+          encodedHTML.innerHTML = data;
+          
+          var encodedJS = document.createElement('textarea');
+          encodedJS.textContent = document.documentElement.outerHTML;
+          
+          var resultDiv = document.getElementById('result');
+          resultDiv.innerHTML = '<h3>HTML код страницы:</h3>' + encodedHTML.outerHTML +
+                                '<h3>Html код этого инструмента:</h3>' + encodedJS.outerHTML;
+        })
+        .catch(error => console.log(error));
+    }
+  </script>
+</head>
+<body>
+  <label for="urlInput">URL:</label>
+  <input type="text" id="urlInput" placeholder="Введите URL страницы" />
+  <button onclick="showCode()">Получить код</button>
+  
+  <div id="result"></div>
+</body>
+</html>
