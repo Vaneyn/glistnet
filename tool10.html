@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Генерация звука</title>
+</head>
+
+<body>
+  <h1>Генерация звука</h1>
+  <label for="frequency">Частота звука (герц):</label>
+  <input type="number" id="frequency" value="440" min="1" max="20000" step="1">
+  <button id="generateButton" onclick="generateSound()">Генерировать звук</button>
+  <button id="stopButton" onclick="stopSound()" disabled>Стоп</button>
+</script>
+  <button onclick="runTool('glist')">НАЗАД</button>
+</script>
+	<script>
+		function runTool(toolName) {
+			var url = toolName + ".html";
+			window.open(url, "_blank");
+		}
+	</script>
+  <script>
+    var oscillator = null;
+
+    function generateSound() {
+      // создаем новый объект AudioContext
+      var audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+      // получаем значение частоты звука из поля ввода
+      var frequency = parseInt(document.getElementById("frequency").value);
+
+      if (oscillator !== null) {
+        // если звук уже генерируется, выключаем его
+        oscillator.stop();
+        oscillator.disconnect();
+        oscillator = null;
+        document.getElementById("generateButton").innerHTML = "Генерировать звук";
+        document.getElementById("stopButton").disabled = true;
+      } else {
+        // создаем новый объект OscillatorNode, который генерирует звук заданной частоты
+        oscillator = audioContext.createOscillator();
+        oscillator.frequency.value = frequency;
+
+        // подключаем OscillatorNode к выходу AudioContext
+        oscillator.connect(audioContext.destination);
+
+        // запускаем генерацию звука
+        oscillator.start();
+        document.getElementById("generateButton").innerHTML = "Выключить звук";
+        document.getElementById("stopButton").disabled = false;
+      }
+    }
+
+    function stopSound() {
+      // выключаем звук и обновляем интерфейс
+      oscillator.stop();
+      oscillator.disconnect();
+      oscillator = null;
+      document.getElementById("generateButton").innerHTML = "Генерировать звук";
+      document.getElementById("stopButton").disabled = true;
+    }
+  </script>
+  	<style>
+		body {
+			color: white;
+			background-color: grey;
+		}
+	</style>
+</body>
+</html>
