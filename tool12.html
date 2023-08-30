@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Вычислительная мощность процессора</title>
+	<style>
+		body {
+			background-color: grey;
+			color: black;
+		}
+	</style>
+	<p> Менее 10000 это слабо. В районе 15000 нормально для телефонов с 3 ГБ ОЗУ. 30000 и более это уже шайтан машина</p>
+	<script>
+		function measureCPUPower() {
+			document.getElementById("measure-btn").style.display = "none"; // Скрываем кнопку сразу после нажатия
+			var startTime = performance.now();
+			var result = 0;
+			for (var i = 0; i < 10000000; i++) {
+				result += Math.random();
+			}
+			var endTime = performance.now();
+			var elapsedTime = endTime - startTime;
+			var operationsPerSecond = Math.floor(10000000 / elapsedTime);
+			document.getElementById("result").innerHTML = "Операций в секунду: " + operationsPerSecond;
+		}
+		
+	</script>
+		<script>
+		function runTool(toolName) {
+			var url = toolName + ".html";
+			window.open(url, "_blank");
+		}
+	</script>
+	</script>
+  <button onclick="runTool('glist')">НАЗАД</button>
+</script>
+</body>
+</html>
+</head>
+<body>
+	<button id="measure-btn" onclick="measureCPUPower()">Измерить вычислительную мощность процессора</button>
+	<div id="result"></div>
+</body>
+</html>
