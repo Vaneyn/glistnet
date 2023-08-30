@@ -1,0 +1,55 @@
+<html>
+<head>
+	<style>
+		body {
+			color: black;
+			background-color: white;
+		}
+	</style>
+	<script>
+		function runTool(toolName) {
+			var url = toolName + ".html";
+			window.open(url, "_blank");
+		}
+	</script>
+	<p></p>⠀⠀⡖⠒⠒⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+	<p></p>⠀⠀⡇⠀⠀⢚⣉⣹⡄⠘⣉⣹⠆⣰⣋⣙⡆⠉⢹⠉⠁⢚⣉⣹⡄⠀⠀⠀
+	<p></p>⠀⠀⡇⠀⠀⢯⣀⣼⡇⢠⣈⣹⠆⠹⣄⣀⠄⠀⢸⠀⠀⢯⣀⣼⡇⠀⠀⠀
+	<p id="image"></p>
+	<p id="output"></p>
+	<script>
+
+			// Получение основного текста
+	let xhrText = new XMLHttpRequest();
+	let urlText =
+		"http://d90930x1.beget.tech/PocketCodeDB/DATABASE/echo/echo.php?slot=2&token=35733253709vaneyn2007@gmail.com46774546073";
+	xhrText.open("GET", urlText, true);
+	xhrText.onreadystatechange = function () {
+		if (xhrText.readyState === 4 && xhrText.status === 200) {
+			let text = xhrText.responseText;
+			if (text) {
+				document.getElementById("output").textContent = text;
+			}
+		}
+	};
+	xhrText.send();
+	// Получение ссылки на картинку
+		let xhrImg = new XMLHttpRequest();
+		let urlImg =
+			"http://d90930x1.beget.tech/PocketCodeDB/DATABASE/echo/echo.php?slot=7&token=35733253709vaneyn2007@gmail.com46774546073";
+		xhrImg.open("GET", urlImg, true);
+		xhrImg.onreadystatechange = function () {
+			if (xhrImg.readyState === 4 && xhrImg.status === 200) {
+				let imgSrc = xhrImg.responseText;
+				if (imgSrc) {
+					let img = document.createElement("img");
+					img.src = imgSrc;
+					document.getElementById("image").appendChild(img);
+				}
+			}
+		};
+		xhrImg.send();
+</script>
+		
+<button onclick="runTool('glist')">НАЗАД</button>
+</html>
