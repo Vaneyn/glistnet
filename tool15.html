@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Игра</title>
+  <style>
+  	body {
+			color: black;
+			background-color: grey;
+		}
+		button {
+		font-size: 25px;
+			color: white;
+			background-color: black;
+		}
+    #game-area {
+      position: relative;
+      width: 500px;
+      height: 300px;
+      border: 1px solid black;
+    }
+    #red-line {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 250px;
+      width: 2px;
+      background-color: red;
+    }
+    #green-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 5px;
+      height: 20px;
+      background-color: green;
+      animation: move 1s linear infinite;
+    }
+    @keyframes move {
+      0% { left: 0; }
+      100% { left: 450px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="game-area">
+    <div id="red-line"></div>
+    <div id="green-bar"></div>
+  </div>
+  <p>Попытки: <span id="attempts">5</span></p>
+  <p>Очки: <span id="score">0</span></p>
+  <p>Рекорд: <span id="record"></span></p>
+  <button id="stop-btn">Стоп</button>
+  
+  <script>
+    let greenBar = document.getElementById("green-bar");
+    let attemptsLeft = 5;
+    let score = 0;
+    let record = localStorage.getItem("record") || 0;
+    
+    function stopGame() {
+      if (attemptsLeft > 0) {
+        attemptsLeft--;
+        document.getElementById("attempts").textContent = attemptsLeft;
+       let distance = Math.abs(greenBar.offsetLeft - 252);
+let points = 100 - distance;
+
+if (points > 0) {
+  if (distance < 5) {
+    attemptsLeft += 3;
+    document.getElementById("attempts").textContent = attemptsLeft;
+  }
+  score += points;
+  document.getElementById("score").textContent = score;
+}
+
+        greenBar.style.animationPlayState = "paused";
+        setTimeout(function() {
+          greenBar.style.animationPlayState = "running";
+        }, 300);
+      }
+      if (attemptsLeft === 0) {
+        if (score > record) {
+          record = score;
+          localStorage.setItem("record", record);
+          document.getElementById("record").textContent = record;
+        }
+        let message = (score > record) ? `Поздравляем, вы установили новый рекорд: ${score}` : `Ваши очки: ${score}`;
+        document.getElementById("attempts").textContent = 'Игра окончена';
+        document.getElementById("score").textContent = message;
+        document.getElementById("stop-btn").disabled = true;
+      }
+    }
+    
+    document.getElementById("stop-btn").addEventListener("click", stopGame);
+    document.getElementById("record").textContent = record;
+  </script>
+  	<script>
+		function runTool(toolName) {
+			var url = toolName + ".html";
+			window.open(url, "_blank");
+		}
+	</script>
+	</script>
+  <button onclick="runTool('glist')">НАЗАД</button>
+</script>
+</body>
+</html>
