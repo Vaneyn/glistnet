@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Эмулятор терминала</title>
+<style>
+  body {
+    background-color: #272822;
+    color: #F8F8F2;
+    font-family: monospace;
+    padding: 20px;
+  }
+
+  h1 {
+    font-size: 24px;
+  }
+
+  #output {
+    height: 200px;
+    width: 310px;
+    border: 1px solid #75715E;
+    background-color: #1E1F1C;
+    padding: 10px;
+    overflow: auto;
+    margin-bottom: 10px;
+  }
+
+  #output p {
+    margin: 0;
+    padding: 0;
+  }
+
+  input[type="text"] {
+    width: 300px;
+    padding: 5px;
+    font-size: 14px;
+    border: none;
+    background-color: #1E1F1C;
+    color: #F8F8F2;
+  }
+
+  button {
+    padding: 5px 10px;
+    font-size: 14px;
+    background-color: #75715E;
+    color: #F8F8F2;
+    border: none;
+    cursor: pointer;
+  }
+
+  button:hover {
+    background-color: #F8F8F2;
+    color: #272822;
+  }
+</style>
+
+</head>
+<body>
+  <h1>Терминал</h1>
+  <div id="output"></div>
+  <input id="input" type="text" autofocus>
+  <button onclick="executeCommand()">Выполнить</button>
+  <img id="image" src="" style="display: none;">
+
+  <script>
+    function runTool(toolName) {
+      var url = toolName + ".html";
+      window.open(url, "_blank");
+    }
+  </script>
+  <button onclick="runTool('tool7')">НАЗАД</button>
+  <script>
+    function changeColor(color) {
+      var output = document.getElementById('output');
+      output.style.color = color;
+    }
+
+    function displayImage(imageURL) {
+      var imageElement = document.getElementById('image');
+      imageElement.src = imageURL;
+      imageElement.style.display = 'block';
+    }
+
+    function playAudio(audioURL) {
+      var audio = new Audio(audioURL);
+      audio.play();
+    }
+
+    function executeCommand() {
+      var command = document.getElementById('input').value.toLowerCase();
+      var output = document.getElementById('output');
+
+      if (command === 'help') {
+        output.innerHTML += '<p>Доступные команды: help, print, cl, js, run, console,  Для получения подробной справки напиши "Run r".</p>';
+      } else if (command.startsWith('print ')) {
+        var message = command.substring(6);
+        output.innerHTML += '<p>' + message + '</p>';
+      } else if (command.startsWith('color ')) {
+        var color = command.substring(6);
+        changeColor(color);
+     } else if (command.startsWith('run ')) {
+  var functionName = command.substring(4);
+  runTool(functionName);
+} else if (command === 'console' || command === 'con' || command === 'console.log') {
+  var consoleContent = getConsoleContent();
+  output.innerHTML += '<p class="yellow-text">' + consoleContent + '</p>';
+
+
+function getConsoleContent() {
+  var consoleLogs = [];
+
+  var originalConsoleLog = console.log;
+  console.log = function (message) {
+    consoleLogs.push(message);
+    originalConsoleLog.apply(console, arguments);
+  };
+
+ 
+  // Restore the original console.log
+  console.log = originalConsoleLog;
+
+  return consoleLogs.join('\n');
+}
+
+      } else if (command === 'date') {
+        var currentDate = new Date().toLocaleString();
+        output.innerHTML += '<p>' + currentDate + '</p>';
+      } else if (command === 'cl') {
+        output.innerHTML = '';
+      } else if (command === 'av') {
+        displayImage('AV.png');
+        output.innerHTML += '<p>Артем Варейко настоящий ДЕБИЛ. Кто, если не он?</p>';
+        playAudio('Geometry.m4a');
+      } else if (command.startsWith('js ')) {
+        var jsCode = command.substring(3);
+        try {
+          eval(jsCode);
+          output.innerHTML += '<p style="color: yellow;">Код выполнен: ' + jsCode + '</p>';
+        } catch (error) {
+          output.innerHTML += '<p style="color: red;">Ошибка выполнения кода: ' + error + '</p>';
+        }
+      } else {
+        output.innerHTML += '<p>Неверно! Попробуй ввести "help".Неизвестная команда: ' + command + '</p>';
+      }
+
+      document.getElementById('input').value = '';
+    }
+  </script>
+</body>
+</html>
