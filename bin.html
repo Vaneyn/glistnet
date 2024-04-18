@@ -63,6 +63,8 @@
     <textarea id="binaryText" placeholder="Введите двоичный код для расшифровки"></textarea>
     <button onclick="decodeBinary()">Расшифровать</button>
     <div class="output" id="decodedOutput"></div>
+  <button onclick="runTool('glist')">Главное меню</button>
+    
 </div>
 <script>
   function runTool(toolName) {
@@ -71,8 +73,7 @@
   }
  </script>
 
-   <button onclick="runTool('glist')">Главное меню</button>
-<script>
+   <script>
     function convertToBinary() {
         const inputText = document.getElementById('inputText').value;
         let binaryOutput = '';
