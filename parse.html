@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Извлечение и поиск ссылок</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        label {
+            font-weight: bold;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            margin-top: 8px;
+            margin-bottom: 16px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            box-sizing: border-box;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #output {
+            margin-top: 20px;
+        }
+
+        .link {
+            margin-bottom: 5px;
+        }
+
+        .search-container {
+            margin-top: 20px;
+        }
+
+        .search-input {
+            width: 70%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            box-sizing: border-box;
+        }
+
+        .search-button {
+            padding: 8px 16px;
+            background-color: #28a745;
+            color: #fff;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        .search-button:hover {
+            background-color: #218838;
+        }
+
+        .search-result {
+            margin-top: 10px;
+            font-size: 16px;
+        }
+
+        .status {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+    	<button id="backButton" onclick="runTool('glist')">НАЗАД</button>
+        <div class="search-container">
+            <label for="searchInput">Введите текст для поиска:</label>
+            <input type="text" id="searchInput" class="search-input">
+            <button onclick="searchText()" class="search-button">Поиск</button>
+            <div id="searchResult" class="search-result"></div>
+        </div>
+                <label for="urlInput">Введите начальную ссылку:</label>
+        <input type="text" id="urlInput">
+        <button onclick="startExtraction()">Начать извлечение ссылок</button>
+        <div class="status" id="status">Остановлен</div>
+        <div id="output"></div>
+
+      
+    </div>
+<script>
+		function runTool(toolName) {
+			var url = toolName + ".html";
+			window.open(url, "_blank");
+		}
+	</script>    <script>
+        let isSearching = false;
+        let extractedLinks = [];
+
+        async function startExtraction() {
+            isSearching = true;
+            document.getElementById('status').textContent = 'Работаю...';
+            extractedLinks = [];
+            const url = document.getElementById('urlInput').value;
+            await extractLinks(url);
+            isSearching = false;
+            document.getElementById('status').textContent = 'Остановлен';
+        }
+
+        async function extractLinks(url) {
+            try {
+                const response = await fetch(url);
+                const html = await response.text();
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const links = doc.querySelectorAll('a');
+
+                const output = document.getElementById('output');
+
+                links.forEach(async link => {
+                    const href = link.getAttribute('href');
+                    if (href && href.startsWith('http')) {
+                        output.innerHTML += `<p class="link">${href}</p>`;
+                        extractedLinks.push(href);
+                        if (isSearching) {
+                            await extractLinks(href);
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Error fetching links:', error);
+                document.getElementById('status').textContent = 'Остановлен от ошибки';
+            }
+        }
+
+        function searchText() {
+            const searchInput = document.getElementById('searchInput').value;
+            const searchResult = document.getElementById('searchResult');
+            const foundLinks = extractedLinks.filter(link => link.includes(searchInput));
+            if (foundLinks.length > 0) {
+                searchResult.innerHTML = `<p>Найденные ссылки:</p>`;
+                foundLinks.forEach(link => {
+                    searchResult.innerHTML += `<p>${link}</p>`;
+                });
+            } else {
+                searchResult.innerHTML = 'Совпадений не найдено.';
+            }
+        }
+    </script>
+</body>
+</html>
