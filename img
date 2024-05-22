@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Image Converter</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+            margin: 0;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        input[type="file"] {
+            margin-bottom: 10px;
+        }
+        canvas {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Image Converter</h1>
+        <input type="file" id="fileInput" accept="image/*">
+        <button onclick="convertImage()">Convert and Save</button>
+        <p id="outputPath"></p>
+        <canvas id="canvas"></canvas>
+    </div>
+    <script>
+        function convertImage() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            if (!file) {
+                alert('Please select an image file.');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.getElementById('canvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    const scaleFactor = 500 / img.width;
+                    canvas.width = 500;
+                    canvas.height = img.height * scaleFactor;
+
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const data = imageData.data;
+
+                    for (let i = 0; i < data.length; i += 4) {
+                        const avg = 0.3 * data[i] + 0.59 * data[i + 1] + 0.11 * data[i + 2];
+                        const gray = Math.round(avg / 2) * 2; // Convert to 128 levels of gray
+                        data[i] = data[i + 1] = data[i + 2] = gray;
+                    }
+
+                    ctx.putImageData(imageData, 0, 0);
+
+                    canvas.toBlob(function(blob) {
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'converted-image.png';
+                        a.textContent = 'Download converted image';
+                        document.getElementById('outputPath').innerHTML = '';
+                        document.getElementById('outputPath').appendChild(a);
+                    }, 'image/png');
+                };
+                img.src = event.target.result;
+            };
+            reader.onerror = function(error) {
+                console.error('Error reading file:', error);
+                alert('Failed to read the file. Please try again.');
+            };
+            reader.readAsDataURL(file);
+        }
+    </script>
+</body>
+</html>
