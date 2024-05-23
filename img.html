@@ -26,65 +26,103 @@
         canvas {
             display: none;
         }
+        select, input[type="number"] {
+            margin-bottom: 10px;
+            padding: 5px;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Image Converter</h1>
-        <input type="file" id="fileInput" accept="image/*">
-        <button onclick="convertImage()">Convert and Save</button>
-        <p id="outputPath"></p>
+        <input type="file" id="fileInput" accept="image/*" multiple>
+        <br>
+        <label for="colors">Number of colors:</label>
+        <select id="colors">
+            <option value="2">2</option>
+            <option value="4">4</option>
+            <option value="8">8</option>
+            <option value="16">16</option>
+            <option value="32">32</option>
+            <option value="64">64</option>
+            <option value="128" selected>128</option>
+            <option value="256">256</option>
+            <option value="512">512</option>
+            <option value="1024">1024</option>
+        </select>
+        <br>
+        <label for="resolution">Resolution percentage:</label>
+        <input type="number" id="resolution" min="1" max="100" value="25">
+        <br>
+        <label for="format">Format:</label>
+        <select id="format">
+            <option value="image/jpeg" selected>JPEG</option>
+            <option value="image/png">PNG</option>
+        </select>
+        <br>
+        <button onclick="convertImages()">Convert and Save</button>
+        <div id="outputPath"></div>
         <canvas id="canvas"></canvas>
     </div>
     <script>
-        function convertImage() {
+        function convertImages() {
             const fileInput = document.getElementById('fileInput');
-            const file = fileInput.files[0];
-            if (!file) {
-                alert('Please select an image file.');
+            const files = fileInput.files;
+            if (!files.length) {
+                alert('Please select one or more image files.');
                 return;
             }
 
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                const img = new Image();
-                img.onload = function() {
-                    const canvas = document.getElementById('canvas');
-                    const ctx = canvas.getContext('2d');
-                    
-                    const scaleFactor = 500 / img.width;
-                    canvas.width = 500;
-                    canvas.height = img.height * scaleFactor;
+            const colors = parseInt(document.getElementById('colors').value);
+            const resolutionPercentage = parseInt(document.getElementById('resolution').value) / 100;
+            const format = document.getElementById('format').value;
+            const outputPath = document.getElementById('outputPath');
+            outputPath.innerHTML = '';
 
-                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                    const data = imageData.data;
+            Array.from(files).forEach((file, index) => {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const img = new Image();
+                    img.onload = function() {
+                        const canvas = document.getElementById('canvas');
+                        const ctx = canvas.getContext('2d');
+                        
+                        const newWidth = img.width * resolutionPercentage;
+                        const newHeight = img.height * resolutionPercentage;
+                        canvas.width = newWidth;
+                        canvas.height = newHeight;
 
-                    for (let i = 0; i < data.length; i += 4) {
-                        const avg = 0.3 * data[i] + 0.59 * data[i + 1] + 0.11 * data[i + 2];
-                        const gray = Math.round(avg / 2) * 2; // Convert to 128 levels of gray
-                        data[i] = data[i + 1] = data[i + 2] = gray;
-                    }
+                        ctx.drawImage(img, 0, 0, newWidth, newHeight);
+                        const imageData = ctx.getImageData(0, 0, newWidth, newHeight);
+                        const data = imageData.data;
 
-                    ctx.putImageData(imageData, 0, 0);
+                        for (let i = 0; i < data.length; i += 4) {
+                            const avg = 0.3 * data[i] + 0.59 * data[i + 1] + 0.11 * data[i + 2];
+                            const gray = Math.round(avg / (256 / colors)) * (256 / colors); // Convert to specified levels of gray
+                            data[i] = data[i + 1] = data[i + 2] = gray;
+                        }
 
-                    canvas.toBlob(function(blob) {
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = 'converted-image.png';
-                        a.textContent = 'Download converted image';
-                        document.getElementById('outputPath').innerHTML = '';
-                        document.getElementById('outputPath').appendChild(a);
-                    }, 'image/png');
+                        ctx.putImageData(imageData, 0, 0);
+
+                        canvas.toBlob(function(blob) {
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `converted-image-${index + 1}.${format === 'image/jpeg' ? 'jpg' : 'png'}`;
+                            a.textContent = `Download converted image ${index + 1}`;
+                            outputPath.appendChild(a);
+                            outputPath.appendChild(document.createElement('br'));
+                        }, format);
+                    };
+                    img.src = event.target.result;
                 };
-                img.src = event.target.result;
-            };
-            reader.onerror = function(error) {
-                console.error('Error reading file:', error);
-                alert('Failed to read the file. Please try again.');
-            };
-            reader.readAsDataURL(file);
+                reader.onerror = function(error) {
+                    console.error('Error reading file:', error);
+                    alert('Failed to read the file. Please try again.');
+                };
+                reader.readAsDataURL(file);
+            });
         }
     </script>
 </body>
