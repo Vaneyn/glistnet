@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Image Converter</title>
+    <title>Конвертер изображений</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -38,7 +38,7 @@
         <h1>Image Converter</h1>
         <input type="file" id="fileInput" accept="image/*" multiple>
         <br>
-        <label for="colors">Number of colors:</label>
+        <label for="colors">Количество цветов:</label>
         <select id="colors">
             <option value="2">2</option>
             <option value="4">4</option>
@@ -52,16 +52,16 @@
             <option value="1024">1024</option>
         </select>
         <br>
-        <label for="resolution">Resolution percentage:</label>
+        <label for="resolution">Процент от разрешения:</label>
         <input type="number" id="resolution" min="1" max="100" value="25">
         <br>
-        <label for="format">Format:</label>
+        <label for="format">Формат:</label>
         <select id="format">
             <option value="image/jpeg" selected>JPEG</option>
             <option value="image/png">PNG</option>
         </select>
         <br>
-        <button onclick="convertImages()">Convert and Save</button>
+        <button onclick="convertImages()">Конвертировать</button>
         <div id="outputPath"></div>
         <canvas id="canvas"></canvas>
     </div>
