@@ -1,6 +1,7 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
+    <meta charset="UTF-8">
     <title>Конвертер изображений</title>
     <style>
         body {
@@ -52,7 +53,7 @@
             <option value="1024">1024</option>
         </select>
         <br>
-        <label for="resolution">% от исходного разрешения:</label>
+        <label for="resolution">Процент разрешения:</label>
         <input type="number" id="resolution" min="1" max="100" value="25">
         <br>
         <label for="format">Формат:</label>
@@ -62,9 +63,9 @@
         </select>
         <br>
         <input type="checkbox" id="useColors" checked>
-        <label for="useColors">Использовать полную цветовую гамму</label>
+        <label for="useColors">Использовать цветовую палитру</label>
         <br>
-        <button onclick="convertImages()">Конвертировать</button>
+        <button onclick="convertImages()">Конвертировать и сохранить</button>
         <div id="outputPath"></div>
         <canvas id="canvas"></canvas>
     </div>
@@ -73,7 +74,7 @@
             const fileInput = document.getElementById('fileInput');
             const files = fileInput.files;
             if (!files.length) {
-                alert('Please select one or more image files.');
+                alert('Пожалуйста, выберите один или несколько файлов изображений.');
                 return;
             }
 
@@ -103,10 +104,15 @@
 
                         if (useColors) {
                             // Используем палитру цветов
+                            const palette = generatePalette(colors);
                             for (let i = 0; i < data.length; i += 4) {
-                                const colorIndex = Math.floor((data[i] + data[i + 1] + data[i + 2]) / 3 * colors / 256);
-                                const colorValue = Math.floor(colorIndex * 256 / colors);
-                                data[i] = data[i + 1] = data[i + 2] = colorValue;
+                                const r = data[i];
+                                const g = data[i + 1];
+                                const b = data[i + 2];
+                                const closestColor = findClosestColor(palette, r, g, b);
+                                data[i] = closestColor[0];
+                                data[i + 1] = closestColor[1];
+                                data[i + 2] = closestColor[2];
                             }
                         } else {
                             // Ч/б изображение
@@ -124,7 +130,7 @@
                             const a = document.createElement('a');
                             a.href = url;
                             a.download = `converted-image-${index + 1}.${format === 'image/jpeg' ? 'jpg' : 'png'}`;
-                            a.textContent = `Download converted image ${index + 1}`;
+                            a.textContent = `Скачать конвертированное изображение ${index + 1}`;
                             outputPath.appendChild(a);
                             outputPath.appendChild(document.createElement('br'));
                         }, format);
@@ -132,11 +138,37 @@
                     img.src = event.target.result;
                 };
                 reader.onerror = function(error) {
-                    console.error('Error reading file:', error);
-                    alert('Failed to read the file. Please try again.');
+                    console.error('Ошибка чтения файла:', error);
+                    alert('Не удалось прочитать файл. Пожалуйста, попробуйте снова.');
                 };
                 reader.readAsDataURL(file);
             });
+        }
+
+        function generatePalette(numColors) {
+            const palette = [];
+            for (let i = 0; i < numColors; i++) {
+                const value = Math.floor(i * 256 / numColors);
+                palette.push([value, value, value]);
+            }
+            return palette;
+        }
+
+        function findClosestColor(palette, r, g, b) {
+            let minDistance = Infinity;
+            let closestColor = palette[0];
+            for (const color of palette) {
+                const distance = Math.sqrt(
+                    Math.pow(color[0] - r, 2) +
+                    Math.pow(color[1] - g, 2) +
+                    Math.pow(color[2] - b, 2)
+                );
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closestColor = color;
+                }
+            }
+            return closestColor;
         }
     </script>
 </body>
