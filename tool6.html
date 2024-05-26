@@ -1,50 +1,141 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<title>Парабола</title>
-	<style>
-		body {
-			color: white;
-			background-color: grey;
-		}
-	</style>
-	<meta charset="UTF-8">
-	</script>
-  <button onclick="runTool('glist')">НАЗАД</button>
-</script>
-	<script>
-		function runTool(toolName) {
-			var url = toolName + ".html";
-			window.open(url, "_blank");
-		}
-	</script>
-	<script>
-		function calculate() {
-			// Получаем значения коэффициентов из полей ввода
-			var a = Number(document.getElementById("a").value);
-			var b = Number(document.getElementById("b").value);
-			var c = Number(document.getElementById("c").value);
+    <title>Парабола</title>
+    <style>
+        body {
+            color: white;
+            background-color: grey;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
 
-			// Вычисляем координаты вершины параболы и её нули
-			var vertexX = -b / (2 * a);
-			var vertexY = a * vertexX * vertexX + b * vertexX + c;
-			var zero1 = (-b + Math.sqrt(b * b - 4 * a * c)) / (2 * a);
-			var zero2 = (-b - Math.sqrt(b * b - 4 * a * c)) / (2 * a);
+        .container {
+            background-color: #444;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
 
-			// Выводим результаты на страницу
-			document.getElementById("vertex").innerHTML = "Координаты вершины: (" + vertexX + ", " + vertexY + ")";
-			document.getElementById("zeros").innerHTML = "Нули функции: " + zero1 + ", " + zero2;
-		}
-	</script>
+        input {
+            margin: 5px;
+            padding: 5px;
+            border: none;
+            border-radius: 5px;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin-top: 10px;
+            border: none;
+            border-radius: 5px;
+            background-color: #666;
+            color: white;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #888;
+        }
+
+        #graph {
+            width: 300px;
+            height: 300px;
+            margin-top: 20px;
+            background: white;
+            position: relative;
+        }
+
+        #graph canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        #results {
+            margin-top: 10px;
+        }
+    </style>
+    <meta charset="UTF-8">
+    <script>
+        function runTool(toolName) {
+            var url = toolName + ".html";
+            window.open(url, "_blank");
+        }
+
+        function calculate() {
+            var a = Number(document.getElementById("a").value);
+            var b = Number(document.getElementById("b").value);
+            var c = Number(document.getElementById("c").value);
+
+            var vertexX = -b / (2 * a);
+            var vertexY = a * vertexX * vertexX + b * vertexX + c;
+            var discriminant = b * b - 4 * a * c;
+            var zero1 = (-b + Math.sqrt(discriminant)) / (2 * a);
+            var zero2 = (-b - Math.sqrt(discriminant)) / (2 * a);
+
+            document.getElementById("vertex").innerHTML = "Координаты вершины: (" + vertexX.toFixed(2) + ", " + vertexY.toFixed(2) + ")";
+            document.getElementById("discriminant").innerHTML = "Дискриминант: " + discriminant.toFixed(2);
+            document.getElementById("zeros").innerHTML = "Нули функции: " + zero1.toFixed(2) + ", " + zero2.toFixed(2);
+
+            drawGraph(a, b, c);
+        }
+
+        function drawGraph(a, b, c) {
+            var canvas = document.getElementById("canvas");
+            var ctx = canvas.getContext("2d");
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ctx.strokeStyle = '#000';
+            ctx.beginPath();
+            ctx.moveTo(0, 150);
+            ctx.lineTo(300, 150);
+            ctx.moveTo(150, 0);
+            ctx.lineTo(150, 300);
+            ctx.stroke();
+
+            ctx.strokeStyle = '#f00';
+            ctx.beginPath();
+            for (var x = -15; x <= 15; x += 0.1) {
+                var y = a * x * x + b * x + c;
+                var canvasX = 150 + x * 10;
+                var canvasY = 150 - y * 10;
+                if (x === -15) {
+                    ctx.moveTo(canvasX, canvasY);
+                } else {
+                    ctx.lineTo(canvasX, canvasY);
+                }
+            }
+            ctx.stroke();
+        }
+    </script>
 </head>
 <body>
-	<h1>Парабола</h1>
-	<p>Введите коэффициенты параболы:</p>
-	<p>a: <input type="number" id="a"></p>
-	<p>b: <input type="number" id="b"></p>
-	<p>c: <input type="number" id="c"></p>
-	<button onclick="calculate()">Вычислить</button>
-	<p id="vertex"></p>
-	<p id="zeros"></p>
+    <div class="container">
+        <h1>Парабола</h1>
+        <p>Введите коэффициенты параболы:</p>
+        <p>a: <input type="number" id="a"></p>
+        <p>b: <input type="number" id="b"></p>
+        <p>c: <input type="number" id="c"></p>
+        <button onclick="calculate()">Вычислить</button>
+		<button onclick="runTool('glist')">НАЗАД</button>
+		
+
+        <div id="results">
+            <p id="vertex"></p>
+            <p id="discriminant"></p>
+            <p id="zeros"></p>
+        </div>
+        <div id="graph">
+            <canvas id="canvas" width="300" height="300"></canvas>
+        </div>
+    </div>
 </body>
 </html>
