@@ -97,12 +97,12 @@
             ctx.strokeStyle = '#ddd';
             ctx.beginPath();
             // Горизонтальные линии
-            for (var y = 0; y <= canvas.height; y += 30) {
+            for (var y = 0; y <= canvas.height; y += 10) {
                 ctx.moveTo(0, y);
                 ctx.lineTo(canvas.width, y);
             }
             // Вертикальные линии
-            for (var x = 0; x <= canvas.width; x += 30) {
+            for (var x = 0; x <= canvas.width; x += 10) {
                 ctx.moveTo(x, 0);
                 ctx.lineTo(x, canvas.height);
             }
