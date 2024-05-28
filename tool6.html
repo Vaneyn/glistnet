@@ -87,47 +87,51 @@
             drawGraph(a, b, c);
         }
 
-       function drawGraph(a, b, c) {
-    var canvas = document.getElementById("canvas");
-    var ctx = canvas.getContext("2d");
+        function drawGraph(a, b, c) {
+            var canvas = document.getElementById("canvas");
+            var ctx = canvas.getContext("2d");
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    ctx.strokeStyle = '#000';
-    ctx.beginPath();
-    ctx.moveTo(0, 150);
-    ctx.lineTo(300, 150);
-    ctx.moveTo(150, 0);
-    ctx.lineTo(150, 300);
-    ctx.stroke();
+            // Рисуем сетку
+            ctx.strokeStyle = '#ddd';
+            ctx.beginPath();
+            // Горизонтальные линии
+            for (var y = 0; y <= canvas.height; y += 30) {
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+            }
+            // Вертикальные линии
+            for (var x = 0; x <= canvas.width; x += 30) {
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+            }
+            ctx.stroke();
 
-    // Отрисовка сетки
-    ctx.strokeStyle = '#ddd';
-    ctx.beginPath();
-    for (var i = 0; i < 30; i++) {
-        ctx.moveTo(i * 10, 0);
-        ctx.lineTo(i * 10, 300);
-        ctx.moveTo(0, i * 10);
-        ctx.lineTo(300, i * 10);
-    }
-    ctx.stroke();
+            // Рисуем оси координат
+            ctx.strokeStyle = '#000';
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height / 2);
+            ctx.lineTo(canvas.width, canvas.height / 2);
+            ctx.moveTo(canvas.width / 2, 0);
+            ctx.lineTo(canvas.width / 2, canvas.height);
+            ctx.stroke();
 
-    ctx.strokeStyle = '#f00';
-    ctx.beginPath();
-    for (var x = -15; x <= 15; x += 0.1) {
-        var y = a * x * x + b * x + c;
-        var canvasX = 150 + x * 10;
-        var canvasY = 150 - y * 10;
-        if (x === -15) {
-            ctx.moveTo(canvasX, canvasY);
-        } else {
-            ctx.lineTo(canvasX, canvasY);
+            // Рисуем параболу
+            ctx.strokeStyle = '#f00';
+            ctx.beginPath();
+            for (var x = -15; x <= 15; x += 0.1) {
+                var y = a * x * x + b * x + c;
+                var canvasX = 150 + x * 10;
+                var canvasY = 150 - y * 10;
+                if (x === -15) {
+                    ctx.moveTo(canvasX, canvasY);
+                } else {
+                    ctx.lineTo(canvasX, canvasY);
+                }
+            }
+            ctx.stroke();
         }
-    }
-    ctx.stroke();
-}
-
-      
     </script>
 </head>
 <body>
@@ -138,8 +142,7 @@
         <p>b: <input type="number" id="b"></p>
         <p>c: <input type="number" id="c"></p>
         <button onclick="calculate()">Вычислить</button>
-		<button onclick="runTool('glist')">НАЗАД</button>
-		
+        <button onclick="runTool('glist')">НАЗАД</button>
 
         <div id="results">
             <p id="vertex"></p>
