@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>News from tg</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            margin: 0;
+        }
+        #messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            background-color: #f9f9f9;
+        }
+        .message {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 10px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        .message p {
+            margin: 0;
+        }
+        hr {
+            border: none;
+            border-top: 1px solid #ddd;
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="messages"></div>
+
+    <script>
+        let messageIndex = 1; // Начинаем с первого сообщения
+        const messagesDiv = document.getElementById('messages');
+        const redflag = [
+            "Telegram",
+            "Канал проекта Glist и чат его комьюнити. Идеи/ сотрудничество/ реклама/ связь/ другое: @Van_Eyn",
+            "meta charset"
+        ];
+        let skippedMessages = 0;
+
+        function scrollToBottom() {
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function isRedFlagMessage(message) {
+            // Удаляем лишние пробелы и переносы строк для корректного сравнения
+            const trimmedMessage = message.trim().replace(/\s+/g, ' ');
+            return redflag.some(flag => trimmedMessage.includes(flag));
+        }
+
+        async function fetchMessage(index) {
+            if (skippedMessages >= 100) return; // Прекратить поиск после 100 подряд удаленных сообщений
+
+            const response = await fetch(`https://t.me/glist_channel/${index}`);
+            const html = await response.text();
+            let startIndex = 0;
+            let contentCount = 0;
+            while (contentCount < 5) {
+                startIndex = html.indexOf('content="', startIndex);
+                if (startIndex === -1) return; // Если не найдено третье вхождение, прерываем
+                startIndex += 'content="'.length;
+                contentCount++;
+            }
+            const endIndex = html.indexOf('"', startIndex);
+            const messageContent = html.substring(startIndex, endIndex);
+
+            if (!isRedFlagMessage(messageContent)) {
+                messagesDiv.innerHTML += `<div class="message"><p>${messageContent}</p></div><hr>`;
+                scrollToBottom();
+                skippedMessages = 0; // Сброс счетчика пропущенных сообщений
+            } else {
+                skippedMessages++;
+            }
+
+            messageIndex++;
+            fetchMessage(messageIndex); // Рекурсивно вызываем fetchMessage для следующего сообщения
+        }
+
+        fetchMessage(messageIndex); // Начинаем загружать сообщения с первого
+        scrollToBottom(); // Прокрутить вниз при загрузке страницы
+    </script>
+</body>
+</html>
