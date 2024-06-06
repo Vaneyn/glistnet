@@ -36,13 +36,7 @@
     </style>
 </head>
 <body>
-    <script>
-        function runTool(toolName) {
-            var url = toolName + ".html";
-            window.open(url, "_blank");
-        }
-    </script>
-    <button onclick="runTool('glist')">НАЗАД</button>
+    
     <div id="messages"></div>
 
     <script>
@@ -105,5 +99,12 @@
 
         startFetchingMessages(); // Запрашиваем номер сообщения и начинаем загрузку
     </script>
+    <script>
+        function runTool(toolName) {
+            var url = toolName + ".html";
+            window.open(url, "_blank");
+        }
+    </script>
+    <button onclick="runTool('glist')">НАЗАД</button>
 </body>
 </html>
