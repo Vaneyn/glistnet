@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>News from tg</title>
+    <title>Telegram Channel Viewer</title>
     <style>
         body {
             display: flex;
@@ -39,7 +39,7 @@
     <div id="messages"></div>
 
     <script>
-        let messageIndex = 1; // Начинаем с первого сообщения
+        let messageIndex;
         const messagesDiv = document.getElementById('messages');
         const redflag = [
             "Telegram",
@@ -86,8 +86,17 @@
             fetchMessage(messageIndex); // Рекурсивно вызываем fetchMessage для следующего сообщения
         }
 
-        fetchMessage(messageIndex); // Начинаем загружать сообщения с первого
-        scrollToBottom(); // Прокрутить вниз при загрузке страницы
+        function startFetchingMessages() {
+            const userInput = prompt("Введите номер сообщения, с которого начать отображение (оставьте пустым для начала с первого)");
+            messageIndex = userInput ? parseInt(userInput, 10) : 1;
+            if (isNaN(messageIndex) || messageIndex <= 0) {
+                messageIndex = 1;
+            }
+            fetchMessage(messageIndex); // Начинаем загружать сообщения с указанного номера
+            scrollToBottom(); // Прокрутить вниз при загрузке страницы
+        }
+
+        startFetchingMessages(); // Запрашиваем номер сообщения и начинаем загрузку
     </script>
 </body>
 </html>
