@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Информация об элементах</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      background-color: #f0f0f0;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+    input, button {
+      width: 100%;
+      font-size: 16px;
+      padding: 10px;
+      margin-bottom: 10px;
+      border: none;
+      border-radius: 5px;
+    }
+    button {
+      background-color: #4CAF50;
+      color: white;
+      cursor: pointer;
+    }
+    #result {
+      padding: 20px;
+      border-radius: 5px;
+      background-color: white;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+    h2 {
+      color: #333;
+    }
+    p {
+      margin: 5px 0;
+    }
+    strong {
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Информация об элементах</h1>
+    <input type="text" id="symbol" placeholder="Введите символ элемента">
+    <button onclick="getElementInfo()">Получить информацию</button>
+    <div id="result"></div>
+  </div>
+
+  <script>
+const elements = [
+  { name: "Водород", atomicNumber: 1, symbol: "H", category: "Реактивный неметалл", atomicWeight: "1.008", state: "Газ" },
+  { name: "Гелий", atomicNumber: 2, symbol: "He", category: "Благородный газ", atomicWeight: "4.003", state: "Газ" },
+  { name: "Литий", atomicNumber: 3, symbol: "Li", category: "Щелочной металл", atomicWeight: "6.94", state: "Твердое" },
+  { name: "Бериллий", atomicNumber: 4, symbol: "Be", category: "Щелочноземельный металл", atomicWeight: "9.0122", state: "Твердое" },
+  { name: "Бор", atomicNumber: 5, symbol: "B", category: "Металлоид", atomicWeight: "10.81", state: "Твердое" },
+  { name: "Углерод", atomicNumber: 6, symbol: "C", category: "Неметалл", atomicWeight: "12.01", state: "Твердое" },
+  { name: "Азот", atomicNumber: 7, symbol: "N", category: "Реактивный неметалл", atomicWeight: "14.01", state: "Газ" },
+  { name: "Кислород", atomicNumber: 8, symbol: "O", category: "Реактивный неметалл", atomicWeight: "16.00", state: "Газ" },
+  { name: "Фтор", atomicNumber: 9, symbol: "F", category: "Реактивный неметалл", atomicWeight: "18.99", state: "Газ" },
+  { name: "Неон", atomicNumber: 10, symbol: "Ne", category: "Благородный газ", atomicWeight: "20.18", state: "Газ" },
+  { name: "Натрий", atomicNumber: 11, symbol: "Na", category: "Щелочной металл", atomicWeight: "22.99", state: "Твердое" },
+  { name: "Магний", atomicNumber: 12, symbol: "Mg", category: "Щелочноземельный металл", atomicWeight: "24.31", state: "Твердое" },
+  { name: "Алюминий", atomicNumber: 13, symbol: "Al", category: "Постпереходный металл", atomicWeight: "26.98", state: "Твердое" },
+  { name: "Кремний", atomicNumber: 14, symbol: "Si", category: "Металлоид", atomicWeight: "28.09", state: "Твердое" },
+  { name: "Фосфор", atomicNumber: 15, symbol: "P", category: "Неметалл", atomicWeight: "30.97", state: "Твердое" },
+  { name: "Сера", atomicNumber: 16, symbol: "S", category: "Неметалл", atomicWeight: "32.06", state: "Твердое" },
+  { name: "Хлор", atomicNumber: 17, symbol: "Cl", category: "Галоген", atomicWeight: "35.45", state: "Газ" },
+  { name: "Аргон", atomicNumber: 18, symbol: "Ar", category: "Благородный газ", atomicWeight: "39.95", state: "Газ" },
+  { name: "Калий", atomicNumber: 19, symbol: "K", category: "Щелочной металл", atomicWeight: "39.10", state: "Твердое" },
+  { name: "Кальций", atomicNumber: 20, symbol: "Ca", category: "Щелочноземельный металл", atomicWeight: "40.08", state: "Твердое" },
+  { name: "Скандий", atomicNumber: 21, symbol: "Sc", category: "Переходный металл", atomicWeight: "44.96", state: "Твердое" },
+  { name: "Титан", atomicNumber: 22, symbol: "Ti", category: "Переходный металл", atomicWeight: "47.87", state: "Твердое" },
+  { name: "Ванадий", atomicNumber: 23, symbol: "V", category: "Переходный металл", atomicWeight: "50.94", state: "Твердое" },
+  { name: "Хром", atomicNumber: 24, symbol: "Cr", category: "Переходный металл", atomicWeight: "52.00", state: "Твердое" },
+  { name: "Марганец", atomicNumber: 25, symbol: "Mn", category: "Переходный металл", atomicWeight: "54.94", state: "Твердое" },
+  { name: "Железо", atomicNumber: 26, symbol: "Fe", category: "Переходный металл", atomicWeight: "55.85", state: "Твердое" },
+  { name: "Кобальт", atomicNumber: 27, symbol: "Co", category: "Переходный металл", atomicWeight: "58.93", state: "Твердое" },
+  { name: "Никель", atomicNumber: 28, symbol: "Ni", category: "Переходный металл", atomicWeight: "58.69", state: "Твердое" },
+  { name: "Медь", atomicNumber: 29, symbol: "Cu", category: "Переходный металл", atomicWeight: "63.55", state: "Твердое" },
+  { name: "Цинк", atomicNumber: 30, symbol: "Zn", category: "Переходный металл", atomicWeight: "65.38", state: "Твердое" },
+  { name: "Галлий", atomicNumber: 31, symbol: "Ga", category: "Постпереходный металл", atomicWeight: "69.72", state: "Твердое" },
+  { name: "Германий", atomicNumber: 32, symbol: "Ge", category: "Металлоид", atomicWeight: "72.64", state: "Твердое" },
+  { name: "Мышьяк", atomicNumber: 33, symbol: "As", category: "Металлоид", atomicWeight: "74.92", state: "Твердое" },
+  { name: "Селен", atomicNumber: 34, symbol: "Se", category: "Халькоген", atomicWeight: "78.97", state: "Твердое" },
+  { name: "Бром", atomicNumber: 35, symbol: "Br", category: "Галоген", atomicWeight: "79.90", state: "Жидкое" },
+  { name: "Криптон", atomicNumber: 36, symbol: "Kr", category: "Благородный газ", atomicWeight: "83.80", state: "Газ" },
+  { name: "Рубидий", atomicNumber: 37, symbol: "Rb", category: "Щелочной металл", atomicWeight: "85.47", state: "Твердое" },
+  { name: "Стронций", atomicNumber: 38, symbol: "Sr", category: "Щелочноземельный металл", atomicWeight: "87.62", state: "Твердое" },
+  { name: "Иттрий", atomicNumber: 39, symbol: "Y", category: "Переходный металл", atomicWeight: "88.91", state: "Твердое" },
+  { name: "Цирконий", atomicNumber: 40, symbol: "Zr", category: "Переходный металл", atomicWeight: "91.22", state: "Твердое" },
+  { name: "Ниобий", atomicNumber: 41, symbol: "Nb", category: "Переходный металл", atomicWeight: "92.91", state: "Твердое" },
+  { name: "Молибден", atomicNumber: 42, symbol: "Mo", category: "Переходный металл", atomicWeight: "95.96", state: "Твердое" },
+  { name: "Технеций", atomicNumber: 43, symbol: "Tc", category: "Переходный металл", atomicWeight: "98.91", state: "Твердое" },
+  { name: "Рутений", atomicNumber: 44, symbol: "Ru", category: "Переходный металл", atomicWeight: "101.07", state: "Твердое" },
+  { name: "Родий", atomicNumber: 45, symbol: "Rh", category: "Переходный металл", atomicWeight: "102.91", state: "Твердое" },
+  { name: "Палладий", atomicNumber: 46, symbol: "Pd", category: "Переходный металл", atomicWeight: "106.42", state: "Твердое" },
+  { name: "Серебро", atomicNumber: 47, symbol: "Ag", category: "Переходный металл", atomicWeight: "107.87", state: "Твердое" },
+  { name: "Кадмий", atomicNumber: 48, symbol: "Cd", category: "Переходный металл", atomicWeight: "112.41", state: "Твердое" },
+  { name: "Индий", atomicNumber: 49, symbol: "In", category: "Постпереходный металл", atomicWeight: "114.82", state: "Твердое" },
+  { name: "Олово", atomicNumber: 50, symbol: "Sn", category: "Постпереходный металл", atomicWeight: "118.71", state: "Твердое" },
+  { name: "Сурьма", atomicNumber: 51, symbol: "Sb", category: "Металлоид", atomicWeight: "121.76", state: "Твердое" },
+  { name: "Теллур", atomicNumber: 52, symbol: "Te", category: "Металлоид", atomicWeight: "127.60", state: "Твердое" },
+  { name: "Йод", atomicNumber: 53, symbol: "I", category: "Галоген", atomicWeight: "126.90", state: "Твердое" },
+  { name: "Ксенон", atomicNumber: 54, symbol: "Xe", category: "Благородный газ", atomicWeight: "131.29", state: "Газ" },
+  { name: "Цезий", atomicNumber: 55, symbol: "Cs", category: "Щелочной металл", atomicWeight: "132.91", state: "Твердое" },
+  { name: "Барий", atomicNumber: 56, symbol: "Ba", category: "Щелочноземельный металл", atomicWeight: "137.33", state: "Твердое" },
+  { name: "Лантан", atomicNumber: 57, symbol: "La", category: "Лантаноид", atomicWeight: "138.91", state: "Твердое" },
+  { name: "Церий", atomicNumber: 58, symbol: "Ce", category: "Лантаноид", atomicWeight: "140.12", state: "Твердое" },
+  { name: "Празеодим", atomicNumber: 59, symbol: "Pr", category: "Лантаноид", atomicWeight: "140.91", state: "Твердое" },
+  { name: "Неодим", atomicNumber: 60, symbol: "Nd", category: "Лантаноид", atomicWeight: "144.24", state: "Твердое" },
+  { name: "Прометий", atomicNumber: 61, symbol: "Pm", category: "Лантаноид", atomicWeight: "144.91", state: "Твердое" },
+  { name: "Самарий", atomicNumber: 62, symbol: "Sm", category: "Лантаноид", atomicWeight: "150.36", state: "Твердое" },
+  { name: "Европий", atomicNumber: 63, symbol: "Eu", category: "Лантаноид", atomicWeight: "151.96", state: "Твердое" },
+  { name: "Гадолиний", atomicNumber: 64, symbol: "Gd", category: "Лантаноид", atomicWeight: "157.25", state: "Твердое" },
+  { name: "Тербий", atomicNumber: 65, symbol: "Tb", category: "Лантаноид", atomicWeight: "158.93", state: "Твердое" },
+  { name: "Диспрозий", atomicNumber: 66, symbol: "Dy", category: "Лантаноид", atomicWeight: "162.50", state: "Твердое" },
+  { name: "Гольмий", atomicNumber: 67, symbol: "Ho", category: "Лантаноид", atomicWeight: "164.93", state: "Твердое" },
+  { name: "Эрбий", atomicNumber: 68, symbol: "Er", category: "Лантаноид", atomicWeight: "167.26", state: "Твердое" },
+  { name: "Тулий", atomicNumber: 69, symbol: "Tm", category: "Лантаноид", atomicWeight: "168.93", state: "Твердое" },
+  { name: "Иттербий", atomicNumber: 70, symbol: "Yb", category: "Лантаноид", atomicWeight: "173.04", state: "Твердое" },
+  { name: "Лютеций", atomicNumber: 71, symbol: "Lu", category: "Лантаноид", atomicWeight: "174.97", state: "Твердое" },
+  { name: "Гафний", atomicNumber: 72, symbol: "Hf", category: "Переходный металл", atomicWeight: "178.49", state: "Твердое" },
+  { name: "Тантал", atomicNumber: 73, symbol: "Ta", category: "Переходный металл", atomicWeight: "180.95", state: "Твердое" },
+  { name: "Вольфрам", atomicNumber: 74, symbol: "W", category: "Переходный металл", atomicWeight: "183.84", state: "Твердое" },
+  { name: "Рений", atomicNumber: 75, symbol: "Re", category: "Переходный металл", atomicWeight: "186.21", state: "Твердое" },
+{ name: "Осмий", atomicNumber: 76, symbol: "Os", category: "Переходный металл", atomicWeight: "190.23", state: "Твердое" },
+{ name: "Иридий", atomicNumber: 77, symbol: "Ir", category: "Переходный металл", atomicWeight: "192.22", state: "Твердое" },
+{ name: "Платина", atomicNumber: 78, symbol: "Pt", category: "Переходный металл", atomicWeight: "195.08", state: "Твердое" },
+{ name: "Золото", atomicNumber: 79, symbol: "Au", category: "Переходный металл", atomicWeight: "196.97", state: "Твердое" },
+{ name: "Ртуть", atomicNumber: 80, symbol: "Hg", category: "Переходный металл", atomicWeight: "200.59", state: "Жидкое" },
+{ name: "Таллий", atomicNumber: 81, symbol: "Tl", category: "Постпереходный металл", atomicWeight: "204.38", state: "Твердое" },
+{ name: "Свинец", atomicNumber: 82, symbol: "Pb", category: "Постпереходный металл", atomicWeight: "207.20", state: "Твердое" },
+{ name: "Висмут", atomicNumber: 83, symbol: "Bi", category: "Постпереходный металл", atomicWeight: "208.98", state: "Твердое" },
+{ name: "Полоний", atomicNumber: 84, symbol: "Po", category: "Металлоид", atomicWeight: "208.98", state: "Твердое" },
+{ name: "Астат", atomicNumber: 85, symbol: "At", category: "Галоген", atomicWeight: "209.99", state: "Твердое" },
+{ name: "Радон", atomicNumber: 86, symbol: "Rn", category: "Благородный газ", atomicWeight: "222.02", state: "Газ" },
+{ name: "Франций", atomicNumber: 87, symbol: "Fr", category: "Щелочной металл", atomicWeight: "223.02", state: "Твердое" },
+{ name: "Радий", atomicNumber: 88, symbol: "Ra", category: "Щелочноземельный металл", atomicWeight: "226.03", state: "Твердое" },
+{ name: "Актиний", atomicNumber: 89, symbol: "Ac", category: "Актиноид", atomicWeight: "227.03", state: "Твердое" },
+{ name: "Торий", atomicNumber: 90, symbol: "Th", category: "Актиноид", atomicWeight: "232.04", state: "Твердое" },
+{ name: "Протактиний", atomicNumber: 91, symbol: "Pa", category: "Актиноид", atomicWeight: "231.04", state: "Твердое" },
+{ name: "Уран", atomicNumber: 92, symbol: "U", category: "Актиноид", atomicWeight: "238.03", state: "Твердое" },
+{ name: "Нептуний", atomicNumber: 93, symbol: "Np", category: "Актиноид", atomicWeight: "237.05", state: "Твердое" },
+{ name: "Плутоний", atomicNumber: 94, symbol: "Pu", category: "Актиноид", atomicWeight: "244.06", state: "Твердое" },
+{ name: "Америций", atomicNumber: 95, symbol: "Am", category: "Актиноид", atomicWeight: "243.06", state: "Твердое" },
+{ name: "Кюрий", atomicNumber: 96, symbol: "Cm", category: "Актиноид", atomicWeight: "247.07", state: "Твердое" },
+{ name: "Берклий", atomicNumber: 97, symbol: "Bk", category: "Актиноид", atomicWeight: "247.07", state: "Твердое" },
+{ name: "Калифорний", atomicNumber: 98, symbol: "Cf", category: "Актиноид", atomicWeight: "251.08", state: "Твердое" },
+{ name: "Эйнштейний", atomicNumber: 99, symbol: "Es", category: "Актиноид", atomicWeight: "252.08", state: "Твердое" },
+{ name: "Фермий", atomicNumber: 100, symbol: "Fm", category: "Актиноид", atomicWeight: "257.10", state: "Твердое" },
+{ name: "Менделевий", atomicNumber: 101, symbol: "Md", category: "Актиноид", atomicWeight: "258.10", state: "Твердое" },
+{ name: "Нобелий", atomicNumber: 102, symbol: "No", category: "Актиноид", atomicWeight: "259.10", state: "Твердое" },
+{ name: "Лоуренсий", atomicNumber: 103, symbol: "Lr", category: "Актиноид", atomicWeight: "262.11", state: "Твердое" },
+{ name: "Резерфордий", atomicNumber: 104, symbol: "Rf", category: "Трансактиноид", atomicWeight: "267.12", state: "Твердое" },
+{ name: "Дубний", atomicNumber: 105, symbol: "Db", category: "Трансактиноид", atomicWeight: "268.13", state: "Твердое" },
+{ name: "Сиборгий", atomicNumber: 106, symbol: "Sg", category: "Трансактиноид", atomicWeight: "271.13", state: "Твердое" },
+{ name: "Борий", atomicNumber: 107, symbol: "Bh", category: "Трансактиноид", atomicWeight: "270.13", state: "Твердое" },
+{ name: "Хассий", atomicNumber: 108, symbol: "Hs", category: "Трансактиноид", atomicWeight: "277.15", state: "Твердое" },
+{ name: "Мейтнерий", atomicNumber: 109, symbol: "Mt", category: "Трансактиноид", atomicWeight: "278.16", state: "Твердое" },
+{ name: "Дармштадтий", atomicNumber: 110, symbol: "Ds", category: "Трансактиноид", atomicWeight: "281.16", state: "Твердое" },
+{ name: "Рентгений", atomicNumber: 111, symbol: "Rg", category: "Трансактиноид", atomicWeight: "282.17", state: "Твердое" },
+{ name: "Коперниций", atomicNumber: 112, symbol: "Cn", category: "Трансактиноид", atomicWeight: "285.17", state: "Твердое" },
+{ name: "Нихоний", atomicNumber: 113, symbol: "Nh", category: "Трансактиноид", atomicWeight: "286.18", state: "Твердое" },
+{ name: "Флеровий", atomicNumber: 114, symbol: "Fl", category: "Трансактиноид", atomicWeight: "289.19", state: "Твердое" },
+{ name: "Московий", atomicNumber: 115, symbol: "Mc", category: "Трансактиноид", atomicWeight: "288.19", state: "Твердое" },
+{ name: "Ливерморий", atomicNumber: 116, symbol: "Lv", category: "Трансактиноид", atomicWeight: "293.20", state: "Твердое" },
+{ name: "Теннессин", atomicNumber: 117, symbol: "Ts", category: "Трансактиноид", atomicWeight: "294.21", state: "Твердое" },
+{ name: "Оганесон", atomicNumber: 118, symbol: "Og", category: "Трансактиноид", atomicWeight: "294.21", state: "Газ" }
+];
+    function getElementInfo() {
+      const inputSymbol = document.getElementById("symbol").value.toUpperCase();
+      const element = elements.find(elem => elem.symbol.toUpperCase() === inputSymbol);
+
+      if (element) {
+        const resultDiv = document.getElementById("result");
+        resultDiv.innerHTML = `
+          <h2>Информация об элементе</h2>
+          <p><strong>Название:</strong> ${element.name}</p>
+          <p><strong>Атомный номер:</strong> ${element.atomicNumber}</p>
+          <p><strong>Символ:</strong> ${element.symbol}</p>
+          <p><strong>Категория:</strong> ${element.category}</p>
+          <p><strong>Атомный вес:</strong> ${element.atomicWeight}</p>
+          <p><strong>Состояние:</strong> ${element.state}</p>
+        `;
+      } else {
+        document.getElementById("result").innerHTML = "Элемент не найден.";
+      }
+    }
+  </script>
+</body>
+</html>
