@@ -31,8 +31,16 @@
 </head>
 <body>
     <h1>Принуждение к коллаборации 🫠</h1>
-    <button onclick="window.location.href='superai.html'">Суперай</button>
-    <button onclick="window.location.href='whatbeatsrock.html'">Что бьет рок</button>
-    <p>Только для браузерной версии!</p>
+    <button onclick="window.location.href='superai.html'">Dark ChatGPT</button>
+    <button onclick="window.location.href='whatbeatsrock.html'">Что бьет камень</button>
+  <script>
+		function runTool(toolName) {
+			var url = toolName + ".html";
+			window.open(url, "_blank");
+		}
+	</script>
+	<button onclick="runTool('glist')">НАЗАД</button>
+        <p>Только для браузерной версии!</p>
+  
 </body>
 </html>
