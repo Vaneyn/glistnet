@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2048 Game</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: #faf8ef;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            overflow: hidden; /* Убираем прокрутку */
+        }
+        .game-container {
+            width: 90vw;
+            height: 90vh;
+            max-width: 500px;
+            max-height: 500px;
+            background: #bbada0;
+            border-radius: 10px;
+            position: relative;
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            grid-template-rows: repeat(5, 1fr);
+            gap: 5px;
+            padding: 5px;
+            border: 3px solid #eee;
+        }
+        .tile {
+            background: #eee4da;
+            border-radius: 5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2em;
+            color: #776e65;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+        .highlight {
+            border: 3px solid #ffcc00;
+        }
+        .score {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 1.5em;
+            color: #776e65;
+        }
+        .record {
+            font-size: 1.2em;
+            margin-top: 10px;
+            color: #776e65;
+        }
+        .back-button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 1em;
+            cursor: pointer;
+            background-color: #ffcc00;
+            border: none;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+        .back-button:hover {
+            background-color: #e6b800;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container" id="game-container"></div>
+    <div class="score" id="score">Score: 0</div>
+    <div class="record" id="record">Record: 0</div>
+    <button class="back-button" onclick="goBack()">Назад</button>
+    
+    <script>
+        const container = document.getElementById('game-container');
+        const scoreDisplay = document.getElementById('score');
+        const recordDisplay = document.getElementById('record');
+        let board = Array(5).fill(null).map(() => Array(5).fill(0));
+        let score = 0;
+        let selectedTile = null;
+        let record = localStorage.getItem('2048') ? parseInt(localStorage.getItem('2048')) : 0;
+
+        function init() {
+            fillBoard();
+            render();
+            updateRecordDisplay();
+        }
+
+        function fillBoard() {
+            // Заполнение поля плитками 2, 4 или 8
+            for (let r = 0; r < 5; r++) {
+                for (let c = 0; c < 5; c++) {
+                    board[r][c] = [2, 4, 8][Math.floor(Math.random() * 3)];
+                }
+            }
+        }
+
+        function render() {
+            container.innerHTML = '';
+            board.forEach((row, r) => {
+                row.forEach((tile, c) => {
+                    const tileElement = document.createElement('div');
+                    tileElement.classList.add('tile');
+                    tileElement.innerText = tile > 0 ? tile : '';
+                    tileElement.style.backgroundColor = getTileColor(tile);
+                    
+                    // Добавляем обработчик нажатия
+                    tileElement.onclick = () => selectTile(r, c);
+                    if (selectedTile && selectedTile.r === r && selectedTile.c === c) {
+                        tileElement.classList.add('highlight');
+                    }
+                    container.appendChild(tileElement);
+                });
+            });
+            scoreDisplay.innerText = `Score: ${score}`;
+        }
+
+        function getTileColor(value) {
+            const colors = {
+                2: '#eee4da',
+                4: '#ede0c8',
+                8: '#f2b179',
+                16: '#f59563',
+                32: '#f67c5f',
+                64: '#f67c5f',
+                128: '#ff4d4d', // Красный
+                256: '#ff1a1a', // Более темный красный
+                512: '#ff0066', // Розовый
+                1024: '#cc00cc', // Фиолетовый
+                2048: '#9900cc', // Темный фиолетовый
+            };
+            return colors[value] || '#cdc1b4';
+        }
+
+        function selectTile(r, c) {
+            if (selectedTile) {
+                if (selectedTile.r === r && selectedTile.c === c) {
+                    // Снять выделение
+                    selectedTile = null;
+                } else {
+                    // Попробовать объединить плитки
+                    if (canMerge(selectedTile.r, selectedTile.c, r, c)) {
+                        mergeTiles(selectedTile.r, selectedTile.c, r, c);
+                        selectedTile = null;
+                        addTile();
+                        updateRecord();
+                    } else {
+                        selectedTile = { r, c };
+                    }
+                }
+            } else {
+                selectedTile = { r, c };
+            }
+            render();
+        }
+
+        function canMerge(r1, c1, r2, c2) {
+            return board[r1][c1] === board[r2][c2] && Math.abs(r1 - r2) + Math.abs(c1 - c2) === 1;
+        }
+
+        function mergeTiles(r1, c1, r2, c2) {
+            const value = board[r1][c1];
+            board[r2][c2] += value;
+            board[r1][c1] = 0;
+            score += value;
+
+            // Проверка на победу
+            if (board[r2][c2] === 2048) {
+                alert("Победа!");
+            }
+        }
+
+        function addTile() {
+            let emptyTiles = [];
+            for (let r = 0; r < 5; r++) {
+                for (let c = 0; c < 5; c++) {
+                    if (board[r][c] === 0) {
+                        emptyTiles.push({r, c});
+                    }
+                }
+            }
+            if (emptyTiles.length) {
+                const {r, c} = emptyTiles[Math.floor(Math.random() * emptyTiles.length)];
+                board[r][c] = [2, 4, 8][Math.floor(Math.random() * 3)];
+            }
+        }
+
+        function updateRecord() {
+            if (score > record) {
+                record = score;
+                localStorage.setItem('2048', record);
+                updateRecordDisplay();
+            }
+        }
+
+        function updateRecordDisplay() {
+            recordDisplay.innerText = `Record: ${record}`;
+        }
+
+        function goBack() {
+            window.location.href = 'glist.html';
+        }
+
+        init();
+    </script>
+</body>
+</html>
