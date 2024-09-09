@@ -1,36 +1,98 @@
 <!DOCTYPE html>
 <html>
 <head>
-<style>
-		body {
-			color: white;
-			background-color: grey;
-		}
-	</style>
-	<title>Калькулятор</title>
+    <title>Серый калькулятор</title>
+    <style>
+        body {
+            background-color: #f2f2f2;
+        }
+        
+        .container {
+            margin: 0 auto;
+            width: 300px;
+            padding: 20px;
+            background-color: #ccc;
+            border-radius: 10px;
+        }
+        
+        .input {
+            margin-bottom: 10px;
+            padding: 10px;
+            width: 100%;
+            font-size: 18px;
+        }
+        
+        .button {
+            display: inline-block;
+            margin: 5px;
+            padding: 10px 20px;
+            font-size: 18px;
+            background-color: #666;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        .button:hover {
+            background-color: #444;
+        }
+    </style>
 </head>
 <body>
-	<h1>Калькулятор</h1>
-	<form>
-		<input type="text" name="num1" placeholder="Введите первое число">
-		<br>
-		<input type="text" name="num2" placeholder="Введите второе число">
-		<br><br>
-		<input type="button" value="Сложить" onclick="document.getElementById('result').value=parseFloat(document.getElementsByName('num1')[0].value)+parseFloat(document.getElementsByName('num2')[0].value)">
-		<input type="button" value="Вычесть" onclick="document.getElementById('result').value=parseFloat(document.getElementsByName('num1')[0].value)-parseFloat(document.getElementsByName('num2')[0].value)">
-		<input type="button" value="Умножить" onclick="document.getElementById('result').value=parseFloat(document.getElementsByName('num1')[0].value)*parseFloat(document.getElementsByName('num2')[0].value)">
-		<input type="button" value="Разделить" onclick="document.getElementById('result').value=parseFloat(document.getElementsByName('num1')[0].value)/parseFloat(document.getElementsByName('num2')[0].value)">
-		<br><br>
-		<input type="text" id="result" name="result" placeholder="Результат">
-	</form>
-</body>
-</script>
-  <button onclick="runTool('glist')">НАЗАД</button>
-</script>
-	<script>
+    <div class="container">
+        <input type="text" id="result" class="input" readonly>
+        <table>
+            <tr>
+                <td><input type="button" value="7" class="button" onclick="appendToResult('7')"></td>
+                <td><input type="button" value="8" class="button" onclick="appendToResult('8')"></td>
+                <td><input type="button" value="9" class="button" onclick="appendToResult('9')"></td>
+                <td><input type="button" value="+" class="button" onclick="appendToResult('+')"></td>
+            </tr>
+            <tr>
+                <td><input type="button" value="4" class="button" onclick="appendToResult('4')"></td>
+                <td><input type="button" value="5" class="button" onclick="appendToResult('5')"></td>
+                <td><input type="button" value="6" class="button" onclick="appendToResult('6')"></td>
+                <td><input type="button" value="-" class="button" onclick="appendToResult('-')"></td>
+            </tr>
+            <tr>
+                <td><input type="button" value="1" class="button" onclick="appendToResult('1')"></td>
+                <td><input type="button" value="2" class="button" onclick="appendToResult('2')"></td>
+                <td><input type="button" value="3" class="button" onclick="appendToResult('3')"></td>
+                <td><input type="button" value="*" class="button" onclick="appendToResult('*')"></td>
+            </tr>
+            <tr>
+                <td><input type="button" value="0" class="button" onclick="appendToResult('0')"></td>
+                <td><input type="button" value="." class="button" onclick="appendToResult('.')"></td>
+                <td><input type="button" value="=" class="button" onclick="calculateResult()"></td>
+                <td><input type="button" value="/" class="button" onclick="appendToResult('/')"></td>
+            </tr>
+            <tr>
+                <td colspan="4"><input type="button" value="C" class="button" onclick="clearResult()"></td>
+            </tr>
+        </table>
+    </div>
+    	<script>
 		function runTool(toolName) {
 			var url = toolName + ".html";
 			window.open(url, "_blank");
 		}
 	</script>
+			<button onclick="runTool('glist')">НАЗАД</button>
+		
+    <script>
+        function appendToResult(value) {
+            document.getElementById('result').value += value;
+        }
+        
+        function calculateResult() {
+            var result = eval(document.getElementById('result').value);
+            document.getElementById('result').value = result;
+        }
+        
+        function clearResult() {
+            document.getElementById('result').value = '';
+        }
+    </script>
+</body>
 </html>
