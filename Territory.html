@@ -12,28 +12,33 @@
             align-items: center;
             margin: 0;
             padding: 20px;
+            background-color: #f8f9fa;
             overflow: hidden;
+        }
+        h1 {
+            color: #333;
         }
         .grid {
             display: grid;
             grid-template-columns: repeat(10, 1fr);
             width: 100vw;
-            height: 100vw; /* Квадратное поле */
-            max-width: 600px; /* Максимальная ширина для больших экранов */
+            height: 80vh; /* Уменьшение высоты для соответствия экрану */
+            max-width: 600px;
             max-height: 600px;
-            margin-top: 10px; /* Отступ для кнопки */
+            margin-top: 10px;
         }
         .cell {
             display: flex;
             justify-content: center;
             align-items: center;
-            border: 1px solid #333;
+            border: 1px solid #ccc;
+            background-color: #fff;
             cursor: pointer;
             user-select: none;
             transition: background-color 0.3s, border 0.3s;
         }
         .selected {
-            border: 2px solid #00f; /* Бордер для выделенной клетки */
+            border: 2px solid #007bff; /* Бордер для выделенной клетки */
         }
         #endTurn {
             padding: 10px 20px;
@@ -231,6 +236,20 @@
                                     attackMade = true;
                                 }
                             }
+                        }
+                    }
+                }
+            }
+
+            // Если атака не была сделана, случайные атаки
+            if (!attackMade) {
+                for (let i = 0; i < 2; i++) { // Максимум 2 случайные атаки
+                    if (Math.random() < 0.5) {
+                        const randomX = Math.floor(Math.random() * gridSize);
+                        const randomY = Math.floor(Math.random() * gridSize);
+                        const randomCell = playerCells[randomX][randomY];
+                        if (randomCell.color === '🟦' && randomCell.count > 1) {
+                            attackCell({ x: randomX, y: randomY }, { x: randomX, y: randomY });
                         }
                     }
                 }
