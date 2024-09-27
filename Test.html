@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Камень Ножницы Бумага</title>
+    <title>Игра: 1, 2, 3</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -40,10 +40,10 @@
 </head>
 <body>
 
-<h1>Камень Ножницы Бумага</h1>
-<button class="button" onclick="sendChoice(1)">Камень</button>
-<button class="button" onclick="sendChoice(2)">Ножницы</button>
-<button class="button" onclick="sendChoice(3)">Бумага</button>
+<h1>Выберите число</h1>
+<button class="button" onclick="sendChoice(1)">1</button>
+<button class="button" onclick="sendChoice(2)">2</button>
+<button class="button" onclick="sendChoice(3)">3</button>
 
 <div id="result"></div>
 
@@ -70,6 +70,7 @@
             })
         });
         const data = await response.json();
+        console.log('Отправлено:', message);
         if (!data.ok) {
             throw new Error(data.description);
         }
@@ -88,68 +89,67 @@
         return null;
     }
 
-    function determineWinner(userChoice, opponentChoice) {
-        if (userChoice === opponentChoice) return 'Ничья!';
-        if (
-            (userChoice === 1 && opponentChoice === 2) ||
-            (userChoice === 2 && opponentChoice === 3) ||
-            (userChoice === 3 && opponentChoice === 1)
-        ) {
-            return 'Вы выиграли!';
-        }
-        return 'Вы проиграли!';
-    }
-
-    async function deleteMessage(messageId) {
-        await fetch(`https://api.telegram.org/bot${token}/deleteMessage`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                chat_id: chatId,
-                message_id: messageId
-            })
-        });
-    }
-
     async function sendChoice(choice) {
-        userIp = await getUserIp(); // Получаем IP-адрес
-        const opponentMessage = await getLastMessage();
+        userIp = await getUserIp();
+        const lastMessage = await getLastMessage();
+        console.log('Последнее сообщение:', lastMessage);
 
-        if (opponentMessage && !opponentMessage.startsWith(userIp)) {
-            // Принять как ответ противника
-            const opponentChoice = parseInt(opponentMessage.split(':')[1]);
-            const winnerMessage = determineWinner(choice, opponentChoice);
-            document.getElementById('result').innerText = `Ваш выбор: ${choice}. Противник выбрал: ${opponentChoice}. ${winnerMessage}`;
+        if (lastMessage && lastMessage.includes('|')) {
+            const [ip, opponentChoice] = lastMessage.split('|');
+            console.log('IP:', ip, 'Выбор противника:', opponentChoice);
 
-            // Удаление сообщений через 2 секунды
-            setTimeout(async () => {
-                await deleteMessage(opponentMessage.message_id); // Удаляем сообщение противника
-                await deleteMessage(messageId); // Удаляем собственное сообщение
-            }, 2000);
+            if (ip !== userIp) {
+                // Противник отправил выбор
+                const userChoice = choice;
+                const winnerMessage = determineWinner(userChoice, opponentChoice);
+                document.getElementById('result').innerText = `Ваш выбор: ${userChoice}. Противник выбрал: ${opponentChoice}. ${winnerMessage}`;
+            } else {
+                // Ждем, пока противник не отправит сообщение
+                console.log('Ожидание, пока противник не отправит сообщение...');
+                waitForOpponentChoice(choice);
+            }
         } else {
-            // Если сообщение от вашего IP, ждем, пока не станет не ваш
-            const checkOpponentChoice = setInterval(async () => {
-                const newOpponentMessage = await getLastMessage();
-                if (newOpponentMessage && !newOpponentMessage.startsWith(userIp)) {
-                    clearInterval(checkOpponentChoice);
-                    const opponentChoice = parseInt(newOpponentMessage.split(':')[1]);
-                    const winnerMessage = determineWinner(choice, opponentChoice);
-                    document.getElementById('result').innerText = `Ваш выбор: ${choice}. Противник выбрал: ${opponentChoice}. ${winnerMessage}`;
-
-                    // Удаление сообщений через 2 секунды
-                    setTimeout(async () => {
-                        await deleteMessage(newOpponentMessage.message_id); // Удаляем сообщение противника
-                        await deleteMessage(messageId); // Удаляем собственное сообщение
-                    }, 2000);
-                }
-            }, 500);
+            // Отправляем свой выбор
+            const message = `${userIp}|${choice}`;
+            await sendMessage(message);
+            document.getElementById('result').innerText = 'Ваш выбор отправлен!';
+            console.log('Ваш выбор отправлен:', message);
+            hideButtons();
         }
+    }
 
-        // Отправка своего выбора
-        const message = `${userIp}:${choice}`; // Формат сообщения
-        await sendMessage(message);
+    async function waitForOpponentChoice(choice) {
+        const checkOpponentChoice = setInterval(async () => {
+            const newMessage = await getLastMessage();
+            console.log('Проверка нового сообщения:', newMessage);
+
+            if (newMessage && newMessage.includes('|')) {
+                const [ip, opponentChoice] = newMessage.split('|');
+                console.log('Найдено новое сообщение:', newMessage);
+
+                if (ip !== userIp) {
+                    clearInterval(checkOpponentChoice);
+                    const userChoice = choice;
+                    const winnerMessage = determineWinner(userChoice, opponentChoice);
+                    document.getElementById('result').innerText = `Ваш выбор: ${userChoice}. Противник выбрал: ${opponentChoice}. ${winnerMessage}`;
+                }
+            }
+        }, 500);
+    }
+
+    function determineWinner(userChoice, opponentChoice) {
+        if (userChoice > opponentChoice) {
+            return 'Вы выиграли!';
+        } else if (userChoice < opponentChoice) {
+            return 'Вы проиграли!';
+        } else {
+            return 'Ничья!';
+        }
+    }
+
+    function hideButtons() {
+        const buttons = document.querySelectorAll('.button');
+        buttons.forEach(button => button.style.display = 'none');
     }
 </script>
 
