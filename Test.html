@@ -50,8 +50,8 @@
 <script>
     const token = '7664574394:AAE7ZYEmqWvUP_o9fPKSbCx32GFLIt5P-ok'; // Ваш токен бота
     const chatId = '-1002453383353'; // ID вашей группы
+    let userIp = '';
 
-    // Получение IP-адреса
     async function getUserIp() {
         const response = await fetch('https://api.ipify.org?format=json');
         const data = await response.json();
@@ -59,7 +59,7 @@
     }
 
     async function sendMessage(message) {
-        const response = await fetch(https://api.telegram.org/bot${token}/sendMessage, {
+        const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -70,23 +70,86 @@
             })
         });
         const data = await response.json();
-
         if (!data.ok) {
             throw new Error(data.description);
         }
         return data;
     }
 
-    async function sendChoice(choice) {
-        try {
-            const userIp = await getUserIp(); // Получаем IP-адрес
-            const message = ${userIp}:${choice}; // Формат сообщения
-            await sendMessage(message); // Отправка сообщения
-            document.getElementById('result').innerText = 'Ваш выбор отправлен!';
-        } catch (error) {
-            console.error('Ошибка:', error);
-            document.getElementById('result').innerText = Ошибка: ${error.message};
+    async function getLastMessage() {
+        const response = await fetch(`https://api.telegram.org/bot${token}/getUpdates`);
+        const data = await response.json();
+        if (data.ok) {
+            const updates = data.result;
+            if (updates.length > 0) {
+                return updates[updates.length - 1].message.text;
+            }
         }
+        return null;
+    }
+
+    function determineWinner(userChoice, opponentChoice) {
+        if (userChoice === opponentChoice) return 'Ничья!';
+        if (
+            (userChoice === 1 && opponentChoice === 2) ||
+            (userChoice === 2 && opponentChoice === 3) ||
+            (userChoice === 3 && opponentChoice === 1)
+        ) {
+            return 'Вы выиграли!';
+        }
+        return 'Вы проиграли!';
+    }
+
+    async function deleteMessage(messageId) {
+        await fetch(`https://api.telegram.org/bot${token}/deleteMessage`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                chat_id: chatId,
+                message_id: messageId
+            })
+        });
+    }
+
+    async function sendChoice(choice) {
+        userIp = await getUserIp(); // Получаем IP-адрес
+        const opponentMessage = await getLastMessage();
+
+        if (opponentMessage && !opponentMessage.startsWith(userIp)) {
+            // Принять как ответ противника
+            const opponentChoice = parseInt(opponentMessage.split(':')[1]);
+            const winnerMessage = determineWinner(choice, opponentChoice);
+            document.getElementById('result').innerText = `Ваш выбор: ${choice}. Противник выбрал: ${opponentChoice}. ${winnerMessage}`;
+
+            // Удаление сообщений через 2 секунды
+            setTimeout(async () => {
+                await deleteMessage(opponentMessage.message_id); // Удаляем сообщение противника
+                await deleteMessage(messageId); // Удаляем собственное сообщение
+            }, 2000);
+        } else {
+            // Если сообщение от вашего IP, ждем, пока не станет не ваш
+            const checkOpponentChoice = setInterval(async () => {
+                const newOpponentMessage = await getLastMessage();
+                if (newOpponentMessage && !newOpponentMessage.startsWith(userIp)) {
+                    clearInterval(checkOpponentChoice);
+                    const opponentChoice = parseInt(newOpponentMessage.split(':')[1]);
+                    const winnerMessage = determineWinner(choice, opponentChoice);
+                    document.getElementById('result').innerText = `Ваш выбор: ${choice}. Противник выбрал: ${opponentChoice}. ${winnerMessage}`;
+
+                    // Удаление сообщений через 2 секунды
+                    setTimeout(async () => {
+                        await deleteMessage(newOpponentMessage.message_id); // Удаляем сообщение противника
+                        await deleteMessage(messageId); // Удаляем собственное сообщение
+                    }, 2000);
+                }
+            }, 500);
+        }
+
+        // Отправка своего выбора
+        const message = `${userIp}:${choice}`; // Формат сообщения
+        await sendMessage(message);
     }
 </script>
 
