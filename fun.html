@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Задержка смеха</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        input[type="range"] {
+            width: 300px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Выберите задержку для смеха</h1>
+    <input type="range" id="delaySlider" min="1" max="60" value="1">
+    <p>Задержка: <span id="delayValue">1</span> секунд</p>
+    <button id="playButton">Запустить смех</button>
+    <audio id="laughAudio" src="path/to/laugh.mp3"></audio>
+
+    <script>
+        const delaySlider = document.getElementById('delaySlider');
+        const delayValue = document.getElementById('delayValue');
+        const playButton = document.getElementById('playButton');
+        const laughAudio = document.getElementById('laughAudio');
+
+        delaySlider.addEventListener('input', () => {
+            delayValue.textContent = delaySlider.value;
+        });
+
+        playButton.addEventListener('click', () => {
+            const delay = delaySlider.value * 1000; // переводим в миллисекунды
+            setTimeout(() => {
+                laughAudio.play();
+            }, delay);
+        });
+    </script>
+</body>
+</html>
