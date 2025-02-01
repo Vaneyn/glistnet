@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Шахматы с кругами для фигур</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { display: flex; justify-content: center; align-items: center; height: 100vh; background: #222; }
+    #container { width: min(90vw, 90vh); height: min(90vw, 90vh); display: flex; justify-content: center; align-items: center; }
+    #board { 
+      display: grid; 
+      grid-template-columns: repeat(8, 1fr); 
+      grid-template-rows: repeat(8, 1fr); 
+      width: 100%; 
+      height: 100%; 
+      transition: transform 0.5s;
+    }
+    .cell { 
+      display: flex; 
+      justify-content: center; 
+      align-items: center; 
+      font-size: 7vw; /* базовый размер, на случай если фигура без круга */
+      font-weight: bold; 
+      cursor: pointer; 
+      user-select: none; 
+      position: relative;
+    }
+    .light { background-color: #f0d9b5; }
+    .dark { background-color: #b58863; }
+    .highlight { outline: 3px solid lime; }
+    .selected { outline: 3px solid red; }
+    /* Стили для фигур в кругах */
+    .piece {
+      font-family: "Noto Sans Symbols2", "Arial Unicode MS", "Segoe UI Emoji", sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 90%;
+      height: 90%;
+      border-radius: 10%;
+      font-size: 7vw;
+      transition: transform 0.5s;
+    }
+  </style>
+</head>
+<body>
+ <button onclick="location.href='glist.html'">Назад</button>
+   
+  <div id="container">
+    <div id="board"></div>
+  </div>
+
+  <script>
+    const boardElem = document.getElementById('board');
+    let board = [];
+    let selected = null;
+    let legalMoves = [];
+    let currentTurn = 'white';
+    let isFlipped = false;
+    let enPassantTarget = null; // для en passant
+
+    const piecesSymbols = {
+      pawn:   { white: '♙', black: '♟︎' },
+      rook:   { white: '♖', black: '♜' },
+      knight: { white: '♘', black: '♞' },
+      bishop: { white: '♗', black: '♝' },
+      queen:  { white: '♕', black: '♛' },
+      king:   { white: '♔', black: '♚' }
+    };
+
+    function initBoardArray() {
+      board = Array(8).fill().map(() => Array(8).fill(null));
+    }
+
+    function setupPieces() {
+      const backRow = ['rook', 'knight', 'bishop', 'queen', 'king', 'bishop', 'knight', 'rook'];
+      for (let c = 0; c < 8; c++) {
+        board[0][c] = { type: backRow[c], color: 'black', hasMoved: false };
+        board[1][c] = { type: 'pawn', color: 'black' };
+        board[6][c] = { type: 'pawn', color: 'white' };
+        board[7][c] = { type: backRow[c], color: 'white', hasMoved: false };
+      }
+    }
+
+    function drawBoard() {
+      boardElem.innerHTML = '';
+      for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+          const cell = document.createElement('div');
+          cell.classList.add('cell', (r + c) % 2 === 0 ? 'light' : 'dark');
+          cell.id = `cell-${r}-${c}`;
+          if (selected && selected.r === r && selected.c === c) {
+            cell.classList.add('selected');
+          } else if (legalMoves.some(m => m.r === r && m.c === c)) {
+            cell.classList.add('highlight');
+          }
+
+          const piece = board[r][c];
+          if (piece) {
+            const pieceElem = document.createElement('span');
+            pieceElem.classList.add('piece');
+            pieceElem.textContent = piecesSymbols[piece.type][piece.color];
+            // Формируем круг с контрастным фоном и границей
+            if (piece.color === 'white') {
+              pieceElem.style.backgroundColor = '#fff';
+              pieceElem.style.border = '2px solid #000';
+              pieceElem.style.color = '#000';
+            } else {
+              pieceElem.style.backgroundColor = '#000';
+              pieceElem.style.border = '2px solid #fff';
+              pieceElem.style.color = '#fff';
+            }
+            // При перевороте доски поворачиваем фигуру обратно
+            if (isFlipped) {
+              pieceElem.style.transform = 'rotate(180deg)';
+            }
+            cell.appendChild(pieceElem);
+          }
+
+          cell.addEventListener('click', () => onCellClick(r, c));
+          boardElem.appendChild(cell);
+        }
+      }
+    }
+
+    function onCellClick(r, c) {
+      const clickedPiece = board[r][c];
+      const chosenMove = legalMoves.find(m => m.r === r && m.c === c);
+      if (selected && chosenMove) {
+        movePiece(selected.r, selected.c, chosenMove);
+        selected = null;
+        legalMoves = [];
+        if (!chosenMove.doubleStep) {
+          enPassantTarget = null;
+        }
+        currentTurn = currentTurn === 'white' ? 'black' : 'white';
+        isFlipped = !isFlipped;
+        boardElem.style.transform = isFlipped ? 'rotate(180deg)' : 'rotate(0deg)';
+        drawBoard();
+        return;
+      }
+
+      if (clickedPiece && clickedPiece.color === currentTurn) {
+        selected = { r, c };
+        legalMoves = getLegalMoves(r, c);
+      } else {
+        selected = null;
+        legalMoves = [];
+      }
+      drawBoard();
+    }
+
+    function movePiece(fromR, fromC, move) {
+      const piece = board[fromR][fromC];
+      // Рокировка
+      if (piece.type === 'king' && Math.abs(move.c - fromC) === 2) {
+        if (move.c > fromC) { // kingside
+          board[fromR][5] = board[fromR][7];
+          board[fromR][7] = null;
+          if (board[fromR][5]) board[fromR][5].hasMoved = true;
+        } else { // queenside
+          board[fromR][3] = board[fromR][0];
+          board[fromR][0] = null;
+          if (board[fromR][3]) board[fromR][3].hasMoved = true;
+        }
+      }
+      // En passant
+      if (piece.type === 'pawn' && move.enPassant) {
+        board[fromR][move.c] = null;
+      }
+      board[move.r][move.c] = piece;
+      board[fromR][fromC] = null;
+      if (piece.type === 'king' || piece.type === 'rook') {
+        piece.hasMoved = true;
+      }
+    }
+
+    function isInside(r, c) {
+      return r >= 0 && r < 8 && c >= 0 && c < 8;
+    }
+
+    function getLegalMoves(r, c) {
+      const piece = board[r][c];
+      if (!piece) return [];
+      let moves = [];
+      switch (piece.type) {
+        case 'pawn':   moves = getPawnMoves(r, c, piece); break;
+        case 'knight': moves = getKnightMoves(r, c, piece); break;
+        case 'bishop': moves = getBishopMoves(r, c, piece); break;
+        case 'rook':   moves = getRookMoves(r, c, piece); break;
+        case 'queen':  moves = getQueenMoves(r, c, piece); break;
+        case 'king':   moves = getKingMoves(r, c, piece); break;
+        default: break;
+      }
+      return moves;
+    }
+
+    function getPawnMoves(r, c, piece) {
+      const moves = [];
+      const dir = piece.color === 'white' ? -1 : 1;
+      const startRow = piece.color === 'white' ? 6 : 1;
+      const forwardR = r + dir;
+
+      if (isInside(forwardR, c) && !board[forwardR][c]) {
+        moves.push({ r: forwardR, c });
+        const doubleR = r + 2 * dir;
+        if (r === startRow && isInside(doubleR, c) && !board[doubleR][c]) {
+          moves.push({ r: doubleR, c, doubleStep: true });
+          // Устанавливаем en passant target – клетку, через которую прошла пешка
+          enPassantTarget = { r: forwardR, c };
+        }
+      }
+
+      for (let dc of [-1, 1]) {
+        const newC = c + dc;
+        if (isInside(forwardR, newC)) {
+          if (board[forwardR][newC] && board[forwardR][newC].color !== piece.color) {
+            moves.push({ r: forwardR, c: newC });
+          } else if (!board[forwardR][newC] && enPassantTarget &&
+                     enPassantTarget.r === forwardR && enPassantTarget.c === newC) {
+            moves.push({ r: forwardR, c: newC, enPassant: true });
+          }
+        }
+      }
+      return moves;
+    }
+
+    function getKnightMoves(r, c, piece) {
+      const moves = [];
+      const offsets = [
+        [-2, -1], [-2, 1], [-1, -2], [-1, 2],
+        [1, -2], [1, 2], [2, -1], [2, 1]
+      ];
+      offsets.forEach(([dr, dc]) => {
+        const nr = r + dr, nc = c + dc;
+        if (isInside(nr, nc) && (!board[nr][nc] || board[nr][nc].color !== piece.color)) {
+          moves.push({ r: nr, c: nc });
+        }
+      });
+      return moves;
+    }
+
+    function getMovesInDirection(r, c, piece, dr, dc) {
+      const moves = [];
+      let nr = r + dr, nc = c + dc;
+      while (isInside(nr, nc)) {
+        if (!board[nr][nc]) {
+          moves.push({ r: nr, c: nc });
+        } else {
+          if (board[nr][nc].color !== piece.color) moves.push({ r: nr, c: nc });
+          break;
+        }
+        nr += dr;
+        nc += dc;
+      }
+      return moves;
+    }
+
+    function getBishopMoves(r, c, piece) {
+      return [
+        ...getMovesInDirection(r, c, piece, -1, -1),
+        ...getMovesInDirection(r, c, piece, -1, 1),
+        ...getMovesInDirection(r, c, piece, 1, -1),
+        ...getMovesInDirection(r, c, piece, 1, 1)
+      ];
+    }
+
+    function getRookMoves(r, c, piece) {
+      return [
+        ...getMovesInDirection(r, c, piece, -1, 0),
+        ...getMovesInDirection(r, c, piece, 1, 0),
+        ...getMovesInDirection(r, c, piece, 0, -1),
+        ...getMovesInDirection(r, c, piece, 0, 1)
+      ];
+    }
+
+    function getQueenMoves(r, c, piece) {
+      return [...getBishopMoves(r, c, piece), ...getRookMoves(r, c, piece)];
+    }
+
+    function getKingMoves(r, c, piece) {
+      const moves = [];
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+          if (dr === 0 && dc === 0) continue;
+          const nr = r + dr, nc = c + dc;
+          if (isInside(nr, nc) && (!board[nr][nc] || board[nr][nc].color !== piece.color)) {
+            moves.push({ r: nr, c: nc });
+          }
+        }
+      }
+      if (!piece.hasMoved) {
+        const row = piece.color === 'white' ? 7 : 0;
+        if (board[row][7] && board[row][7].type === 'rook' && !board[row][7].hasMoved &&
+            !board[row][5] && !board[row][6]) {
+          moves.push({ r: row, c: 6, castle: 'kingside' });
+        }
+        if (board[row][0] && board[row][0].type === 'rook' && !board[row][0].hasMoved &&
+            !board[row][1] && !board[row][2] && !board[row][3]) {
+          moves.push({ r: row, c: 2, castle: 'queenside' });
+        }
+      }
+      return moves;
+    }
+
+    function initGame() {
+      initBoardArray();
+      setupPieces();
+      drawBoard();
+    }
+
+    initGame();
+  </script>
+</body>
+</html>
