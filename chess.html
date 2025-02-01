@@ -41,15 +41,37 @@
       font-size: 7vw;
       transition: transform 0.5s;
     }
+    Стиль:
+  #back-button button {
+            width: 100%;
+            height: 100%;
+            background: black;
+            border: none;
+            font-size: 24px;
+            color: white;
+            cursor: pointer;
+        }
+   #back-button {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 5%;
+            z-index: 9999; /* Обеспечиваем, чтобы кнопка назад была над фоном */
+        }
+
   </style>
 </head>
 <body>
- <button onclick="location.href='glist.html'">Назад</button>
-   
+<div id="back-button">
+
+        <button onclick="runTool('Veles')">НАЗАД</button>
+    </div>
   <div id="container">
     <div id="board"></div>
+    
   </div>
-
+ 
   <script>
     const boardElem = document.getElementById('board');
     let board = [];
