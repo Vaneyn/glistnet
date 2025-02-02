@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Tank Battle – Один игрок</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <style>
+    body { 
+      margin: 0; 
+      padding: 0; 
+      overflow: hidden; 
+      background: #222; 
+      color: #fff; 
+      font-family: sans-serif;
+    }
+    #gameCanvas { background: #333; }
+    .fireBtn {
+      position: absolute;
+      width: 60px;
+      height: 60px;
+      background: rgba(255,0,0,0.3);
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 24px;
+      color: white;
+      right: 20px;
+      bottom: 20px;
+      z-index: 20;
+      user-select: none;
+    }
+    #stats {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(0,0,0,0.5);
+      padding: 10px;
+      border-radius: 5px;
+      z-index: 20;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+    #backBtn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(0,0,0,0.5);
+      padding: 5px 10px;
+      border-radius: 5px;
+      z-index: 20;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="gameCanvas"></div>
+  <div id="stats">
+    <div>Счёт: <span id="score">0</span></div>
+    <div>Последний бонус: <span id="lastBonus">нет</span></div>
+    <div>Характеристики:</div>
+    <div id="playerStats"></div>
+  </div>
+  <div id="backBtn">Назад</div>
+  <div id="fireBtn" class="fireBtn">🔥</div>
+
+  <script src="https://unpkg.com/konva@8.4.3/konva.min.js"></script>
+  <script>
+  const viewWidth = window.innerWidth;
+  const viewHeight = window.innerHeight;
+  const worldWidth = 2500;
+  const worldHeight = 2500;
+
+  const stage = new Konva.Stage({
+    container: 'gameCanvas',
+    width: viewWidth,
+    height: viewHeight
+  });
+  
+  const layer = new Konva.Layer();
+  stage.add(layer);
+  const worldGroup = new Konva.Group();
+  layer.add(worldGroup);
+  
+  function resizeCanvas() {
+    stage.width(window.innerWidth);
+    stage.height(window.innerHeight);
+  }
+  window.addEventListener('resize', resizeCanvas);
+  
+  // ---------------------------
+  // Классы: Tank, Bullet, Bonus, Obstacle, Joystick
+  // ---------------------------
+  
+  class Tank {
+    constructor(x, y, color, isPlayer = false) {
+      this.x = x;
+      this.y = y;
+      this.color = color;
+      this.rotate = 0;
+      this.speed = 0;
+      this.durability = 100;
+      
+      // Базовые характеристики (при 100% прочности)
+      this.baseMaxSpeed = isPlayer ? 2 : 1.5;
+      this.baseReloadTime = 5;
+      this.baseBulletDamage = 1;
+      this.baseBulletPenetration = isPlayer ? 30 : 30;
+      
+      // Эффективные характеристики рассчитываются исходя из прочности:
+      // Для скорости, урона и пробиваемости: прямо пропорционально (если прочность 100 – 100% характеристик)
+      // Для перезарядки – обратная зависимость (чем меньше прочности, тем значение больше)
+      this.maxSpeed = this.baseMaxSpeed * (this.durability / 100);
+      this.reloadTime = this.baseReloadTime * (100 / this.durability);
+      this.bulletDamage = this.baseBulletDamage * (this.durability / 100);
+      this.bulletPenetration = this.baseBulletPenetration * (this.durability / 100);
+      
+      // Таймер перезарядки
+      this.reload = 0;
+      
+      this.size = 30;
+      this.barrelLength = 20;
+      
+      this.body = new Konva.Rect({
+        x: this.x + this.size/2,
+        y: this.y + this.size/2,
+        width: this.size,
+        height: this.size,
+        fill: this.color,
+        offset: { x: this.size/2, y: this.size/2 }
+      });
+      worldGroup.add(this.body);
+      
+      this.barrel = new Konva.Rect({
+        x: this.x + this.size/2,
+        y: this.y + this.size/2,
+        width: this.barrelLength,
+        height: 6,
+        fill: '#000',
+        offset: { x: 0, y: 3 }
+      });
+      worldGroup.add(this.barrel);
+      
+      this.isPlayer = isPlayer;
+    }
+    
+    recalcStats() {
+      // Эффективные характеристики зависят от текущей прочности
+      // Чтобы избежать деления на 0, можно задать минимальное значение прочности (например, 1)
+      const effectiveDurability = Math.max(this.durability, 1);
+      this.maxSpeed = this.baseMaxSpeed * (effectiveDurability / 100);
+      this.reloadTime = this.baseReloadTime * (100 / effectiveDurability);
+      this.bulletDamage = this.baseBulletDamage * (effectiveDurability / 100);
+      this.bulletPenetration = this.baseBulletPenetration * (effectiveDurability / 100);
+    }
+    
+    update() {
+      // Пересчитываем характеристики на основе прочности
+      this.recalcStats();
+      
+      // Расчёт нового положения с учетом движения
+      if (this.speed) {
+        let newX = this.x + Math.cos(this.rotate) * this.speed;
+        let newY = this.y + Math.sin(this.rotate) * this.speed;
+        // Проверка: не выехать ли за границы мира
+        if (newX < 0 || newX > worldWidth - this.size ||
+            newY < 0 || newY > worldHeight - this.size ||
+            collisionWithObstacles(newX, newY, this.size)) {
+          // Если движение запрещено – не обновляем координаты
+        } else {
+          this.x = newX;
+          this.y = newY;
+        }
+      }
+      if (this.reload > 0) this.reload -= 0.02;
+      
+      const centerX = this.x + this.size/2;
+      const centerY = this.y + this.size/2;
+      this.body.position({ x: centerX, y: centerY });
+      this.body.rotation((this.rotate * 180) / Math.PI);
+      this.barrel.position({ x: centerX, y: centerY });
+      this.barrel.rotation((this.rotate * 180) / Math.PI);
+      
+      if (!this.isPlayer) {
+        let red = Math.floor(50 + (this.durability / 100) * 205);
+        this.body.fill(`rgb(${red},0,0)`);
+      }
+    }
+    
+    fire() {
+      if (this.reload <= 0) {
+        this.reload = this.reloadTime;
+        const centerX = this.x + this.size/2;
+        const centerY = this.y + this.size/2;
+        return new Bullet(
+          centerX + Math.cos(this.rotate) * this.barrelLength,
+          centerY + Math.sin(this.rotate) * this.barrelLength,
+          this.rotate,
+          this.bulletDamage,
+          this.bulletPenetration,
+          this.isPlayer ? 'player' : 'enemy'
+        );
+      }
+      return null;
+    }
+    
+    takeHit(bullet) {
+      if (Math.random() * 100 < bullet.penetration) {
+        const damage = Math.floor((Math.random() * 200 + 1) * bullet.damage);
+        this.durability -= damage;
+      }
+    }
+    
+    destroy() {
+      this.body.destroy();
+      this.barrel.destroy();
+    }
+  }
+  
+  class Bullet {
+    constructor(x, y, angle, damage, penetration, owner) {
+      this.x = x;
+      this.y = y;
+      this.angle = angle;
+      this.speed = 5;
+      this.size = 5;
+      this.damage = damage;
+      this.penetration = penetration;
+      this.owner = owner;
+      
+      this.shape = new Konva.Circle({
+        x: this.x,
+        y: this.y,
+        radius: this.size,
+        fill: 'yellow'
+      });
+      worldGroup.add(this.shape);
+    }
+    
+    update() {
+      this.x += Math.cos(this.angle) * this.speed;
+      this.y += Math.sin(this.angle) * this.speed;
+      this.shape.position({ x: this.x, y: this.y });
+    }
+    
+    destroy() {
+      this.shape.destroy();
+    }
+  }
+  
+  class Bonus {
+    constructor(x, y, type) {
+      this.x = x;
+      this.y = y;
+      this.type = type;
+      const colors = {
+        reload: '#0ff',
+        speed: '#0f0',
+        durability: '#ff0',
+        damage: '#f0f',
+        penetration: '#f90'
+      };
+      this.shape = new Konva.Circle({
+        x: this.x,
+        y: this.y,
+        radius: 10,
+        fill: colors[type] || '#fff'
+      });
+      worldGroup.add(this.shape);
+    }
+    
+    destroy() {
+      this.shape.destroy();
+    }
+  }
+  
+  class Obstacle {
+    constructor(x, y, width, height) {
+      this.x = x;
+      this.y = y;
+      this.width = width;
+      this.height = height;
+      this.shape = new Konva.Rect({
+        x: this.x,
+        y: this.y,
+        width: this.width,
+        height: this.height,
+        fill: '#555'
+      });
+      worldGroup.add(this.shape);
+    }
+  }
+  
+  class Joystick {
+    constructor(x, y, maxRadius) {
+      this.x = x;
+      this.y = y;
+      this.maxRadius = maxRadius;
+      this.base = new Konva.Circle({
+        x: this.x,
+        y: this.y,
+        radius: this.maxRadius,
+        stroke: '#fff',
+        strokeWidth: 2,
+        opacity: 0.5
+      });
+      layer.add(this.base);
+      this.handle = new Konva.Circle({
+        x: this.x,
+        y: this.y,
+        radius: 20,
+        fill: '#fff',
+        draggable: true
+      });
+      layer.add(this.handle);
+      this.handle.on('dragmove', () => {
+        const dx = this.handle.x() - this.x;
+        const dy = this.handle.y() - this.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist > this.maxRadius) {
+          const angle = Math.atan2(dy, dx);
+          this.handle.x(this.x + Math.cos(angle) * this.maxRadius);
+          this.handle.y(this.y + Math.sin(angle) * this.maxRadius);
+        }
+      });
+      this.handle.on('dragend', () => {
+        this.handle.to({ x: this.x, y: this.y, duration: 0.2 });
+      });
+    }
+    getDirection() {
+      return { 
+        x: this.handle.x() - this.x,
+        y: this.handle.y() - this.y
+      };
+    }
+  }
+  
+  let score = 0;
+  let lastBonusText = 'нет';
+  let gameOver = false;
+  
+  const player = new Tank(worldWidth/2 -15, worldHeight/2 -15, '#00f', true);
+  const playerBullets = [];
+  const enemyBullets = [];
+  const enemies = [];
+  const bonuses = [];
+  
+  const obstacles = [];
+  const numObstacles = Math.floor(Math.random()*5)+3;
+  for (let i=0; i<numObstacles; i++) {
+    const obsWidth = 100 + Math.random()*100;
+    const obsHeight = 100 + Math.random()*100;
+    const x = Math.random()*(worldWidth - obsWidth);
+    const y = Math.random()*(worldHeight - obsHeight);
+    if (Math.hypot((x+obsWidth/2)-(worldWidth/2), (y+obsHeight/2)-(worldHeight/2)) < 200) {
+      i--; continue;
+    }
+    obstacles.push(new Obstacle(x, y, obsWidth, obsHeight));
+  }
+  
+  const joystick = new Joystick(80, viewHeight-80, 50);
+  
+  document.getElementById('fireBtn').addEventListener('touchstart', () => {
+    const b = player.fire();
+    if(b) playerBullets.push(b);
+  });
+  document.getElementById('fireBtn').addEventListener('mousedown', () => {
+    const b = player.fire();
+    if(b) playerBullets.push(b);
+  });
+  
+  document.getElementById('backBtn').addEventListener('click', () => {
+    window.location.href = 'glist.html';
+  });
+  
+  function rectsIntersect(x1,y1,w1,h1, x2,y2,w2,h2) {
+    return !(x2 > x1+w1 ||
+             x2+w2 < x1 ||
+             y2 > y1+h1 ||
+             y2+h2 < y1);
+  }
+  
+  function collisionWithObstacles(newX, newY, size) {
+    for (let obs of obstacles) {
+      if (rectsIntersect(newX, newY, size, size, obs.x, obs.y, obs.width, obs.height)) {
+        return true;
+      }
+    }
+    return false;
+  }
+  
+  function bulletHitsObstacle(bullet) {
+    for (let obs of obstacles) {
+      if (bullet.x > obs.x && bullet.x < obs.x+obs.width &&
+          bullet.y > obs.y && bullet.y < obs.y+obs.height) {
+        return true;
+      }
+    }
+    return false;
+  }
+  
+  let enemySpawnTimer = 0;
+  let enemySpawnInterval = 15 + score + Math.random()*10;
+  
+  function spawnEnemy() {
+    const margin = 50; // отступ от краёв, можно подбирать по необходимости
+    const tankSize = 30; // размер танка
+    const side = Math.floor(Math.random() * 4);
+    let x, y;
+    if (side === 0) {
+      // Верхняя сторона
+      x = Math.random() * (worldWidth - 2 * margin - tankSize) + margin;
+      y = margin;
+    } else if (side === 1) {
+      // Правая сторона
+      x = worldWidth - margin - tankSize;
+      y = Math.random() * (worldHeight - 2 * margin - tankSize) + margin;
+    } else if (side === 2) {
+      // Нижняя сторона
+      x = Math.random() * (worldWidth - 2 * margin - tankSize) + margin;
+      y = worldHeight - margin - tankSize;
+    } else {
+      // Левая сторона
+      x = margin;
+      y = Math.random() * (worldHeight - 2 * margin - tankSize) + margin;
+    }
+    enemies.push(new Tank(x, y, '#f00', false));
+  }
+  
+  function update() {
+    if (gameOver) return;
+    
+    enemySpawnTimer += 0.02;
+    if (enemySpawnTimer > enemySpawnInterval) {
+      spawnEnemy();
+      enemySpawnTimer = 0;
+      enemySpawnInterval = 10 + Math.random()*10;
+    }
+    
+    const dir = joystick.getDirection();
+    const mag = Math.hypot(dir.x, dir.y);
+    if (mag > 0) {
+      // Здесь используем уже перерассчитанную maxSpeed (которая зависит от прочности)
+      player.speed = (mag * player.maxSpeed) / joystick.maxRadius;
+      player.rotate = Math.atan2(dir.y, dir.x);
+    } else {
+      player.speed = 0;
+    }
+    player.update();
+    
+    playerBullets.forEach((b, i) => {
+      b.update();
+      if (bulletHitsObstacle(b)) {
+        b.destroy();
+        playerBullets.splice(i, 1);
+        return;
+      }
+      enemies.forEach((e, ei) => {
+        const dx = b.x - (e.x + e.size/2);
+        const dy = b.y - (e.y + e.size/2);
+        if (Math.hypot(dx,dy) < e.size/2 + b.size) {
+          e.takeHit(b);
+          b.destroy();
+          playerBullets.splice(i,1);
+        }
+      });
+      if (b.x < 0 || b.x > worldWidth || b.y < 0 || b.y > worldHeight) {
+        b.destroy();
+        playerBullets.splice(i,1);
+      }
+    });
+    
+    enemies.forEach((e, ei) => {
+      e.rotate += (Math.random()-0.5)*0.05;
+      // Для врагов устанавливаем скорость равную их эффективной maxSpeed
+      e.speed = e.maxSpeed;
+      e.update();
+      
+      if (e.reload <= 0) {
+        let angleToPlayer = Math.atan2((player.y+player.size/2)-(e.y+e.size/2),
+                                        (player.x+player.size/2)-(e.x+e.size/2));
+        angleToPlayer += (Math.random()-0.5)*0.4;
+        e.rotate = angleToPlayer;
+        const b = e.fire();
+        if (b) enemyBullets.push(b);
+      }
+      
+      if (e.durability < 1) {
+        const bonusTypes = ['reload','speed','durability','damage','penetration'];
+        const type = bonusTypes[Math.floor(Math.random()*bonusTypes.length)];
+        bonuses.push(new Bonus(e.x+e.size/2, e.y+e.size/2, type));
+        e.destroy();
+        enemies.splice(ei,1);
+        score++;
+      }
+    });
+    
+    enemyBullets.forEach((b, i) => {
+      b.update();
+      if (bulletHitsObstacle(b)) {
+        b.destroy();
+        enemyBullets.splice(i,1);
+        return;
+      }
+      const dx = b.x - (player.x+player.size/2);
+      const dy = b.y - (player.y+player.size/2);
+      if (Math.hypot(dx,dy) < player.size/2 + b.size) {
+        player.takeHit(b);
+        b.destroy();
+        enemyBullets.splice(i,1);
+      }
+      if (b.x < 0 || b.x > worldWidth || b.y < 0 || b.y > worldHeight) {
+        b.destroy();
+        enemyBullets.splice(i,1);
+      }
+    });
+    
+    bonuses.forEach((bonus, i) => {
+      const dx = bonus.shape.x() - (player.x+player.size/2);
+      const dy = bonus.shape.y() - (player.y+player.size/2);
+      if (Math.hypot(dx,dy) < player.size/2 + 10) {
+        applyBonus(bonus.type);
+        lastBonusText = bonus.type;
+        bonus.destroy();
+        bonuses.splice(i,1);
+      }
+    });
+    
+    if (player.durability < 1) {
+      alert('Игра окончена. Счёт: ' + score);
+      gameOver = true;
+      player.destroy();
+      enemies.forEach(e => e.destroy());
+    }
+    
+    // Устанавливаем масштаб для worldGroup (зум для обзора)
+    const scale = 0.8;
+    worldGroup.scale({ x: scale, y: scale });
+    // Пересчёт положения камеры с учётом масштаба
+    let offsetX = viewWidth/2 - (player.x+player.size/2)*scale;
+    let offsetY = viewHeight/2 - (player.y+player.size/2)*scale;
+    // Ограничиваем, чтобы не показывать пустое за краями
+    const minOffsetX = viewWidth - worldWidth * scale;
+    const minOffsetY = viewHeight - worldHeight * scale;
+    offsetX = Math.min(0, Math.max(minOffsetX, offsetX));
+    offsetY = Math.min(0, Math.max(minOffsetY, offsetY));
+    worldGroup.position({ x: offsetX, y: offsetY });
+  }
+  
+  function draw() {
+    document.getElementById('score').innerText = score;
+    document.getElementById('lastBonus').innerText = lastBonusText;
+    document.getElementById('playerStats').innerHTML =
+      'Прочность: ' + player.durability.toFixed(0) + '<br>' +
+      'Скорость: ' + player.maxSpeed.toFixed(2) + '<br>' +
+      'Перезарядка: ' + player.reloadTime.toFixed(2) + '<br>' +
+      'Сила снаряда: ' + (player.bulletDamage*100).toFixed(0) + '%<br>' +
+      'Пробиваемость: ' + player.bulletPenetration.toFixed(0) + '%';
+    layer.batchDraw();
+  }
+  
+  function applyBonus(type) {
+    switch(type) {
+      case 'reload':
+        // При бонусе перезарядки уменьшаем базовое время перезарядки
+        player.baseReloadTime *= 0.85;
+        break;
+      case 'speed':
+        player.baseMaxSpeed *= 1.15;
+        break;
+      case 'durability':
+        player.durability += 5;
+        break;
+      case 'damage':
+        player.baseBulletDamage *= 1.15;
+        break;
+      case 'penetration':
+        player.baseBulletPenetration += 5;
+        break;
+    }
+  }
+  
+  function gameLoop() {
+    update();
+    draw();
+    requestAnimationFrame(gameLoop);
+  }
+  
+  gameLoop();
+  </script>
+</body>
+  </html>
