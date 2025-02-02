@@ -16,8 +16,8 @@
     #gameCanvas { background: #333; }
     .fireBtn {
       position: absolute;
-      width: 60px;
-      height: 60px;
+      width: 90px;
+      height: 90px;
       background: rgba(255,0,0,0.3);
       border-radius: 50%;
       display: flex;
@@ -105,7 +105,7 @@
       this.baseMaxSpeed = isPlayer ? 2 : 1.5;
       this.baseReloadTime = 5;
       this.baseBulletDamage = 1;
-      this.baseBulletPenetration = isPlayer ? 30 : 30;
+      this.baseBulletPenetration = isPlayer ? 35 : 35;
       
       // Эффективные характеристики рассчитываются исходя из прочности:
       // Для скорости, урона и пробиваемости: прямо пропорционально (если прочность 100 – 100% характеристик)
@@ -301,14 +301,14 @@
         y: this.y,
         radius: this.maxRadius,
         stroke: '#fff',
-        strokeWidth: 2,
+        strokeWidth: 3,
         opacity: 0.5
       });
       layer.add(this.base);
       this.handle = new Konva.Circle({
         x: this.x,
         y: this.y,
-        radius: 20,
+        radius: 25,
         fill: '#fff',
         draggable: true
       });
@@ -358,7 +358,7 @@
     obstacles.push(new Obstacle(x, y, obsWidth, obsHeight));
   }
   
-  const joystick = new Joystick(80, viewHeight-80, 50);
+  const joystick = new Joystick(80, viewHeight-80, 65);
   
   document.getElementById('fireBtn').addEventListener('touchstart', () => {
     const b = player.fire();
@@ -534,7 +534,7 @@
     }
     
     // Устанавливаем масштаб для worldGroup (зум для обзора)
-    const scale = 0.8;
+    const scale = 0.6;
     worldGroup.scale({ x: scale, y: scale });
     // Пересчёт положения камеры с учётом масштаба
     let offsetX = viewWidth/2 - (player.x+player.size/2)*scale;
@@ -569,13 +569,13 @@
         player.baseMaxSpeed *= 1.15;
         break;
       case 'durability':
-        player.durability += 5;
+        player.durability += 10;
         break;
       case 'damage':
-        player.baseBulletDamage *= 1.15;
+        player.baseBulletDamage *= 1.35;
         break;
       case 'penetration':
-        player.baseBulletPenetration += 5;
+        player.baseBulletPenetration += 10;
         break;
     }
   }
@@ -589,4 +589,4 @@
   gameLoop();
   </script>
 </body>
-  </html>
+</html>
