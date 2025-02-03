@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Tank Battle – Два игрока</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <style>
+    body { 
+      margin: 0; padding: 0; overflow: hidden; background: #222; 
+      color: #fff; font-family: sans-serif;
+    }
+    #gameCanvas { background: #333; }
+    #message {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 28px; z-index: 50;
+      padding: 20px;
+      background: rgba(0,0,0,0.8);
+      border-radius: 10px;
+      display: none;
+    }
+    .fireBtn {
+      position: absolute;
+      width: 90px; height: 90px;
+      background: rgba(255,0,0,0.3);
+      border-radius: 50%;
+      display: flex; justify-content: center; align-items: center;
+      font-size: 24px; color: white;
+      right: 20px; bottom: 20px;
+      z-index: 20; user-select: none;
+    }
+    #stats {
+      position: absolute;
+      top: 10px; left: 10px;
+      background: rgba(0,0,0,0.5);
+      padding: 10px;
+      border-radius: 5px;
+      z-index: 20;
+      font-size: 14px; line-height: 1.4;
+    }
+    #backBtn {
+      position: absolute;
+      top: 10px; right: 10px;
+      background: rgba(0,0,0,0.5);
+      padding: 5px 10px;
+      border-radius: 5px;
+      z-index: 20; cursor: pointer;
+    }
+  </style>
+  <!-- Подключаем adapter.js для WebRTC -->
+  <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
+  <!-- Переопределяем alert и console.error -->
+  <script>
+    window.alert = function() {
+      console.log("alert вызван с аргументами:", arguments);
+    };
+    console.error = function() {
+      window._peerJsError = window._peerJsError || [];
+      window._peerJsError.push(arguments);
+    };
+  </script>
+  <!-- Глобальные обработчики ошибок -->
+  <script>
+    window.addEventListener('error', function (event) {
+      event.stopImmediatePropagation();
+      event.preventDefault();
+      console.log("Ошибка подавлена:", event.message, "Источник:", event.filename, "Строка:", event.lineno);
+      return true;
+    }, true);
+    window.addEventListener('unhandledrejection', function(event) {
+      event.preventDefault();
+      console.log("Unhandled Promise Rejection подавлен:", event.reason);
+    });
+  </script>
+</head>
+<body>
+  <div id="gameCanvas"></div>
+  <div id="message">Ожидание игрока…</div>
+  <div id="stats">
+    <div>Жизнь: <span id="score">100</span></div>
+    <div>Последний бонус: <span id="lastBonus">нет</span></div>
+    <div>Характеристики:</div>
+    <div id="playerStats"></div>
+    <div>FPS: <span id="fpsDisplay"></span></div>
+  </div>
+  <div id="backBtn">Назад</div>
+  <div id="fireBtn" class="fireBtn">🔥</div>
+
+  <!-- Подключаем библиотеки Konva и PeerJS -->
+  <script src="https://unpkg.com/konva@8.4.3/konva.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.4.7/peerjs.min.js"></script>
+  
+  <script>
+  /***********************
+   * Глобальные переменные и настройки
+   ***********************/
+  const viewWidth = window.innerWidth,
+        viewHeight = window.innerHeight,
+        worldWidth = 2500,
+        worldHeight = 2500;
+  // Рендер: 15 циклов в секунду
+  let desiredFPS = 20;
+  let lastFrameTime = 0;
+  // Коэффициент симуляции увеличен для ускорения событий (быстрее, чем ранее)
+  const simStep = 0.1;
+
+  const stage = new Konva.Stage({
+    container: 'gameCanvas',
+    width: viewWidth,
+    height: viewHeight
+  });
+  const layer = new Konva.Layer();
+  stage.add(layer);
+  const worldGroup = new Konva.Group();
+  layer.add(worldGroup);
+
+  function resizeCanvas() {
+    stage.width(window.innerWidth);
+    stage.height(window.innerHeight);
+  }
+  window.addEventListener('resize', resizeCanvas);
+
+  /***********************
+   * Классы игры
+   ***********************/
+  class Tank {
+    constructor(x, y, color, isPlayer = false) {
+      this.x = x;
+      this.y = y;
+      this.color = color;
+      this.rotate = 0;
+      this.speed = 0;
+      this.durability = 100;
+      // Базовые характеристики
+      this.baseMaxSpeed = isPlayer ? 2 : 1.5;
+      this.baseReloadTime = 7.5;
+      this.baseBulletDamage = 1;
+      this.baseBulletPenetration = 35;
+      this.maxSpeed = this.baseMaxSpeed * (this.durability / 100);
+      this.reloadTime = this.baseReloadTime * (100 / this.durability);
+      this.bulletDamage = this.baseBulletDamage * (this.durability / 100);
+      this.bulletPenetration = this.baseBulletPenetration * (this.durability / 100);
+      this.reload = 0;
+      this.size = 30;
+      this.barrelLength = 20;
+      this.body = new Konva.Rect({
+        x: this.x + this.size/2,
+        y: this.y + this.size/2,
+        width: this.size, height: this.size,
+        fill: this.color,
+        offset: { x: this.size/2, y: this.size/2 }
+      });
+      worldGroup.add(this.body);
+      this.barrel = new Konva.Rect({
+        x: this.x + this.size/2,
+        y: this.y + this.size/2,
+        width: this.barrelLength, height: 6,
+        fill: '#000',
+        offset: { x: 0, y: 3 }
+      });
+      worldGroup.add(this.barrel);
+      this.isPlayer = isPlayer;
+      this.alive = true;
+    }
+    recalcStats() {
+      let eff = Math.max(this.durability, 1);
+      this.maxSpeed = this.baseMaxSpeed * (eff / 100);
+      this.reloadTime = this.baseReloadTime * (100 / eff);
+      this.bulletDamage = this.baseBulletDamage * (eff / 100);
+      this.bulletPenetration = this.baseBulletPenetration * (eff / 100);
+    }
+    update() {
+      if(!this.alive) return;
+      this.recalcStats();
+      if(this.speed) {
+        let newX = this.x + Math.cos(this.rotate)*this.speed,
+            newY = this.y + Math.sin(this.rotate)*this.speed;
+        if(newX>=0 && newX<=worldWidth-this.size &&
+           newY>=0 && newY<=worldHeight-this.size &&
+           !collisionWithObstacles(newX, newY, this.size)) {
+          this.x = newX; this.y = newY;
+        }
+      }
+      if(this.reload>0) this.reload -= simStep;
+      const cx = this.x+this.size/2, cy = this.y+this.size/2;
+      this.body.position({ x: cx, y: cy });
+      this.body.rotation((this.rotate*180)/Math.PI);
+      this.barrel.position({ x: cx, y: cy });
+      this.barrel.rotation((this.rotate*180)/Math.PI);
+      if(!this.isPlayer) {
+        let red = Math.floor(50+(this.durability/100)*205);
+        this.body.fill(`rgb(${red},0,0)`);
+      }
+    }
+    fire() {
+      if(this.reload<=0 && this.alive) {
+        this.reload = this.reloadTime;
+        const cx = this.x+this.size/2, cy = this.y+this.size/2;
+        return new Bullet(
+          cx + Math.cos(this.rotate)*this.barrelLength,
+          cy + Math.sin(this.rotate)*this.barrelLength,
+          this.rotate,
+          this.bulletDamage,
+          this.bulletPenetration,
+          this.isPlayer ? 'player' : 'enemy'
+        );
+      }
+      return null;
+    }
+    takeHit(bullet) {
+      if(!this.alive) return;
+      if(Math.random()*100 < bullet.penetration) {
+        const dmg = Math.floor((Math.random()*200+1)*bullet.damage);
+        this.durability -= dmg;
+      }
+    }
+    destroy() {
+      this.body.destroy();
+      this.barrel.destroy();
+      this.alive = false;
+    }
+  }
+
+  class Bullet {
+    constructor(x, y, angle, damage, penetration, owner) {
+      this.x = x;
+      this.y = y;
+      this.angle = angle;
+      this.speed = 5;
+      this.size = 5;
+      this.damage = damage;
+      this.penetration = penetration;
+      this.owner = owner; // 'player' или 'enemy'
+      this.shape = new Konva.Circle({
+        x: this.x, y: this.y, radius: this.size,
+        fill: 'yellow'
+      });
+      worldGroup.add(this.shape);
+    }
+    update() {
+      this.x += Math.cos(this.angle)*this.speed;
+      this.y += Math.sin(this.angle)*this.speed;
+      this.shape.position({ x: this.x, y: this.y });
+    }
+    destroy() {
+      this.shape.destroy();
+    }
+  }
+
+  class Bonus {
+    constructor(x, y, type) {
+      this.x = x; this.y = y; this.type = type;
+      const colors = { reload:'#0ff', speed:'#0f0', durability:'#ff0', damage:'#f0f', penetration:'#f90' };
+      this.shape = new Konva.Circle({
+        x: this.x, y: this.y, radius: 10, fill: colors[type] || '#fff'
+      });
+      worldGroup.add(this.shape);
+    }
+    destroy() { this.shape.destroy(); }
+  }
+
+  class Obstacle {
+    constructor(x, y, w, h) {
+      this.x = x; this.y = y; this.width = w; this.height = h;
+      this.shape = new Konva.Rect({
+        x: this.x, y: this.y, width: w, height: h, fill: '#555'
+      });
+      worldGroup.add(this.shape);
+    }
+  }
+
+  class Joystick {
+    constructor(x, y, maxR) {
+      this.x = x; this.y = y; this.maxRadius = maxR;
+      this.base = new Konva.Circle({
+        x: this.x, y: this.y, radius: this.maxRadius,
+        stroke: '#fff', strokeWidth: 3, opacity: 0.5
+      });
+      layer.add(this.base);
+      this.handle = new Konva.Circle({
+        x: this.x, y: this.y, radius: 25, fill: '#fff', draggable: true
+      });
+      layer.add(this.handle);
+      this.handle.on('dragmove', () => {
+        let dx = this.handle.x()-this.x, dy = this.handle.y()-this.y;
+        let dist = Math.hypot(dx,dy);
+        if(dist > this.maxRadius) {
+          let angle = Math.atan2(dy,dx);
+          this.handle.x(this.x+Math.cos(angle)*this.maxRadius);
+          this.handle.y(this.y+Math.sin(angle)*this.maxRadius);
+        }
+      });
+      this.handle.on('dragend', () => {
+        this.handle.to({ x: this.x, y: this.y, duration: 0.2 });
+      });
+    }
+    getDirection() {
+      return { x: this.handle.x()-this.x, y: this.handle.y()-this.y };
+    }
+  }
+
+  /***********************
+   * Глобальные игровые переменные
+   ***********************/
+  let score = 0;
+  let lastBonusText = 'нет';
+  let gameOver = false;
+  // Для хоста: playerTank – управляемый локально; для клиента: remoteTank – его локальный танк.
+  let playerTank = new Tank(worldWidth/2 -15, worldHeight/2 -15, '#00f', true);
+  let remoteTank = new Tank(playerTank.x - 100, playerTank.y, '#800080', true);
+  // Пули игроков (owner: 'player') и пули врагов (owner: 'enemy')
+  let playerBullets = [];
+  let enemyBullets = [];
+  // Вражеские танки (боты) и бонусы – генерируются на стороне хоста
+  let enemyTanks = [];
+  let bonuses = [];
+  let obstacles = [];
+
+  // Флаги управления: для хоста – firePressedLocal; для клиента – ввод через сообщения
+  let firePressedLocal = false;
+  // Входные данные от клиента
+  let remoteInput = { dir: {x:0, y:0}, fire: false };
+
+  // Переменные для спавна врагов
+  let enemySpawnTimer = 0;
+  let enemySpawnInterval = 30;
+
+  /***********************
+   * Генерация игровых объектов (на стороне хоста)
+   ***********************/
+  function generateObstacles() {
+    obstacles = [];
+    let n = Math.floor(Math.random()*5)+3;
+    for(let i=0; i<n; i++){
+      let w = 100+Math.random()*100, h = 100+Math.random()*100;
+      let x = Math.random()*(worldWidth-w), y = Math.random()*(worldHeight-h);
+      if(Math.hypot((x+w/2)-(worldWidth/2), (y+h/2)-(worldHeight/2)) < 200) { i--; continue; }
+      obstacles.push(new Obstacle(x, y, w, h));
+    }
+  }
+  function spawnEnemyTank() {
+    const margin = 50, size = 30;
+    let side = Math.floor(Math.random()*4), x, y;
+    if(side===0){ x = Math.random()*(worldWidth-2*margin-size)+margin; y = margin; }
+    else if(side===1){ x = worldWidth-margin-size; y = Math.random()*(worldHeight-2*margin-size)+margin; }
+    else if(side===2){ x = Math.random()*(worldWidth-2*margin-size)+margin; y = worldHeight-margin-size; }
+    else { x = margin; y = Math.random()*(worldHeight-2*margin-size)+margin; }
+    enemyTanks.push(new Tank(x, y, '#f00', false));
+  }
+
+  function rectsIntersect(x1,y1,w1,h1, x2,y2,w2,h2){
+    return !(x2>x1+w1 || x2+w2<x1 || y2>y1+h1 || y2+h2<y1);
+  }
+  function collisionWithObstacles(newX, newY, size) {
+    for(let obs of obstacles){
+      if(rectsIntersect(newX,newY,size,size, obs.x,obs.y, obs.width, obs.height))
+        return true;
+    }
+    return false;
+  }
+  function bulletHitsObstacle(bullet) {
+    for(let obs of obstacles) {
+      if(bullet.x>obs.x && bullet.x<obs.x+obs.width &&
+         bullet.y>obs.y && bullet.y<obs.y+obs.height)
+         return true;
+    }
+    return false;
+  }
+  // Если пуля попадает в танк (и пуля не принадлежит тому же игроку)
+  function checkBulletCollision(bullet, tank) {
+    let dx = bullet.x - (tank.x+tank.size/2);
+    let dy = bullet.y - (tank.y+tank.size/2);
+    if(Math.hypot(dx,dy) < tank.size/2 + bullet.size) {
+      if(bullet.owner==='enemy' || (bullet.owner==='player' && tank !== bullet.firedBy))
+        return true;
+    }
+    return false;
+  }
+
+  // При смерти игрока – генерируем бонус и удаляем танк
+  function dropBonusAt(x, y) {
+    const bonusTypes = ['reload','speed','durability','damage','penetration'];
+    let type = bonusTypes[Math.floor(Math.random()*bonusTypes.length)];
+    bonuses.push(new Bonus(x, y, type));
+  }
+  function applyBonus(type) {
+    if(playerTank.alive && playerTank.durability > 0) {
+      switch(type) {
+        case 'reload': playerTank.baseReloadTime *= 0.85; break;
+        case 'speed': playerTank.baseMaxSpeed *= 1.15; break;
+        case 'durability': playerTank.durability += 10; break;
+        case 'damage': playerTank.baseBulletDamage *= 1.35; break;
+        case 'penetration': playerTank.baseBulletPenetration += 10; break;
+      }
+    }
+    if(remoteTank.alive && remoteTank.durability > 0) {
+      switch(type) {
+        case 'reload': remoteTank.baseReloadTime *= 0.85; break;
+        case 'speed': remoteTank.baseMaxSpeed *= 1.15; break;
+        case 'durability': remoteTank.durability += 10; break;
+        case 'damage': remoteTank.baseBulletDamage *= 1.35; break;
+        case 'penetration': remoteTank.baseBulletPenetration += 10; break;
+      }
+    }
+  }
+
+  /***********************
+   * Multiplayer через PeerJS
+   ***********************/
+  const hostId = "tankBattleHost";
+  let isHost = false;
+  let conn = null;
+  let peer;
+  try { peer = new Peer(null, { debug: 2 }); }
+  catch(e){ console.log("Ошибка при создании Peer:", e); }
+
+  function sendMessage(msg) {
+    if(conn && conn.open) { conn.send(JSON.stringify(msg)); }
+  }
+  function handleMessage(data) {
+    try {
+      const msg = JSON.parse(data);
+      if(msg.type==='state'){
+        updateGameState(msg.data);
+      }
+      else if(msg.type==='input'){
+        remoteInput = msg.data;
+      }
+    } catch(e){ console.log("Ошибка обработки сообщения:", e); }
+  }
+  function sendInput(input) { sendMessage({ type:'input', data: input }); }
+  function updateGameState(state) {
+    // Обновляем состояние обоих танков
+    if(state.playerTank.durability < 1) {
+      if(playerTank.alive) playerTank.destroy();
+    } else {
+      playerTank.x = state.playerTank.x;
+      playerTank.y = state.playerTank.y;
+      playerTank.rotate = state.playerTank.rotate;
+      playerTank.durability = state.playerTank.durability;
+      if(playerTank.alive) playerTank.update();
+    }
+    if(state.remoteTank.durability < 1) {
+      if(remoteTank.alive) remoteTank.destroy();
+    } else {
+      remoteTank.x = state.remoteTank.x;
+      remoteTank.y = state.remoteTank.y;
+      remoteTank.rotate = state.remoteTank.rotate;
+      remoteTank.durability = state.remoteTank.durability;
+      if(remoteTank.alive) remoteTank.update();
+    }
+    // Обновляем пули игроков
+    playerBullets.forEach(b => b.destroy());
+    playerBullets = [];
+    for(let bData of state.playerBullets) {
+      let b = new Bullet(bData.x, bData.y, bData.angle, bData.damage, bData.penetration, bData.owner);
+      b.speed = bData.speed; b.firedBy = bData.firedBy;
+      playerBullets.push(b);
+    }
+    // Обновляем пули врагов
+    enemyBullets.forEach(b => b.destroy());
+    enemyBullets = [];
+    for(let bData of state.enemyBullets) {
+      let b = new Bullet(bData.x, bData.y, bData.angle, bData.damage, bData.penetration, bData.owner);
+      b.speed = bData.speed;
+      enemyBullets.push(b);
+    }
+    // Обновляем врагов
+    enemyTanks.forEach(t => t.destroy());
+    enemyTanks = [];
+    for(let tData of state.enemyTanks) {
+      let t = new Tank(tData.x, tData.y, '#f00', false);
+      t.rotate = tData.rotate; t.durability = tData.durability;
+      enemyTanks.push(t);
+    }
+    // Обновляем бонусы
+    bonuses.forEach(b => b.destroy());
+    bonuses = [];
+    for(let bData of state.bonuses) {
+      bonuses.push(new Bonus(bData.x, bData.y, bData.type));
+    }
+    // Обновляем препятствия – уничтожаем старые и создаём новые
+    obstacles.forEach(o => o.shape.destroy());
+    obstacles = [];
+    for(let oData of state.obstacles) {
+      obstacles.push(new Obstacle(oData.x, oData.y, oData.width, oData.height));
+    }
+    score = state.score;
+    lastBonusText = state.lastBonus;
+  }
+  function getGameState() {
+    return {
+      playerTank: { x: playerTank.x, y: playerTank.y, rotate: playerTank.rotate, durability: playerTank.durability },
+      remoteTank: { x: remoteTank.x, y: remoteTank.y, rotate: remoteTank.rotate, durability: remoteTank.durability },
+      playerBullets: playerBullets.map(b => ({
+        x: b.x, y: b.y, angle: b.angle, speed: b.speed,
+        damage: b.damage, penetration: b.penetration,
+        owner: b.owner, firedBy: b.firedBy || (b.owner==='player' ? 'host' : 'client')
+      })),
+      enemyBullets: enemyBullets.map(b => ({
+        x: b.x, y: b.y, angle: b.angle, speed: b.speed,
+        damage: b.damage, penetration: b.penetration, owner: b.owner
+      })),
+      enemyTanks: enemyTanks.map(t => ({
+        x: t.x, y: t.y, rotate: t.rotate, durability: t.durability
+      })),
+      bonuses: bonuses.map(b => ({
+        x: b.shape.x(), y: b.shape.y(), type: b.type
+      })),
+      obstacles: obstacles.map(o => ({
+        x: o.x, y: o.y, width: o.width, height: o.height
+      })),
+      score: score,
+      lastBonus: lastBonusText
+    };
+  }
+
+  /***********************
+   * Инициализация PeerJS
+   ***********************/
+  peer.on('open', id => {
+    console.log('Мой peer id: ' + id);
+    let tempConn = peer.connect(hostId, { reliable: true });
+    let timeout = setTimeout(() => {
+      if(!conn || !conn.open) {
+        console.log("Соединение с host не установлено за 5 сек, становлюсь хостом");
+        becomeHost();
+      }
+    }, 5000);
+    tempConn.on('open', () => {
+      clearTimeout(timeout);
+      console.log("Подключились к host как клиент");
+      conn = tempConn;
+      conn.on('data', handleMessage);
+      startGame();
+    });
+    tempConn.on('error', err => {
+      console.log("Ошибка подключения к host:", err);
+      clearTimeout(timeout);
+      becomeHost();
+    });
+  });
+  function becomeHost() {
+    isHost = true;
+    peer.destroy();
+    try { peer = new Peer(hostId, { debug: 2 }); }
+    catch(e){ console.log("Ошибка создания host Peer:", e); }
+    peer.on('open', id => {
+      console.log("Я хост, id: " + id);
+      showMessage("Ожидание игрока…");
+      generateObstacles();
+    });
+    peer.on('connection', connection => {
+      conn = connection;
+      conn.on('data', handleMessage);
+      console.log("К нам подключился клиент");
+      hideMessage();
+      startGame();
+    });
+  }
+
+  /***********************
+   * Игровой цикл
+   ***********************/
+  // gameLoop работает с desiredFPS = 15
+  function gameLoop(timestamp) {
+    let delta = timestamp - lastFrameTime;
+    if(delta >= 1000/desiredFPS) {
+      lastFrameTime = timestamp;
+      if(isHost) { hostSimulation(); }
+      renderGame();
+      if(!isHost) {
+        let d = joystick.getDirection();
+        sendInput({ dir: d, fire: firePressedLocal });
+        firePressedLocal = false;
+      }
+      updateFPS(delta);
+    }
+    requestAnimationFrame(gameLoop);
+  }
+  function updateFPS(delta) {
+    document.getElementById('fpsDisplay').innerText = (1000/delta).toFixed(1);
+  }
+
+  /***********************
+   * Симуляция на стороне хоста
+   ***********************/
+  function hostSimulation() {
+    // Обработка ввода хоста
+    let d = joystick.getDirection();
+    let mag = Math.hypot(d.x, d.y);
+    if(mag > 0) {
+    playerTank.speed = (mag * playerTank.maxSpeed)/joystick.maxRadius;
+      playerTank.rotate = Math.atan2(d.y, d.x);
+    } else { playerTank.speed = 0; }
+    playerTank.update();
+    // Обработка ввода клиента для remoteTank
+    let r = remoteInput.dir;
+    let rMag = Math.hypot(r.x, r.y);
+    if(rMag > 0) {
+      remoteTank.speed = (rMag * remoteTank.maxSpeed)/joystick.maxRadius;
+      remoteTank.rotate = Math.atan2(r.y, r.x);
+    } else { remoteTank.speed = 0; }
+    remoteTank.update();
+    // Стрельба хоста
+    if(firePressedLocal) {
+      let b = playerTank.fire();
+      if(b) { b.firedBy = playerTank; playerBullets.push(b); }
+      firePressedLocal = false;
+    }
+    // Стрельба клиента
+    if(remoteInput.fire) {
+      let b = remoteTank.fire();
+      if(b) { b.firedBy = remoteTank; playerBullets.push(b); }
+      remoteInput.fire = false;
+    }
+    // Обработка пуль игроков
+    for(let i = playerBullets.length-1; i>=0; i--) {
+      let b = playerBullets[i];
+      b.update();
+      if(b.owner==='player') {
+        // Если пуля от хоста, проверяем попадание в remoteTank; от клиента – в playerTank
+        if(b.firedBy === playerTank && remoteTank.alive && checkBulletCollision(b, remoteTank)) {
+          remoteTank.takeHit(b);
+          b.destroy(); playerBullets.splice(i,1); continue;
+        }
+        if(b.firedBy === remoteTank && playerTank.alive && checkBulletCollision(b, playerTank)) {
+          playerTank.takeHit(b);
+          b.destroy(); playerBullets.splice(i,1); continue;
+        }
+        // Проверка столкновения с вражескими танками (ботами)
+        for(let j = 0; j < enemyTanks.length; j++) {
+          let et = enemyTanks[j];
+          if(et.alive && checkBulletCollision(b, et)) {
+            et.takeHit(b);
+            b.destroy(); playerBullets.splice(i,1);
+            break;
+          }
+        }
+      }
+      if(b.x<0 || b.x>worldWidth || b.y<0 || b.y>worldHeight || bulletHitsObstacle(b)) {
+        b.destroy(); playerBullets.splice(i,1);
+      }
+    }
+    // Обработка пуль врагов
+    for(let i = enemyBullets.length-1; i>=0; i--){
+      let b = enemyBullets[i];
+      b.update();
+      if(playerTank.alive && checkBulletCollision(b, playerTank)) {
+        playerTank.takeHit(b);
+        b.destroy(); enemyBullets.splice(i,1); continue;
+      }
+      if(remoteTank.alive && checkBulletCollision(b, remoteTank)) {
+        remoteTank.takeHit(b);
+        b.destroy(); enemyBullets.splice(i,1); continue;
+      }
+      if(b.x<0 || b.x>worldWidth || b.y<0 || b.y>worldHeight || bulletHitsObstacle(b)){
+        b.destroy(); enemyBullets.splice(i,1);
+      }
+    }
+    // Спавн врагов (ботов)
+    enemySpawnTimer += simStep;
+    if(enemySpawnTimer > enemySpawnInterval) {
+      spawnEnemyTank();
+      enemySpawnTimer = 0;
+      enemySpawnInterval = 10 + Math.random()*10;
+    }
+    enemyTanks.forEach((t, idx) => {
+      t.rotate += (Math.random()-0.5)*0.05;
+      t.speed = t.maxSpeed;
+      t.update();
+      if(t.reload<=0) {
+        // Выбираем цель: ближайший из живых игроков (если оба живы, иначе тот, кто жив)
+        let target = null;
+        if(playerTank.alive && remoteTank.alive) {
+          let d1 = Math.hypot(playerTank.x - t.x, playerTank.y - t.y);
+          let d2 = Math.hypot(remoteTank.x - t.x, remoteTank.y - t.y);
+          target = (d1 <= d2) ? playerTank : remoteTank;
+        } else if(playerTank.alive) {
+          target = playerTank;
+        } else if(remoteTank.alive) {
+          target = remoteTank;
+        }
+        if(target) {
+          let angleToTarget = Math.atan2((target.y+target.size/2)-(t.y+t.size/2),
+                                          (target.x+target.size/2)-(t.x+t.size/2));
+          t.rotate = angleToTarget;
+          let b = t.fire();
+          if(b) { b.firedBy = t; enemyBullets.push(b); }
+        }
+      }
+      if(t.durability < 1) {
+        dropBonusAt(t.x+t.size/2, t.y+t.size/2);
+        t.destroy(); enemyTanks.splice(idx,1); score++;
+      }
+    });
+    // Обработка бонусов – подбирают только живые игроки
+    bonuses.forEach((b, idx) => {
+      if(playerTank.alive) {
+        let dx = b.shape.x() - (playerTank.x+playerTank.size/2),
+            dy = b.shape.y() - (playerTank.y+playerTank.size/2);
+        if(Math.hypot(dx,dy) < playerTank.size/2+10) {
+          applyBonus(b.type); lastBonusText = b.type;
+          b.destroy(); bonuses.splice(idx,1);
+          return;
+        }
+      }
+      if(remoteTank.alive) {
+        let dx = b.shape.x() - (remoteTank.x+remoteTank.size/2),
+            dy = b.shape.y() - (remoteTank.y+remoteTank.size/2);
+        if(Math.hypot(dx,dy) < remoteTank.size/2+10) {
+          applyBonus(b.type); lastBonusText = b.type;
+          b.destroy(); bonuses.splice(idx,1);
+          return;
+        }
+      }
+    });
+    // Если игрок умирает – удаляем его и генерируем бонус (только один раз)
+    if(playerTank.alive && playerTank.durability < 1) {
+      dropBonusAt(playerTank.x+playerTank.size/2, playerTank.y+playerTank.size/2);
+      playerTank.destroy(); score++;
+    }
+    if(remoteTank.alive && remoteTank.durability < 1) {
+      dropBonusAt(remoteTank.x+remoteTank.size/2, remoteTank.y+remoteTank.size/2);
+      remoteTank.destroy(); score++;
+    }
+    // Игра завершается, когда оба игрока мертвы
+    if(!playerTank.alive && !remoteTank.alive) {
+      alert("Игра окончена. Счёт: " + score);
+      gameOver = true;
+    }
+    // На каждом цикле хост отправляет состояние игры клиенту
+    sendMessage({ type:'state', data: getGameState() });
+  }
+
+  /***********************
+   * Рендеринг
+   ***********************/
+  function renderGame() {
+    // Камера и статистика берутся из локального танка:
+    // Для хоста – playerTank, для клиента – remoteTank
+    let localTank = isHost ? playerTank : remoteTank;
+    if(localTank && localTank.alive) {
+      const scale = 0.6;
+      worldGroup.scale({ x: scale, y: scale });
+      let offsetX = viewWidth/2 - (localTank.x+localTank.size/2)*scale;
+      let offsetY = viewHeight/2 - (localTank.y+localTank.size/2)*scale;
+      const minOffsetX = viewWidth - worldWidth*scale,
+            minOffsetY = viewHeight - worldHeight*scale;
+      offsetX = Math.min(0, Math.max(minOffsetX, offsetX));
+      offsetY = Math.min(0, Math.max(minOffsetY, offsetY));
+      worldGroup.position({ x: offsetX, y: offsetY });
+    }
+    // Отображаем статистику локального танка
+    let statsText = (localTank && localTank.alive) ?
+      `Прочность: ${localTank.durability.toFixed(0)}<br>
+       Скорость: ${localTank.maxSpeed.toFixed(2)}<br>
+       Перезарядка: ${localTank.reloadTime.toFixed(2)}<br>
+       Сила снаряда: ${(localTank.bulletDamage*100).toFixed(0)}%<br>
+       Пробиваемость: ${localTank.bulletPenetration.toFixed(0)}%`
+      : "Вы мертвы";
+    document.getElementById('playerStats').innerHTML = statsText;
+    document.getElementById('score').innerText = Math.floor(score);
+    document.getElementById('lastBonus').innerText = lastBonusText;
+    layer.batchDraw();
+  }
+
+  /***********************
+   * Управление
+   ***********************/
+  const joystick = new Joystick(80, viewHeight-80, 65);
+  firePressedLocal = false;
+  document.getElementById('fireBtn').addEventListener('touchstart', () => { firePressedLocal = true; });
+  document.getElementById('fireBtn').addEventListener('mousedown', () => { firePressedLocal = true; });
+  document.getElementById('backBtn').addEventListener('click', () => { window.location.href = 'glist.html'; });
+
+  /***********************
+   * Запуск игры
+   ***********************/
+  function showMessage(text) {
+    const m = document.getElementById('message');
+    m.innerText = text; m.style.display = 'block';
+  }
+  function hideMessage() { document.getElementById('message').style.display = 'none'; }
+  function startGame() {
+    hideMessage();
+    requestAnimationFrame(gameLoop);
+  }
+  requestAnimationFrame(gameLoop);
+  </script>
+</body>
+</html>
