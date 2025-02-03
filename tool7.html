@@ -1,162 +1,200 @@
 <!DOCTYPE html>
 <html>
-<!DOCTYPE html>
-<html>
   <head>
-    <title>G-list test OS</title>
+    <title>G-list OS</title>
     <style>
-body {
-  background-color: black; /* Черный фон */
-  color: lime; /* Зеленый цвет текста */
-  font-family: monospace; /* Моноширинный шрифт */
-}
+      body {
+        background-color: black; /* Черный фон */
+        color: lime; /* Зеленый цвет текста */
+        font-family: monospace; /* Моноширинный шрифт */
+      }
 
-h1, h2, h3 {
-  font-weight: bold; /* Жирный текст для заголовков */
-}
+      h1, h2, h3 {
+        font-weight: bold; /* Жирный текст для заголовков */
+      }
 
-input[type="text"], button {
-  background-color: black; /* Черный фон для полей ввода и кнопок */
-  color: lime; /* Зеленый цвет текста */
-  border: 1px solid lime; /* Зеленая рамка */
-  padding: 5px; /* Внутренние отступы */
-}
-input {
-  background-color: #000;
-  color: #fff;
-  border: 2px solid #f00;
-  font-size: 12px;
-  padding: 5px;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-}
+      input[type="text"], button {
+        background-color: black; /* Черный фон для полей ввода и кнопок */
+        color: lime; /* Зеленый цвет текста */
+        border: 1px solid lime; /* Зеленая рамка */
+        padding: 5px; /* Внутренние отступы */
+      }
 
+      input {
+        background-color: #000;
+        color: #fff;
+        border: 2px solid #f00;
+        font-size: 12px;
+        padding: 5px;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+      }
 
-button {
-  cursor: pointer; /* Изменение курсора при наведении */
-}
+      button {
+        cursor: pointer; /* Изменение курсора при наведении */
+      }
 
+      #error-output {
+        color: red; /* Красный цвет для ошибок */
+        font-family: monospace; /* Моноширинный шрифт */
+        white-space: pre; /* Сохранение пробелов и переносов строк */
+      }
     </style>
   </head>
   <body>
- 
-      <button onclick="runTool('glist')">НАЗАД</button>
-        <button onclick="runTool('clear')">ОЧИСТКА</button>
+    <button onclick="runTool('glist')">НАЗАД</button>
+    <button onclick="runTool('clear')">ОЧИСТКА</button>
     <script>
-  function runTool(toolName) {
-    if(toolName === "clear") {
-      // Удаление iframe и очистка консоли
-      var iframe = document.getElementById("result-iframe");
-      if (iframe) {
-        iframe.remove();
+      function runTool(toolName) {
+        if (toolName === "clear") {
+          // Удаление iframe и очистка консоли
+          var iframe = document.getElementById("result-iframe");
+          if (iframe) {
+            iframe.remove();
+          }
+          document.getElementById("console").innerHTML = "";
+          document.getElementById("error-output").innerHTML = "";
+        } else {
+          // Открытие новой страницы с редактором кода
+          var url = toolName + ".html";
+          window.open(url, "_blank");
+        }
       }
-      document.getElementById("console").innerHTML = "";
-    }
-    else {
-      // Открытие новой страницы с редактором кода
-      var url = toolName + ".html";
-      window.open(url, "_blank");
-    }
-  }
-</script>
+    </script>
 
-<h1>G-list OS</h1>
-<div>
-  <textarea id="input-data" rows="20" cols="40"></textarea>
-  <br>
-  <button onclick="runCode()">Выполнить код</button>
-</div>
+    <h1>G-list OS</h1>
+    <div>
+      <textarea id="input-data" rows="20" cols="40"></textarea>
+      <br>
+      <button onclick="runCode()">Выполнить код</button>
+    </div>
 
-<div id="console"></div>
+    <div id="console"></div>
+    <div id="error-output"></div>
 
-<script>
-  function runCode() {
-    var input = document.getElementById("input-data").value;
-    // Создание iframe
-    var iframe = document.createElement("iframe");
-    iframe.setAttribute("id", "result-iframe");
-    iframe.style.width = "100%";
-    iframe.style.height = "400px";
-    document.body.appendChild(iframe);
-    // Добавление содержимого в iframe
-    var doc = iframe.contentWindow.document;
-    doc.open();
-    doc.write(input);
-    doc.close();
-    // Вывод содержимого консоли на экран
-    var consoleOutput = "<br>" + input.replace(/\n/g, "<br>");
-    consoleOutput = '<span class="console-text">' + consoleOutput + '</span>';
-//    document.getElementById("console").innerHTML = consoleOutput;
-    // Выполнение JavaScript кода в iframe
-    var scriptTags = iframe.contentWindow.document.getElementsByTagName("script");
-    for (var i = 0; i < scriptTags.length; i++) {
-      var script = scriptTags[i];
-      var scriptText = script.innerHTML;
-      eval(scriptText);
-    }
-  }
-</script>
-<script>
-// Создаем боковое меню
-function createSideMenu() {
-  // Создаем контейнер для бокового меню
-  var sideMenu = document.createElement('div');
-  sideMenu.id = 'sideMenu';
-  sideMenu.style.width = '200px';
-  sideMenu.style.height = '100%';
-  sideMenu.style.position = 'fixed';
-  sideMenu.style.top = '0';
-  sideMenu.style.left = '-200px';
-  sideMenu.style.backgroundColor = 'gray';
-  sideMenu.style.transition = 'left 0.3s ease-in';
+    <script>
+      // Глобальный обработчик ошибок
+      window.onerror = function(message, source, lineno, colno, error) {
+        var errorMessage = `Ошибка: ${message} в ${source}:${lineno}:${colno}`;
+        if (error && error.stack) {
+          errorMessage += "\n" + error.stack;
+        }
+        document.getElementById("error-output").textContent += errorMessage + "\n";
+        return true; // Предотвращаем вывод ошибки в консоль браузера
+      };
 
-  // Создаем список элементов меню
-  var menuItems = [
- 
-    { name: 'terminal', label: 'терминал' },
-    { name: 'neser1', label: 'нейросеть предсказания последовательности' },
-    { name: 'glist', label: 'Главная' }
-  ];
+      // Перехват console.error
+      const originalConsoleError = console.error;
+      console.error = function() {
+        var errorMessage = Array.from(arguments).join(" ");
+        document.getElementById("error-output").textContent += "console.error: " + errorMessage + "\n";
+        originalConsoleError.apply(console, arguments); // Сохраняем оригинальное поведение
+      };
 
-  // Добавляем кнопки меню в контейнер
-  for (var i = 0; i < menuItems.length; i++) {
-    var menuItem = document.createElement('button');
-    menuItem.style.display = 'block';
-    menuItem.style.width = '100%';
-    menuItem.style.padding = '10px';
-    menuItem.textContent = menuItems[i].label;
-    menuItem.setAttribute('onclick', 'runTool("' + menuItems[i].name + '")');
-    sideMenu.appendChild(menuItem);
-  }
+      function runCode() {
+        var input = document.getElementById("input-data").value;
+        // Очистка предыдущих ошибок
+        document.getElementById("error-output").innerHTML = "";
 
-  // Добавляем боковое меню в тело документа
-  document.body.appendChild(sideMenu);
+        // Создание iframe
+        var iframe = document.createElement("iframe");
+        iframe.setAttribute("id", "result-iframe");
+        iframe.style.width = "100%";
+        iframe.style.height = "400px";
+        document.body.appendChild(iframe);
 
-  // Обработчик клика для открытия/закрытия бокового меню
-  document.addEventListener('click', function(event) {
-    var target = event.target;
-    if (target.id === 'menuButton') {
-      sideMenu.style.left = (sideMenu.style.left === '-200px') ? '0' : '-200px';
-    }
-  });
-}
+        // Перехват ошибок в iframe
+        iframe.contentWindow.onerror = function(message, source, lineno, colno, error) {
+          var errorMessage = `Ошибка в iframe: ${message} в ${source}:${lineno}:${colno}`;
+          if (error && error.stack) {
+            errorMessage += "\n" + error.stack;
+          }
+          document.getElementById("error-output").textContent += errorMessage + "\n";
+          return true; // Предотвращаем вывод ошибки в консоль браузера
+        };
 
-// Создаем кнопку для открытия/закрытия бокового меню
-function createMenuButton() {
-  var menuButton = document.createElement('button');
-  menuButton.id = 'menuButton';
-  menuButton.textContent = 'Menu';
-  menuButton.style.position = 'fixed';
-  menuButton.style.top = '10px';
-  menuButton.style.left = '250px';
-  document.body.appendChild(menuButton);
-}
+        try {
+          // Добавление содержимого в iframe
+          var doc = iframe.contentWindow.document;
+          doc.open();
+          doc.write(input);
+          doc.close();
 
+          // Выполнение JavaScript кода в iframe
+          var scriptTags = iframe.contentWindow.document.getElementsByTagName("script");
+          for (var i = 0; i < scriptTags.length; i++) {
+            var script = scriptTags[i];
+            var scriptText = script.innerHTML;
+            try {
+              iframe.contentWindow.eval(scriptText);
+            } catch (evalError) {
+              document.getElementById("error-output").textContent += "Ошибка eval: " + evalError.toString() + "\n";
+            }
+          }
+        } catch (error) {
+          // Вывод ошибок в поле вывода ошибок
+          document.getElementById("error-output").textContent += "Ошибка: " + error.toString() + "\n";
+        }
+      }
+    </script>
+    <script>
+      // Создаем боковое меню
+      function createSideMenu() {
+        // Создаем контейнер для бокового меню
+        var sideMenu = document.createElement('div');
+        sideMenu.id = 'sideMenu';
+        sideMenu.style.width = '200px';
+        sideMenu.style.height = '100%';
+        sideMenu.style.position = 'fixed';
+        sideMenu.style.top = '0';
+        sideMenu.style.left = '-200px';
+        sideMenu.style.backgroundColor = 'gray';
+        sideMenu.style.transition = 'left 0.3s ease-in';
 
-// Вызываем функции для создания бокового меню и кнопки
-createSideMenu();
-createMenuButton();
+        // Создаем список элементов меню
+        var menuItems = [
+          { name: 'terminal', label: 'терминал' },
+          { name: 'download', label: 'Мои приложения и данные' },
+          { name: 'glist', label: 'Главная' }
+        ];
 
-</script>
-</body>
+        // Добавляем кнопки меню в контейнер
+        for (var i = 0; i < menuItems.length; i++) {
+          var menuItem = document.createElement('button');
+          menuItem.style.display = 'block';
+          menuItem.style.width = '100%';
+          menuItem.style.padding = '10px';
+          menuItem.textContent = menuItems[i].label;
+          menuItem.setAttribute('onclick', 'runTool("' + menuItems[i].name + '")');
+          sideMenu.appendChild(menuItem);
+        }
+
+        // Добавляем боковое меню в тело документа
+        document.body.appendChild(sideMenu);
+
+        // Обработчик клика для открытия/закрытия бокового меню
+        document.addEventListener('click', function (event) {
+          var target = event.target;
+          if (target.id === 'menuButton') {
+            sideMenu.style.left = (sideMenu.style.left === '-200px') ? '0' : '-200px';
+          }
+        });
+      }
+
+      // Создаем кнопку для открытия/закрытия бокового меню
+      function createMenuButton() {
+        var menuButton = document.createElement('button');
+        menuButton.id = 'menuButton';
+        menuButton.textContent = 'Menu';
+        menuButton.style.position = 'fixed';
+        menuButton.style.top = '10px';
+        menuButton.style.left = '250px';
+        document.body.appendChild(menuButton);
+      }
+
+      // Вызываем функции для создания бокового меню и кнопки
+      createSideMenu();
+      createMenuButton();
+    </script>
+  </body>
 </html>
