@@ -78,7 +78,7 @@
   <div id="gameCanvas"></div>
   <div id="message">Ожидание игрока…</div>
   <div id="stats">
-    <div>Жизнь: <span id="score">100</span></div>
+    <div>Счёт: <span id="score">100</span></div>
     <div>Последний бонус: <span id="lastBonus">нет</span></div>
     <div>Характеристики:</div>
     <div id="playerStats"></div>
@@ -103,7 +103,7 @@
   let desiredFPS = 20;
   let lastFrameTime = 0;
   // Коэффициент симуляции увеличен для ускорения событий (быстрее, чем ранее)
-  const simStep = 0.1;
+  const simStep = 0.05;
 
   const stage = new Konva.Stage({
     container: 'gameCanvas',
@@ -133,8 +133,8 @@
       this.speed = 0;
       this.durability = 100;
       // Базовые характеристики
-      this.baseMaxSpeed = isPlayer ? 2 : 1.5;
-      this.baseReloadTime = 7.5;
+      this.baseMaxSpeed = isPlayer ? 3 : 2.5;
+      this.baseReloadTime = 5;
       this.baseBulletDamage = 1;
       this.baseBulletPenetration = 35;
       this.maxSpeed = this.baseMaxSpeed * (this.durability / 100);
@@ -378,29 +378,21 @@
     return false;
   }
 
-  // При смерти игрока – генерируем бонус и удаляем танк
+  // При смерти танка – генерируем бонус и удаляем танк
   function dropBonusAt(x, y) {
     const bonusTypes = ['reload','speed','durability','damage','penetration'];
     let type = bonusTypes[Math.floor(Math.random()*bonusTypes.length)];
     bonuses.push(new Bonus(x, y, type));
   }
-  function applyBonus(type) {
-    if(playerTank.alive && playerTank.durability > 0) {
+  // Новая функция: применение бонуса только к конкретному танку
+  function applyBonusTo(tank, type) {
+    if(tank.alive && tank.durability > 0) {
       switch(type) {
-        case 'reload': playerTank.baseReloadTime *= 0.85; break;
-        case 'speed': playerTank.baseMaxSpeed *= 1.15; break;
-        case 'durability': playerTank.durability += 10; break;
-        case 'damage': playerTank.baseBulletDamage *= 1.35; break;
-        case 'penetration': playerTank.baseBulletPenetration += 10; break;
-      }
-    }
-    if(remoteTank.alive && remoteTank.durability > 0) {
-      switch(type) {
-        case 'reload': remoteTank.baseReloadTime *= 0.85; break;
-        case 'speed': remoteTank.baseMaxSpeed *= 1.15; break;
-        case 'durability': remoteTank.durability += 10; break;
-        case 'damage': remoteTank.baseBulletDamage *= 1.35; break;
-        case 'penetration': remoteTank.baseBulletPenetration += 10; break;
+        case 'reload': tank.baseReloadTime *= 0.85; break;
+        case 'speed': tank.baseMaxSpeed *= 1.15; break;
+        case 'durability': tank.durability += 10; break;
+        case 'damage': tank.baseBulletDamage *= 1.35; break;
+        case 'penetration': tank.baseBulletPenetration += 10; break;
       }
     }
   }
@@ -586,12 +578,12 @@
   /***********************
    * Симуляция на стороне хоста
    ***********************/
-  function hostSimulation() {
+    function hostSimulation() {
     // Обработка ввода хоста
     let d = joystick.getDirection();
     let mag = Math.hypot(d.x, d.y);
     if(mag > 0) {
-    playerTank.speed = (mag * playerTank.maxSpeed)/joystick.maxRadius;
+      playerTank.speed = (mag * playerTank.maxSpeed)/joystick.maxRadius;
       playerTank.rotate = Math.atan2(d.y, d.x);
     } else { playerTank.speed = 0; }
     playerTank.update();
@@ -664,7 +656,7 @@
     if(enemySpawnTimer > enemySpawnInterval) {
       spawnEnemyTank();
       enemySpawnTimer = 0;
-      enemySpawnInterval = 10 + Math.random()*10;
+      enemySpawnInterval = 30 + Math.random()*10;
     }
     enemyTanks.forEach((t, idx) => {
       t.rotate += (Math.random()-0.5)*0.05;
@@ -701,7 +693,7 @@
         let dx = b.shape.x() - (playerTank.x+playerTank.size/2),
             dy = b.shape.y() - (playerTank.y+playerTank.size/2);
         if(Math.hypot(dx,dy) < playerTank.size/2+10) {
-          applyBonus(b.type); lastBonusText = b.type;
+          applyBonusTo(playerTank, b.type); lastBonusText = b.type;
           b.destroy(); bonuses.splice(idx,1);
           return;
         }
@@ -710,7 +702,7 @@
         let dx = b.shape.x() - (remoteTank.x+remoteTank.size/2),
             dy = b.shape.y() - (remoteTank.y+remoteTank.size/2);
         if(Math.hypot(dx,dy) < remoteTank.size/2+10) {
-          applyBonus(b.type); lastBonusText = b.type;
+          applyBonusTo(remoteTank, b.type); lastBonusText = b.type;
           b.destroy(); bonuses.splice(idx,1);
           return;
         }
