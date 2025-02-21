@@ -504,18 +504,6 @@
 
     // Обновление настроек при изменении ползунков
     document.getElementById("top_p").addEventListener("input", function() {
-
-
-                                                          // Открытие/закрытие окна настроек
-    settingsButton.addEventListener("click", () => {
-      settingsModal.style.display = "flex";
-    });
-    closeSettings.addEventListener("click", () => {
-      settingsModal.style.display = "none";
-    });
-
-    // Обновление настроек при изменении ползунков
-    document.getElementById("top_p").addEventListener("input", function() {
       settings.top_p = parseFloat(this.value);
       updateSettingDisplays();
     });
