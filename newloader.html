@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Загрузка HTML кода</title>
+    <style>
+        body {
+            color: black;
+            background-color: grey;
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        button {
+            font-size: 20px;
+            color: white;
+            background-color: black;
+            margin: 5px;
+            padding: 10px;
+            border: none;
+            cursor: pointer;
+        }
+        .hidden {
+            display: none;
+        }
+        .settings-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            display: none;
+        }
+        .input-group {
+            margin: 10px 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .input-group label {
+            margin-right: 10px;
+        }
+        input {
+            font-size: 18px;
+            padding: 5px;
+        }
+        #code-container {
+            margin-top: 20px;
+        }
+        .modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            display: none;
+        }
+        .modal textarea {
+            width: 100%;
+            height: 200px;
+        }
+    </style>
+    <script>
+        let hideSystemFiles = true;
+
+        function saveCode() {
+            var name = document.getElementById("name").value;
+            var link = document.getElementById("link").value;
+            
+            fetch(link)
+                .then(response => response.text())
+                .then(data => {
+                    localStorage.setItem(name, data);
+                    displayCodes();
+                })
+                .catch(error => console.log(error));
+        }
+        
+        function deleteCode(name) {
+            if (confirm(`Удалить "${name}"? Вы уверены?`)) {
+                localStorage.removeItem(name);
+                displayCodes();
+            }
+        }
+        
+        function displayCodes() {
+            var codeContainer = document.getElementById("code-container");
+            codeContainer.innerHTML = "";
+            
+            for (var i = 0; i < localStorage.length; i++) {
+                var codeName = localStorage.key(i);
+                
+                if (hideSystemFiles && /^[A-Za-z]/.test(codeName)) {
+                    continue;
+                }
+                
+                var codeButton = document.createElement("button");
+                codeButton.innerHTML = codeName;
+                codeButton.addEventListener("click", function() {
+                    var code = localStorage.getItem(this.innerHTML);
+                    execute(code);
+                });
+                
+                var deleteButton = document.createElement("button");
+                deleteButton.innerHTML = "Удалить";
+                deleteButton.addEventListener("click", function() {
+                    var codeName = this.parentElement.firstChild.innerHTML;
+                    deleteCode(codeName);
+                });
+                
+                var codeWrapper = document.createElement("div");
+                codeWrapper.appendChild(codeButton);
+                codeWrapper.appendChild(deleteButton);
+                codeContainer.appendChild(codeWrapper);
+            }
+        }
+        
+        function execute(code) {
+            document.open();
+            document.write(code);
+            document.close();
+        }
+        
+        function toggleSettings() {
+            var settings = document.getElementById("settings");
+            settings.style.display = settings.style.display === "none" ? "block" : "none";
+        }
+        
+        function toggleSystemFiles() {
+            hideSystemFiles = document.getElementById("hide-system-files").checked;
+            displayCodes();
+        }
+        
+        function runTool(toolName) {
+            var url = toolName + ".html";
+            window.open(url, "_blank");
+        }
+        
+        function openCodeModal() {
+            document.getElementById("code-modal").style.display = "block";
+        }
+        
+        function closeCodeModal() {
+            document.getElementById("code-modal").style.display = "none";
+        }
+        
+        function saveCodeFromInput() {
+            var name = document.getElementById("code-name").value;
+            var code = document.getElementById("code-input").value;
+            
+            if (!name) {
+                alert("Введите название!");
+                return;
+            }
+            
+            localStorage.setItem(name, code);
+            displayCodes();
+            closeCodeModal();
+        }
+    </script>
+</head>
+<body>
+    <h1>G-list OS apps and data</h1>
+    <button onclick="runTool('tool7')">НАЗАД</button>
+    <button onclick="runTool('glist')">ГЛАВНОЕ МЕНЮ</button>
+    <button onclick="toggleSettings()">⚙️</button>
+    <button onclick="openCodeModal()">Загрузить через код</button>
+    
+    <div id="settings" class="settings-container">
+        <label>
+            <input type="checkbox" id="hide-system-files" checked onchange="toggleSystemFiles()"> Скрывать системные файлы
+        </label>
+    </div>
+    
+    <div class="input-group">
+        <label for="name">Название кода:</label>
+        <input type="text" id="name">
+    </div>
+    
+    <div class="input-group">
+        <label for="link">Ссылка:</label>
+        <input type="text" id="link">
+    </div>
+    
+    <button onclick="saveCode()">Загрузить</button>
+    
+    <p>----------------------------------</p>
+    <div id="code-container"></div>
+    
+    <div id="code-modal" class="modal">
+        <h2>Введите код</h2>
+        <input type="text" id="code-name" placeholder="Название">
+        <textarea id="code-input" placeholder="Введите код здесь..."></textarea>
+        <br>
+        <button onclick="saveCodeFromInput()">Загрузить</button>
+        <button onclick="closeCodeModal()">Отмена</button>
+    </div>
+    
+    <script>
+        displayCodes();
+    </script>
+</body>
+</html>
