@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Средневековый бой. Гойда!</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            touch-action: none;
+        }
+        #setup {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border: 1px solid black;
+            z-index: 10;
+        }
+        #gameCanvas {
+            display: none;
+        }
+        #joystick {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            width: 120px;
+            height: 120px;
+        }
+        #attackButton, #shootButton {
+            position: absolute;
+            padding: 15px 25px;
+            font-size: 16px;
+            border-radius: 10px;
+        }
+        #attackButton {
+            bottom: 150px;
+            right: 20px;
+        }
+        #shootButton {
+            bottom: 80px;
+            right: 20px;
+        }
+        #attackButton:disabled, #shootButton:disabled {
+            opacity: 0.5;
+        }
+        #gameOver {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            color: red;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 10px;
+            z-index: 10;
+        }
+        #teamStats {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+            color: white;
+            font-family: Arial, sans-serif;
+            z-index: 5;
+        }
+        .progress-bar {
+            width: 100px;
+            height: 10px;
+            background: #333;
+            margin: 5px 0;
+        }
+        .progress {
+            height: 100%;
+        }
+        #backButton {
+            margin-top: 10px;
+            padding: 5px 10px;
+            background: #555;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+        }
+        #backButton:hover {
+            background: #777;
+        }
+    </style>
+</head>
+<body>
+    <div id="setup">
+        <label for="worldSize">Размер мира:</label>
+        <input type="range" id="worldSize" min="0" max="4" value="1" step="1">
+        <span id="worldSizeValue">2000</span>
+        <br>
+        <label for="teams">Количество команд:</label>
+        <input type="range" id="teams" min="2" max="4" value="2">
+        <span id="teamsValue">2</span>
+        <br>
+        <label for="players">Игроков в команде:</label>
+        <input type="range" id="players" min="1" max="200" value="1">
+        <span id="playersValue">1</span>
+        <br>
+        <label for="class">Класс:</label>
+        <select id="class">
+            <option value="knight">Рыцарь</option>
+            <option value="musketeer">Мушкетёр</option>
+        </select>
+        <br>
+        <button id="startGame">Начать игру</button>
+    </div>
+    <canvas id="gameCanvas"></canvas>
+    <div id="joystick"></div>
+    <button id="attackButton">Атака</button>
+    <button id="shootButton">Выстрел</button>
+    <div id="gameOver">Game Over</div>
+    <div id="teamStats"></div>
+    <script src="nipple.txt"></script>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth * 2 * 1.35; // Увеличение обзора на 35%
+        canvas.height = window.innerHeight * 2 * 1.35;
+        canvas.style.width = `${window.innerWidth}px`;
+        canvas.style.height = `${window.innerHeight}px`;
+
+        const WORLD_SIZES = [1000, 2000, 5000, 10000, 20000];
+        let WORLD_WIDTH = 2000;
+        let WORLD_HEIGHT = 2000;
+        const PLAYER_RADIUS = 20;
+
+        let player;
+        let bots = [];
+        let bullets = [];
+        let graves = [];
+        let cameraX = 0;
+        let cameraY = 0;
+        let gameOver = false;
+        let frameCount = 0;
+        const flowers = [];
+
+        const worldSizeInput = document.getElementById('worldSize');
+        const worldSizeValue = document.getElementById('worldSizeValue');
+        const teamsInput = document.getElementById('teams');
+        const teamsValue = document.getElementById('teamsValue');
+        const playersInput = document.getElementById('players');
+        const playersValue = document.getElementById('playersValue');
+        const classSelect = document.getElementById('class');
+        const startGameButton = document.getElementById('startGame');
+        const attackButton = document.getElementById('attackButton');
+        const shootButton = document.getElementById('shootButton');
+        const gameOverScreen = document.getElementById('gameOver');
+        const teamStats = document.getElementById('teamStats');
+
+        worldSizeInput.addEventListener('input', () => {
+            WORLD_WIDTH = WORLD_SIZES[worldSizeInput.value];
+            WORLD_HEIGHT = WORLD_WIDTH;
+            worldSizeValue.textContent = WORLD_WIDTH;
+        });
+        teamsInput.addEventListener('input', () => teamsValue.textContent = teamsInput.value);
+        playersInput.addEventListener('input', () => playersValue.textContent = playersInput.value);
+        startGameButton.addEventListener('click', () => {
+            const teams = parseInt(teamsInput.value);
+            const playersPerTeam = parseInt(playersInput.value);
+            const playerClass = classSelect.value;
+            WORLD_WIDTH = WORLD_SIZES[worldSizeInput.value];
+            WORLD_HEIGHT = WORLD_WIDTH;
+            for (let i = 0; i < 200; i++) {
+                flowers.push({
+                    x: Math.random() * WORLD_WIDTH,
+                    y: Math.random() * WORLD_HEIGHT,
+                    emoji: Math.random() < 0.5 ? '🌸' : '🌼'
+                });
+            }
+            document.getElementById('setup').style.display = 'none';
+            canvas.style.display = 'block';
+            initGame(teams, playersPerTeam, playerClass);
+        });
+
+        class Character {
+            constructor(x, y, team, classType) {
+                this.x = x;
+                this.y = y;
+                this.team = team;
+                this.classType = classType;
+                this.direction = 0;
+                this.speed = 2;
+                this.health = 100;
+                this.reloadTime = 0;
+                this.meleeReloadTime = 0;
+                this.swordLength = classType === 'knight' ? 50 : 25;
+                this.attackAnimation = 0;
+            }
+            update() {
+                if (this.health <= 0) return;
+                if (this.reloadTime > 0) this.reloadTime--;
+                if (this.meleeReloadTime > 0) this.meleeReloadTime--;
+                this.x = Math.max(20, Math.min(WORLD_WIDTH - 20, this.x));
+                this.y = Math.max(20, Math.min(WORLD_HEIGHT - 20, this.y));
+                if (this.attackAnimation > 0) {
+                    this.attackAnimation--;
+                    this.checkSwordCollision();
+                }
+            }
+            draw() {
+                const screenX = this.x - cameraX;
+                const screenY = this.y - cameraY;
+                if (screenX < -20 || screenX > canvas.width + 20 || screenY < -20 || screenY > canvas.height + 20) return;
+
+                ctx.beginPath();
+                ctx.arc(screenX, screenY, PLAYER_RADIUS, 0, Math.PI * 2);
+                ctx.fillStyle = this.team === 1 ? (this instanceof Player ? '#d3d3d3' : 'white') :
+                    this.team === 2 ? 'red' : this.team === 3 ? 'blue' : 'green';
+                ctx.fill();
+                ctx.beginPath();
+                ctx.moveTo(screenX, screenY);
+                ctx.arc(screenX, screenY, PLAYER_RADIUS, this.direction - Math.PI / 18, this.direction + Math.PI / 18);
+                ctx.closePath();
+                ctx.fillStyle = 'black';
+                ctx.fill();
+
+                if (this.attackAnimation > 0) {
+                    const angle = this.direction;
+                    const progress = 1 - (this.attackAnimation / 60);
+                    const swingAngle = angle + (Math.PI / 2 - Math.PI * progress);
+                    ctx.beginPath();
+                    ctx.moveTo(screenX + Math.cos(angle) * PLAYER_RADIUS, screenY + Math.sin(angle) * PLAYER_RADIUS);
+                    ctx.lineTo(screenX + Math.cos(swingAngle) * (PLAYER_RADIUS + this.swordLength), 
+                               screenY + Math.sin(swingAngle) * (PLAYER_RADIUS + this.swordLength));
+                    ctx.strokeStyle = 'gray';
+                    ctx.lineWidth = 5;
+                    ctx.stroke();
+                }
+            }
+            shoot() {
+                if (this.classType === 'musketeer' && this.reloadTime <= 0 && this.health > 0) {
+                    const bullet = {
+                        x: this.x + Math.cos(this.direction) * 20,
+                        y: this.y + Math.sin(this.direction) * 20,
+                        direction: this.direction + (Math.random() - 0.5) * 0.2,
+                        speed: 10,
+                        distance: 0,
+                        maxDistance: 600,
+                        owner: this
+                    };
+                    bullets.push(bullet);
+                    this.reloadTime = 15 * 60;
+                }
+            }
+            meleeAttack() {
+                if (this.meleeReloadTime <= 0 && this.health > 0) {
+                    this.attackAnimation = 60;
+                    this.meleeReloadTime = this.classType === 'knight' ? 2 * 60 : 60;
+                }
+            }
+            checkSwordCollision() {
+                if (this.attackAnimation <= 0) return;
+                const angle = this.direction;
+                const progress = 1 - (this.attackAnimation / 60);
+                const swingAngle = angle + (Math.PI / 2 - Math.PI * progress);
+                const swordTipX = this.x + Math.cos(swingAngle) * (PLAYER_RADIUS + this.swordLength);
+                const swordTipY = this.y + Math.sin(swingAngle) * (PLAYER_RADIUS + this.swordLength);
+                const swordBaseX = this.x + Math.cos(swingAngle) * PLAYER_RADIUS;
+                const swordBaseY = this.y + Math.sin(swingAngle) * PLAYER_RADIUS;
+
+                bots.concat(player).forEach(target => {
+                    if (target !== this && target.health > 0) {
+                        const distToSword = this.pointToLineDistance(target.x, target.y, swordBaseX, swordBaseY, swordTipX, swordTipY);
+                        if (distToSword < PLAYER_RADIUS) {
+                            target.health = 0;
+                            graves.push({ x: target.x, y: target.y });
+                            if (target instanceof Player) {
+                                gameOver = true;
+                                gameOverScreen.style.display = 'block';
+                            }
+                        }
+                    }
+                });
+            }
+            pointToLineDistance(px, py, x1, y1, x2, y2) {
+                const A = px - x1;
+                const B = py - y1;
+                const C = x2 - x1;
+                const D = y2 - y1;
+                const dot = A * C + B * D;
+                const len_sq = C * C + D * D;
+                const param = len_sq !== 0 ? dot / len_sq : -1;
+                let xx, yy;
+
+                if (param < 0) {
+                    xx = x1;
+                    yy = y1;
+                } else if (param > 1) {
+                    xx = x2;
+                    yy = y2;
+                } else {
+                    xx = x1 + param * C;
+                    yy = y1 + param * D;
+                }
+
+                const dx = px - xx;
+                const dy = py - yy;
+                return Math.sqrt(dx * dx + dy * dy);
+            }
+        }
+
+        class Player extends Character {
+            constructor(classType) {
+                super(WORLD_WIDTH / 4, WORLD_HEIGHT / 4, 1, classType);
+            }
+        }
+
+        class Bot extends Character {
+            constructor(team, classType) {
+                let x, y;
+                if (team === 1) { // Верхний левый
+                    x = Math.random() * (WORLD_WIDTH / 2);
+                    y = Math.random() * (WORLD_HEIGHT / 2);
+                } else if (team === 2) { // Верхний правый
+                    x = WORLD_WIDTH / 2 + Math.random() * (WORLD_WIDTH / 2);
+                    y = Math.random() * (WORLD_HEIGHT / 2);
+                } else if (team === 3) { // Нижний левый
+                    x = Math.random() * (WORLD_WIDTH / 2);
+                    y = WORLD_HEIGHT / 2 + Math.random() * (WORLD_HEIGHT / 2);
+                } else { // Нижний правый
+                    x = WORLD_WIDTH / 2 + Math.random() * (WORLD_WIDTH / 2);
+                    y = WORLD_HEIGHT / 2 + Math.random() * (WORLD_HEIGHT / 2);
+                }
+                super(x, y, team, classType);
+                this.target = null;
+                this.state = 'approaching';
+            }
+            update() {
+                if (this.health <= 0) return;
+                super.update();
+                if (frameCount % 60 === 0) this.findTarget();
+                if (this.classType === 'musketeer') {
+                    this.updateMusketeer();
+                } else {
+                    this.updateKnight();
+                }
+            }
+            updateMusketeer() {
+                if (!this.target) return;
+                const dist = this.distanceTo(this.target);
+                const attackDistance = PLAYER_RADIUS + this.swordLength * (0.75 + Math.random() * 0.5);
+                const shootDistance = PLAYER_RADIUS * 10 * (0.6 + Math.random() * 0.8);
+
+                if (this.reloadTime > 0) {
+                    this.retreat();
+                    this.state = 'retreating';
+                } else if (dist <= attackDistance && this.meleeReloadTime <= 0) {
+                    this.meleeAttack();
+                    this.state = 'attacking';
+                } else if (dist <= shootDistance && this.reloadTime <= 0) {
+                    this.shoot();
+                    this.state = 'attacking';
+                } else {
+                    this.moveToTarget(dist > shootDistance);
+                    this.state = 'approaching';
+                }
+
+                if (this.state === 'attacking' && this.attackAnimation <= 6) {
+                    this.state = 'retreating';
+                }
+            }
+            updateKnight() {
+                if (!this.target) return;
+                const dist = this.distanceTo(this.target);
+                const attackDistance = PLAYER_RADIUS + this.swordLength * (0.75 + Math.random() * 0.5);
+
+                if (dist <= attackDistance && this.meleeReloadTime <= 0) {
+                    this.meleeAttack();
+                    this.state = 'attacking';
+                } else if (this.meleeReloadTime > 0) {
+                    if (this.attackAnimation <= 6) {
+                        this.retreat();
+                        this.state = 'retreating';
+                    }
+                } else {
+                    this.moveToTarget(dist > attackDistance);
+                    this.state = 'approaching';
+                }
+            }
+            findTarget() {
+                const enemies = bots.concat(player).filter(c => c.team !== this.team && c.health > 0);
+                if (enemies.length > 0) {
+                    this.target = enemies.reduce((closest, c) => this.distanceTo(c) < this.distanceTo(closest) ? c : closest, enemies[0]);
+                } else {
+                    this.target = null;
+                }
+            }
+            distanceTo(target) {
+                return Math.hypot(this.x - target.x, this.y - target.y);
+            }
+            moveToTarget(keepDistance = false) {
+                const angle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
+                this.direction = angle;
+                if (!keepDistance || this.distanceTo(this.target) > (PLAYER_RADIUS + this.swordLength)) {
+                    this.x += Math.cos(angle) * this.speed;
+                    this.y += Math.sin(angle) * this.speed;
+                }
+            }
+            retreat() {
+                const angle = Math.atan2(this.y - this.target.y, this.x - this.target.x);
+                this.direction = angle;
+                this.x += Math.cos(angle) * this.speed;
+                this.y += Math.sin(angle) * this.speed;
+            }
+        }
+
+        function initGame(teams, playersPerTeam, playerClass) {
+            player = new Player(playerClass);
+            for (let team = 1; team <= teams; team++) {
+                for (let i = 0; i < (team === 1 ? playersPerTeam - 1 : playersPerTeam); i++) {
+                    const botClass = Math.random() < 0.33 ? 'musketeer' : 'knight';
+                    bots.push(new Bot(team, botClass));
+                }
+            }
+            gameLoop();
+        }
+
+        function updateBullets() {
+            bullets.forEach((bullet, index) => {
+                bullet.x += Math.cos(bullet.direction) * bullet.speed;
+                bullet.y += Math.sin(bullet.direction) * bullet.speed;
+                bullet.distance += bullet.speed;
+                if (bullet.distance > bullet.maxDistance) {
+                    bullets.splice(index, 1);
+                    return;
+                }
+                bots.concat(player).forEach(target => {
+                    if (target !== bullet.owner && target.health > 0) {
+                        const dist = Math.hypot(bullet.x - target.x, bullet.y - target.y);
+                        if (dist < PLAYER_RADIUS) {
+                            target.health = 0;
+                            graves.push({ x: target.x, y: target.y });
+                            if (target instanceof Player) {
+                                gameOver = true;
+                                gameOverScreen.style.display = 'block';
+                            }
+                            bullets.splice(index, 1);
+                        }
+                    }
+                });
+            });
+        }
+
+        function drawTeamStats() {
+            const teams = parseInt(teamsInput.value);
+            const playersPerTeam = parseInt(playersInput.value);
+            let statsHTML = '';
+            for (let team = 1; team <= teams; team++) {
+                const alive = (team === 1 ? (player.health > 0 ? 1 : 0) : 0) + 
+                              bots.filter(b => b.team === team && b.health > 0).length;
+                const progressWidth = (alive / playersPerTeam) * 100;
+                const color = team === 1 ? 'white' : team === 2 ? 'red' : team === 3 ? 'blue' : 'green';
+                statsHTML += `
+                    <div>Команда ${team}: ${alive}/${playersPerTeam}</div>
+                    <div class="progress-bar">
+                        <div class="progress" style="width: ${progressWidth}%; background: ${color};"></div>
+                    </div>
+                `;
+            }
+            statsHTML += `<button id="backButton">Назад</button>`;
+            teamStats.innerHTML = statsHTML;
+
+            document.getElementById('backButton').addEventListener('click', () => {
+                window.location.href = 'glist.html';
+            });
+        }
+
+            function draw() {
+            ctx.fillStyle = '#90ee90';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            cameraX = player.x - canvas.width / 2;
+            cameraY = player.y - canvas.height / 2;
+            cameraX = Math.max(0, Math.min(WORLD_WIDTH - canvas.width, cameraX));
+            cameraY = Math.max(0, Math.min(WORLD_HEIGHT - canvas.height, cameraY));
+
+            flowers.forEach(flower => {
+                const screenX = flower.x - cameraX;
+                const screenY = flower.y - cameraY;
+                if (screenX >= -20 && screenX <= canvas.width + 20 && screenY >= -20 && screenY <= canvas.height + 20) {
+                    ctx.font = '20px Arial';
+                    ctx.fillText(flower.emoji, screenX, screenY);
+                }
+            });
+
+            if (player.health > 0) player.draw();
+            bots.filter(bot => bot.health > 0).forEach(bot => bot.draw());
+            bullets.forEach(bullet => {
+                const screenX = bullet.x - cameraX;
+                const screenY = bullet.y - cameraY;
+                if (screenX >= -5 && screenX <= canvas.width + 5 && screenY >= -5 && screenY <= canvas.height + 5) {
+                    ctx.beginPath();
+                    ctx.arc(screenX, screenY, 5, 0, Math.PI * 2);
+                    ctx.fillStyle = 'black';
+                    ctx.fill();
+                }
+            });
+            graves.forEach(grave => {
+                const screenX = grave.x - cameraX;
+                const screenY = grave.y - cameraY;
+                if (screenX >= -20 && screenX <= canvas.width + 20 && screenY >= -20 && screenY <= canvas.height + 20) {
+                    ctx.font = '30px Arial';
+                    ctx.fillText('⚰️', screenX - 15, screenY + 10);
+                }
+            });
+
+            drawTeamStats();
+        }
+
+        const joystick = nipplejs.create({
+            zone: document.getElementById('joystick'),
+            mode: 'dynamic',
+            position: { left: '60px', bottom: '60px' },
+            color: 'blue',
+            size: 120
+        });
+
+        let moveDirection = null;
+        joystick.on('move', (evt, data) => {
+            if (player.health > 0) moveDirection = -data.angle.radian;
+        });
+        joystick.on('end', () => {
+            moveDirection = null;
+        });
+
+        attackButton.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (player.meleeReloadTime <= 0 && player.health > 0) {
+                player.meleeAttack();
+            }
+        });
+
+        shootButton.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (player.reloadTime <= 0 && player.classType === 'musketeer' && player.health > 0) {
+                player.shoot();
+            }
+        });
+
+        function gameLoop() {
+            if (!gameOver) {
+                frameCount++;
+                if (moveDirection !== null && player.health > 0) {
+                    player.direction = moveDirection;
+                    player.x += Math.cos(moveDirection) * player.speed;
+                    player.y += Math.sin(moveDirection) * player.speed;
+                }
+                player.update();
+                bots.forEach(bot => bot.update());
+                updateBullets();
+                attackButton.disabled = player.meleeReloadTime > 0 || player.health <= 0;
+                shootButton.disabled = player.reloadTime > 0 || player.classType !== 'musketeer' || player.health <= 0;
+            }
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+    </script>
+</body>
+</html>
