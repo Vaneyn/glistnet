@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>МайоNES</title>
+  <!-- Единственная внешняя библиотека: JSNES -->
+  <script src="jsnes.txt"></script>
+  <style>
+    /* Сброс отступов и базовые стили */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; background: #222; font-family: Arial, sans-serif; }
+    /* Основной контейнер с flex-версткой */
+    #container { display: flex; flex-direction: column; height: 100vh; }
+    /* Заголовок с кнопками */
+    #header { display: flex; align-items: center; background: #333; padding: 10px; }
+    #header button, #header select { margin-right: 10px; }
+    /* Экран эмулятора */
+    #screen-container {
+      flex: 1; background: #000;
+      display: flex; justify-content: center; align-items: center; padding: 10px;
+    }
+    #screen { width: 100%; max-width: 512px; border: 2px solid #444; background: #000; }
+    /* Панель контролов */
+    #control-panel {
+      background: #222; padding: 10px;
+      display: flex; flex-direction: column; align-items: center;
+    }
+    /* Кнопки Start и Select */
+    #middle-buttons { margin-bottom: 10px; }
+    #middle-buttons button {
+      background: #666; border: none; border-radius: 5px; color: #fff;
+      font-size: 16px; padding: 10px 20px; margin: 0 5px;
+    }
+    /* Контейнер для джойстика */
+    #gamepad { width: 300px; display: flex; justify-content: space-between; user-select: none; }
+    /* D-Pad с использованием grid, увеличенные кнопки; сдвиг влево */
+    #dpad {
+      display: grid; grid-template-columns: repeat(3, 60px);
+      grid-template-rows: repeat(3, 60px); gap: 5px;
+      transform: translateX(-20px);
+    }
+    #dpad .nes-control {
+      background: #555; border: none; border-radius: 5px; color: #fff;
+      font-size: 24px; width: 60px; height: 60px; user-select: none;
+    }
+    /* Расположение кнопок в D-Pad */
+    #dpad .up    { grid-column: 2; grid-row: 1; }
+    #dpad .left  { grid-column: 1; grid-row: 2; }
+    #dpad .right { grid-column: 3; grid-row: 2; }
+    #dpad .down  { grid-column: 2; grid-row: 3; }
+    /* Кнопки A, B, C, D */
+    #action-buttons {
+      display: grid; grid-template-columns: repeat(2, 60px);
+      grid-template-rows: repeat(2, 60px); gap: 5px;
+    }
+    #action-buttons .nes-control {
+      background: #777; border: none; border-radius: 5px; color: #fff;
+      font-size: 24px; width: 60px; height: 60px;
+    }
+    /* Модальное окно настроек */
+    #settingsModal {
+      display: none; position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000;
+      justify-content: center; align-items: center;
+    }
+    #settingsModal .modal-content {
+      background: #333; padding: 20px; border-radius: 10px;
+      max-width: 95%; max-height: 95%; overflow: auto; color: #fff;
+    }
+    #settingsModal h2 { margin-bottom: 10px; }
+    .setting-item { margin-bottom: 15px; }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <!-- Заголовок: кнопка Назад, кнопка Параметры, выбор локального ROM и кнопка загрузки -->
+    <div id="header">
+      <button id="backButton" onclick="goBack()">Назад</button>
+      <button id="settingsButton">Параметры</button>
+      <select id="localRomSelect">
+  <option value="5.nes">Супер марио</option>
+
+        <option value="1.nes">Пакмен</option>
+        <option value="2.nes">Батл сити</option>
+        <option value="3.nes">Бомбермен</option>
+        <option value="4.nes">Контра</option>
+    <option value="tetris.nes">Тетрис</option>   
+      </select>
+      <button id="loadLocalRomButton">Загрузить</button>
+    </div>
+    <!-- Экран эмулятора -->
+    <div id="screen-container">
+      <canvas id="screen" width="256" height="240"></canvas>
+    </div>
+    <!-- Панель контролов -->
+    <div id="control-panel">
+      <div id="middle-buttons">
+        <!-- Для игровых кнопок убраны inline-события,
+             добавлены класс и data-key -->
+        <button data-key="START" class="nes-control">Start</button>
+        <button data-key="SELECT" class="nes-control">Select</button>
+      </div>
+      <div id="gamepad">
+        <!-- D-Pad -->
+        <div id="dpad">
+          <button data-key="UP" class="nes-control up">&#9650;</button>
+          <button data-key="LEFT" class="nes-control left">&#9664;</button>
+          <button data-key="RIGHT" class="nes-control right">&#9654;</button>
+          <button data-key="DOWN" class="nes-control down">&#9660;</button>
+        </div>
+        <!-- Кнопки A, B, C, D -->
+        <div id="action-buttons">
+          <button data-key="A" class="nes-control">A</button>
+          <button data-key="B" class="nes-control">B</button>
+          <button data-key="C" class="nes-control">C</button>
+          <button data-key="D" class="nes-control">D</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно настроек -->
+  <div id="settingsModal">
+    <div class="modal-content">
+      <h2>Параметры</h2>
+      <div class="setting-item">
+        <label for="fpsInput">FPS Limit (макс. 300): </label>
+        <input type="number" id="fpsInput" value="70" min="1" max="300" />
+      </div>
+      <div class="setting-item">
+        <label for="soundCheckbox">
+          <input type="checkbox" id="soundCheckbox" checked> Эмуляция звука
+        </label>
+      </div>
+      <div class="setting-item">
+        <label for="externalRomInput">Загрузить внешний ROM:</label>
+        <input type="file" id="externalRomInput" accept=".nes" />
+      </div>
+      <button id="closeSettings">Закрыть</button>
+    </div>
+  </div>
+
+  <script>
+    // Функция форматирования в HEX (при необходимости)
+    function toHex(value, length) {
+      return value.toString(16).toUpperCase().padStart(length, '0');
+    }
+
+    // Функция для возврата назад
+    function goBack() {
+      window.location.href = 'glist.html';
+    }
+
+    // Объект соответствия кнопок для NES
+    const keyMap = {
+      'A': 1,
+      'B': 0,
+      'SELECT': 2,
+      'START': 3,
+      'UP': 4,
+      'DOWN': 5,
+      'LEFT': 6,
+      'RIGHT': 7,
+      'C': 1,
+      'D': 0
+    };
+
+    // Функция обработки нажатия/отпуска кнопок эмулятора
+    function handleButton(button, isDown) {
+      if (isDown) {
+        nes.buttonDown(1, keyMap[button]);
+      } else {
+        nes.buttonUp(1, keyMap[button]);
+      }
+    }
+
+    // Привязка клавиатуры для управления
+    const keyboardMap = {
+      'ArrowUp': 'UP',
+      'ArrowDown': 'DOWN',
+      'ArrowLeft': 'LEFT',
+      'ArrowRight': 'RIGHT',
+      'z': 'A', 'Z': 'A',
+      'x': 'B', 'X': 'B',
+      'c': 'C', 'C': 'C',
+      'v': 'D', 'V': 'D',
+      'Enter': 'START',
+      'Shift': 'SELECT',
+      'Escape': 'BACK'
+    };
+    const keysPressed = {};
+    window.addEventListener('keydown', function(e) {
+      const key = e.key;
+      const mapping = keyboardMap[key];
+      if (mapping) {
+        if (!keysPressed[key]) {
+          keysPressed[key] = true;
+          if (mapping === 'BACK') {
+            goBack();
+          } else {
+            handleButton(mapping, true);
+          }
+        }
+        e.preventDefault();
+      }
+    });
+    window.addEventListener('keyup', function(e) {
+      const key = e.key;
+      const mapping = keyboardMap[key];
+      if (mapping && mapping !== 'BACK') {
+        keysPressed[key] = false;
+        handleButton(mapping, false);
+        e.preventDefault();
+      }
+    });
+    document.addEventListener('touchmove', function(e) {
+      e.preventDefault();
+    }, { passive: false });
+
+    /* ===============================
+       Аудио: Эмуляция звука
+       =============================== */
+    let soundEnabled = true;
+    let audioContext = null, scriptNode = null;
+    let sampleBuffer = [];
+    function initAudio() {
+      if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        scriptNode = audioContext.createScriptProcessor(4096, 0, 1);
+        scriptNode.onaudioprocess = function(e) {
+          const output = e.outputBuffer.getChannelData(0);
+          for (let i = 0; i < output.length; i++) {
+            output[i] = sampleBuffer.length ? sampleBuffer.shift() : 0;
+          }
+        };
+        scriptNode.connect(audioContext.destination);
+      }
+    }
+
+    /* ===============================
+       Инициализация NES
+       =============================== */
+    const nes = new jsnes.NES({
+      onFrame: function(frameBuffer) {
+        const canvas = document.getElementById('screen');
+        const ctx = canvas.getContext('2d');
+        if (!ctx.imageData) {
+          ctx.imageData = ctx.createImageData(256, 240);
+        }
+        const data = ctx.imageData.data;
+        for (let i = 0; i < frameBuffer.length; i++) {
+          const pixel = frameBuffer[i];
+          data[i * 4]     = pixel & 0xFF;
+          data[i * 4 + 1] = (pixel >> 8) & 0xFF;
+          data[i * 4 + 2] = (pixel >> 16) & 0xFF;
+          data[i * 4 + 3] = 255;
+        }
+        ctx.putImageData(ctx.imageData, 0, 0);
+      },
+      onAudioSample: function(sample) {
+        if (soundEnabled) {
+          if (!audioContext) initAudio();
+          sampleBuffer.push(sample / 32767);
+        }
+      }
+    });
+
+    // FPS ограничитель
+    let fpsLimit = 70;
+    let lastFrameTime = performance.now();
+    function frameLoop() {
+      requestAnimationFrame(frameLoop);
+      const now = performance.now();
+      if (now - lastFrameTime < 1000 / fpsLimit) return;
+      lastFrameTime = now;
+      nes.frame();
+    }
+
+    /* ===============================
+       Загрузка локального ROM (через XMLHttpRequest)
+       =============================== */
+    function loadRomFromUrl(url) {
+      const xhr = new XMLHttpRequest();
+      xhr.open('GET', url, true);
+      xhr.responseType = 'arraybuffer';
+      xhr.onload = function() {
+        if (xhr.status === 200 || xhr.status === 0) {
+          const buffer = xhr.response;
+          const binaryString = arrayBufferToBinaryString(buffer);
+          try {
+            nes.loadROM(binaryString);
+            requestAnimationFrame(frameLoop);
+          } catch (e) {
+            alert("Ошибка загрузки ROM: " + e);
+          }
+        } else {
+          alert("Не удалось загрузить ROM, статус: " + xhr.status);
+        }
+      };
+      xhr.onerror = function() {
+        alert("Ошибка загрузки ROM.");
+      };
+      xhr.send();
+    }
+    const loadLocalRomButton = document.getElementById('loadLocalRomButton');
+    loadLocalRomButton.addEventListener('click', () => {
+      const select = document.getElementById('localRomSelect');
+      const romName = select.value;
+      loadRomFromUrl(romName);
+    });
+
+    /* ===============================
+       Загрузка внешнего ROM (из настроек)
+       =============================== */
+    const externalRomInput = document.getElementById('externalRomInput');
+    externalRomInput.addEventListener('change', function(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function() {
+        const binaryString = arrayBufferToBinaryString(reader.result);
+        try {
+          nes.loadROM(binaryString);
+          requestAnimationFrame(frameLoop);
+        } catch (e) {
+          alert("Ошибка загрузки ROM: " + e);
+        }
+      };
+      reader.onerror = function() {
+        alert("Ошибка чтения файла ROM.");
+      };
+      reader.readAsArrayBuffer(file);
+    });
+
+    // Преобразование ArrayBuffer в бинарную строку
+    function arrayBufferToBinaryString(buffer) {
+      let binary = '';
+      const bytes = new Uint8Array(buffer);
+      for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      return binary;
+    }
+
+    /* ===============================
+       Настройки
+       =============================== */
+    const settingsButton = document.getElementById('settingsButton');
+    const settingsModal = document.getElementById('settingsModal');
+    const closeSettings = document.getElementById('closeSettings');
+    const fpsInput = document.getElementById('fpsInput');
+    const soundCheckbox = document.getElementById('soundCheckbox');
+    settingsButton.addEventListener('click', () => {
+      settingsModal.style.display = 'flex';
+    });
+    closeSettings.addEventListener('click', () => {
+      settingsModal.style.display = 'none';
+    });
+    fpsInput.addEventListener('change', () => {
+      let value = parseInt(fpsInput.value, 10);
+      if (isNaN(value) || value < 1) value = 1;
+      else if (value > 300) value = 300;
+      fpsLimit = value;
+      fpsInput.value = value;
+    });
+    soundCheckbox.addEventListener('change', function() {
+      soundEnabled = this.checked;
+      if (audioContext) {
+        if (soundEnabled) {
+          audioContext.resume();
+        } else {
+          audioContext.suspend();
+          sampleBuffer = [];
+        }
+      }
+    });
+
+    /* ===============================
+       Обработка касаний для игровых кнопок
+       =============================== */
+    const activeTouches = {}; // Отслеживаем текущие активные касания
+    const controlPanel = document.getElementById('control-panel');
+
+    // Возвращает кнопку (с классом nes-control) по координатам касания
+    function getControlButtonAtTouch(touch) {
+      const el = document.elementFromPoint(touch.clientX, touch.clientY);
+      return el ? el.closest('.nes-control') : null;
+    }
+
+    // Обработка события (touchstart или touchmove)
+    function handleTouch(touch) {
+      const controlButton = getControlButtonAtTouch(touch);
+      const newKey = controlButton ? controlButton.getAttribute('data-key') : null;
+      const active = activeTouches[touch.identifier];
+
+      if (active) {
+        if (active.control !== newKey) {
+          // Если палец ушёл с предыдущей кнопки – отпускаем её
+          if (active.control) {
+            handleButton(active.control, false);
+          }
+          // Если новый элемент является кнопкой – нажимаем её
+          if (newKey) {
+            handleButton(newKey, true);
+          }
+          activeTouches[touch.identifier] = { control: newKey, element: controlButton };
+        }
+      } else {
+        if (newKey) {
+          handleButton(newKey, true);
+          activeTouches[touch.identifier] = { control: newKey, element: controlButton };
+        } else {
+          activeTouches[touch.identifier] = { control: null, element: null };
+        }
+      }
+    }
+
+    // Завершение касания – отпускаем нажатую кнопку
+    function endTouch(touch) {
+      const active = activeTouches[touch.identifier];
+      if (active && active.control) {
+        handleButton(active.control, false);
+      }
+      delete activeTouches[touch.identifier];
+    }
+
+    controlPanel.addEventListener('touchstart', function(e) {
+      for (const touch of e.changedTouches) {
+        handleTouch(touch);
+      }
+      e.preventDefault();
+    }, { passive: false });
+
+    controlPanel.addEventListener('touchmove', function(e) {
+      for (const touch of e.changedTouches) {
+        handleTouch(touch);
+      }
+      e.preventDefault();
+    }, { passive: false });
+
+    controlPanel.addEventListener('touchend', function(e) {
+      for (const touch of e.changedTouches) {
+        endTouch(touch);
+      }
+      e.preventDefault();
+    }, { passive: false });
+
+    controlPanel.addEventListener('touchcancel', function(e) {
+      for (const touch of e.changedTouches) {
+        endTouch(touch);
+      }
+      e.preventDefault();
+    }, { passive: false });
+  </script>
+</body>
+</html>
