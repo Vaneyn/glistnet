@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>3D Игра с гранатой и выстрелами</title>
+  <style>
+    html, body {
+      margin: 0; padding: 0;
+      width: 100%; height: 100%;
+      overflow: hidden;
+    }
+    canvas { display: block; touch-action: none; }
+    /* Кнопки управления */
+    #forwardBtn, #shootBtn, #grenadeBtn {
+      position: absolute;
+      width: 80px; height: 80px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.3);
+      touch-action: none;
+    }
+    #forwardBtn { bottom: 20px; left: 20px; }
+    #shootBtn   { bottom: 110px; left: 20px; }
+    #grenadeBtn { bottom: 110px; right: 20px; }
+    /* Прицел */
+    #crosshair {
+      position: absolute;
+      top: 50%; left: 50%;
+      width: 20px; height: 20px;
+      margin: -10px 0 0 -10px;
+      pointer-events: none;
+    }
+    #crosshair:before, #crosshair:after {
+      content: ""; position: absolute;
+      background: white;
+    }
+    #crosshair:before {
+      left: 9px; top: 0; width: 2px; height: 20px;
+    }
+    #crosshair:after {
+      top: 9px; left: 0; width: 20px; height: 2px;
+    }
+    /* Красный флеш при попадании */
+    #hitFlash {
+      position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(255,0,0,0.5);
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.3s;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="c"></canvas>
+  <div id="forwardBtn"></div>
+  <div id="shootBtn"></div>
+  <div id="grenadeBtn"></div>
+  <div id="crosshair"></div>
+  <div id="hitFlash"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js"></script>
+  <script>
+    // --- Сцена, камера, рендерер ---
+    const canvas = document.getElementById('c');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+    const WALK_HEIGHT = 1.6;
+    camera.position.set(0, WALK_HEIGHT, 5);
+
+    // --- Освещение ---
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 0.6));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+    dirLight.position.set(5, 10, 7.5);
+    scene.add(dirLight);
+
+    // --- Пол с травяной текстурой (emoji) ---
+    const floorSize = 200;
+    const texCanvas = document.createElement('canvas');
+    texCanvas.width = texCanvas.height = 512;
+    const ctx = texCanvas.getContext('2d');
+    ctx.fillStyle = '#4a7c3a';
+    ctx.fillRect(0, 0, 512, 512);
+    ctx.font = '32px serif';
+    for (let x = 0; x < 512; x += 64)
+      for (let y = 0; y < 512; y += 64)
+        ctx.fillText('🌼', x + 16, y + 48);
+    const grassTex = new THREE.CanvasTexture(texCanvas);
+    grassTex.wrapS = grassTex.wrapT = THREE.RepeatWrapping;
+    grassTex.repeat.set(floorSize / 10, floorSize / 10);
+    const floor = new THREE.Mesh(
+      new THREE.PlaneGeometry(floorSize, floorSize),
+      new THREE.MeshStandardMaterial({ map: grassTex })
+    );
+    floor.rotation.x = -Math.PI / 2;
+    scene.add(floor);
+
+    // --- Укрытия (25% больше, без старта в игроке) ---
+    const obstacles = [];
+    const OBST_HITS = 25;
+    const BASE_OB_COUNT = 20;
+    const OB_COUNT = Math.round(BASE_OB_COUNT * 1.25); // 25% больше
+    const PLAYER_RADIUS = 0.5;  // для проверки старта
+    for (let i = 0; i < OB_COUNT; i++) {
+      let mesh, sizeX, sizeZ, sizeY, pos;
+      do {
+        sizeX = 1 + Math.random() * 4;
+        sizeZ = 1 + Math.random() * 4;
+        sizeY = WALK_HEIGHT * (0.5 + Math.random() * 1.5);
+        pos = new THREE.Vector3(
+          (Math.random() - 0.5) * 100,
+          sizeY / 2,
+          (Math.random() - 0.5) * 100
+        );
+      } while (
+        Math.hypot(pos.x - camera.position.x, pos.z - camera.position.z) <
+        Math.max(sizeX, sizeZ)/2 + PLAYER_RADIUS
+      );
+      mesh = new THREE.Mesh(
+        new THREE.BoxGeometry(sizeX, sizeY, sizeZ),
+        new THREE.MeshStandardMaterial({ color: 0x228822 })
+      );
+      mesh.position.copy(pos);
+      mesh.userData = { hits: 0, halfX: sizeX / 2, halfZ: sizeZ / 2, height: sizeY };
+      scene.add(mesh);
+      obstacles.push(mesh);
+    }
+
+    // --- Мишени (высотой до камеры) ---
+    const gridPositions = [];
+    for (let xi = -45; xi <= 45; xi += 10)
+      for (let zi = -45; zi <= 45; zi += 10)
+        gridPositions.push({ x: xi, z: zi });
+    const targets = [];
+    function spawnTarget() {
+      const free = gridPositions.filter(p =>
+        !targets.some(t => t.userData.gx === p.x && t.userData.gz === p.z)
+      );
+      if (!free.length) return;
+      const pick = free[Math.floor(Math.random() * free.length)];
+      const m = new THREE.Mesh(
+        new THREE.BoxGeometry(1, WALK_HEIGHT, 0.2),
+        new THREE.MeshStandardMaterial({ color: 0xff0000 })
+      );
+      m.position.set(pick.x, WALK_HEIGHT / 2, pick.z);
+      m.userData = { gx: pick.x, gz: pick.z };
+      scene.add(m);
+      targets.push(m);
+    }
+    setInterval(spawnTarget, 5000);
+
+    // --- Пули и гранаты ---
+    const bullets = [];
+    const bulletGeo = new THREE.SphereGeometry(0.05, 8, 8);
+    const bulletMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+    const BULLET_SPEED = 0.3; // согласно запросу
+    const BULLET_OFFSET = PLAYER_RADIUS + 0.1;
+
+    const grenades = [];
+    const GRENADE_SPEED = 1.5 * 0.65;
+    const GRENADE_GRAVITY = 0.01;
+    const GROUND_LEVEL = 0.3;
+    const ROLL_FRICTION = 0.6;
+
+    function shootBullet(dir) {
+      const mesh = new THREE.Mesh(bulletGeo, bulletMat);
+      mesh.position.copy(camera.position)
+                 .add(dir.clone().multiplyScalar(BULLET_OFFSET));
+      bullets.push({ mesh, vel: dir.clone().multiplyScalar(BULLET_SPEED) });
+      scene.add(mesh);
+    }
+
+    function shootGrenade() {
+      const dir = new THREE.Vector3();
+      camera.getWorldDirection(dir);
+      const geo = new THREE.SphereGeometry(GROUND_LEVEL, 12, 12);
+      const mat = new THREE.MeshStandardMaterial({ color: 0x888888 });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.copy(camera.position);
+      const vel = dir.multiplyScalar(GRENADE_SPEED);
+      grenades.push({ mesh, vel, spawnTime: performance.now() });
+      scene.add(mesh);
+    }
+
+    function createEmojiCanvas(emoji, size) {
+      const c = document.createElement('canvas');
+      c.width = c.height = size;
+      const cx = c.getContext('2d');
+      cx.font = `${size}px serif`;
+      cx.textAlign = 'center';
+      cx.textBaseline = 'middle';
+      cx.fillText(emoji, size/2, size/2);
+      return c;
+    }
+    function showExplosion(pos) {
+      const canvas = createEmojiCanvas('💥', 128);
+      const tex = new THREE.CanvasTexture(canvas);
+      const mat = new THREE.SpriteMaterial({ map: tex, depthTest: false });
+      const sprite = new THREE.Sprite(mat);
+      sprite.position.copy(pos);
+      sprite.scale.set(4, 4, 1);
+      scene.add(sprite);
+      setTimeout(() => {
+        scene.remove(sprite);
+        tex.dispose();
+        mat.dispose();
+      }, 300);
+    }
+    function explodeGrenade(pos) {
+      showExplosion(pos);
+      const count = 50 + Math.floor(Math.random() * 26);
+      for (let i = 0; i < count; i++) {
+        const dir = new THREE.Vector3(
+          Math.random() * 2 - 1,
+          Math.random() * 2 - 1,
+          Math.random() * 2 - 1
+        ).normalize();
+        const mesh = new THREE.Mesh(bulletGeo, bulletMat);
+        mesh.position.copy(pos);
+        bullets.push({ mesh, vel: dir.multiplyScalar(0.5) });
+        scene.add(mesh);
+      }
+    }
+
+    // --- Управление ---
+    let movingForward = false, isLooking = false;
+    let lsx = 0, lsy = 0, yaw = 0, pitch = 0;
+    const SPEED = 0.05, SENS = 0.05;
+    const HALF_TW = 0.5;
+
+    document.getElementById('forwardBtn')
+      .addEventListener('pointerdown', () => movingForward = true);
+    document.getElementById('forwardBtn')
+      .addEventListener('pointerup',   () => movingForward = false);
+
+    document.getElementById('shootBtn')
+      .addEventListener('pointerdown', e => {
+        e.preventDefault();
+        const dir = new THREE.Vector3();
+        camera.getWorldDirection(dir);
+        shootBullet(dir);
+      });
+
+    document.getElementById('grenadeBtn')
+      .addEventListener('pointerdown', e => {
+        e.preventDefault();
+        shootGrenade();
+      });
+
+    canvas.addEventListener('pointerdown', e => {
+      isLooking = true; lsx = e.clientX; lsy = e.clientY;
+    });
+    canvas.addEventListener('pointermove', e => {
+      if (!isLooking) return;
+      const dx = e.clientX - lsx, dy = e.clientY - lsy;
+      lsx = e.clientX; lsy = e.clientY;
+      yaw   -= dx * SENS;
+      pitch -= dy * SENS;
+      pitch = Math.max(-Math.PI/2, Math.min(Math.PI/2, pitch));
+    });
+    ['pointerup','pointerleave','contextmenu'].forEach(evt => {
+      canvas.addEventListener(evt, e => {
+        if (evt !== 'contextmenu') isLooking = false;
+        e.preventDefault();
+      });
+    });
+
+    const ray = new THREE.Raycaster();
+    let autoInt = null;
+    function updateAutoShoot() {
+      ray.setFromCamera({ x: 0, y: 0 }, camera);
+      const hit = ray.intersectObjects(targets, false);
+      if (hit.length && !autoInt) {
+        autoInt = setInterval(() => {
+          const d = new THREE.Vector3();
+          camera.getWorldDirection(d);
+          shootBullet(d);
+        }, 1000/5);
+      } else if (!hit.length && autoInt) {
+        clearInterval(autoInt);
+        autoInt = null;
+      }
+    }
+
+    function updateMovement() {
+      if (!movingForward) return;
+      const dir = new THREE.Vector3(0, 0, -1).applyEuler(camera.rotation);
+      dir.y = 0; dir.normalize();
+      const proposed = camera.position.clone().addScaledVector(dir, SPEED);
+      let coll = false;
+      for (const obs of obstacles) {
+        if (
+          Math.abs(proposed.x - obs.position.x) < obs.userData.halfX + PLAYER_RADIUS &&
+          Math.abs(proposed.z - obs.position.z) < obs.userData.halfZ + PLAYER_RADIUS
+        ) { coll = true; break; }
+      }
+      if (!coll) camera.position.copy(proposed);
+    }
+
+    // --- Анимация и физика ---
+    const hitFlash = document.getElementById('hitFlash');
+    function animate() {
+      requestAnimationFrame(animate);
+
+      camera.rotation.order = 'YXZ';
+      camera.rotation.y = yaw;
+      camera.rotation.x = pitch;
+      updateMovement();
+      updateAutoShoot();
+
+      const now = performance.now();
+
+      // гранаты
+      for (let i = grenades.length - 1; i >= 0; i--) {
+        const g = grenades[i];
+        g.vel.y -= GRENADE_GRAVITY;
+        g.mesh.position.add(g.vel);
+
+        // врезание в препятствия
+        for (const obs of obstacles) {
+          if (
+            Math.abs(g.mesh.position.x - obs.position.x) < obs.userData.halfX + GROUND_LEVEL &&
+            Math.abs(g.mesh.position.y - obs.position.y) < obs.userData.height/2 + GROUND_LEVEL &&
+            Math.abs(g.mesh.position.z - obs.position.z) < obs.userData.halfZ + GROUND_LEVEL
+          ) {
+            g.vel.set(0,0,0);
+            break;
+          }
+        }
+        // касание земли
+        if (g.mesh.position.y <= GROUND_LEVEL) {
+          g.mesh.position.y = GROUND_LEVEL;
+          g.vel.y = 0;
+          g.vel.x *= ROLL_FRICTION;
+          g.vel.z *= ROLL_FRICTION;
+        }
+        // взрыв
+        if (now - g.spawnTime > 4000) {
+          explodeGrenade(g.mesh.position);
+          scene.remove(g.mesh);
+          grenades.splice(i, 1);
+        }
+      }
+
+      // пули и осколки
+      for (let i = bullets.length - 1; i >= 0; i--) {
+        const b = bullets[i];
+        b.mesh.position.add(b.vel);
+
+        // мишени
+        for (let j = targets.length - 1; j >= 0; j--) {
+          if (b.mesh.position.distanceTo(targets[j].position) < 0.6) {
+            scene.remove(targets[j]);
+            targets.splice(j,1);
+            scene.remove(b.mesh);
+            bullets.splice(i,1);
+            break;
+          }
+        }
+        // укрытия
+        for (let j = 0; j < obstacles.length; j++) {
+          if (b.mesh.position.distanceTo(obstacles[j].position) < Math.max(obstacles[j].userData.halfX, obstacles[j].userData.halfZ) + 0.5) {
+            obstacles[j].userData.hits++;
+            obstacles[j].material.color.multiplyScalar(0.98);
+            scene.remove(b.mesh);
+            bullets.splice(i,1);
+            if (obstacles[j].userData.hits >= OBST_HITS) {
+              scene.remove(obstacles[j]);
+              obstacles.splice(j,1);
+            }
+            break;
+          }
+        }
+        // игрок (параллелепипед)
+        const playerBox = new THREE.Box3(
+          new THREE.Vector3(
+            camera.position.x - PLAYER_RADIUS, 0, camera.position.z - PLAYER_RADIUS
+          ),
+          new THREE.Vector3(
+            camera.position.x + PLAYER_RADIUS, WALK_HEIGHT, camera.position.z + PLAYER_RADIUS
+          )
+        );
+        if (playerBox.containsPoint(b.mesh.position)) {
+          scene.remove(b.mesh);
+          bullets.splice(i,1);
+          hitFlash.style.opacity = '0.5';
+          setTimeout(()=> hitFlash.style.opacity = '0', 1000);
+          continue;
+        }
+        // дальние
+        if (b.mesh.position.length() > 200) {
+          scene.remove(b.mesh);
+          bullets.splice(i,1);
+        }
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    function onResize() {
+      const w = window.innerWidth, h = window.innerHeight;
+      renderer.setSize(w,h);
+      camera.aspect = w/h;
+      camera.updateProjectionMatrix();
+    }
+    window.addEventListener('resize', onResize);
+    onResize();
+    animate();
+  </script>
+</body>
+</html>
