@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Двухпользовательская игра</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      touch-action: none;
+      user-select: none;
+    }
+    html, body {
+      height: 100%;
+      font-family: sans-serif;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    .half {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+    /* Верхняя половина — красный оттенок, перевернутый интерфейс */
+    .half.top {
+      background: #ffebee;
+      transform: rotate(180deg);
+    }
+    /* Нижняя половина — синий оттенок */
+    .half.bottom {
+      background: #e3f2fd;
+    }
+    .progress-bar {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      height: 20px;
+      background: #ccc;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    /* Заливка прогрессбара для каждого цвета */
+    .half.top .progress {
+      background: #e53935;
+    }
+    .half.bottom .progress {
+      background: #1e88e5;
+    }
+    .progress {
+      height: 100%;
+      width: 0%;
+      transition: width 0s;
+    }
+    .overlay {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.6);
+      color: #fff;
+      font-size: 2rem;
+      z-index: 10;
+      text-align: center;
+      padding: 20px;
+    }
+    .overlay button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 1rem;
+      background: #fff;
+      color: #333;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .overlay button:hover {
+      background: #f0f0f0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="half top" id="topHalf">
+      <div class="progress-bar">
+        <div class="progress" id="progress1"></div>
+      </div>
+    </div>
+    <div class="half bottom" id="bottomHalf">
+      <div class="progress-bar">
+        <div class="progress" id="progress2"></div>
+      </div>
+    </div>
+  </div>
+  <div class="overlay" id="overlay">
+    <div id="message"></div>
+    <button id="backBtn">Назад</button>
+  </div>
+
+  <script>
+    (function() {
+      const TARGET = 3000; // миллисекунд удержания
+      let gameState = 'running'; // 'running' или 'ended'
+
+      class Player {
+        constructor(barEl) {
+          this.isTouching = false;
+          this.time = 0;
+          this.lastTime = 0;
+          this.barEl = barEl;
+        }
+      }
+
+      const p1 = new Player(document.getElementById('progress1')); // верхний — красный
+      const p2 = new Player(document.getElementById('progress2')); // нижний — синий
+
+      const overlay = document.getElementById('overlay');
+      const messageEl = document.getElementById('message');
+      const backBtn = document.getElementById('backBtn');
+
+      backBtn.addEventListener('click', () => {
+        window.location.href = 'gamebar.html';
+      });
+
+      function startTouch(player, opponent, event) {
+        if (gameState !== 'running') return;
+        event.preventDefault();
+        // Если соперник сейчас удерживает — вы поймали его
+        if (opponent.isTouching && opponent.time > 0) {
+          endGame(player);
+          return;
+        }
+        if (!player.isTouching) {
+          player.isTouching = true;
+          player.lastTime = performance.now();
+        }
+      }
+
+      function endTouch(player) {
+        player.isTouching = false;
+      }
+
+      function endGame(winner) {
+        gameState = 'ended';
+        if (winner === p1) {
+          messageEl.textContent = 'Красный побеждает!';
+        } else {
+          messageEl.textContent = 'Синий побеждает!';
+        }
+        overlay.style.display = 'flex';
+      }
+
+      // Привязка событий касания
+      const topHalf = document.getElementById('topHalf');
+      const bottomHalf = document.getElementById('bottomHalf');
+
+      topHalf.addEventListener('pointerdown', e => startTouch(p1, p2, e));
+      bottomHalf.addEventListener('pointerdown', e => startTouch(p2, p1, e));
+
+      window.addEventListener('pointerup', () => {
+        endTouch(p1);
+        endTouch(p2);
+      });
+      window.addEventListener('pointercancel', () => {
+        endTouch(p1);
+        endTouch(p2);
+      });
+
+      // Главный цикл обновления прогресса
+      function update(now) {
+        if (gameState === 'running') {
+          [p1, p2].forEach(p => {
+            if (p.isTouching) {
+              const dt = now - p.lastTime;
+              p.time += dt;
+              p.lastTime = now;
+              const percent = Math.min((p.time / TARGET) * 100, 100);
+              p.barEl.style.width = percent + '%';
+              if (p.time >= TARGET) {
+                endGame(p);
+              }
+            }
+          });
+          requestAnimationFrame(update);
+        }
+      }
+
+      requestAnimationFrame(update);
+    })();
+  </script>
+</body>
+</html>
