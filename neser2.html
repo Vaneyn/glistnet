@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>МайоNES</title>
+  <script src="jsnes.txt"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; background: #222; font-family: Arial, sans-serif; }
+    #container { display: flex; flex-direction: column; height: 100vh; }
+
+    #header { display: flex; align-items: center; background: #333; padding: 10px; }
+    #header button, #header select { margin-right: 10px; }
+
+    #screen-container {
+      flex: 1; background: #000;
+      display: flex; justify-content: center; align-items: center; padding: 10px;
+    }
+    #screen { width: 100%; max-width: 512px; border: 2px solid #444; background: #000; }
+
+    #control-panel {
+      background: #222; padding: 10px;
+      display: flex; flex-direction: column; align-items: center;
+    }
+
+    #middle-buttons { margin-bottom: 10px; }
+    #middle-buttons button {
+      background: #666; border: none; border-radius: 5px; color: #fff;
+      font-size: 16px; padding: 10px 20px; margin: 0 5px;
+    }
+
+    /* Контейнер для джойстика */
+    #gamepad { width: 300px; display: flex; justify-content: space-between; user-select: none; }
+
+    /* D-Pad с использованием grid, увеличенные кнопки; сдвиг влево */
+    #dpad {
+      display: grid; grid-template-columns: repeat(3, 60px);
+      grid-template-rows: repeat(3, 60px); gap: 5px;
+      transform: translateX(-20px);
+    }
+    #dpad .nes-control {
+      background: #555; border: none; border-radius: 5px; color: #fff;
+      font-size: 24px; width: 60px; height: 60px; user-select: none;
+    }
+    /* Расположение кнопок в D-Pad */
+    #dpad .up    { grid-column: 2; grid-row: 1; }
+    #dpad .left  { grid-column: 1; grid-row: 2; }
+    #dpad .right { grid-column: 3; grid-row: 2; }
+    #dpad .down  { grid-column: 2; grid-row: 3; }
+
+    /* Кнопки A, B, C, D */
+    #action-buttons {
+      display: grid; grid-template-columns: repeat(2, 60px);
+      grid-template-rows: repeat(2, 60px); gap: 5px;
+    }
+    #action-buttons .nes-control {
+      background: #777; border: none; border-radius: 5px; color: #fff;
+      font-size: 24px; width: 60px; height: 60px;
+    }
+
+    /* Модалки */
+    #settingsModal, #memoryModal {
+      display: none; position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%; background: rgba(0,0,0,0.8);
+      z-index: 1000; justify-content: center; align-items: center;
+    }
+    .modal-content {
+      background: #333; color: #fff;
+      padding: 20px; border-radius: 10px;
+      max-width: 95%; max-height: 95%; overflow: auto;
+    }
+    .modal-content h2 { margin-bottom: 10px; }
+    .setting-item { margin-bottom: 15px; }
+
+    /* MEMORY EDITOR tweaks */
+    #memoryTableContainer {
+      overflow: auto; background: #222; padding: 5px; border-radius: 4px;
+      max-height: 70vh; font-size: 0.6em;
+    }
+    #memoryTableContainer td {
+      padding: 1px; border: 1px solid #444;
+      min-width: 30px; text-align: center; cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <div id="header">
+      <button id="backButton">Назад</button>
+      <button id="settingsButton">Параметры</button>
+      <select id="localRomSelect">
+        <option value="5.nes">Супер марио</option>
+        <option value="1.nes">Пакмен</option>
+        <option value="2.nes">Батл сити</option>
+        <option value="3.nes">Бомбермен</option>
+        <option value="4.nes">Контра</option>
+        <option value="tetris.nes">Тетрис</option>
+      </select>
+      <button id="loadLocalRomButton">Загрузить</button>
+    </div>
+
+    <div id="screen-container">
+      <canvas id="screen" width="256" height="240"></canvas>
+    </div>
+
+    <div id="control-panel">
+      <div id="middle-buttons">
+        <button data-key="START" class="nes-control">Start</button>
+        <button data-key="SELECT" class="nes-control">Select</button>
+      </div>
+      <div id="gamepad">
+        <div id="dpad">
+          <button data-key="UP" class="nes-control up">&#9650;</button>
+          <button data-key="LEFT" class="nes-control left">&#9664;</button>
+          <button data-key="RIGHT" class="nes-control right">&#9654;</button>
+          <button data-key="DOWN" class="nes-control down">&#9660;</button>
+        </div>
+        <div id="action-buttons">
+          <button data-key="A" class="nes-control">A</button>
+          <button data-key="B" class="nes-control">B</button>
+          <button data-key="C" class="nes-control">C</button>
+          <button data-key="D" class="nes-control">D</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings -->
+  <div id="settingsModal">
+    <div class="modal-content">
+      <h2>Параметры</h2>
+      <div class="setting-item">
+        <label>FPS Limit:
+          <input type="number" id="fpsInput" value="70" min="1" max="300"/>
+        </label>
+      </div>
+      <div class="setting-item">
+        <label><input type="checkbox" id="soundCheckbox" checked/> Звук</label>
+      </div>
+      <div class="setting-item">
+        <label>Внешний ROM:
+          <input type="file" id="externalRomInput" accept=".nes"/>
+        </label>
+      </div>
+      <button id="openMemoryEditor">Редактор памяти</button>
+      <button id="closeSettings">Закрыть</button>
+    </div>
+  </div>
+
+  <!-- Memory Editor -->
+  <div id="memoryModal">
+    <div class="modal-content">
+      <button id="closeMemoryEditor" style="position:absolute; top:10px; right:10px;">✖</button>
+      <h2>Редактор ОЗУ</h2>
+      <div style="display:flex; gap:8px; align-items:center; margin-bottom:10px;">
+        <label>Поиск (0–255):
+          <input type="number" id="memorySearch" min="0" max="255" style="width:50px"/>
+        </label>
+        <button id="memorySearchBtn">Найти</button>
+        <span style="margin-left:auto; font-size:0.8em; color:#aaa;">📌 закрепить ячейку</span>
+      </div>
+      <div id="memoryTableContainer"></div>
+      <div style="display:flex; gap:8px; align-items:center; margin-top:10px;">
+        <label>Адр: <input type="text" id="selectedAddr" readonly style="width:60px"/></label>
+        <label>Знч: <input type="number" id="selectedVal" min="0" max="255" style="width:60px"/></label>
+        <button id="writeMemory">Записать</button>
+        <button id="pinCell">📍</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // HEX helper
+    function toHex(v,l){return v.toString(16).toUpperCase().padStart(l,'0');}
+
+    // Назад
+    document.getElementById('backButton').onclick = ()=>location.href='glist.html';
+
+    // Audio init
+    let soundEnabled=true, audioCtx=null, scriptNode=null, sampleBuf=[];
+    function initAudio(){
+      audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+      scriptNode = audioCtx.createScriptProcessor(4096,0,1);
+      scriptNode.onaudioprocess = e=>{
+        const out=e.outputBuffer.getChannelData(0);
+        for(let i=0;i<out.length;i++) out[i]=sampleBuf.length?sampleBuf.shift():0;
+      };
+      scriptNode.connect(audioCtx.destination);
+    }
+
+    // NES init
+    const nes = new jsnes.NES({
+      onFrame(frameBuffer){
+        const c=document.getElementById('screen');
+        const ctx=c.getContext('2d');
+        if(!ctx.imageData) ctx.imageData=ctx.createImageData(256,240);
+        const d=ctx.imageData.data;
+        for(let i=0;i<frameBuffer.length;i++){
+          const p=frameBuffer[i];
+          d[i*4]=p&0xFF;
+          d[i*4+1]=(p>>8)&0xFF;
+          d[i*4+2]=(p>>16)&0xFF;
+          d[i*4+3]=255;
+        }
+        ctx.putImageData(ctx.imageData,0,0);
+      },
+      onAudioSample(s){
+        if(soundEnabled){
+          if(!audioCtx) initAudio();
+          sampleBuf.push(s/32767);
+        }
+      }
+    });
+
+    // Frame loop + restore pinned
+    let fpsLimit=70, lastTime=performance.now();
+    const locked=new Set(), pinnedVals={};
+    function frameLoop(){
+      requestAnimationFrame(frameLoop);
+      const now=performance.now();
+      if(now-lastTime<1000/fpsLimit) return;
+      lastTime=now;
+      nes.frame();
+      // авто-рестор закреплённых после каждого кадра
+      locked.forEach(a=>nes.cpu.mem[a]=pinnedVals[a]);
+    }
+
+    // Controls
+    const keyMap={'A':1,'B':0,'SELECT':2,'START':3,'UP':4,'DOWN':5,'LEFT':6,'RIGHT':7,'C':1,'D':0};
+    function handleButton(btn,down){
+      if(down) nes.buttonDown(1,keyMap[btn]);
+      else nes.buttonUp(1,keyMap[btn]);
+    }
+
+    // Touch handling
+    const activeTouches={}, panel=document.getElementById('control-panel');
+    function getBtnAtTouch(t){ const el=document.elementFromPoint(t.clientX,t.clientY); return el?el.closest('.nes-control'):null; }
+    function procTouch(t){
+      const btn=getBtnAtTouch(t), key=btn&&btn.dataset.key, act=activeTouches[t.identifier];
+      if(act){
+        if(act.key!==key){
+          if(act.key) handleButton(act.key,false);
+          if(key) handleButton(key,true);
+          activeTouches[t.identifier]={key,btn};
+        }
+      } else {
+        if(key) handleButton(key,true);
+        activeTouches[t.identifier]={key,btn};
+      }
+    }
+    function endTouch(t){
+      const act=activeTouches[t.identifier];
+      if(act&&act.key) handleButton(act.key,false);
+      delete activeTouches[t.identifier];
+    }
+    ['touchstart','touchmove'].forEach(evt=>{
+      panel.addEventListener(evt,e=>{
+        for(const t of e.changedTouches) procTouch(t);
+        if(e.cancelable) e.preventDefault();
+      },{passive:false});
+    });
+    ['touchend','touchcancel'].forEach(evt=>{
+      panel.addEventListener(evt,e=>{
+        for(const t of e.changedTouches) endTouch(t);
+        if(e.cancelable) e.preventDefault();
+      },{passive:false});
+    });
+
+    // Keyboard
+    const kbMap={'ArrowUp':'UP','ArrowDown':'DOWN','ArrowLeft':'LEFT','ArrowRight':'RIGHT',
+                 'z':'A','Z':'A','x':'B','X':'B','c':'C','C':'C','v':'D','V':'D',
+                 'Enter':'START','Shift':'SELECT','Escape':'BACK'};
+    const pressed={};
+    window.addEventListener('keydown',e=>{
+      const m=kbMap[e.key];
+      if(m&&!pressed[e.key]){
+        pressed[e.key]=true;
+        if(m==='BACK') location.href='glist.html';
+        else handleButton(m,true);
+        e.preventDefault();
+      }
+    });
+    window.addEventListener('keyup',e=>{
+      const m=kbMap[e.key];
+      if(m&&m!=='BACK'){
+        pressed[e.key]=false; handleButton(m,false); e.preventDefault();
+      }
+    });
+
+    // ROM loading
+    function ab2str(buf){ let s=''; new Uint8Array(buf).forEach(b=>s+=String.fromCharCode(b)); return s; }
+    function loadRom(url){
+      const x=new XMLHttpRequest();
+      x.open('GET',url,true); x.responseType='arraybuffer';
+      x.onload=()=>{
+        if(x.status===200||x.status===0){
+          try{ nes.loadROM(ab2str(x.response)); requestAnimationFrame(frameLoop); }
+          catch(err){ alert('Ошибка загрузки ROM: '+err); }
+        } else alert('Статус: '+x.status);
+      };
+      x.onerror=()=>alert('Ошибка загрузки ROM');
+      x.send();
+    }
+    document.getElementById('loadLocalRomButton')
+      .addEventListener('click',()=>loadRom(document.getElementById('localRomSelect').value));
+    document.getElementById('externalRomInput')
+      .addEventListener('change',e=>{
+        const f=e.target.files[0]; if(!f) return;
+        const r=new FileReader();
+        r.onload=()=>{ try{ nes.loadROM(ab2str(r.result)); requestAnimationFrame(frameLoop); }
+                      catch(err){ alert('Ошибка: '+err); }};
+        r.readAsArrayBuffer(f);
+      });
+
+    // Settings handlers
+    document.getElementById('settingsButton').onclick=()=>document.getElementById('settingsModal').style.display='flex';
+    document.getElementById('closeSettings').onclick=()=>document.getElementById('settingsModal').style.display='none';
+    document.getElementById('fpsInput').onchange=event=>{
+      let v=parseInt(event.target.value,10);
+      if(isNaN(v)||v<1)v=1; else if(v>300)v=300;
+      fpsLimit=v; event.target.value=v;
+    };
+    document.getElementById('soundCheckbox').onchange=function(){
+      soundEnabled=this.checked;
+      if(audioCtx){
+        if(soundEnabled) audioCtx.resume();
+        else { audioCtx.suspend(); sampleBuf=[]; }
+      }
+    };
+
+    // RAM-Editor
+    const memM=document.getElementById('memoryModal');
+    const tblC=document.getElementById('memoryTableContainer');
+    const searchI=document.getElementById('memorySearch');
+    const searchB=document.getElementById('memorySearchBtn');
+    const selA=document.getElementById('selectedAddr');
+    const selV=document.getElementById('selectedVal');
+    const writeB=document.getElementById('writeMemory');
+    const pinB=document.getElementById('pinCell');
+    const ramSize=0x800;
+    let filterVal=null;
+
+    document.getElementById('openMemoryEditor').onclick=()=>{
+      memM.style.display='flex'; renderMem();
+    };
+    document.getElementById('closeMemoryEditor').onclick=()=>memM.style.display='none';
+
+    searchB.onclick=()=>{
+      const v=parseInt(searchI.value,10);
+      filterVal=isNaN(v)?null:v; renderMem();
+    };
+
+    function renderMem(){
+      let html='<table style="width:100%; border-collapse:collapse;">';
+      for(let a=0;a<ramSize;a++){
+        if(a%16===0) html+='<tr>';
+        const v=nes.cpu.mem[a];
+        if(filterVal!==null && v!==filterVal) {
+          html+='<td></td>';
+        } else {
+          const isL=locked.has(a);
+          html+=`<td data-addr="${a}" style="background:${isL?'#550':'#222'}">
+                   ${toHex(a,4)}:${v}
+                 </td>`;
+        }
+        if(a%16===15) html+='</tr>';
+      }
+      html+='</table>'; tblC.innerHTML=html;
+      tblC.querySelectorAll('td[data-addr]').forEach(td=>{
+        td.onclick=()=>{
+          const a=+td.dataset.addr;
+          selA.value=toHex(a,4);
+          selV.value=nes.cpu.mem[a];
+          selV.dataset.addr=a;
+          pinB.textContent=locked.has(a)?'📌':'📍';
+        };
+      });
+    }
+
+    writeB.onclick=()=>{
+      const a=+selV.dataset.addr;
+      let v=parseInt(selV.value,10);
+      if(isNaN(v)||v<0||v>255) return alert('0–255');
+      nes.cpu.mem[a]=v;           // всегда можно перезаписать
+      if(locked.has(a)) pinnedVals[a]=v; // обновляем «закреплённый» бэкап
+      renderMem();
+    };
+
+    pinB.onclick=()=>{
+      const a=+selV.dataset.addr;
+      if(locked.has(a)){
+        locked.delete(a); delete pinnedVals[a];
+      } else {
+        locked.add(a); pinnedVals[a]=nes.cpu.mem[a];
+      }
+      pinB.textContent=locked.has(a)?'📌':'📍';
+      renderMem();
+    };
+
+    // авто-обновление таблицы
+    setInterval(()=>{ if(memM.style.display==='flex') renderMem(); },500);
+  </script>
+</body>
+</html>
