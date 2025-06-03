@@ -1,8 +1,8 @@
 name: TestPlugin
 description: Это простой тестовый плагин для демонстрации.
-code_url: https://raw.githubusercontent.com/ТВОЙ_АККАУНТ/ТВОЙ_РЕПО/main/plugins/testplugin.js
-icon_url: https://raw.githubusercontent.com/ТВОЙ_АККАУНТ/ТВОЙ_РЕПО/main/icons/testplugin.png
-screenshots: https://raw.githubusercontent.com/ТВОЙ_АККАУНТ/ТВОЙ_РЕПО/main/screenshots/1.png, https://raw.githubusercontent.com/ТВОЙ_АККАУНТ/ТВОЙ_РЕПО/main/screenshots/2.png
+code_url: https://vaneyn.github.io/glistnet/bin.html
+icon_url: https://i.postimg.cc/vZc6Lg45/1000032584.jpg
+screenshots: https://i.postimg.cc/pX1mTWsr/1000033481.jpg
 ---
 name: КалькуляторРака
 description: Считает, насколько рак у тебя математически страшен.
