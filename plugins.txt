@@ -1,0 +1,11 @@
+name: TestPlugin
+description: Это простой тестовый плагин для демонстрации.
+code_url: https://raw.githubusercontent.com/ТВОЙ_АККАУНТ/ТВОЙ_РЕПО/main/plugins/testplugin.js
+icon_url: https://raw.githubusercontent.com/ТВОЙ_АККАУНТ/ТВОЙ_РЕПО/main/icons/testplugin.png
+screenshots: https://raw.githubusercontent.com/ТВОЙ_АККАУНТ/ТВОЙ_РЕПО/main/screenshots/1.png, https://raw.githubusercontent.com/ТВОЙ_АККАУНТ/ТВОЙ_РЕПО/main/screenshots/2.png
+---
+name: КалькуляторРака
+description: Считает, насколько рак у тебя математически страшен.
+code_url: https://raw.githubusercontent.com/ТВОЙ_АККАУНТ/ТВОЙ_РЕПО/main/plugins/rakcalc.js
+icon_url: https://raw.githubusercontent.com/ТВОЙ_АККАУНТ/ТВОЙ_РЕПО/main/icons/rak.png
+screenshots: https://raw.githubusercontent.com/ТВОЙ_АККАУНТ/ТВОЙ_РЕПО/main/screenshots/rak1.png
