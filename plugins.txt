@@ -21,4 +21,10 @@ description: Для игры с другом. Чьё нажатие перехв
 code_url: https://vaneyn.github.io/glistnet/hvat.html
 icon_url: 
 screenshots: 
+---
+name: Игра 3D шутер пошаговый
+description: Для игры с другом на одном экране. Настоятельно рекомендую использовать альбомную ориентацию во время игры! Добавлено с версии 1.91 в сборник игр. На мой взгляд, совершенно не подходит для ПК. 
+code_url: https://vaneyn.github.io/glistnet/shooter2p.html
+icon_url: https://i.postimg.cc/2yKLzPC5/1000059018.png
+screenshots: https://i.postimg.cc/HsrBQmcB/1000059019.jpg
 
