@@ -1,4 +1,4 @@
-name: TestPlugin
+name: Тестовый плагин
 description: Это простой тестовый плагин для демонстрации.
 code_url: https://vaneyn.github.io/glistnet/bin.html
 icon_url: https://i.postimg.cc/vZc6Lg45/1000032584.jpg
@@ -10,7 +10,7 @@ code_url: https://vaneyn.github.io/glistnet/datatime.html
 icon_url: 
 screenshots: 
 ---
-name: RGB color master
+name: Цветовой RGB master
 description: Позволяет получить текстовую расшифровку цвета
 code_url:https://vaneyn.github.io/glistnet/rgb.html
 icon_url: 
