@@ -4,8 +4,21 @@ code_url: https://vaneyn.github.io/glistnet/bin.html
 icon_url: https://i.postimg.cc/vZc6Lg45/1000032584.jpg
 screenshots: https://i.postimg.cc/pX1mTWsr/1000033481.jpg, https://i.postimg.cc/pX1mTWsr/1000033481.jpg, https://i.postimg.cc/pX1mTWsr/1000033481.jpg, https://i.postimg.cc/pX1mTWsr/1000033481.jpg
 ---
-name: КалькуляторРака
-description: Считает, насколько рак у тебя математически страшен.
-code_url: https://raw.githubusercontent.com/ТВОЙ_АККАУНТ/ТВОЙ_РЕПО/main/plugins/rakcalc.js
-icon_url: https://raw.githubusercontent.com/ТВОЙ_АККАУНТ/ТВОЙ_РЕПО/main/icons/rak.png
-screenshots: https://raw.githubusercontent.com/ТВОЙ_АККАУНТ/ТВОЙ_РЕПО/main/screenshots/rak1.png
+name: Дата и IP
+description: Простая утилита для получения своего ip адреса и текущего времени в Минск/Москва. А больше ничего знать и не надо..
+code_url: https://vaneyn.github.io/glistnet/datatime.html
+icon_url: 
+screenshots: 
+---
+name: RGB color master
+description: Позволяет получить текстовую расшифровку цвета
+code_url:https://vaneyn.github.io/glistnet/rgb.html
+icon_url: 
+screenshots: 
+---
+name: Игра в перевхат
+description: Для игры с другом. Чьё нажатие перехвачено, тот проиграл.
+code_url: https://vaneyn.github.io/glistnet/hvat.html
+icon_url: 
+screenshots: 
+
