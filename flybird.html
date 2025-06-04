@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Flappy Bird</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: skyblue;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: Arial;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+        #gameCanvas {
+            border: 2px solid black;
+            background: #4EC0CA;
+        }
+        #score {
+            position: absolute;
+            top: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        #backButton {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            padding: 10px 20px;
+            background: rgba(0,0,0,0.5);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            z-index: 100;
+        }
+        #backButton:hover {
+            background: rgba(0,0,0,0.7);
+        }
+    </style>
+</head>
+<body oncontextmenu="return false;">
+    <button id="backButton" onclick="window.location.href='glist.html'">← Назад</button>
+    <div id="score">0</div>
+    <canvas id="gameCanvas" width="400" height="600"></canvas>
+
+    <script>
+        // Запрет копирования и выделения текста
+        document.addEventListener('copy', (e) => e.preventDefault());
+        document.addEventListener('selectstart', (e) => e.preventDefault());
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+
+        // Параметры игры
+        let bird = {
+            x: 100,
+            y: 300,
+            radius: 20,
+            velocity: 0,
+            gravity: 0.5,
+            jump: -7 // Уменьшенная сила прыжка (было -10)
+        };
+
+        let pipes = [];
+        let score = 0;
+        let record = localStorage.getItem('FBrecord') || 0; // Загрузка рекорда
+        let gameSpeed = 2;
+        let gameOver = false;
+        let frameCount = 0;
+        let newRecord = false;
+
+        // Управление
+        document.addEventListener('click', () => {
+            if (gameOver) {
+                resetGame();
+            } else {
+                bird.velocity = bird.jump;
+            }
+        });
+
+        // Для мобильных устройств
+        document.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (gameOver) {
+                resetGame();
+            } else {
+                bird.velocity = bird.jump;
+            }
+        });
+
+        // Основной игровой цикл
+        function gameLoop() {
+            if (gameOver) return;
+            
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function update() {
+            // Движение птицы
+            bird.velocity += bird.gravity;
+            bird.y += bird.velocity;
+
+            // Генерация труб
+            if (frameCount % 100 === 0) {
+                createPipe();
+            }
+            frameCount++;
+
+            // Обновление труб
+            pipes.forEach((pipe, index) => {
+                pipe.x -= gameSpeed;
+                
+                // Проверка столкновений
+                if (
+                    bird.x + bird.radius > pipe.x && 
+                    bird.x - bird.radius < pipe.x + pipe.width &&
+                    (bird.y - bird.radius < pipe.top || bird.y + bird.radius > pipe.bottom)
+                ) {
+                    gameOver = true;
+                    checkRecord();
+                }
+
+                // Увеличение счета
+                if (pipe.x + pipe.width < bird.x && !pipe.passed) {
+                    pipe.passed = true;
+                    score++;
+                    scoreElement.textContent = score;
+                }
+            });
+
+            // Удаление труб за пределами экрана
+            pipes = pipes.filter(pipe => pipe.x + pipe.width > 0);
+
+            // Проверка границ
+            if (bird.y + bird.radius > canvas.height || bird.y - bird.radius < 0) {
+                gameOver = true;
+                checkRecord();
+            }
+        }
+
+        function draw() {
+            // Очистка экрана
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Рисование птицы
+            ctx.fillStyle = 'yellow';
+            ctx.beginPath();
+            ctx.arc(bird.x, bird.y, bird.radius, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Рисование глаз
+            ctx.fillStyle = 'black';
+            ctx.beginPath();
+            ctx.arc(bird.x + 10, bird.y - 5, 5, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Рисование труб
+            ctx.fillStyle = 'green';
+            pipes.forEach(pipe => {
+                ctx.fillRect(pipe.x, 0, pipe.width, pipe.top);
+                ctx.fillRect(pipe.x, pipe.bottom, pipe.width, canvas.height - pipe.bottom);
+            });
+
+            // Сообщение о конце игры
+            if (gameOver) {
+                ctx.fillStyle = 'rgba(0,0,0,0.7)';
+                ctx.fillRect(50, 250, 300, newRecord ? 150 : 130);
+                
+                ctx.fillStyle = 'white';
+                ctx.font = '30px Arial';
+                ctx.fillText('Game Over!', 130, 300);
+                
+                if (newRecord) {
+                    ctx.fillStyle = 'gold';
+                    ctx.font = '26px Arial';
+                    ctx.fillText('Новый рекорд!', 120, 340);
+                }
+                
+                ctx.fillStyle = 'white';
+                ctx.font = '20px Arial';
+                ctx.fillText(`Рекорд: ${record}`, 150, newRecord ? 390 : 370);
+                ctx.fillText('Кликните чтобы начать', 110, newRecord ? 430 : 410);
+            }
+        }
+
+        function createPipe() {
+            const gap = 150;
+            const topHeight = Math.random() * (canvas.height - gap - 100) + 50;
+            
+            pipes.push({
+                x: canvas.width,
+                width: 70,
+                top: topHeight,
+                bottom: topHeight + gap,
+                passed: false
+            });
+        }
+
+        function checkRecord() {
+            if (score > record) {
+                newRecord = true;
+                record = score;
+                localStorage.setItem('FBrecord', record);
+            }
+        }
+
+        function resetGame() {
+            bird.y = 300;
+            bird.velocity = 0;
+            pipes = [];
+            score = 0;
+            newRecord = false;
+            scoreElement.textContent = '0';
+            gameOver = false;
+            frameCount = 0;
+            gameLoop();
+        }
+
+        // Начало игры
+        gameLoop();
+    </script>
+</body>
+</html>
