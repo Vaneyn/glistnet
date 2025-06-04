@@ -27,4 +27,9 @@ description: Для игры с другом на одном экране. На�
 code_url: https://vaneyn.github.io/glistnet/shooter2p.html
 icon_url: https://i.postimg.cc/2yKLzPC5/1000059018.png
 screenshots: https://i.postimg.cc/HsrBQmcB/1000059019.jpg
-
+---
+name: Элетрический конвертер
+description: Плагин для электриков и других чуваков, помешанных на законе Ома для участка цепи.
+code_url: https://vaneyn.github.io/glistnet/electrocalc.html
+icon_url: 
+screenshots: https://i.postimg.cc/c4MnGbm7/1000059047.jpg
