@@ -5,113 +5,369 @@
   <title>Тест скорости загрузки сайтов и фото</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body {
-      background: #181c24;
-      color: #e0e0e0;
-      font-family: 'Segoe UI', Arial, sans-serif;
-      min-height: 100vh;
+    :root {
+      --primary: #7ecfff;
+      --secondary: #1e90ff;
+      --dark: #0f1219;
+      --darker: #0a0d12;
+      --card: rgba(30, 36, 54, 0.8);
+      --glass: rgba(22, 28, 43, 0.6);
+      --text: #f0f5ff;
+      --accent: #ff7eb3;
+    }
+    
+    * {
       margin: 0;
       padding: 0;
+      box-sizing: border-box;
     }
-    h1 {
-      color: #7ecfff;
-      margin-top: 40px;
-      letter-spacing: 1px;
-      font-size: 2.2em;
-      text-shadow: 0 2px 8px #0008;
+
+    body {
+      background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 100%);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      padding: 20px;
+      line-height: 1.6;
+      position: relative;
+      overflow-x: hidden;
     }
-    .container {
-      background: #23293a;
-      margin: 40px auto 0 auto;
-      max-width: 480px;
-      padding: 32px 24px 36px 24px;
-      border-radius: 20px;
-      box-shadow: 0 4px 32px #000a;
-      text-align: center;
+    
+    body::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: 
+        radial-gradient(circle at 15% 50%, rgba(126, 207, 255, 0.08) 0%, transparent 25%),
+        radial-gradient(circle at 85% 30%, rgba(255, 126, 179, 0.05) 0%, transparent 25%);
+      z-index: -1;
     }
-    button {
-      background: linear-gradient(90deg, #7ecfff 0%, #1e90ff 100%);
-      color: #fff;
-      border: none;
-      border-radius: 8px;
-      padding: 12px 28px;
-      font-size: 1.1em;
-      font-weight: bold;
-      margin: 10px 8px;
+
+    .back-btn {
+      position: absolute;
+      top: 25px;
+      left: 25px;
+      background: var(--glass);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(126, 207, 255, 0.2);
+      border-radius: 50px;
+      padding: 12px 20px 12px 16px;
+      color: var(--primary);
+      font-size: 1em;
+      font-weight: 600;
       cursor: pointer;
-      box-shadow: 0 2px 6px #0004;
-      transition: background 0.2s, transform 0.2s;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      z-index: 10;
     }
+    
+    .back-btn:hover {
+      background: rgba(30, 45, 65, 0.7);
+      transform: translateX(-5px);
+      box-shadow: 0 6px 25px rgba(0, 0, 0, 0.4);
+    }
+    
+    .back-btn::before {
+      content: '←';
+      font-size: 1.2em;
+    }
+
+    .container {
+      background: var(--glass);
+      backdrop-filter: blur(12px);
+      margin: 80px auto 40px auto;
+      max-width: 550px;
+      padding: 40px 30px;
+      border-radius: 24px;
+      border: 1px solid rgba(126, 207, 255, 0.15);
+      box-shadow: 
+        0 10px 40px rgba(0, 0, 0, 0.4),
+        inset 0 0 20px rgba(126, 207, 255, 0.05);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .container::after {
+      content: '';
+      position: absolute;
+      top: -50%; left: -50%;
+      width: 200%; height: 200%;
+      background: radial-gradient(circle, rgba(126, 207, 255, 0.1) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    h1 {
+      color: var(--primary);
+      margin: 0 0 30px 0;
+      font-size: 2.4rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+      position: relative;
+      display: inline-block;
+    }
+    
+    h1::after {
+      content: '';
+      position: absolute;
+      bottom: -10px;
+      left: 25%;
+      width: 50%;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, var(--primary), transparent);
+      border-radius: 3px;
+    }
+
+    .btn-group {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 15px;
+      margin: 25px 0;
+    }
+
+    button {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      padding: 14px 32px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 
+        0 5px 15px rgba(30, 144, 255, 0.3),
+        inset 0 2px 2px rgba(255, 255, 255, 0.2);
+      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      position: relative;
+      overflow: hidden;
+      min-width: 180px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    
+    button::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: linear-gradient(90deg, 
+        rgba(255,255,255,0) 0%, 
+        rgba(255,255,255,0.2) 50%, 
+        rgba(255,255,255,0) 100%);
+      transform: translateX(-100%);
+      transition: transform 0.6s ease;
+    }
+    
     button:hover {
-      background: linear-gradient(90deg, #1e90ff 0%, #7ecfff 100%);
-      transform: translateY(-2px) scale(1.04);
+      transform: translateY(-5px) scale(1.05);
+      box-shadow: 
+        0 8px 25px rgba(30, 144, 255, 0.5),
+        inset 0 2px 2px rgba(255, 255, 255, 0.3);
     }
+    
+    button:hover::before {
+      transform: translateX(100%);
+    }
+    
+    button:active {
+      transform: translateY(2px) scale(0.98);
+    }
+    
+    #showConsole {
+      background: var(--glass);
+      border: 1px solid rgba(126, 207, 255, 0.3);
+      color: var(--primary);
+    }
+    
+    #showConsole:hover {
+      background: rgba(30, 45, 65, 0.7);
+    }
+
     #result {
-      margin-top: 28px;
-      font-size: 1.3em;
+      margin: 35px 0 10px 0;
+      padding: 20px;
+      font-size: 1.4rem;
+      background: rgba(10, 15, 30, 0.4);
+      border-radius: 16px;
+      border: 1px solid rgba(126, 207, 255, 0.1);
       color: #aaffaa;
-      text-shadow: 0 1px 4px #0004;
+      text-shadow: 0 0 10px rgba(170, 255, 170, 0.3);
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      animation: fadeIn 1s ease;
     }
+
     #consoleModal {
       display: none;
       position: fixed;
-      top: 0; left: 0; width: 100vw; height: 100vh;
-      background: rgba(20,25,40,0.92);
-      z-index: 100;
+      top: 0; left: 0; 
+      width: 100vw; height: 100vh;
+      background: rgba(10, 15, 25, 0.95);
+      backdrop-filter: blur(8px);
+      z-index: 1000;
       justify-content: center;
       align-items: center;
-      animation: fadeIn 0.2s;
+      animation: fadeIn 0.3s ease-out;
     }
-    @keyframes fadeIn { from {opacity:0;} to {opacity:1;} }
+    
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    
     #consoleContent {
-      background: #13161f;
-      color: #7ecfff;
-      font-family: 'Fira Mono', 'Consolas', monospace;
-      padding: 28px 24px 16px 24px;
-      border-radius: 14px;
-      max-width: 90vw;
+      background: var(--darker);
+      color: var(--primary);
+      font-family: 'Consolas', 'Courier New', monospace;
+      padding: 30px;
+      border-radius: 20px;
+      width: min(90vw, 800px);
       max-height: 80vh;
       overflow-y: auto;
-      box-shadow: 0 0 32px #000b;
+      box-shadow: 
+        0 0 40px rgba(126, 207, 255, 0.2),
+        inset 0 0 10px rgba(126, 207, 255, 0.1);
+      border: 1px solid rgba(126, 207, 255, 0.15);
       position: relative;
     }
+    
     #closeConsole {
-      background: #23293a;
-      color: #7ecfff;
-      border: none;
-      border-radius: 6px;
-      padding: 7px 16px;
-      font-size: 1em;
-      font-family: inherit;
+      background: rgba(30, 45, 65, 0.7);
+      color: var(--primary);
+      border: 1px solid rgba(126, 207, 255, 0.3);
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 1rem;
       position: absolute;
-      top: 14px; right: 18px;
+      top: 20px; right: 20px;
       cursor: pointer;
-      transition: background 0.2s;
+      transition: all 0.3s ease;
     }
-    #closeConsole:hover { background: #1e90ff; color: #fff; }
+    
+    #closeConsole:hover {
+      background: rgba(30, 144, 255, 0.5);
+      transform: translateY(-2px);
+    }
+    
     #consoleLog {
-      margin-top: 18px;
-      font-size: 1.07em;
+      margin-top: 40px;
+      font-size: 1.1rem;
       white-space: pre-wrap;
-      word-break: break-all;
+      word-break: break-word;
+      line-height: 1.8;
+      padding: 10px;
+      background: rgba(0, 5, 15, 0.4);
+      border-radius: 10px;
     }
-    @media (max-width: 600px) {
-      .container { max-width: 98vw; padding: 18px 4vw 22px 4vw; }
-      #consoleContent { padding: 16px 7vw 10px 7vw; }
+
+    /* Адаптивность */
+    @media (max-width: 768px) {
+      body {
+        padding: 15px;
+      }
+      
+      .back-btn {
+        top: 15px;
+        left: 15px;
+        padding: 10px 16px 10px 12px;
+        font-size: 0.9rem;
+      }
+      
+      .container {
+        margin: 70px auto 30px auto;
+        padding: 30px 20px;
+        border-radius: 20px;
+        max-width: 95%;
+      }
+      
+      h1 {
+        font-size: 1.8rem;
+        margin-bottom: 25px;
+      }
+      
+      .btn-group {
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+      }
+      
+      button {
+        width: 100%;
+        max-width: 300px;
+        padding: 14px;
+        font-size: 1rem;
+      }
+      
+      #result {
+        font-size: 1.2rem;
+        padding: 15px;
+      }
+      
+      #consoleContent {
+        padding: 25px 20px;
+      }
+      
+      #closeConsole {
+        top: 15px;
+        right: 15px;
+        padding: 8px 16px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .container {
+        padding: 25px 15px;
+        margin-top: 60px;
+      }
+      
+      h1 {
+        font-size: 1.6rem;
+      }
+      
+      #result {
+        font-size: 1.1rem;
+        padding: 12px;
+      }
+      
+      #consoleLog {
+        font-size: 0.95rem;
+      }
     }
   </style>
 </head>
 <body>
+  <button class="back-btn" onclick="window.location.href='glist.html'">Назад</button>
+
   <div class="container">
-    <h1>Проверка скорости загрузки</h1>
-    <button id="startTest">Начать тест</button>
-    <button id="showConsole">Открыть консоль</button>
+    <h1>Тест скорости загрузки</h1>
+    
+    <div class="btn-group">
+      <button id="startTest">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 3V6M12 18V21M6 12H3M21 12H18M5.6 5.6L7.8 7.8M16.2 16.2L18.4 18.4M5.6 18.4L7.8 16.2M16.2 7.8L18.4 5.6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        Начать тест
+      </button>
+      <button id="showConsole">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M4 6H20M4 12H14M4 18H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        Консоль
+      </button>
+    </div>
+    
     <div id="result"></div>
   </div>
 
   <div id="consoleModal">
     <div id="consoleContent">
-      <button id="closeConsole">Закрыть</button>
+      <button id="closeConsole">✕ Закрыть</button>
       <pre id="consoleLog"></pre>
     </div>
   </div>
@@ -128,11 +384,11 @@
     const N = 5; // Количество замеров на ресурс
 
     let consoleLines = [];
+    let isTesting = false;
 
     function logConsole(line) {
       consoleLines.push(line);
       document.getElementById('consoleLog').textContent = consoleLines.join('\n');
-      // Также выводим в браузерную консоль
       console.log(line);
     }
 
@@ -142,8 +398,8 @@
         let url = site.url + (site.url.includes('?') ? '&' : '?') + 'nocache=' + Math.random();
         let start = performance.now();
         try {
-          let resp = await fetch(url, { cache: "no-store" });
-          if (!resp.ok) throw new Error("HTTP " + resp.status);
+          let resp = await fetch(url, { cache: "no-store", mode: 'no-cors' });
+          if (!resp.ok && resp.type !== 'opaque') throw new Error("HTTP " + resp.status);
           let size = +(resp.headers.get('content-length') || 0);
           let data = await resp.blob();
           if (!size) size = data.size;
@@ -151,35 +407,56 @@
           let duration = (end - start) / 1000;
           let speed = (size * 8) / (duration * 1024 * 1024); // Мбит/с
           speeds.push(speed);
-          logConsole(`[${site.url}] OK (${speed.toFixed(2)} Мбит/с)`);
+          logConsole(`[${site.name}] Замер ${i+1}: ${speed.toFixed(2)} Мбит/с`);
         } catch (e) {
-          logConsole(`BAD: ${site.url}`);
+          logConsole(`[${site.name}] Ошибка: ${e.message || 'не удалось загрузить'}`);
         }
+        await new Promise(resolve => setTimeout(resolve, 500));
       }
+      
       // Средняя скорость (только успешные замеры)
       let avg = speeds.length ? speeds.reduce((a, b) => a + b, 0) / speeds.length : 0;
       return avg;
     }
 
     async function runTest() {
+      if (isTesting) return;
+      
+      isTesting = true;
+      const startBtn = document.getElementById('startTest');
+      startBtn.disabled = true;
+      startBtn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2V6M12 18V22M7 12H3M21 12H17M5.6 5.6L8.4 8.4M15.6 15.6L18.4 18.4M5.6 18.4L8.4 15.6M15.6 8.4L18.4 5.6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg> Тестирование...`;
+      
       document.getElementById('result').textContent = 'Тестирование...';
       consoleLines = [];
       document.getElementById('consoleLog').textContent = '';
+      logConsole('=== Начало тестирования ===');
+      
       let allSpeeds = [];
       for (let site of sites) {
-        logConsole(`--- Тестируем ${site.name} ---`);
+        logConsole(`\n--- Тестируем: ${site.name} (${site.url}) ---`);
         let avg = await testSiteSpeed(site);
         if (avg > 0) {
-          logConsole(`Средняя скорость для ${site.name}: ${avg.toFixed(2)} Мбит/с`);
+          logConsole(`✓ Средняя скорость для ${site.name}: ${avg.toFixed(2)} Мбит/с`);
           allSpeeds.push(avg);
         } else {
-          logConsole(`Нет успешных замеров для ${site.name}`);
+          logConsole(`× Нет успешных замеров для ${site.name}`);
         }
-        logConsole('');
       }
+      
       let totalAvg = allSpeeds.length ? allSpeeds.reduce((a, b) => a + b, 0) / allSpeeds.length : 0;
+      logConsole(`\n=== Результаты тестирования ===`);
       logConsole(`Общая средняя скорость: ${totalAvg.toFixed(2)} Мбит/с`);
-      document.getElementById('result').textContent = `Ваша средняя скорость загрузки: ${totalAvg.toFixed(2)} Мбит/с`;
+      
+      document.getElementById('result').textContent = `Средняя скорость: ${totalAvg.toFixed(2)} Мбит/с`;
+      
+      startBtn.disabled = false;
+      startBtn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 3V6M12 18V21M6 12H3M21 12H18M5.6 5.6L7.8 7.8M16.2 16.2L18.4 18.4M5.6 18.4L7.8 16.2M16.2 7.8L18.4 5.6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg> Начать тест`;
+      isTesting = false;
     }
 
     document.getElementById('startTest').onclick = runTest;
@@ -187,11 +464,19 @@
     // Модальное окно консоли
     document.getElementById('showConsole').onclick = () => {
       document.getElementById('consoleModal').style.display = 'flex';
+      document.getElementById('consoleLog').scrollTop = document.getElementById('consoleLog').scrollHeight;
     };
+    
     document.getElementById('closeConsole').onclick = () => {
       document.getElementById('consoleModal').style.display = 'none';
     };
+    
+    // Закрытие модального окна по клику вне области
+    window.onclick = (event) => {
+      if (event.target === document.getElementById('consoleModal')) {
+        document.getElementById('consoleModal').style.display = 'none';
+      }
+    };
   </script>
 </body>
-  </html>
-  
+</html>
