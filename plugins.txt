@@ -34,8 +34,8 @@ code_url: https://vaneyn.github.io/glistnet/electrocalc.html
 icon_url: 
 screenshots: https://i.postimg.cc/c4MnGbm7/1000059047.jpg
 ---
-name: Летающая Птица by Кирилл Чигинцев
-description: Летающая Птица – это простая, но увлекательная аркада, где вы управляете птицей, пролетающей между зелёными трубами.
+name: Летающая Птица
+description: Летающая Птица – это простая, но увлекательная аркада, где вы управляете птицей, пролетающей между зелёными трубами. By Кирилл Чигинцев.
 code_url: https://vaneyn.github.io/glistnet/flybird.html
 icon_url: https://i.postimg.cc/DwVkKxxg/IMG-20250604-204501-376.jpg
 screenshots: 
