@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Электрический Конвертер</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #1a2a6c, #b21f1f, #1a2a6c);
+      color: #333;
+      line-height: 1.6;
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+      padding: 15px;
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    h1 {
+      color: #1a2a6c;
+      font-size: 1.8rem;
+      text-align: center;
+      flex-grow: 1;
+    }
+
+    .btn-back {
+      background: #1a2a6c;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn-back:hover {
+      background: #0d1b4e;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .btn-back:active {
+      transform: translateY(0);
+    }
+
+    .btn-back i {
+      margin-right: 8px;
+    }
+
+    .converter-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 25px;
+    }
+
+    .converter {
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 12px;
+      padding: 25px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .converter:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 12px 25px rgba(0, 0, 0, 0.2);
+    }
+
+    .converter h2 {
+      color: #1a2a6c;
+      font-size: 1.4rem;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #1a2a6c;
+    }
+
+    .form-group {
+      margin-bottom: 18px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #555;
+    }
+
+    input {
+      width: 100%;
+      padding: 14px;
+      border: 2px solid #ddd;
+      border-radius: 6px;
+      font-size: 1rem;
+      transition: border-color 0.3s;
+    }
+
+    input:focus {
+      border-color: #1a2a6c;
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(26, 42, 108, 0.2);
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(to right, #1a2a6c, #2a3c8c);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 8px rgba(26, 42, 108, 0.3);
+    }
+
+    button:hover {
+      background: linear-gradient(to right, #152060, #243a7c);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(26, 42, 108, 0.4);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    .result {
+      margin-top: 20px;
+      padding: 15px;
+      background: #e8f4ff;
+      border-radius: 6px;
+      font-weight: bold;
+      font-size: 1.2rem;
+      color: #1a2a6c;
+      text-align: center;
+      border-left: 4px solid #1a2a6c;
+      display: none;
+    }
+
+    .result.error {
+      background: #ffebee;
+      color: #c62828;
+      border-left: 4px solid #c62828;
+    }
+
+    footer {
+      margin-top: 40px;
+      text-align: center;
+      color: white;
+      font-size: 0.9rem;
+      padding: 20px;
+    }
+
+    @media (max-width: 768px) {
+      header {
+        flex-direction: column;
+        gap: 15px;
+      }
+      
+      .btn-back {
+        width: 100%;
+      }
+      
+      h1 {
+        font-size: 1.5rem;
+      }
+      
+      .converter-container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 480px) {
+      body {
+        padding: 10px;
+      }
+      
+      .converter {
+        padding: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <button class="btn-back" onclick="window.location.href='glist.html'">
+        <i>←</i> Назад
+      </button>
+      <h1>Электрический Конвертер</h1>
+    </header>
+
+    <div class="converter-container">
+      <!-- Напряжение = Ток * Сопротивление -->
+      <div class="converter">
+        <h2>Рассчитать Напряжение (U = I × R)</h2>
+        <div class="form-group">
+          <label for="i1">Ток (I, А):</label>
+          <input type="number" id="i1" step="any" placeholder="Введите ток">
+        </div>
+        <div class="form-group">
+          <label for="r1">Сопротивление (R, Ом):</label>
+          <input type="number" id="r1" step="any" placeholder="Введите сопротивление">
+        </div>
+        <button onclick="calcVoltage()">Рассчитать Напряжение</button>
+        <div class="result" id="uResult"></div>
+      </div>
+
+      <!-- Ток = Напряжение / Сопротивление -->
+      <div class="converter">
+        <h2>Рассчитать Ток (I = U / R)</h2>
+        <div class="form-group">
+          <label for="u2">Напряжение (U, В):</label>
+          <input type="number" id="u2" step="any" placeholder="Введите напряжение">
+        </div>
+        <div class="form-group">
+          <label for="r2">Сопротивление (R, Ом):</label>
+          <input type="number" id="r2" step="any" placeholder="Введите сопротивление">
+        </div>
+        <button onclick="calcCurrent()">Рассчитать Ток</button>
+        <div class="result" id="iResult"></div>
+      </div>
+
+      <!-- Сопротивление = Напряжение / Ток -->
+      <div class="converter">
+        <h2>Рассчитать Сопротивление (R = U / I)</h2>
+        <div class="form-group">
+          <label for="u3">Напряжение (U, В):</label>
+          <input type="number" id="u3" step="any" placeholder="Введите напряжение">
+        </div>
+        <div class="form-group">
+          <label for="i3">Ток (I, А):</label>
+          <input type="number" id="i3" step="any" placeholder="Введите ток">
+        </div>
+        <button onclick="calcResistance()">Рассчитать Сопротивление</button>
+        <div class="result" id="rResult"></div>
+      </div>
+
+      <!-- Мощность = Напряжение × Ток -->
+      <div class="converter">
+        <h2>Рассчитать Мощность (P = U × I)</h2>
+        <div class="form-group">
+          <label for="u4">Напряжение (U, В):</label>
+          <input type="number" id="u4" step="any" placeholder="Введите напряжение">
+        </div>
+        <div class="form-group">
+          <label for="i4">Ток (I, А):</label>
+          <input type="number" id="i4" step="any" placeholder="Введите ток">
+        </div>
+        <button onclick="calcPower()">Рассчитать Мощность</button>
+        <div class="result" id="pResult"></div>
+      </div>
+    </div>
+
+    <footer>
+      <p>Осторожно, &copy;банёт 2025</p>
+    </footer>
+  </div>
+
+  <script>
+    function showResult(elementId, message, isError = false) {
+      const resultEl = document.getElementById(elementId);
+      resultEl.innerText = message;
+      resultEl.style.display = 'block';
+      resultEl.className = isError ? 'result error' : 'result';
+    }
+
+    function calcVoltage() {
+      const i = parseFloat(document.getElementById("i1").value);
+      const r = parseFloat(document.getElementById("r1").value);
+      
+      if (isNaN(i) || isNaN(r)) {
+        showResult("uResult", "Пожалуйста, введите корректные значения", true);
+        return;
+      }
+      
+      const u = i * r;
+      showResult("uResult", `Напряжение: ${u.toFixed(2)} В`);
+    }
+
+    function calcCurrent() {
+      const u = parseFloat(document.getElementById("u2").value);
+      const r = parseFloat(document.getElementById("r2").value);
+      
+      if (isNaN(u) || isNaN(r)) {
+        showResult("iResult", "Пожалуйста, введите корректные значения", true);
+        return;
+      }
+      
+      if (r === 0) {
+        showResult("iResult", "Ошибка: сопротивление не может быть 0!", true);
+        return;
+      }
+      
+      const i = u / r;
+      showResult("iResult", `Ток: ${i.toFixed(2)} А`);
+    }
+
+    function calcResistance() {
+      const u = parseFloat(document.getElementById("u3").value);
+      const i = parseFloat(document.getElementById("i3").value);
+      
+      if (isNaN(u) || isNaN(i)) {
+        showResult("rResult", "Пожалуйста, введите корректные значения", true);
+        return;
+      }
+      
+      if (i === 0) {
+        showResult("rResult", "Ошибка: ток не может быть 0!", true);
+        return;
+      }
+      
+      const r = u / i;
+      showResult("rResult", `Сопротивление: ${r.toFixed(2)} Ом`);
+    }
+
+    function calcPower() {
+      const u = parseFloat(document.getElementById("u4").value);
+      const i = parseFloat(document.getElementById("i4").value);
+      
+      if (isNaN(u) || isNaN(i)) {
+        showResult("pResult", "Пожалуйста, введите корректные значения", true);
+        return;
+      }
+      
+      const p = u * i;
+      showResult("pResult", `Мощность: ${p.toFixed(2)} Вт`);
+    }
+  </script>
+</body>
+</html>
