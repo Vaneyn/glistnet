@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Тест скорости загрузки сайтов и фото</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      background: #181c24;
+      color: #e0e0e0;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      min-height: 100vh;
+      margin: 0;
+      padding: 0;
+    }
+    h1 {
+      color: #7ecfff;
+      margin-top: 40px;
+      letter-spacing: 1px;
+      font-size: 2.2em;
+      text-shadow: 0 2px 8px #0008;
+    }
+    .container {
+      background: #23293a;
+      margin: 40px auto 0 auto;
+      max-width: 480px;
+      padding: 32px 24px 36px 24px;
+      border-radius: 20px;
+      box-shadow: 0 4px 32px #000a;
+      text-align: center;
+    }
+    button {
+      background: linear-gradient(90deg, #7ecfff 0%, #1e90ff 100%);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 28px;
+      font-size: 1.1em;
+      font-weight: bold;
+      margin: 10px 8px;
+      cursor: pointer;
+      box-shadow: 0 2px 6px #0004;
+      transition: background 0.2s, transform 0.2s;
+    }
+    button:hover {
+      background: linear-gradient(90deg, #1e90ff 0%, #7ecfff 100%);
+      transform: translateY(-2px) scale(1.04);
+    }
+    #result {
+      margin-top: 28px;
+      font-size: 1.3em;
+      color: #aaffaa;
+      text-shadow: 0 1px 4px #0004;
+    }
+    #consoleModal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(20,25,40,0.92);
+      z-index: 100;
+      justify-content: center;
+      align-items: center;
+      animation: fadeIn 0.2s;
+    }
+    @keyframes fadeIn { from {opacity:0;} to {opacity:1;} }
+    #consoleContent {
+      background: #13161f;
+      color: #7ecfff;
+      font-family: 'Fira Mono', 'Consolas', monospace;
+      padding: 28px 24px 16px 24px;
+      border-radius: 14px;
+      max-width: 90vw;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 0 32px #000b;
+      position: relative;
+    }
+    #closeConsole {
+      background: #23293a;
+      color: #7ecfff;
+      border: none;
+      border-radius: 6px;
+      padding: 7px 16px;
+      font-size: 1em;
+      font-family: inherit;
+      position: absolute;
+      top: 14px; right: 18px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    #closeConsole:hover { background: #1e90ff; color: #fff; }
+    #consoleLog {
+      margin-top: 18px;
+      font-size: 1.07em;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    @media (max-width: 600px) {
+      .container { max-width: 98vw; padding: 18px 4vw 22px 4vw; }
+      #consoleContent { padding: 16px 7vw 10px 7vw; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Проверка скорости загрузки</h1>
+    <button id="startTest">Начать тест</button>
+    <button id="showConsole">Открыть консоль</button>
+    <div id="result"></div>
+  </div>
+
+  <div id="consoleModal">
+    <div id="consoleContent">
+      <button id="closeConsole">Закрыть</button>
+      <pre id="consoleLog"></pre>
+    </div>
+  </div>
+
+  <script>
+    const sites = [
+      { name: "Google", url: "https://www.google.com/" },
+      { name: "Yandex", url: "https://yandex.ru/" },
+      { name: "Mail.ru", url: "https://mail.ru/" },
+      { name: "glist.html", url: "https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/glist.html" },
+      { name: "Фото 1", url: "https://i.postimg.cc/HsrBQmcB/1000059019.jpg" },
+      { name: "Фото 2", url: "https://i.postimg.cc/HsPZGztL/1000058778.jpg" }
+    ];
+    const N = 5; // Количество замеров на ресурс
+
+    let consoleLines = [];
+
+    function logConsole(line) {
+      consoleLines.push(line);
+      document.getElementById('consoleLog').textContent = consoleLines.join('\n');
+      // Также выводим в браузерную консоль
+      console.log(line);
+    }
+
+    async function testSiteSpeed(site) {
+      let speeds = [];
+      for (let i = 0; i < N; i++) {
+        let url = site.url + (site.url.includes('?') ? '&' : '?') + 'nocache=' + Math.random();
+        let start = performance.now();
+        try {
+          let resp = await fetch(url, { cache: "no-store" });
+          if (!resp.ok) throw new Error("HTTP " + resp.status);
+          let size = +(resp.headers.get('content-length') || 0);
+          let data = await resp.blob();
+          if (!size) size = data.size;
+          let end = performance.now();
+          let duration = (end - start) / 1000;
+          let speed = (size * 8) / (duration * 1024 * 1024); // Мбит/с
+          speeds.push(speed);
+          logConsole(`[${site.url}] OK (${speed.toFixed(2)} Мбит/с)`);
+        } catch (e) {
+          logConsole(`BAD: ${site.url}`);
+        }
+      }
+      // Средняя скорость (только успешные замеры)
+      let avg = speeds.length ? speeds.reduce((a, b) => a + b, 0) / speeds.length : 0;
+      return avg;
+    }
+
+    async function runTest() {
+      document.getElementById('result').textContent = 'Тестирование...';
+      consoleLines = [];
+      document.getElementById('consoleLog').textContent = '';
+      let allSpeeds = [];
+      for (let site of sites) {
+        logConsole(`--- Тестируем ${site.name} ---`);
+        let avg = await testSiteSpeed(site);
+        if (avg > 0) {
+          logConsole(`Средняя скорость для ${site.name}: ${avg.toFixed(2)} Мбит/с`);
+          allSpeeds.push(avg);
+        } else {
+          logConsole(`Нет успешных замеров для ${site.name}`);
+        }
+        logConsole('');
+      }
+      let totalAvg = allSpeeds.length ? allSpeeds.reduce((a, b) => a + b, 0) / allSpeeds.length : 0;
+      logConsole(`Общая средняя скорость: ${totalAvg.toFixed(2)} Мбит/с`);
+      document.getElementById('result').textContent = `Ваша средняя скорость загрузки: ${totalAvg.toFixed(2)} Мбит/с`;
+    }
+
+    document.getElementById('startTest').onclick = runTest;
+
+    // Модальное окно консоли
+    document.getElementById('showConsole').onclick = () => {
+      document.getElementById('consoleModal').style.display = 'flex';
+    };
+    document.getElementById('closeConsole').onclick = () => {
+      document.getElementById('consoleModal').style.display = 'none';
+    };
+  </script>
+</body>
+  </html>
+  
