@@ -45,3 +45,9 @@ description: Я не хочу добавлять это в основную сб
 code_url: https://vaneyn.github.io/glistnet/downloadtest.html
 icon_url: 
 screenshots: https://i.postimg.cc/GhCC6cq2/1000059056.jpg
+---
+name: Безумный строитель 
+description: Больше роффельный проект, но зато красивая графика. Зайдет чисто на пять минут, но это 6/10, господа.
+code_url: https://vaneyn.github.io/glistnet/tower.html
+icon_url: 
+screenshots: https://i.postimg.cc/GhhPjNdq/1000059068.jpg
