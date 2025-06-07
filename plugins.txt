@@ -51,3 +51,9 @@ description: Больше роффельный проект, но зато кр�
 code_url: https://vaneyn.github.io/glistnet/tower.html
 icon_url: 
 screenshots: https://i.postimg.cc/GhhPjNdq/1000059068.jpg
+---
+name: Тестирование онлайн сервисов Глиста
+description: Тула покажет, есть ли доступ к онлайн ресурсам API. Ассистент может не работать, даже если всё прказывает в норме, там много возможных проблем.
+code_url: https://vaneyn.github.io/glistnet/Testingapiglist.html
+icon_url: 
+screenshots: https://i.postimg.cc/zvpS3PCP/1000059134.jpg
