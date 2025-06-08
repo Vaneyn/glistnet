@@ -57,3 +57,9 @@ description: Тула покажет, есть ли доступ к онлайн
 code_url: https://vaneyn.github.io/glistnet/Testingapiglist.html
 icon_url: 
 screenshots: https://i.postimg.cc/zvpS3PCP/1000059134.jpg
+---
+name: Измерение звука грозы и расстояния до неё 
+description: Тула покажет, как далеко находится источник звука от вас. 
+code_url: https://vaneyn.github.io/glistnet/audiometr.html
+icon_url: 
+screenshots: https://i.postimg.cc/3JZGNYDP/1000059327.jpg
