@@ -58,7 +58,7 @@ code_url: https://vaneyn.github.io/glistnet/Testingapiglist.html
 icon_url: 
 screenshots: https://i.postimg.cc/zvpS3PCP/1000059134.jpg
 ---
-name: Измерение звука грозы и расстояния до неё 
+name: Измерение расстояния до грозы 
 description: Тула покажет, как далеко находится источник звука от вас. 
 code_url: https://vaneyn.github.io/glistnet/audiometr.html
 icon_url: 
