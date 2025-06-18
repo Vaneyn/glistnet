@@ -69,3 +69,9 @@ description: Попытка запустить ассистента там, гд
 code_url: https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/ass4old.html
 icon_url: 
 screenshots: 
+---
+name: Банан: Возвращение.
+description: Кажется, он вернулся. Он стал ещё бананее, ещё более желтым... И он готов быть бананом. Навсегда. 
+code_url: https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/banana2.html
+icon_url: 
+screenshots: 
