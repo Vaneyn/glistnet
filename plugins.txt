@@ -63,3 +63,9 @@ description: Тула покажет, как далеко находится и�
 code_url: https://vaneyn.github.io/glistnet/audiometr.html
 icon_url: 
 screenshots: https://i.postimg.cc/3JZGNYDP/1000059327.jpg
+---
+name: Ассистент под старый андроид
+description: Попытка запустить ассистента там, где он едва ли работал бы, но без разметки ответов
+code_url: https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/ass4old.html
+icon_url: 
+screenshots: 
