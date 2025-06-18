@@ -309,7 +309,7 @@
   <!-- Шапка с кнопками: назад и настройки -->
   <header>
     <button id="backButton" class="header-button" onclick="goBack();">&larr;</button>
-    <h1>Ассистент</h1>
+    <h1>Банан</h1>
     <button id="settingsButton" class="header-button">⚙️</button>
     <!-- Индикатор повторных попыток -->
     <div id="retry-indicator"></div>
@@ -353,7 +353,7 @@
           <option value="google/learnlm-1.5-pro-experimental:free" >google/learnlm-1.5-pro-experimental:free</option>
   
        <option value="google/gemini-2.0-flash-exp:free" >google/gemini-2.0-flash-exp:free</option>
-          <option value="meta-llama/llama-4-maverick:free" selected>meta-llama/llama-4-maverick:free</option>
+          <option value="meta-llama/llama-4-maverick:free">meta-llama/llama-4-maverick:free</option>
           <option value="deepseek/deepseek-r1:free">deepseek/deepseek-r1:free</option>
           <option value="google/gemma-2-9b-it:free">google/gemma-2-9b-it:free</option>
         </select>
@@ -496,7 +496,7 @@ const nativeSystemMessage = { role: "system", content: nativeSystemMessageConten
           settings.model = document.getElementById("model").value;
         } else {
           // Если выбран режим с системным вводом, модель фиксируется на базовую и выбор блокируется
-          document.getElementById("model").value = "google/gemini-2.0-flash-exp:free";
+          document.getElementById("model").value = "meta-llama/llama-4-maverick:free";
           settings.model = "meta-llama/llama-4-maverick:free";
           document.getElementById("model").disabled = true;
         }
