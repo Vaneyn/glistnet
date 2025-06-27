@@ -81,3 +81,9 @@ description: Кхм, он сам себя опишет (он дурак): Здр
 code_url: https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/osistent.html
 icon_url: 
 screenshots: 
+---
+name: Тест задержки дыхания 
+description: Секундомер для замера дыхания и оценки результатов. Замер производится от ВДОХА до первых позывов выдоха, сокращения мышц. На этом всё.
+code_url: https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/aerotest.html
+icon_url: 
+screenshots: 
