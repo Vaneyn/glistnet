@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Секундомер задержки дыхания</title>
+<style>
+  body {
+    display: flex;
+    height: 100vh;
+    margin: 0;
+    background: #121212;
+    color: #fff;
+    font-family: Arial, sans-serif;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+  }
+  .timer-container {
+    position: relative;
+    width: 200px;
+    height: 200px;
+  }
+  svg {
+    transform: rotate(-90deg);
+    width: 200px;
+    height: 200px;
+  }
+  circle {
+    fill: none;
+    stroke-width: 10;
+    stroke-linecap: round;
+  }
+  .bg {
+    stroke: #444;
+  }
+  .progress {
+    stroke: #0f0;
+    transition: stroke-dashoffset 0.1s linear;
+  }
+  .time {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 3em;
+    font-weight: bold;
+  }
+  .result {
+    margin-top: 20px;
+    font-size: 1.3em;
+    text-align: center;
+  }
+  button {
+    margin-top: 30px;
+    padding: 10px 20px;
+    font-size: 1em;
+    cursor: pointer;
+    border: none;
+    background: #0f0;
+    color: #121212;
+    border-radius: 5px;
+    transition: background 0.3s;
+  }
+  button:hover {
+    background: #0c0;
+  }
+</style>
+</head>
+<body>
+
+<div class="timer-container">
+  <svg>
+    <circle class="bg" r="90" cx="100" cy="100"></circle>
+    <circle class="progress" r="90" cx="100" cy="100" stroke-dasharray="565.48" stroke-dashoffset="565.48"></circle>
+  </svg>
+  <div class="time" id="time">0.00</div>
+</div>
+
+<div class="result" id="result">Начните задержку дыхания</div>
+<button id="startStop">Старт</button>
+
+<script>
+  const startStopBtn = document.getElementById('startStop');
+  const timeDisplay = document.getElementById('time');
+  const resultDisplay = document.getElementById('result');
+  const progressCircle = document.querySelector('.progress');
+
+  const circleRadius = 90;
+  const circleCircumference = 2 * Math.PI * circleRadius;
+
+  progressCircle.style.strokeDasharray = circleCircumference;
+  progressCircle.style.strokeDashoffset = circleCircumference;
+
+  let startTime = null;
+  let timerId = null;
+  let running = false;
+
+  // Шкала уровней в секундах (пример)
+  const levels = [
+    { label: "Астматик", max: 30 },
+    { label: "Старый дед", max: 50 },
+    { label: "Нетренированный", max: 80 },
+    { label: "Тренированный", max: 150 },
+    { label: "Фридайвер-любитель", max: 300 },
+    { label: "Профи ёпт!", max: 600 }
+  ];
+
+  function getLevel(time) {
+    for (let i = 0; i < levels.length; i++) {
+      if (time < levels[i].max) return levels[i];
+    }
+    return levels[levels.length - 1];
+  }
+
+  function updateTimer() {
+    const now = performance.now();
+    const elapsed = (now - startTime) / 1000;
+    timeDisplay.textContent = elapsed.toFixed(2);
+
+    // Определяем текущий уровень и остаток до следующего
+    let currentLevelIndex = 0;
+    for (let i = 0; i < levels.length; i++) {
+      if (elapsed < levels[i].max) {
+        currentLevelIndex = i;
+        break;
+      }
+    }
+    const currentLevel = levels[currentLevelIndex];
+    const prevMax = currentLevelIndex === 0 ? 0 : levels[currentLevelIndex - 1].max;
+    const levelRange = currentLevel.max - prevMax;
+    const progressInLevel = elapsed - prevMax;
+    const percent = Math.min(progressInLevel / levelRange, 1);
+
+    // Обновляем обводку круга
+    const offset = circleCircumference * (1 - percent);
+    progressCircle.style.strokeDashoffset = offset;
+
+    // Обновляем текст результата
+    resultDisplay.textContent = `Уровень: ${currentLevel.label} (${elapsed.toFixed(2)} сек)`;
+
+    timerId = requestAnimationFrame(updateTimer);
+  }
+
+  startStopBtn.addEventListener('click', () => {
+    if (!running) {
+      startTime = performance.now();
+      timerId = requestAnimationFrame(updateTimer);
+      startStopBtn.textContent = "Стоп";
+      resultDisplay.textContent = "Задержка дыхания в процессе...";
+      running = true;
+    } else {
+      cancelAnimationFrame(timerId);
+      running = false;
+      startStopBtn.textContent = "Старт";
+      const finalTime = parseFloat(timeDisplay.textContent);
+      const finalLevel = getLevel(finalTime);
+      resultDisplay.textContent = `Финальный результат: ${finalTime.toFixed(2)} сек — Уровень: ${finalLevel.label}`;
+      progressCircle.style.strokeDashoffset = circleCircumference;
+      timeDisplay.textContent = "0.00";
+    }
+  });
+</script>
+
+</body>
+</html>
