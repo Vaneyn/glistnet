@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>С Днём Рождения Юре!</title>
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Comfortaa:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #ff9a9e 0%, #fad0c4 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Comfortaa', cursive;
+            overflow: hidden;
+        }
+        
+        .container {
+            text-align: center;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            max-width: 600px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        h1 {
+            font-family: 'Dancing Script', cursive;
+            font-size: 4rem;
+            color: #e91e63;
+            margin-bottom: 30px;
+            text-shadow: 3px 3px 5px rgba(0, 0, 0, 0.2);
+            animation: pulse 2s infinite;
+        }
+        
+        .btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.2rem;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+        
+        .btn:hover {
+            background: #388E3C;
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .message {
+            margin-top: 40px;
+            padding: 25px;
+            background: linear-gradient(120deg, #e0f7fa, #bbdefb);
+            border-radius: 15px;
+            color: #01579B;
+            font-size: 1.3rem;
+            line-height: 1.8;
+            transform: scale(0);
+            opacity: 0;
+            transition: all 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .message::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background: linear-gradient(90deg, #4CAF50, #2196F3, #E91E63);
+        }
+        
+        .message.show {
+            transform: scale(1);
+            opacity: 1;
+        }
+        
+        .highlight {
+            color: #E91E63;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+        }
+        
+        .hero {
+            display: inline-block;
+            background: #FFC107;
+            color: #333;
+            padding: 0 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        
+        .balloons {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            z-index: -1;
+        }
+        
+        .balloon {
+            position: absolute;
+            width: 60px;
+            height: 70px;
+            border-radius: 50%;
+            bottom: -100px;
+            animation: balloon-float 15s infinite ease-in;
+        }
+        
+        .balloon::before {
+            content: "";
+            position: absolute;
+            bottom: -15px;
+            left: 50%;
+            width: 2px;
+            height: 50px;
+            background: rgba(0, 0, 0, 0.2);
+            transform: translateX(-50%);
+        }
+        
+        @keyframes balloon-float {
+            0% {
+                transform: translateY(0) rotate(0deg);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-100vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>С Днём Рождения!</h1>
+        <button class="btn" id="birthdayBtn">У кого день рождения?</button>
+        
+        <div class="message" id="message">
+            <p>У <span class="highlight">Юры (который Пакет)</span>.</p>
+            <p>Всего доброго, хороших пакетов и стелек от обуви внутри!</p>
+            <p>Здоровья и счастья!</p>
+            <div class="hero">Юра - наш герой, довел Матвея на скалолазании, что тот перестал ходить, спаситель!))</div>
+        </div>
+    </div>
+    
+    <div class="balloons" id="balloons"></div>
+
+    <script>
+        document.getElementById('birthdayBtn').addEventListener('click', function() {
+            const message = document.getElementById('message');
+            message.classList.add('show');
+            
+            // Создаем воздушные шарики
+            const balloons = document.getElementById('balloons');
+            const colors = ['#e91e63', '#9c27b0', '#2196f3', '#4caf50', '#ffeb3b', '#ff9800'];
+            
+            for (let i = 0; i < 20; i++) {
+                const balloon = document.createElement('div');
+                balloon.className = 'balloon';
+                
+                // Случайный цвет
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                balloon.style.background = `radial-gradient(circle at 30% 30%, white, ${color})`;
+                
+                // Случайная позиция
+                balloon.style.left = `${Math.random() * 100}%`;
+                
+                // Случайная задержка и скорость
+                balloon.style.animationDelay = `${Math.random() * 5}s`;
+                balloon.style.animationDuration = `${10 + Math.random() * 15}s`;
+                
+                balloons.appendChild(balloon);
+            }
+            
+            // Отключаем кнопку после нажатия
+            this.disabled = true;
+            this.style.opacity = '0.5';
+            this.style.cursor = 'default';
+            this.style.transform = 'translateY(0)';
+        });
+    </script>
+</body>
+</html>
