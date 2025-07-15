@@ -87,3 +87,9 @@ description: Секундомер для замера дыхания и оцен
 code_url: https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/aerotest.html
 icon_url: 
 screenshots: 
+---
+name: Сборник "Что можно съесть"
+description: Нужно поесть. Жрать охота в лесу. Лес. Ядерная война. Скачай заранее. #ЧС
+code_url: https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/eatordead.html
+icon_url: 
+screenshots: 
