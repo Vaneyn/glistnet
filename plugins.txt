@@ -94,7 +94,7 @@ code_url: https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/eato
 icon_url: 
 screenshots: 
 ---
-name: SEGAreta
+name: Эмулятор SEGAreta
 description: Чувак предложил - я сделал. Только с интернетом пашет. Ну я сделал, ибо че б нет. На 100% функционал не обещаю, вообще никаких гарантий.
 code_url: https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/Segareta.html
 icon_url: 
