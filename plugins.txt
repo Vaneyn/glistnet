@@ -93,3 +93,9 @@ description: Нужно поесть. Жрать охота в лесу. Лес.
 code_url: https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/eatordead.html
 icon_url: 
 screenshots: 
+---
+name: SEGAreta
+description: Чувак предложил - я сделал. Только с интернетом пашет. Ну я сделал, ибо че б нет. На 100% функционал не обещаю, вообще никаких гарантий.
+code_url: https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/Segareta.html
+icon_url: 
+screenshots: 
