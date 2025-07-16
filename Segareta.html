@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>SEGAreta</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 10px;
+      font-family: sans-serif;
+      background: #1a1a1a;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      touch-action: none; /* Prevent default touch behaviors */
+    }
+    h1 {
+      font-size: 1.5em;
+      margin: 10px 0;
+      text-align: center;
+    }
+    #file {
+      display: none;
+    }
+    .file-label {
+      display: inline-block;
+      background: #4CAF50;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 1.2em;
+      cursor: pointer;
+      margin-bottom: 10px;
+      text-align: center;
+      width: 80%;
+      max-width: 300px;
+    }
+    #run {
+      background: #2196F3;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 1.2em;
+      cursor: pointer;
+      width: 80%;
+      max-width: 300px;
+      margin-bottom: 10px;
+    }
+    #run:disabled {
+      background: #666;
+      cursor: not-allowed;
+    }
+    #game-container {
+      width: 100%;
+      max-width: 640px;
+      aspect-ratio: 4 / 3;
+      background: #000;
+      border: 2px solid #333;
+      position: relative;
+      flex-grow: 1;
+    }
+    #game {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    @media (orientation: landscape) {
+      body {
+        padding: 5px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>SEGAreta</h1>
+  <label for="file" class="file-label">Выберите ROM</label>
+  <input type="file" id="file" accept=".gen,.md,.bin,.smd">
+  <button id="run" disabled>Старт</button>
+  <div id="game-container">
+    <div id="game"></div>
+  </div>
+
+  <script>
+    const fileInput = document.getElementById('file');
+    const runBtn = document.getElementById('run');
+    let chosenBase64 = null;
+
+    fileInput.onchange = () => {
+      const f = fileInput.files[0];
+      if (!f) return;
+      const fr = new FileReader();
+      fr.onload = () => {
+        chosenBase64 = fr.result;
+        runBtn.disabled = false;
+        console.log('ROM загружен, размер:', f.size);
+      };
+      fr.readAsDataURL(f);
+    };
+
+    runBtn.onclick = () => {
+      if (!chosenBase64) return alert('ROM не загружен!');
+      const iframeHTML = `
+        <html>
+          <head>
+            <style>
+              html, body, #game, canvas {
+                margin: 0;
+                padding: 0;
+                width: 100%;
+                height: 100%;
+                display: block;
+                background: black;
+                touch-action: none; /* Prevent default touch behaviors in iframe */
+              }
+            </style>
+          </head>
+          <body>
+            <div id="game"></div>
+            <script>
+              EJS_player = '#game';
+              EJS_core = 'segaMD';
+              EJS_pathtodata = 'https://cdn.emulatorjs.org/latest/data/';
+              EJS_gameUrl = '${chosenBase64}';
+            <\/script>
+            <script src="https://cdn.emulatorjs.org/latest/data/loader.js"><\/script>
+            <script>
+              console.log('Эмулятор загружен, стартуем игру');
+            <\/script>
+          </body>
+        </html>`;
+      const iframe = document.createElement('iframe');
+      iframe.style.width = '100%';
+      iframe.style.height = '100%';
+      iframe.style.border = 'none';
+      iframe.srcdoc = iframeHTML;
+      const gameDiv = document.getElementById('game');
+      gameDiv.innerHTML = '';
+      gameDiv.appendChild(iframe);
+      runBtn.disabled = true;
+    };
+
+    // Prevent default touch behaviors to avoid "ignored touch" errors
+    document.addEventListener('touchstart', e => {
+      // Allow touches on input and button elements
+      if (e.target.id === 'file' || e.target.id === 'run' || e.target.classList.contains('file-label')) {
+        return;
+      }
+      e.preventDefault();
+    }, { passive: false });
+
+    document.addEventListener('touchmove', e => {
+      // Allow touches on input and button elements
+      if (e.target.id === 'file' || e.target.id === 'run' || e.target.classList.contains('file-label')) {
+        return;
+      }
+      e.preventDefault();
+    }, { passive: false });
+
+    document.addEventListener('touchend', e => {
+      // Allow touches on input and button elements
+      if (e.target.id === 'file' || e.target.id === 'run' || e.target.classList.contains('file-label')) {
+        return;
+      }
+      e.preventDefault();
+    }, { passive: false });
+
+    // Prevent pinch zoom and double-tap zoom
+    document.addEventListener('gesturestart', e => e.preventDefault());
+    document.addEventListener('gesturechange', e => e.preventDefault());
+    document.addEventListener('gestureend', e => e.preventDefault());
+  </script>
+</body>
+</html>
