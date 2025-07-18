@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LocalStorage Inspector</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Courier New', monospace;
+        }
+        
+        body {
+            background-color: #000;
+            color: #0f0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .terminal {
+            max-width: 800px;
+            margin: 0 auto;
+            border: 1px solid #0f0;
+            border-radius: 4px;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+            background-color: #111;
+            min-height: 400px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #333;
+        }
+        
+        .title {
+            font-size: 24px;
+            text-shadow: 0 0 5px #0f0;
+            letter-spacing: 2px;
+        }
+        
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .command-line {
+            background: #000;
+            border: 1px solid #0f0;
+            color: #0f0;
+            padding: 10px;
+            flex-grow: 1;
+            font-size: 16px;
+        }
+        
+        .btn {
+            background: #000;
+            border: 1px solid #0f0;
+            color: #0f0;
+            padding: 10px 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn:hover {
+            background: #0f0;
+            color: #000;
+            box-shadow: 0 0 10px #0f0;
+        }
+        
+        .items-container {
+            margin-top: 20px;
+        }
+        
+        .item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            border-bottom: 1px dashed #333;
+            animation: fadeIn 0.5s;
+        }
+        
+        .item-info {
+            flex-grow: 1;
+            overflow-wrap: anywhere;
+        }
+        
+        .item-actions {
+            flex-shrink: 0;
+            margin-left: 15px;
+        }
+        
+        .key {
+            color: #0ff;
+            font-weight: bold;
+        }
+        
+        .empty {
+            color: #888;
+            font-style: italic;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .cursor {
+            display: inline-block;
+            width: 8px;
+            height: 16px;
+            background: #0f0;
+            vertical-align: middle;
+            margin-left: 2px;
+            animation: blink 1s infinite;
+        }
+        
+        @keyframes blink {
+            50% { opacity: 0; }
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .response {
+            margin-top: 15px;
+            padding: 10px;
+            border-top: 1px solid #333;
+            color: #ff0;
+        }
+    </style>
+</head>
+<body>
+    <div class="terminal">
+        <div class="header">
+            <div class="title">LOCAL STORAGE INSPECTOR v1.0</div>
+            <div>System status: <span id="status">OPERATIONAL</span></div>
+        </div>
+        
+        <div class="controls">
+            <input type="text" 
+                   class="command-line" 
+                   id="command" 
+                   placeholder="Введите команду (ls, clear, help)...">
+            <button class="btn" id="execute">EXECUTE</button>
+        </div>
+        
+        <div class="items-container" id="items">
+            <!-- Элементы будут добавляться здесь динамически -->
+        </div>
+        
+        <div class="response" id="response"></div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const itemsContainer = document.getElementById('items');
+            const commandInput = document.getElementById('command');
+            const executeBtn = document.getElementById('execute');
+            const responseElement = document.getElementById('response');
+            
+            // Фокус на поле ввода при загрузке
+            commandInput.focus();
+            
+            // Отображение элементов localStorage
+            function renderItems() {
+                itemsContainer.innerHTML = '';
+                
+                if (localStorage.length === 0) {
+                    itemsContainer.innerHTML = '<div class="empty">[ LocalStorage пуст ]</div>';
+                    return;
+                }
+                
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    const value = localStorage.getItem(key);
+                    
+                    const itemElement = document.createElement('div');
+                    itemElement.className = 'item';
+                    itemElement.innerHTML = `
+                        <div class="item-info">
+                            <span class="key">${key}:</span> 
+                            <span class="value">${value}</span>
+                        </div>
+                        <div class="item-actions">
+                            <button class="btn delete-btn" data-key="${key}">УДАЛИТЬ</button>
+                        </div>
+                    `;
+                    
+                    itemsContainer.appendChild(itemElement);
+                }
+                
+                // Добавляем обработчики для новых кнопок удаления
+                document.querySelectorAll('.delete-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const key = btn.getAttribute('data-key');
+                        localStorage.removeItem(key);
+                        renderItems();
+                        showResponse(`Элемент "${key}" удален`);
+                    });
+                });
+            }
+            
+            // Отображение системных сообщений
+            function showResponse(message, isError = false) {
+                responseElement.textContent = '> ' + message;
+                responseElement.style.color = isError ? '#f00' : '#ff0';
+                
+                // Автоочистка сообщения через 3 секунды
+                setTimeout(() => {
+                    if (responseElement.textContent === '> ' + message) {
+                        responseElement.textContent = '';
+                    }
+                }, 3000);
+            }
+            
+            // Обработка команд
+            function executeCommand(cmd) {
+                cmd = cmd.trim().toLowerCase();
+                
+                if (cmd === 'ls' || cmd === 'list') {
+                    renderItems();
+                    showResponse(`Отображено ${localStorage.length} элементов`);
+                } 
+                else if (cmd === 'clear') {
+                    localStorage.clear();
+                    renderItems();
+                    showResponse('LocalStorage очищен');
+                }
+                else if (cmd === 'help' || cmd === '?') {
+                    showResponse('Доступные команды: ls, clear, help');
+                }
+                else {
+                    showResponse(`Неизвестная команда: ${cmd}`, true);
+                }
+            }
+            
+            // Обработчики событий
+            executeBtn.addEventListener('click', () => {
+                executeCommand(commandInput.value);
+                commandInput.value = '';
+            });
+            
+            commandInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    executeCommand(commandInput.value);
+                    commandInput.value = '';
+                }
+            });
+            
+            // Инициализация
+            renderItems();
+        });
+    </script>
+</body>
+  </html>
