@@ -99,3 +99,9 @@ description: Чувак предложил - я сделал. Только с и
 code_url: https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/Segareta.html
 icon_url: 
 screenshots: 
+---
+name: КуатоРитм
+description: 
+code_url: https://vaneyn.github.io/glistnet/4game.html
+icon_url: 
+screenshots: 
