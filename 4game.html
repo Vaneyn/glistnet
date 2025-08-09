@@ -1,0 +1,624 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>КуатоРитм</title>
+<style>
+  :root{
+    --bg:#071022;
+    --panel:#0b1a2b;
+    --accent:#60d6b3;
+    --note:#0f4be6;
+    --stripe:#60d6b3;
+    --zoneBg:#0d2333;
+    --zoneHighlight:#22c55e;
+    --text:#e6f0ff;
+    --muted:#9aa8b6;
+  }
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:Inter,Roboto,Arial,sans-serif;-webkit-tap-highlight-color:transparent}
+  .wrap{display:flex;flex-direction:column;height:100%}
+  header{display:flex;align-items:center;gap:12px;padding:10px;background:var(--panel)}
+  a.back{color:var(--muted);text-decoration:none;padding:6px 10px;border-radius:8px;border:1px solid #09202b}
+  .title{font-weight:700;color:var(--accent)}
+  .controls{display:flex;gap:8px;padding:8px;align-items:center;background:transparent;flex-wrap:wrap}
+  .btn{background:var(--accent);color:#022;border:none;padding:10px 14px;border-radius:10px;font-weight:700;cursor:pointer}
+  .btn-ghost{background:#0b2a3a;color:var(--muted);border:1px solid #09202b;padding:8px;border-radius:10px;cursor:pointer}
+  .status{margin-left:8px;color:var(--muted)}
+  .small{font-size:13px;color:var(--muted)}
+  .game{flex:1;position:relative;margin:8px;border-radius:8px;overflow:hidden;background:var(--panel)}
+  canvas{width:100%;height:100%;display:block}
+  .progressTop{position:absolute;left:0;right:0;top:0;height:6px;background:#05202a}
+  .progressTop .bar{height:100%;width:0;background:var(--accent)}
+  .progressTop .txt{position:absolute;right:8px;top:8px;font-size:12px;color:var(--muted)}
+  .hitContainer{position:absolute;left:0;right:0;bottom:0;height:18vh;min-height:100px;display:flex;gap:6px;padding:10px;box-sizing:border-box;background:var(--zoneBg)}
+  .zone{flex:1;border-radius:8px;border:1px solid #07232f;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px;color:var(--muted);touch-action:none;user-select:none;position:relative}
+  .zone.highlight{background:var(--stripe);color:#022}
+  .zone.active{background:var(--zoneHighlight);color:#022}
+  .score{position:absolute;left:12px;top:12px;font-weight:800;color:var(--accent)}
+  .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);z-index:200}
+  .box{width:92%;max-width:520px;background:var(--panel);border-radius:10px;padding:12px;box-sizing:border-box;}
+  .trackRow{display:flex;align-items:center;justify-content:space-between;padding:8px;border-radius:8px;background:#071827;margin-bottom:8px}
+  .trackName{flex:1;margin-right:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
+  .trackBtns{display:flex;gap:6px}
+  footer{padding:8px;text-align:center;color:var(--muted);font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a href="glist.html" class="back">← Назад</a>
+    <div class="title">КуатоРитм</div>
+  </header>
+
+  <div class="controls">
+    <button id="btnImport" class="btn">Импорт из плеера</button>
+    <label class="btn" for="fileInput">Загрузить файл</label>
+    <input id="fileInput" type="file" accept="audio/*,video/*" style="display:none"/>
+    <button id="startBtn" class="btn-ghost" disabled>Start</button>
+    <div id="status" class="status">Готов</div>
+  </div>
+
+  <div class="game" id="game">
+    <div class="progressTop"><div class="bar" id="progressBar"></div><div class="txt" id="progressTxt">0%</div></div>
+    <canvas id="canvas" aria-hidden="true"></canvas>
+
+    <div class="hitContainer" id="hitContainer">
+      <div class="zone" data-lane="0">1</div>
+      <div class="zone" data-lane="1">2</div>
+      <div class="zone" data-lane="2">3</div>
+      <div class="zone" data-lane="3">4</div>
+    </div>
+
+    <div class="score" id="score">0</div>
+  </div>
+
+  <footer>Нажимай, когда зона подсветилась — нота в полосе.</footer>
+</div>
+
+<!-- Import modal -->
+<div id="importModal" class="modal" aria-hidden="true">
+  <div class="box" role="dialog" aria-modal="true">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div style="font-weight:800;color:var(--accent)">Импорт из плеера</div>
+      <button id="closeImport" class="btn-ghost">Закрыть</button>
+    </div>
+    <div class="small" style="margin-bottom:8px;color:var(--muted)">Выберите трек из плеера Glist</div>
+    <div id="trackList" style="max-height:48vh;overflow:auto"></div>
+    <div id="importMsg" class="small" style="margin-top:8px;color:var(--muted)"></div>
+  </div>
+</div>
+
+<script>
+/*
+  Изменение по требованию: скрыт ползунок чувствительности; значение жестко задано DEFAULT_SENSITIVITY = 0.8
+  В остальном: модалка IndexedDB, ускорённый рендер, pointer API для корректных свайпов.
+*/
+
+(() => {
+  // ---- параметры ----
+  const LANE_COUNT = 4;
+  const FALL_DURATION = 2.0;
+  const HIT_WINDOW = 0.28;
+  const SPAWN_OFFSET = FALL_DURATION;
+  const MISS_AFTER = -0.35;
+  const DPR = Math.max(1, window.devicePixelRatio || 1);
+
+  // чувствительность по умолчанию (фиксированная, ползунок скрыт)
+  const DEFAULT_SENSITIVITY = 0.8;
+
+  const PEAK_TOP_BASE = 0.20;
+  const MIN_PEAK_SEP_SEC = 0.12;
+
+  // ---- DOM ----
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d', { alpha:false });
+  const hitContainer = document.getElementById('hitContainer');
+  const zones = Array.from(document.querySelectorAll('.zone'));
+  const btnImport = document.getElementById('btnImport');
+  const fileInput = document.getElementById('fileInput');
+  const startBtn = document.getElementById('startBtn');
+  const statusEl = document.getElementById('status');
+  const progressBar = document.getElementById('progressBar');
+  const progressTxt = document.getElementById('progressTxt');
+  const scoreEl = document.getElementById('score');
+  const importModal = document.getElementById('importModal');
+  const trackListEl = document.getElementById('trackList');
+  const closeImport = document.getElementById('closeImport');
+  const importMsg = document.getElementById('importMsg');
+
+  // ---- state ----
+  let audioCtx = null;
+  let audioEl = null;
+  let decodedBuffer = null;
+  let noteEvents = [];
+  let centroids = [];
+  let playing = false;
+  let raf = null;
+  let score = 0;
+  let lastBlobUrl = null;
+  let previewAudio = null;
+
+  // cached geometry
+  let canvasRect = null;
+  let hitRect = null;
+  let stripeTopCanvasPx = 0;
+  let stripeHeightPx = Math.max(8*DPR, Math.round(12*DPR));
+  let noteH = Math.max(18*DPR, Math.round(stripeHeightPx*0.9));
+  let destinationY = 0;
+  let topSpawn = -noteH * 1.4;
+  let laneWidthPx = 0;
+
+  // ---- helpers ----
+  function setStatus(s){ statusEl.textContent = s; }
+  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+
+  function resizeCanvas(){
+    const r = canvas.getBoundingClientRect();
+    canvas.width = Math.floor(r.width * DPR);
+    canvas.height = Math.floor(r.height * DPR);
+    computeGeometry();
+  }
+  window.addEventListener('resize', ()=>{ resizeCanvas(); drawStatic(); });
+  window.addEventListener('scroll', ()=>{ computeGeometry(); });
+
+  function computeGeometry(){
+    canvasRect = canvas.getBoundingClientRect();
+    hitRect = hitContainer.getBoundingClientRect();
+    const raiseCss = 6;
+    const stripeTopCss = Math.max(0, hitRect.top - canvasRect.top - raiseCss);
+    stripeTopCanvasPx = Math.round(stripeTopCss * DPR);
+    stripeHeightPx = Math.max(8*DPR, Math.round(12*DPR));
+    noteH = Math.max(18*DPR, Math.round(stripeHeightPx*0.9));
+    destinationY = stripeTopCanvasPx + Math.round((stripeHeightPx - noteH)/2);
+    topSpawn = -noteH * 1.4;
+    laneWidthPx = Math.floor(canvas.width / LANE_COUNT);
+  }
+
+  function drawStatic(){
+    ctx.fillStyle = '#071022';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = '#9aa8b6';
+    ctx.font = `${14*DPR}px sans-serif`;
+    ctx.fillText('Импортируй трек и нажми Start', 12*DPR, 24*DPR);
+  }
+
+  resizeCanvas();
+  drawStatic();
+  setStatus('Готов — импортируй трек или загрузите файл');
+
+  // ----- modal + IndexedDB -----
+  btnImport.addEventListener('click', openImportModal);
+  closeImport.addEventListener('click', ()=>{ importModal.style.display='none'; importModal.setAttribute('aria-hidden','true'); if(previewAudio){ previewAudio.pause(); previewAudio.remove(); previewAudio=null; } });
+
+  function openImportModal(){
+    importMsg.textContent = '';
+    trackListEl.innerHTML = '<div class="small" style="color:var(--muted)">Загрузка...</div>';
+    importModal.style.display = 'flex';
+    importModal.setAttribute('aria-hidden','false');
+    fetchTracksFromDB().then(renderTracksInModal).catch(err=>{ importMsg.textContent = 'Ошибка чтения IndexedDB'; console.error(err); });
+  }
+
+  function openDB(){
+    return new Promise((res, rej)=>{
+      const req = indexedDB.open('MP3PlayerDB', 2);
+      req.onupgradeneeded = e => {
+        const db = e.target.result;
+        if(!db.objectStoreNames.contains('tracks')) db.createObjectStore('tracks',{ keyPath:'id', autoIncrement:true });
+      };
+      req.onsuccess = e => res(e.target.result);
+      req.onerror = e => rej(e);
+    });
+  }
+
+  async function fetchTracksFromDB(){
+    try{
+      const db = await openDB();
+      return new Promise((res, rej)=>{
+        const tx = db.transaction('tracks','readonly');
+        const store = tx.objectStore('tracks');
+        const rq = store.getAll();
+        rq.onsuccess = e => res(e.target.result || []);
+        rq.onerror = e => rej(e);
+      });
+    }catch(err){ console.warn(err); return []; }
+  }
+
+  function renderTracksInModal(tracks){
+    trackListEl.innerHTML = '';
+    if(!tracks.length){
+      trackListEl.innerHTML = '<div class="small" style="color:var(--muted)">Треки не найдены</div>';
+      importMsg.textContent = 'Загрузите треки в MP3-плеер и повторите.';
+      return;
+    }
+    tracks.forEach(t=>{
+      const row = document.createElement('div'); row.className='trackRow';
+      const name = document.createElement('div'); name.className='trackName'; name.textContent = t.name || ('track#' + (t.id||''));
+      const btns = document.createElement('div'); btns.className='trackBtns';
+      const play = document.createElement('button'); play.className='btn-ghost'; play.textContent='▶';
+      const imp = document.createElement('button'); imp.className='btn'; imp.textContent='Импорт';
+      play.onclick = (e)=>{ e.stopPropagation(); previewTrack(t); };
+      imp.onclick = (e)=>{ e.stopPropagation(); importTrackFromDB(t); };
+      btns.appendChild(play); btns.appendChild(imp);
+      row.appendChild(name); row.appendChild(btns);
+      trackListEl.appendChild(row);
+    });
+  }
+
+  function previewTrack(track){
+    if(previewAudio){ previewAudio.pause(); previewAudio.remove(); previewAudio=null; }
+    try{
+      let ab = track.data;
+      if(ab && ab.buffer && ab.buffer instanceof ArrayBuffer) ab = ab.buffer;
+      if(!(ab instanceof ArrayBuffer)){ importMsg.textContent = 'Нет данных трека'; return; }
+      const blob = new Blob([ab], { type:'audio/mpeg' });
+      previewAudio = document.createElement('audio');
+      previewAudio.src = URL.createObjectURL(blob);
+      previewAudio.play().catch(()=>{/* autoplay blocked */});
+    }catch(err){ importMsg.textContent = 'Ошибка предпрослушивания'; console.error(err); }
+  }
+
+  async function importTrackFromDB(track){
+    importMsg.textContent = 'Импорт...';
+    try{
+      let ab = track.data;
+      if(ab && ab.buffer && ab.buffer instanceof ArrayBuffer) ab = ab.buffer;
+      if(!(ab instanceof ArrayBuffer)){ importMsg.textContent='Нет данных'; return; }
+      if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const audioBuffer = await audioCtx.decodeAudioData(ab.slice(0));
+      decodedBuffer = audioBuffer;
+      createAudioElementFromArrayBuffer(ab);
+      await analyzeBuffer(audioBuffer);
+      importMsg.textContent = 'Импорт готов';
+      importModal.style.display = 'none';
+      importModal.setAttribute('aria-hidden','true');
+      setStatus('Трек импортирован');
+    }catch(err){ console.error(err); importMsg.textContent='Ошибка импорта'; setStatus('Ошибка'); }
+    if(previewAudio){ previewAudio.pause(); previewAudio.remove(); previewAudio=null; }
+  }
+
+  // ---- file input ----
+  fileInput.addEventListener('change', async e=>{
+    const f = e.target.files[0]; if(!f) return;
+    setStatus('Ща, пару сек погоди....');
+    try{
+      const ab = await f.arrayBuffer();
+      if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const buffer = await audioCtx.decodeAudioData(ab.slice(0));
+      decodedBuffer = buffer;
+      createAudioElementFromArrayBuffer(ab);
+      await analyzeBuffer(buffer);
+      setStatus('Можно играть, смотри: ' + f.name);
+    }catch(err){ console.error(err); setStatus('Ошибка загрузки'); startBtn.disabled=true; }
+  });
+
+  // ---- create audio el from AB ----
+  function createAudioElementFromArrayBuffer(ab){
+    if(lastBlobUrl){ URL.revokeObjectURL(lastBlobUrl); lastBlobUrl=null; }
+    const blob = new Blob([ab], { type:'audio/mpeg' });
+    const url = URL.createObjectURL(blob);
+    lastBlobUrl = url;
+    if(audioEl){ try{ audioEl.pause(); audioEl.remove(); }catch{} audioEl=null; }
+    audioEl = document.createElement('audio');
+    audioEl.src = url; audioEl.preload = 'auto';
+    audioEl.crossOrigin = 'anonymous';
+    audioEl.onended = ()=> endGame(true);
+    audioEl.addEventListener('timeupdate', updateProgressTop);
+    document.body.appendChild(audioEl);
+  }
+
+  function updateProgressTop(){
+    if(!audioEl || !audioEl.duration || isNaN(audioEl.duration)){ progressBar.style.width='0%'; progressTxt.textContent='0%'; return; }
+    const pct = Math.max(0, Math.min(1, audioEl.currentTime / audioEl.duration));
+    progressBar.style.width = (pct*100).toFixed(1) + '%';
+    progressTxt.textContent = Math.round(pct*100) + '%';
+  }
+
+  // ---- analysis (uses DEFAULT_SENSITIVITY) ----
+  async function analyzeBuffer(buffer){
+    setStatus('Анализ трека...');
+    const sensitivity = DEFAULT_SENSITIVITY;
+    const sr = buffer.sampleRate;
+    const channel = buffer.getChannelData(0);
+    const win = 2048, hop = 1024;
+    const frames = Math.max(1, Math.floor((channel.length - win) / hop) + 1);
+    const energies = new Float32Array(frames);
+    for(let i=0;i<frames;i++){
+      let s=0; const base=i*hop;
+      for(let j=0;j<win;j++){ const v = channel[base+j]||0; s+=v*v; }
+      energies[i] = Math.sqrt(s / win);
+    }
+    // smooth
+    const smooth = new Float32Array(frames);
+    for(let i=0;i<frames;i++){
+      let sum=0,cnt=0;
+      for(let k=-2;k<=2;k++){ const idx=i+k; if(idx>=0 && idx<frames){ sum+=energies[idx]; cnt++; } }
+      smooth[i] = sum / Math.max(1,cnt);
+    }
+    // local maxima
+    const peaks=[];
+    for(let i=2;i<frames-2;i++) if(smooth[i]>smooth[i-1] && smooth[i]>=smooth[i+1]) peaks.push({i,val:smooth[i]});
+    // dynamic threshold
+    const sorted = Array.from(smooth).sort((a,b)=>a-b);
+    const median = sorted[Math.floor(sorted.length*0.5)] || 0;
+    const high90 = sorted[Math.max(0, Math.floor(sorted.length*0.9))] || median;
+    const baseThreshold = Math.max(median * (0.9 / sensitivity), high90 * 0.06 / sensitivity);
+    let candidate = peaks.filter(p => p.val >= baseThreshold);
+    if(candidate.length === 0){
+      peaks.sort((a,b)=>b.val-a.val);
+      const take = Math.max(1, Math.floor(peaks.length * PEAK_TOP_BASE));
+      candidate = peaks.slice(0,take).sort((a,b)=>a.i-b.i);
+    }
+    const minSepFrames = Math.max(1, Math.floor((MIN_PEAK_SEP_SEC / sensitivity) * sr / hop));
+    const finalPeaks=[];
+    for(const p of candidate){
+      if(finalPeaks.length===0) finalPeaks.push(p);
+      else{
+        const last = finalPeaks[finalPeaks.length-1];
+        if(p.i - last.i <= minSepFrames){
+          if(p.val > last.val) finalPeaks[finalPeaks.length-1] = p;
+        } else finalPeaks.push(p);
+      }
+    }
+    // events with freq
+    const events=[];
+    for(let k=0;k<finalPeaks.length;k++){
+      const center = finalPeaks[k].i * hop + Math.floor(win/2);
+      const start = Math.max(0, center - win);
+      const end = Math.min(channel.length, center + win);
+      const seg = channel.subarray(start, end);
+      const f = estimateFreqAutocorr(seg, sr);
+      events.push({ t: (finalPeaks[k].i * hop) / sr, freq: f || 0, energy: finalPeaks[k].val });
+    }
+    if(events.length === 0){
+      noteEvents = [];
+      for(let t=1; t<Math.min(40, Math.floor(buffer.duration)); t+=0.5) noteEvents.push({t, lane: Math.floor((t*2)%LANE_COUNT), hit:false});
+      startBtn.disabled = false;
+      return;
+    }
+    const freqVals = events.map(e => e.freq>0 ? e.freq : 20);
+    const km = kmeans1D(freqVals, LANE_COUNT, {iter:40});
+    centroids = km.centroids.slice().sort((a,b)=>a-b);
+    noteEvents = events.map(e=>{
+      let best=0,bd=Infinity;
+      for(let j=0;j<centroids.length;j++){ const d=Math.abs((e.freq||20)-centroids[j]); if(d<bd){bd=d;best=j} }
+      return {t: e.t, lane: best, hit:false};
+    });
+    if(noteEvents.length < 6){
+      for(let t=1; t<Math.min(40, Math.floor(buffer.duration)); t+=0.5) noteEvents.push({t, lane: Math.floor((t*3)%LANE_COUNT), hit:false});
+    }
+    setStatus('Анализ окончен — ' + noteEvents.length + ' нот');
+    startBtn.disabled = false;
+  }
+
+  // wider autocorr
+  function estimateFreqAutocorr(buf, sr){
+    const N = buf.length;
+    if(N < 120) return 0;
+    let maxv=0; for(let i=0;i<N;i++) if(Math.abs(buf[i])>maxv) maxv=Math.abs(buf[i]);
+    if(maxv < 1e-5) return 0;
+    const x = new Float32Array(N);
+    for(let i=0;i<N;i++) x[i] = buf[i] / maxv;
+    const maxFreq = 3000, minFreq = 35;
+    const minLag = Math.max(2, Math.floor(sr / maxFreq));
+    const maxLag = Math.min(Math.floor(sr / minFreq), Math.floor(N/2));
+    let bestLag=0, bestVal = -Infinity;
+    for(let lag=minLag; lag<=maxLag; lag++){
+      let s=0;
+      for(let i=0;i<N-lag;i++) s += x[i]*x[i+lag];
+      if(s > bestVal){ bestVal = s; bestLag = lag; }
+    }
+    if(bestLag <= 0) return 0;
+    const freq = sr / bestLag;
+    if(!isFinite(freq) || freq < 30 || freq > 5000) return 0;
+    return freq;
+  }
+
+  function kmeans1D(values, k, opts={}) {
+    if(values.length===0) return {centroids: Array.from({length:k}, (_,i)=>20 + i*200), labels: []};
+    let mn = Math.min(...values), mx = Math.max(...values);
+    if(mn === mx) return {centroids: Array.from({length:k}, ()=>mn), labels: values.map(()=>0)};
+    let centroids = [];
+    for(let i=0;i<k;i++) centroids.push(mn + (i+0.5)*(mx-mn)/k);
+    let labels = new Array(values.length).fill(0);
+    const iterMax = opts.iter || 30;
+    for(let iter=0; iter<iterMax; iter++){
+      let changed=false;
+      for(let i=0;i<values.length;i++){
+        let best=0,bd=Math.abs(values[i]-centroids[0]);
+        for(let j=1;j<k;j++){ const d=Math.abs(values[i]-centroids[j]); if(d<bd){bd=d;best=j} }
+        if(labels[i] !== best){ labels[i]=best; changed=true; }
+      }
+      if(!changed) break;
+      for(let j=0;j<k;j++){
+        let sum=0,cnt=0; for(let i=0;i<values.length;i++) if(labels[i]===j){ sum+=values[i]; cnt++; }
+        if(cnt>0) centroids[j] = sum / cnt;
+      }
+    }
+    return {centroids, labels};
+  }
+
+  // ---- rendering (cheap) ----
+  function render(now){
+    // clear
+    ctx.fillStyle = '#071022';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    // stripe
+    ctx.fillStyle = '#60d6b3';
+    ctx.fillRect(0, stripeTopCanvasPx, canvas.width, stripeHeightPx);
+    ctx.fillStyle = '#022028';
+    ctx.fillRect(0, stripeTopCanvasPx + Math.max(1, Math.floor(stripeHeightPx/2)), canvas.width, Math.max(2, Math.floor(stripeHeightPx/6)));
+
+    const laneW = Math.floor(canvas.width / LANE_COUNT);
+    for(let i=0;i<noteEvents.length;i++){
+      const n = noteEvents[i];
+      if(n.hit) continue;
+      const dt = n.t - now;
+      if(dt < MISS_AFTER){ endGame(false); return; }
+      if(dt > SPAWN_OFFSET) continue;
+      const ratio = (SPAWN_OFFSET - dt) / SPAWN_OFFSET;
+      const travel = destinationY - topSpawn;
+      const y = Math.round(topSpawn + ratio * travel);
+      const x = Math.floor(n.lane * laneW + 4*DPR);
+      const w = Math.floor(laneW - 8*DPR);
+      ctx.fillStyle = '#0f4be6';
+      ctx.fillRect(x, y, w, Math.round(noteH));
+    }
+
+    // DOM zone highlights
+    const nowT = audioEl ? audioEl.currentTime : 0;
+    for(let i=0;i<zones.length;i++){
+      const z = zones[i];
+      const active = noteEvents.some(n => !n.hit && n.lane===i && Math.abs(n.t - nowT) <= HIT_WINDOW);
+      if(active) z.classList.add('highlight'); else z.classList.remove('highlight');
+    }
+  }
+
+  // loop
+  function loop(){
+    if(!playing) return;
+    if(!audioEl) return;
+    render(audioEl.currentTime);
+    updateProgressTop();
+    raf = requestAnimationFrame(loop);
+  }
+
+  function updateProgressTop(){
+    if(!audioEl || !audioEl.duration || !isFinite(audioEl.duration) || audioEl.duration===0){ progressBar.style.width='0%'; progressTxt.textContent='0%'; return; }
+    const pct = Math.max(0, Math.min(1, audioEl.currentTime / audioEl.duration));
+    progressBar.style.width = (pct*100).toFixed(1) + '%';
+    progressTxt.textContent = Math.round(pct*100) + '%';
+  }
+
+  // ---- lane mapping & pointer handling ----
+  function getLaneFromClientX(clientX){
+    // ensure hitRect cached; if not, compute
+    if(!hitRect) hitRect = hitContainer.getBoundingClientRect();
+    const rect = hitRect;
+    if(clientX < rect.left - 40 || clientX > rect.right + 40) return null;
+    const clamped = Math.max(rect.left, Math.min(clientX, rect.right));
+    const rel = (clamped - rect.left) / rect.width;
+    let lane = Math.floor(rel * LANE_COUNT);
+    lane = clamp(lane, 0, LANE_COUNT-1);
+    return lane;
+  }
+
+  const pointerMap = new Map();
+  if(window.PointerEvent){
+    window.addEventListener('pointerdown', (e)=>{
+      if(e.pointerType === 'mouse' && e.button !== 0) return;
+      const lane = getLaneFromClientX(e.clientX);
+      pointerMap.set(e.pointerId, lane);
+      if(lane !== null) onZonePress(lane);
+    }, {passive:false});
+    window.addEventListener('pointermove', (e)=>{
+      if(!pointerMap.has(e.pointerId)) return;
+      const prev = pointerMap.get(e.pointerId);
+      const lane = getLaneFromClientX(e.clientX);
+      if(lane !== null && lane !== prev){ pointerMap.set(e.pointerId, lane); onZonePress(lane); }
+    }, {passive:true});
+    window.addEventListener('pointerup', (e)=>{ pointerMap.delete(e.pointerId); });
+    window.addEventListener('pointercancel', (e)=>{ pointerMap.delete(e.pointerId); });
+  } else {
+    // fallback
+    const touches = new Map();
+    window.addEventListener('touchstart', (e)=>{
+      for(const t of e.changedTouches){
+        const lane = getLaneFromClientX(t.clientX);
+        touches.set(t.identifier, lane);
+        if(lane !== null) onZonePress(lane);
+      }
+    }, {passive:false});
+    window.addEventListener('touchmove', (e)=>{
+      for(const t of e.changedTouches){
+        const prev = touches.get(t.identifier);
+        const lane = getLaneFromClientX(t.clientX);
+        if(lane !== null && lane !== prev){ touches.set(t.identifier, lane); onZonePress(lane); }
+      }
+    }, {passive:true});
+    window.addEventListener('touchend', (e)=>{ for(const t of e.changedTouches) touches.delete(t.identifier); }, {passive:true});
+    window.addEventListener('touchcancel', (e)=>{ for(const t of e.changedTouches) touches.delete(t.identifier); }, {passive:true});
+  }
+
+  // ---- gameplay ----
+  function onZonePress(lane){
+    if(!playing) return;
+    const now = audioEl.currentTime;
+    let bestIdx=-1, bestDt=1e9;
+    for(let i=0;i<noteEvents.length;i++){
+      const n = noteEvents[i];
+      if(n.lane !== lane || n.hit) continue;
+      const dt = Math.abs(n.t - now);
+      if(dt < bestDt){ bestDt = dt; bestIdx = i; }
+    }
+    if(bestIdx >= 0 && bestDt <= HIT_WINDOW){
+      noteEvents[bestIdx].hit = true;
+      score += Math.max(1, Math.round((HIT_WINDOW - bestDt) * 100));
+      scoreEl.textContent = score;
+      zones[lane].classList.add('active');
+      setTimeout(()=>zones[lane].classList.remove('active'), 130);
+    } else {
+      endGame(false);
+    }
+  }
+
+  function computeGeometryBeforePlay(){
+    computeGeometry();
+    // ensure hitRect is fresh
+    hitRect = hitContainer.getBoundingClientRect();
+  }
+
+  function startGame(){
+    if(!audioEl || !decodedBuffer || noteEvents.length === 0){ setStatus('Нет трека/нот'); return; }
+    computeGeometryBeforePlay();
+    document.querySelector('.controls').style.display = 'none';
+    playing = true; score = 0; scoreEl.textContent = score;
+    noteEvents.forEach(n=>n.hit=false);
+    audioEl.currentTime = 0;
+    audioEl.play().catch(()=>{});
+    setStatus('Игра запущена');
+    loop();
+  }
+
+  function endGame(win=false){
+    playing = false;
+    if(raf){ cancelAnimationFrame(raf); raf = null; }
+    try{ if(audioEl){ audioEl.pause(); audioEl.currentTime = 0; } }catch(e){}
+    document.querySelector('.controls').style.display = '';
+    setStatus(win ? 'Победа' : 'Игра окончена');
+    startBtn.disabled = false;
+    updateProgressTop();
+  }
+
+  // ---- start button ----
+  startBtn.addEventListener('click', ()=>{
+    startBtn.disabled = true;
+    computeGeometryBeforePlay();
+    startGame();
+  });
+
+  // ---- create audio element helper ----
+  function createAudioElementFromArrayBuffer(ab){
+    if(lastBlobUrl){ URL.revokeObjectURL(lastBlobUrl); lastBlobUrl=null; }
+    const blob = new Blob([ab], { type:'audio/mpeg' });
+    const url = URL.createObjectURL(blob);
+    lastBlobUrl = url;
+    if(audioEl){ try{ audioEl.pause(); audioEl.remove(); }catch{} audioEl=null; }
+    audioEl = document.createElement('audio');
+    audioEl.src = url; audioEl.preload = 'auto'; audioEl.crossOrigin = 'anonymous';
+    audioEl.onended = ()=> endGame(true);
+    audioEl.addEventListener('timeupdate', updateProgressTop);
+    document.body.appendChild(audioEl);
+  }
+
+  // ---- initial UI state ----
+  setStatus('Готов (чувствительность 0.8)');
+  startBtn.disabled = true;
+
+  // expose little debug API in console (optional)
+  window._rhythm = { DEFAULT_SENSITIVITY, analyzeBuffer: (b)=> analyzeBuffer(b) };
+
+})();
+</script>
+</body>
+</html>
