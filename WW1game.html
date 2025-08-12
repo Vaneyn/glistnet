@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"/>
+<title>Glist — режимы 4/8 команды (исправлено)</title>
+<style>
+  :root{ --font: system-ui,Segoe UI,Roboto,Arial; }
+  html,body{ margin:0; padding:0; height:100%; background:#222; color:#fff; font-family:var(--font); overflow:hidden; }
+  canvas#game{ display:block; background:#777; } /* серый фон вне поля */
+
+  /* Меню выбора режима */
+  #menu {
+    position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    background:rgba(0,0,0,0.85); padding:18px; border-radius:10px; z-index:200;
+    width:360px; box-shadow:0 8px 30px rgba(0,0,0,0.6);
+  }
+  #menu h2{ margin:0 0 10px 0; font-size:20px; }
+  .mode-btn{ display:inline-block; padding:10px 14px; margin:8px; border-radius:8px; border:none; background:#333; color:#fff; cursor:pointer; font-size:15px; }
+  .start-btn{ display:block; margin:14px auto 0 auto; padding:10px 14px; width:100%; border-radius:8px; border:none; background:#2a8; color:#042; font-weight:700; cursor:pointer; font-size:16px; }
+
+  /* Джойстик */
+  #joy-bg { position:absolute; bottom:20px; left:20px; width:100px; height:100px; border-radius:50%; background:rgba(0,0,0,0.18); touch-action:none; z-index:60; }
+  #joy-stick { position:absolute; left:25px; top:25px; width:50px; height:50px; border-radius:50%; background:rgba(0,0,0,0.46); z-index:61; }
+
+  /* Кнопки управления */
+  .btn { position:absolute; width:80px; height:80px; background:rgba(0,0,0,0.25); border:none; border-radius:10px; font-size:14px; color:white; display:flex; align-items:center; justify-content:center; -webkit-tap-highlight-color:transparent; z-index:60; }
+  #fire { right:20px; bottom:120px; }
+  #crouch { right:120px; bottom:20px; }
+
+  /* Миникарта */
+  #minimap-wrap { position:absolute; left:20px; top:20px; width:220px; background:rgba(0,0,0,0.25); border-radius:8px; padding:8px; z-index:70; display:flex; flex-direction:column; }
+  #minimap-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; color:#fff; font-size:13px; }
+  #minimap-canvas { width:200px; height:200px; display:none; background:#222; border-radius:4px; margin-bottom:6px; }
+  #minimap-controls { display:flex; gap:6px; }
+  .mm-btn { flex:1; height:36px; border-radius:6px; border:none; background:rgba(255,255,255,0.06); color:#fff; cursor:pointer; font-size:13px; }
+
+  /* HUD и легенда */
+  #hud { position:absolute; left:50%; transform:translateX(-50%); top:8px; z-index:71; font-size:13px; color:#fff; background:rgba(0,0,0,0.18); padding:6px 10px; border-radius:8px; }
+  #team-legend { position:absolute; right:20px; top:20px; z-index:71; text-align:right; font-size:13px; color:#fff; background:rgba(0,0,0,0.12); padding:8px; border-radius:8px; width:200px; }
+  .legend-item { margin-bottom:6px; display:flex; align-items:center; justify-content:flex-end; gap:10px; }
+  .dot { display:inline-block; width:12px; height:12px; border-radius:50%; margin-right:8px; vertical-align:middle; }
+
+  #player-score { margin-top:8px; font-weight:700; text-align:center; }
+
+  @media (max-width:500px){
+    #joy-bg{ width:90px; height:90px; }
+    #joy-stick{ width:46px; height:46px; left:22px; top:22px; }
+    .btn{ width:70px; height:70px; font-size:13px; }
+    #minimap-wrap{ width:160px; }
+    #minimap-canvas{ width:140px; height:140px; }
+    #menu{ width:92%; }
+  }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<!-- Меню выбора режима -->
+<div id="menu">
+  <h2>Выберите режим игры</h2>
+  <div>
+    <button class="mode-btn" id="mode-4">4 команды — поле 6×6</button>
+    <button class="mode-btn" id="mode-8">8 команд — поле 10×10</button>
+  </div>
+  <div style="margin-top:10px; font-size:13px; color:#ddd;">
+    Описание команд и правила:
+    <ul style="margin:6px 0 0 18px;">
+      <li>Патроны: 10 точек/сек (по 1). Патроны собираются только на вашей занятой клетке.</li>
+      <li>Броня: спавн раз в 3 секунды.</li>
+      <li>Дальность выстрела: 1.25 клетки. Боты стреляют с дистанции до цели ±10%.</li>
+    </ul>
+  </div>
+
+  <button class="start-btn" id="start-btn">Start</button>
+</div>
+
+<!-- Миникарта -->
+<div id="minimap-wrap">
+  <div id="minimap-header">
+    <div>Миникарта</div>
+    <div id="minimap-status" style="font-size:12px;opacity:0.85">off</div>
+  </div>
+  <canvas id="minimap-canvas" width="200" height="200"></canvas>
+  <div id="minimap-controls">
+    <button id="minimap-toggle" class="mm-btn">Развернуть</button>
+    <button id="back" class="mm-btn">Назад</button>
+  </div>
+</div>
+
+<!-- Джойстик -->
+<div id="joy-bg"><div id="joy-stick"></div></div>
+
+<!-- Кнопки -->
+<button id="fire" class="btn">ОГОНЬ</button>
+<button id="crouch" class="btn">ПРИСЕСТЬ</button>
+
+<div id="hud"></div>
+<div id="team-legend"></div>
+
+<script>
+/* ====== Исправленные и добавленные константы ====== */
+const CELL = 100;
+const CAPTURE_SECONDS_SINGLE = 10;           // <- вот она, 10 секунд на захват
+const BULLET_RANGE = CELL * 1.25;           // 1.25 клетки
+const MAX_HEALTH = 100;
+const PLAYER_BASE_SPEED = 100;
+const BOT_BASE_SPEED = 80;
+const AMMO_SPAWN_PER_SEC_TOTAL = 10;        // 10 точек/сек по 1
+const ARMOR_SPAWN_INTERVAL_MS = 3000;       // броня каждые 3 с
+const REINFORCE_CHECK_MS = 3000;            // проверка подкрепления каждые 3 с
+const REINFORCE_HALF_FACTOR = 0.5;          // шанс в 2× меньше
+const RELOAD_MS = 5000;
+const CROUCH_DURATION_MS = 2000;
+const CROUCH_HITBOX_REDUCE = 0.35;
+const BOT_BONUS_SEARCH_RADIUS = 120;
+const AMMO_PICK_RADIUS = 12;
+const WOUNDED_THRESHOLD = 0.5;
+const VETERAN_THRESHOLD = 0.15;             // <15% HP -> ветеран
+const BOT_SPREAD_DEGREES_BASE = 6;
+const BOT_SPREAD_MULT = 1.2;                // +20% разброс у ботов
+const BOT_ENGAGE_RANGE = CELL * 5;
+const ZOOM = 1.5;
+
+/* цвета — под максимум 8 команд */
+const TEAM_COLORS_FULL = ['#e44','#4a4','#44e','#ff8','#ff4','#4ff','#f4f','#8ff'];
+const TEAM_COLORS_LIGHT_FULL = ['#f88','#8f8','#88f','#ffd','#ffb','#bff','#f8f','#cff'];
+
+/* ====== Переменные игры ====== */
+let TEAM_COUNT = 4;
+let N = 6; // default 6 (может стать 10)
+let WORLD_W = N * CELL, WORLD_H = N * CELL;
+let TEAM_COLORS = [], TEAM_COLORS_LIGHT = [];
+let cells = [], entities = [], pickups = [], bullets = [];
+let player = null;
+let gameStarted = false;
+let ammoAccumulator = 0;    // единый аккумулятор для патронов
+let armorIntervalId = null;
+let reinforceIntervalId = null;
+let lastFrame = 0;
+
+/* ====== UI элементы ====== */
+const canvas = document.getElementById('game'), ctx = canvas.getContext('2d');
+const menu = document.getElementById('menu'), startBtn = document.getElementById('start-btn');
+const mode4Btn = document.getElementById('mode-4'), mode8Btn = document.getElementById('mode-8');
+const minimapWrap = document.getElementById('minimap-wrap'), minimapCanvas = document.getElementById('minimap-canvas'), mmCtx = minimapCanvas.getContext('2d');
+const mmToggle = document.getElementById('minimap-toggle'), backBtn = document.getElementById('back'), mmStatus = document.getElementById('minimap-status');
+const joyBg = document.getElementById('joy-bg'), joyStick = document.getElementById('joy-stick');
+const fireBtn = document.getElementById('fire'), crouchBtn = document.getElementById('crouch');
+const hud = document.getElementById('hud'), teamLegend = document.getElementById('team-legend');
+let minimapVisible = false;
+
+/* ====== Меню режимов ====== */
+let selectedMode = 4;
+mode4Btn.addEventListener('click', ()=>{ selectedMode = 4; mode4Btn.style.background='#2a6'; mode8Btn.style.background='#333'; });
+mode8Btn.addEventListener('click', ()=>{ selectedMode = 8; mode8Btn.style.background='#2a6'; mode4Btn.style.background='#333'; });
+mode4Btn.style.background='#2a6';
+
+/* ====== Canvas resize ====== */
+function resizeCanvas(){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+/* ====== Утилиты ====== */
+function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+function randRange(a,b){ return a + Math.random()*(b-a); }
+function distXY(ax,ay,bx,by){ return Math.hypot(ax-bx, ay-by); }
+function hexToRgb(hex){ if(hex[0]==='#') hex = hex.slice(1); if(hex.length===3) return { r: parseInt(hex[0]+hex[0],16), g: parseInt(hex[1]+hex[1],16), b: parseInt(hex[2]+hex[2],16) }; return { r: parseInt(hex.slice(0,2),16), g: parseInt(hex.slice(2,4),16), b: parseInt(hex.slice(4,6),16) }; }
+function rgbToStr(r,g,b){ return `rgb(${Math.round(r)},${Math.round(g)},${Math.round(b)})`; }
+function blendColors(a,b,t){ const pa=hexToRgb(a), pb=hexToRgb(b); const r=pa.r*(1-t)+pb.r*t, g=pa.g*(1-t)+pb.g*t, bl=pa.b*(1-t)+pb.b*t; return rgbToStr(r,g,bl); }
+function brightenHex(hex, factor){ const p = hexToRgb(hex); return rgbToStr(p.r*factor, p.g*factor, p.b*factor); }
+function getCellIndexFromXY(x,y){ return { i: clamp(Math.floor(x/CELL), 0, N-1), j: clamp(Math.floor(y/CELL), 0, N-1) }; }
+function playersInCell(i,j){ const res = []; for(const p of entities) if(p && p.hp>0 && Math.floor(p.x/CELL)===i && Math.floor(p.y/CELL)===j) res.push(p); return res; }
+
+/* ====== Start zones генерация ====== */
+function computeStartZones(){
+  const zones = [];
+  if(TEAM_COUNT === 4){
+    zones.push([{i:0,j:0},{i:1,j:0},{i:0,j:1},{i:1,j:1}]);
+    zones.push([{i:N-2,j:0},{i:N-1,j:0},{i:N-2,j:1},{i:N-1,j:1}]);
+    zones.push([{i:N-2,j:N-2},{i:N-1,j:N-2},{i:N-2,j:N-1},{i:N-1,j:N-1}]);
+    zones.push([{i:0,j:N-2},{i:1,j:N-2},{i:0,j:N-1},{i:1,j:N-1}]);
+  } else {
+    const mid1 = Math.floor((N/2) - 1);
+    const mid2 = mid1 + 1;
+    zones.push([{i:0,j:0},{i:1,j:0},{i:0,j:1},{i:1,j:1}]);
+    zones.push([{i:mid1,j:0},{i:mid2,j:0},{i:mid1,j:1},{i:mid2,j:1}]);
+    zones.push([{i:N-2,j:0},{i:N-1,j:0},{i:N-2,j:1},{i:N-1,j:1}]);
+    zones.push([{i:N-2,j:mid1},{i:N-1,j:mid1},{i:N-2,j:mid2},{i:N-1,j:mid2}]);
+    zones.push([{i:N-2,j:N-2},{i:N-1,j:N-2},{i:N-2,j:N-1},{i:N-1,j:N-1}]);
+    zones.push([{i:mid1,j:N-2},{i:mid2,j:N-2},{i:mid1,j:N-1},{i:mid2,j:N-1}]);
+    zones.push([{i:0,j:N-2},{i:1,j:N-2},{i:0,j:N-1},{i:1,j:N-1}]);
+    zones.push([{i:0,j:mid1},{i:1,j:mid1},{i:0,j:mid2},{i:1,j:mid2}]);
+  }
+  return zones;
+}
+
+/* ====== Инициализация игры ====== */
+startBtn.addEventListener('click', ()=>{
+  TEAM_COUNT = (selectedMode === 8) ? 8 : 4;
+  N = (TEAM_COUNT === 8) ? 10 : 6;
+  WORLD_W = N * CELL; WORLD_H = N * CELL;
+  TEAM_COLORS = TEAM_COLORS_FULL.slice(0, TEAM_COUNT);
+  TEAM_COLORS_LIGHT = TEAM_COLORS_LIGHT_FULL.slice(0, TEAM_COUNT);
+  menu.style.display = 'none';
+  initGame();
+});
+
+function initGame(){
+  // очистка
+  if(armorIntervalId) clearInterval(armorIntervalId);
+  if(reinforceIntervalId) clearInterval(reinforceIntervalId);
+  cells = []; entities = []; pickups = []; bullets = [];
+  ammoAccumulator = 0;
+
+  resizeCanvas();
+
+  for(let i=0;i<N;i++){ cells[i]=[]; for(let j=0;j<N;j++) cells[i][j] = { owner:-1, captureTeam:-1, progress:0 }; }
+
+  const startZones = computeStartZones();
+  for(let t=0;t<startZones.length && t<TEAM_COUNT;t++){
+    for(const c of startZones[t]) if(cells[c.i] && cells[c.i][c.j]) cells[c.i][c.j].owner = t;
+  }
+
+  // spawn helper
+  function spawnEntityObject(x,y,team,isBot,opts){
+    return {
+      id: Math.random().toString(36).slice(2,9),
+      x: clamp(x,2,WORLD_W-2),
+      y: clamp(y,2,WORLD_H-2),
+      team: team,
+      isBot: !!isBot,
+      baseR: 5,
+      moveDir: {x:0,y:0},
+      facing: {x:1,y:0},
+      speed: isBot ? BOT_BASE_SPEED : PLAYER_BASE_SPEED,
+      ammo: 0,
+      hasArmor: false,
+      reloadUntil: 0,
+      crouchUntil: 0,
+      hp: MAX_HEALTH,
+      state: 'idle',
+      stateTarget: null,
+      stateTimer: 0,
+      wantedCaptureCell: null,
+      reinforcement: opts && opts.reinforcement ? true : false,
+      isVeteran: false,
+      veteranZone: null,
+      alwaysCrouched: false,
+      kills: 0
+    };
+  }
+
+  // spawn per team
+  for(let t=0;t<TEAM_COUNT;t++){
+    const zone = startZones[t] || [{i:0,j:0}];
+    let sx=0, sy=0, cnt=0;
+    for(const c of zone){ sx += c.i*CELL + CELL/2; sy += c.j*CELL + CELL/2; cnt++; }
+    const cx = sx/cnt, cy = sy/cnt;
+    const ent = spawnEntityObject(cx + randRange(-12,12), cy + randRange(-12,12), t, t!==0, {});
+    entities.push(ent);
+    if(t===0) player = ent;
+  }
+
+  // armor spawn
+  armorIntervalId = setInterval(()=>{ pickups.push({ x: randRange(12,WORLD_W-12), y: randRange(12,WORLD_H-12), type:'armor', amount:1 }); }, ARMOR_SPAWN_INTERVAL_MS);
+
+  // reinforcement check (1 bot)
+  reinforceIntervalId = setInterval(()=>{
+    for(let t=0;t<TEAM_COUNT;t++){
+      let countZones = 0;
+      for(let i=0;i<N;i++) for(let j=0;j<N;j++) if(cells[i][j].owner === t) countZones++;
+      if(countZones <= 0) continue;
+      const chancePercent = countZones * REINFORCE_HALF_FACTOR;
+      if(Math.random()*100 < chancePercent){
+        const teamCells=[]; for(let i=0;i<N;i++) for(let j=0;j<N;j++) if(cells[i][j].owner === t) teamCells.push({i,j});
+        if(teamCells.length===0) continue;
+        const cell = teamCells[Math.floor(Math.random()*teamCells.length)];
+        const cx = cell.i*CELL + CELL/2, cy = cell.j*CELL + CELL/2;
+        const nx = clamp(cx + randRange(-20,20), 2, WORLD_W-2), ny = clamp(cy + randRange(-20,20), 2, WORLD_H-2);
+        entities.push(spawnEntityObject(nx, ny, t, true, {reinforcement:true}));
+      }
+    }
+  }, REINFORCE_CHECK_MS);
+
+  TEAM_COLORS = TEAM_COLORS_FULL.slice(0, TEAM_COUNT);
+  TEAM_COLORS_LIGHT = TEAM_COLORS_LIGHT_FULL.slice(0, TEAM_COUNT);
+
+  updateLegend();
+  gameStarted = true;
+  lastFrame = Date.now();
+  requestAnimationFrame(gameLoop);
+}
+
+/* ====== Legend + score ====== */
+function updateLegend(){
+  teamLegend.innerHTML = '';
+  for(let t=0;t<TEAM_COUNT;t++){
+    const count = entities.filter(p => p && p.hp>0 && p.team===t).length;
+    const div = document.createElement('div'); div.className='legend-item';
+    div.innerHTML = `<div style="display:flex;align-items:center;gap:8px;"><div style="width:12px;height:12px;border-radius:50%;background:${TEAM_COLORS[t]}"></div><div>Team ${t+1}</div></div><div style="min-width:30px;text-align:right">${count}</div>`;
+    teamLegend.appendChild(div);
+  }
+  const scoreDiv = document.createElement('div'); scoreDiv.id = 'player-score';
+  scoreDiv.innerHTML = `Индивидуальный счёт: ${player ? (player.kills || 0) : 0}`;
+  teamLegend.appendChild(scoreDiv);
+}
+
+/* ====== Joystick & buttons (multi-touch safe) ====== */
+let passiveSupported = false;
+try { const opts = Object.defineProperty({}, 'passive', { get(){ passiveSupported = true; }}); window.addEventListener('testPassive', null, opts); window.removeEventListener('testPassive', null, opts); } catch(e){}
+const touchOpts = passiveSupported ? { passive:false } : false;
+
+let activeTouchId = null;
+joyBg.addEventListener('touchstart', function(ev){ if(ev.cancelable) ev.preventDefault(); for(const t of ev.changedTouches){ activeTouchId = t.identifier; handleJoyMove(t.clientX, t.clientY); break; } }, touchOpts);
+joyBg.addEventListener('touchmove', function(ev){ if(ev.cancelable) ev.preventDefault(); for(const t of ev.changedTouches) if(t.identifier === activeTouchId) handleJoyMove(t.clientX, t.clientY); }, touchOpts);
+joyBg.addEventListener('touchend', function(ev){ if(ev.cancelable) ev.preventDefault(); for(const t of ev.changedTouches) if(t.identifier === activeTouchId){ activeTouchId = null; joyStick.style.left='25px'; joyStick.style.top='25px'; if(player) player.moveDir = {x:0,y:0}; } }, touchOpts);
+
+function handleJoyMove(clientX, clientY){
+  const rect = joyBg.getBoundingClientRect();
+  const localX = clientX - (rect.left + rect.width/2);
+  const localY = clientY - (rect.top + rect.height/2);
+  const m = 40; let dx = localX, dy = localY;
+  const d = Math.hypot(dx,dy);
+  if(d > m){ dx = dx/d*m; dy = dy/d*m; }
+  joyStick.style.left = (25 + dx) + 'px'; joyStick.style.top = (25 + dy) + 'px';
+  const mag = Math.hypot(dx,dy);
+  if(!player) return;
+  if(mag < 4) player.moveDir = {x:0,y:0};
+  else { player.moveDir = {x: dx/mag, y: dy/mag}; player.facing.x = player.moveDir.x; player.facing.y = player.moveDir.y; }
+}
+
+/* Fire / crouch */
+function playerShoot(){
+  if(!player) return;
+  const now = Date.now();
+  if(now < player.reloadUntil) return;
+  const mag = Math.hypot(player.facing.x||0, player.facing.y||0);
+  const ang = mag < 0.05 ? 0 : Math.atan2(player.facing.y, player.facing.x);
+  const dist = clamp(BULLET_RANGE * randRange(0.9,1.1), 10, BULLET_RANGE);
+  createBullet(player.x, player.y, ang, dist, player);
+  player.reloadUntil = now + RELOAD_MS;
+}
+function playerCrouch(){ if(player) player.crouchUntil = Date.now() + CROUCH_DURATION_MS; }
+
+fireBtn.addEventListener('touchstart', function(e){ if(e.cancelable) e.preventDefault(); playerShoot(); }, touchOpts);
+fireBtn.addEventListener('click', function(e){ e.preventDefault(); playerShoot(); });
+crouchBtn.addEventListener('touchstart', function(e){ if(e.cancelable) e.preventDefault(); playerCrouch(); }, touchOpts);
+crouchBtn.addEventListener('click', function(e){ e.preventDefault(); playerCrouch(); });
+
+/* Minimap */
+mmToggle.addEventListener('click', ()=>{
+  minimapVisible = !minimapVisible;
+  minimapCanvas.style.display = minimapVisible ? 'block' : 'none';
+  mmToggle.textContent = minimapVisible ? 'Свернуть' : 'Развернуть';
+  mmStatus.textContent = minimapVisible ? 'on' : 'off';
+});
+backBtn.addEventListener('click', ()=> location.reload());
+
+/* ====== Bullets creation & damage ====== */
+function createBullet(x,y,angle,dist,owner){
+  const speed = CELL * 6;
+  bullets.push({ x,y, vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed, traveled:0, max: dist, owner, alive:true });
+}
+function calcDamage(target){
+  let pct = 1 + Math.random()*199;
+  if(target.hasArmor) pct = Math.min(pct,120);
+  return (pct/100) * MAX_HEALTH;
+}
+
+/* ====== AI helpers ====== */
+function cellBordersEnemy(team,i,j){
+  for(const ofs of [{di:1,dj:0},{di:-1,dj:0},{di:0,dj:1},{di:0,dj:-1}]){
+    const ni = i+ofs.di, nj = j+ofs.dj;
+    if(ni<0||nj<0||ni>=N||nj>=N) continue;
+    const owner = (cells[ni] && cells[ni][nj]) ? cells[ni][nj].owner : -1;
+    if(owner !== -1 && owner !== team) return true;
+  }
+  return false;
+}
+function getRadius(e){
+  if(!e) return 5;
+  if(e.alwaysCrouched) return e.baseR * (1 - CROUCH_HITBOX_REDUCE);
+  if(Date.now() < e.crouchUntil) return e.baseR * (1 - CROUCH_HITBOX_REDUCE);
+  return e.baseR;
+}
+
+/* ====== Bot AI (включая wounded и veteran) ====== */
+function botDecide(e){
+  if(!e || e.hp <= 0) return;
+
+  if(e.isVeteran){
+    const vz = e.veteranZone;
+    if(vz){
+      let best=null, bestD=1e9;
+      for(const p of pickups){ if(!p || p.type!=='ammo') continue; const pi=clamp(Math.floor(p.x/CELL),0,N-1), pj=clamp(Math.floor(p.y/CELL),0,N-1); if(pi===vz.i && pj===vz.j){ const d=distXY(e.x,e.y,p.x,p.y); if(d<bestD){bestD=d;best=p;} } }
+      if(best){ e.state='seekBonus'; e.stateTarget={x:best.x,y:best.y,bonus:best}; e.stateTimer=400+Math.random()*800; return; }
+      e.state='patrol'; e.stateTarget={x:vz.i*CELL + randRange(12,CELL-12), y:vz.j*CELL + randRange(12,CELL-12)}; e.stateTimer=600+Math.random()*1000; return;
+    } else { e.state='idle'; e.stateTimer=500; return; }
+  }
+
+  if(e.hp < MAX_HEALTH * WOUNDED_THRESHOLD){
+    let nearest=null, bestD=1e9;
+    for(const p of pickups){ if(!p || p.type!=='ammo') continue; const pi=clamp(Math.floor(p.x/CELL),0,N-1), pj=clamp(Math.floor(p.y/CELL),0,N-1); if(!(cells[pi]&&cells[pi][pj])) continue; if(cells[pi][pj].owner !== e.team) continue; if(cellBordersEnemy(e.team,pi,pj)) continue; const enemies = playersInCell(pi,pj).filter(x=>x.team!==e.team && x.hp>0).length; if(enemies>0) continue; const d=distXY(e.x,e.y,p.x,p.y); if(d<bestD){bestD=d;nearest=p;} }
+    if(nearest){ e.state='seekBonus'; e.stateTarget={x:nearest.x,y:nearest.y,bonus:nearest}; e.stateTimer=400+Math.random()*800; return; }
+    const ownedSafe=[];
+    for(let i=0;i<N;i++) for(let j=0;j<N;j++){ if(cells[i][j].owner===e.team && !cellBordersEnemy(e.team,i,j)){ const enem = playersInCell(i,j).filter(x=>x.team !== e.team && x.hp>0).length; if(enem===0) ownedSafe.push({i,j}); } }
+    if(ownedSafe.length>0){ const c=ownedSafe[Math.floor(Math.random()*ownedSafe.length)]; e.state='patrol'; e.stateTarget={x:c.i*CELL + randRange(12,CELL-12), y:c.j*CELL + randRange(12,CELL-12)}; e.stateTimer = 600 + Math.random()*1200; return; }
+    const owned=[]; for(let i=0;i<N;i++) for(let j=0;j<N;j++) if(cells[i][j].owner===e.team) owned.push({i,j});
+    if(owned.length>0){ const c=owned[Math.floor(Math.random()*owned.length)]; e.state='patrol'; e.stateTarget={x:c.i*CELL + randRange(12,CELL-12), y:c.j*CELL + randRange(12,CELL-12)}; e.stateTimer=600+Math.random()*1200; return; }
+    e.state='idle'; e.stateTimer=500; return;
+  }
+
+  // Non-wounded normal behavior
+  let nearestBonus=null, bestDBonus=1e9;
+  for(const b of pickups){ if(!b || (b.type!=='ammo' && b.type!=='armor')) continue; const ci=clamp(Math.floor(b.x/CELL),0,N-1), cj=clamp(Math.floor(b.y/CELL),0,N-1); if(!(cells[ci]&&cells[ci][cj]&&cells[ci][cj].owner===e.team)) continue; if(b.type==='armor' && e.hasArmor) continue; const d=distXY(e.x,e.y,b.x,b.y); if(d<=BOT_BONUS_SEARCH_RADIUS && d<bestDBonus){ nearestBonus=b; bestDBonus=d; } }
+  if(nearestBonus){ e.state='seekBonus'; e.stateTarget={x:nearestBonus.x,y:nearestBonus.y,bonus:nearestBonus}; e.stateTimer=400+Math.random()*800; return; }
+
+  const myI = clamp(Math.floor(e.x/CELL),0,N-1), myJ = clamp(Math.floor(e.y/CELL),0,N-1);
+  let candidate=null, bestScore=1e12;
+  for(let di=-2; di<=2; di++) for(let dj=-2; dj<=2; dj++){
+    const ni = myI+di, nj = myJ+dj; if(ni<0||nj<0||ni>=N||nj>=N) continue;
+    const c = cells[ni][nj]; if(!c || c.owner !== -1) continue;
+    let ammoCount = 0;
+    for(const p of pickups){ const pi = clamp(Math.floor(p.x/CELL),0,N-1), pj = clamp(Math.floor(p.y/CELL),0,N-1); if(pi===ni && pj===nj && p.type==='ammo') ammoCount++; }
+    const enemyCount = playersInCell(ni,nj).filter(p=>p.team !== e.team).length;
+    const cx = ni*CELL + CELL/2, cy = nj*CELL + CELL/2;
+    const d = distXY(e.x,e.y,cx,cy);
+    const score = d - ammoCount*180 + enemyCount*400;
+    if(score < bestScore){ bestScore = score; candidate={i:ni,j:nj,cx,cy}; }
+  }
+  if(candidate){
+    let bordersEnemy=false, adjEnemy=null, adjEnemyHasAlive=false;
+    for(const ofs of [{di:1,dj:0},{di:-1,dj:0},{di:0,dj:1},{di:0,dj:-1}]){
+      const ai=candidate.i+ofs.di, aj=candidate.j+ofs.dj; if(ai<0||aj<0||ai>=N||aj>=N) continue;
+      if(cells[ai][aj].owner !== -1 && cells[ai][aj].owner !== e.team){ bordersEnemy=true; adjEnemy={i:ai,j:aj}; if(playersInCell(ai,aj).filter(x=>x.hp>0).length>0) adjEnemyHasAlive=true; }
+    }
+    if(!bordersEnemy){ e.state='moveTo'; e.stateTarget={cell:{i:candidate.i,j:candidate.j}, x:candidate.cx, y:candidate.cy}; e.wantedCaptureCell={i:candidate.i,j:candidate.j}; e.stateTimer=400+Math.random()*1200; return; }
+    else {
+      if(adjEnemy && !adjEnemyHasAlive){ e.state='moveTo'; e.stateTarget={cell:{i:candidate.i,j:candidate.j}, x:candidate.cx,y:candidate.cy}; e.wantedCaptureCell={i:candidate.i,j:candidate.j}; e.stateTimer=300+Math.random()*400; return; }
+      else {
+        const roll = Math.random()*100;
+        if(roll < 70){ e.state='hold'; e.stateTarget={threatCell:{i:candidate.i,j:candidate.j}, behavior:'shoot_retreat'}; e.stateTimer=150+Math.random()*300; return; }
+        else if(roll < 95){ e.state='moveTo'; e.stateTarget={cell:{i:candidate.i,j:candidate.j}, x:candidate.cx,y:candidate.cy, afterShootGoDeep:true}; e.wantedCaptureCell={i:candidate.i,j:candidate.j}; e.stateTimer=200+Math.random()*300; return; }
+        else { e.state='moveTo'; e.stateTarget={cell:{i:candidate.i,j:candidate.j}, x:candidate.cx,y:candidate.cy, aggressiveCapture:true}; e.wantedCaptureCell={i:candidate.i,j:candidate.j}; e.stateTimer=200+Math.random()*300; return; }
+      }
+    }
+  }
+
+  // border enemy behavior
+  const myOwned=[];
+  for(let i=0;i<N;i++) for(let j=0;j<N;j++) if(cells[i][j].owner===e.team) myOwned.push({i,j});
+  let adjacentEnemyCandidates = [];
+  for(const c of myOwned){
+    for(const ofs of [{di:1,dj:0},{di:-1,dj:0},{di:0,dj:1},{di:0,dj:-1}]){
+      const ni=c.i+ofs.di, nj=c.j+ofs.dj; if(ni<0||nj<0||ni>=N||nj>=N) continue;
+      if(cells[ni][nj].owner !== -1 && cells[ni][nj].owner !== e.team) adjacentEnemyCandidates.push({i:ni,j:nj});
+    }
+  }
+  if(adjacentEnemyCandidates.length>0){
+    let best=null, bestD=1e9;
+    for(const ce of adjacentEnemyCandidates){ const cx=ce.i*CELL+CELL/2, cy=ce.j*CELL+CELL/2, d=distXY(e.x,e.y,cx,cy); if(d<bestD){bestD=d;best=ce;} }
+    if(best){
+      const aliveEnemies = playersInCell(best.i,best.j).filter(p=>p.team !== e.team && p.hp>0).length;
+      const cx = best.i*CELL + CELL/2, cy = best.j*CELL + CELL/2;
+      if(aliveEnemies > 0){
+        const roll = Math.random()*100;
+        if(roll < 80){ e.state='hold'; e.stateTarget={threatCell:{i:best.i,j:best.j}, behavior:'shoot_retreat'}; e.stateTimer=150+Math.random()*300; return; }
+        else if(roll < 95){ e.state='moveTo'; e.stateTarget={cell:{i:best.i,j:best.j}, x:cx,y:cy, afterShootGoDeep:true}; e.wantedCaptureCell={i:best.i,j:best.j}; e.stateTimer=200+Math.random()*300; return; }
+        else { e.state='moveTo'; e.stateTarget={cell:{i:best.i,j:best.j}, x:cx,y:cy, aggressiveCapture:true}; e.wantedCaptureCell={i:best.i,j:best.j}; e.stateTimer=200+Math.random()*300; return; }
+      } else { e.state='moveTo'; e.stateTarget={cell:{i:best.i,j:best.j}, x:cx,y:cy}; e.wantedCaptureCell={i:best.i,j:best.j}; e.stateTimer=300+Math.random()*500; return; }
+    }
+  }
+
+  // default patrol
+  if(myOwned.length>0){ const c=myOwned[Math.floor(Math.random()*myOwned.length)]; e.state='patrol'; e.stateTarget={x:c.i*CELL + randRange(12,CELL-12), y:c.j*CELL + randRange(12,CELL-12)}; e.stateTimer=800+Math.random()*1200; return; }
+  e.state='patrol'; e.stateTarget={x:randRange(12,WORLD_W-12), y:randRange(12,WORLD_H-12)}; e.stateTimer=800+Math.random()*1200; return;
+}
+
+/* ====== Entity update (movement, pickups, shooting) ====== */
+function updateEntity(e, dt){
+  if(!e || e.hp <= 0) return;
+
+  if(e.isBot){ e.stateTimer -= dt; if(e.stateTimer <= 0) botDecide(e); }
+
+  let vx=0, vy=0;
+  if(!e.isBot){
+    const md = e.moveDir; const mag = Math.hypot(md.x,md.y);
+    if(mag > 0.01){ vx = (md.x/mag)*e.speed; vy = (md.y/mag)*e.speed; e.facing.x = md.x/(mag||1); e.facing.y = md.y/(mag||1); }
+  } else {
+    let target = null;
+    if(e.state === 'capturing' && e.wantedCaptureCell){
+      const cx = e.wantedCaptureCell.i*CELL + CELL/2, cy = e.wantedCaptureCell.j*CELL + CELL/2;
+      const d = distXY(e.x,e.y,cx,cy);
+      if(d > 4) target = { x: cx + randRange(-6,6), y: cy + randRange(-6,6) };
+    } else if(e.state === 'seekBonus' && e.stateTarget) target = { x: e.stateTarget.x, y: e.stateTarget.y };
+    else if((e.state === 'moveTo' || e.state === 'patrol') && e.stateTarget) target = { x: e.stateTarget.x, y: e.stateTarget.y };
+    else if(e.state === 'hold'){ e.crouchUntil = Date.now() + CROUCH_DURATION_MS; target = null; }
+
+    if(target){
+      const dx = target.x - e.x, dy = target.y - e.y, d = Math.hypot(dx,dy);
+      if(d > 2){ vx = (dx/d)*e.speed; vy = (dy/d)*e.speed; e.facing.x = dx/(d||1); e.facing.y = dy/(d||1); }
+      else {
+        if(e.state === 'moveTo' && e.wantedCaptureCell){
+          const ci = e.wantedCaptureCell.i, cj = e.wantedCaptureCell.j;
+          const playersHere = playersInCell(ci,cj);
+          const enemies = playersHere.filter(p=>p.team !== e.team).length;
+          if(enemies === 0){ e.state='capturing'; e.stateTarget=null; e.x = ci*CELL + CELL/2 + randRange(-6,6); e.y = cj*CELL + CELL/2 + randRange(-6,6); return; } else { e.state='idle'; e.stateTimer=300; }
+        } else { if(e.state === 'patrol') e.stateTimer = 400 + Math.random()*800; }
+      }
+    }
+  }
+
+  let moveFactor = 1;
+  if(e.alwaysCrouched) moveFactor *= (1 - CROUCH_HITBOX_REDUCE);
+  else if(Date.now() < e.crouchUntil) moveFactor *= (1 - CROUCH_HITBOX_REDUCE);
+
+  const localX = e.x % CELL, localY = e.y % CELL;
+  const ci = clamp(Math.floor(e.x/CELL),0,N-1), cj = clamp(Math.floor(e.y/CELL),0,N-1);
+  if(ci>=0 && cj>=0){
+    const neighbors=[]; if(ci>0) neighbors.push({ni:ci-1,nj:cj}); if(ci<N-1) neighbors.push({ni:ci+1,nj:cj}); if(cj>0) neighbors.push({ni:ci,nj:cj-1}); if(cj<N-1) neighbors.push({ni:ci,nj:cj+1});
+    for(const nb of neighbors){
+      const ownerA = (cells[ci] && cells[ci][cj]) ? cells[ci][cj].owner : -1;
+      const ownerB = (cells[nb.ni] && cells[nb.ni][nb.nj]) ? cells[nb.ni][nb.nj].owner : -1;
+      if(ownerA !== ownerB){
+        if(Math.abs(nb.ni - ci) === 1){ if(localX < 6 || localX > CELL-6) moveFactor *= (1/3); }
+        else { if(localY < 6 || localY > CELL-6) moveFactor *= (1/3); }
+      }
+    }
+  }
+
+  if(e.state === 'capturing'){ vx = 0; vy = 0; }
+
+  e.x += vx * moveFactor * (dt/1000);
+  e.y += vy * moveFactor * (dt/1000);
+
+  if(e.isVeteran && e.veteranZone){
+    const vi = e.veteranZone.i, vj = e.veteranZone.j;
+    const minX = vi*CELL + 6, maxX = (vi+1)*CELL - 6;
+    const minY = vj*CELL + 6, maxY = (vj+1)*CELL - 6;
+    e.x = clamp(e.x, minX, maxX); e.y = clamp(e.y, minY, maxY);
+    e.alwaysCrouched = true;
+  } else {
+    e.x = clamp(e.x, 2, WORLD_W-2); e.y = clamp(e.y, 2, WORLD_H-2);
+  }
+
+  // pickups collection only on owned cells
+  for(const p of pickups){
+    if(!p || p._remove) continue;
+    const pi = clamp(Math.floor(p.x/CELL),0,N-1), pj = clamp(Math.floor(p.y/CELL),0,N-1);
+    const owner = (cells[pi] && cells[pi][pj]) ? cells[pi][pj].owner : -1;
+    if(owner !== e.team) continue;
+    const d = distXY(e.x,e.y,p.x,p.y);
+    if(d <= AMMO_PICK_RADIUS){
+      if(p.type === 'ammo' && p.amount > 0){ e.ammo += p.amount; p.amount = 0; p._remove = true; }
+      else if(p.type === 'armor' && p.amount > 0){ if(!e.hasArmor){ e.hasArmor = true; p.amount = 0; p._remove = true; } }
+      if(e.ammo >= 10){
+        const ang = Math.random()*Math.PI*2; const nx = clamp(e.x + Math.cos(ang)*20, 2, WORLD_W-2), ny = clamp(e.y + Math.sin(ang)*20, 2, WORLD_H-2);
+        entities.push({
+          id: Math.random().toString(36).slice(2,9), x:nx, y:ny, team:e.team, isBot:true, baseR:5, moveDir:{x:0,y:0}, facing:{x:1,y:0},
+          speed: BOT_BASE_SPEED, ammo:0, hasArmor:false, reloadUntil:0, crouchUntil:0, hp:MAX_HEALTH, state:'idle', stateTarget:null, stateTimer:0, wantedCaptureCell:null, reinforcement:false, isVeteran:false, veteranZone:null, alwaysCrouched:false, kills:0
+        });
+        e.ammo = 0;
+      }
+    }
+  }
+
+  // bots shooting
+  if(e.isBot){
+    let nearest=null, bestD=1e9;
+    for(const p of entities){
+      if(!p || p.team === e.team || p.hp <= 0) continue;
+      const d = distXY(e.x,e.y,p.x,p.y);
+      if(d < bestD && d <= BOT_ENGAGE_RANGE){ bestD=d; nearest=p; }
+    }
+    if(nearest){
+      const dx = nearest.x - e.x, dy = nearest.y - e.y, mag = Math.hypot(dx,dy);
+      if(mag > 0.001){ e.facing.x = dx/mag; e.facing.y = dy/mag; }
+      const desiredDist = clamp(mag * randRange(0.9,1.1), 10, BULLET_RANGE);
+      if(Date.now() >= e.reloadUntil){
+        const spreadRad = (BOT_SPREAD_DEGREES_BASE * BOT_SPREAD_MULT) * Math.PI/180;
+        const spread = randRange(-spreadRad, spreadRad);
+        const ang = Math.atan2(nearest.y - e.y, nearest.x - e.x) + spread;
+        createBullet(e.x, e.y, ang, desiredDist, e);
+        e.reloadUntil = Date.now() + RELOAD_MS;
+        if(e.state === 'hold') e.crouchUntil = Date.now() + CROUCH_DURATION_MS;
+      }
+      if(!e.isVeteran && e.hp >= MAX_HEALTH * WOUNDED_THRESHOLD){
+        if(e.stateTarget && e.stateTarget.engage){
+          const d = mag;
+          if(d > 60){ e.x += (dx/d) * (e.speed * 0.5) * (dt/1000); e.y += (dy/d) * (e.speed * 0.5) * (dt/1000); }
+        }
+      }
+    }
+  }
+}
+
+/* ====== Captures ====== */
+function updateCaptures(dt){
+  for(let i=0;i<N;i++) for(let j=0;j<N;j++){
+    const c = cells[i][j];
+    const counts = new Array(TEAM_COUNT).fill(0);
+    for(const p of entities) if(p && p.hp>0){ const pi = clamp(Math.floor(p.x/CELL),0,N-1), pj = clamp(Math.floor(p.y/CELL),0,N-1); if(pi===i && pj===j) counts[p.team] = (counts[p.team]||0) + 1; }
+    const total = counts.reduce((a,b)=>a+b,0);
+    const teamsPresent = counts.map((v,idx)=> v>0 ? idx : -1).filter(x=>x!==-1);
+    if(total > 0 && teamsPresent.length === 1){
+      const teamIdx = teamsPresent[0]; const allies = counts[teamIdx];
+      c.captureTeam = teamIdx;
+      c.progress += allies * (dt/1000) / CAPTURE_SECONDS_SINGLE;
+      if(c.progress >= 1){ c.progress = 0; c.owner = teamIdx; c.captureTeam = -1; for(const p of entities) if(p && p.isBot && p.team===teamIdx && p.state==='capturing'){ p.state='idle'; p.stateTimer=400; } }
+    }
+  }
+}
+
+/* ====== Bullets update & damage handling ====== */
+function updateBullets(dt){
+  for(const b of bullets){
+    if(!b.alive) continue;
+    const step = (dt/1000);
+    b.x += b.vx * step; b.y += b.vy * step;
+    b.traveled += Math.hypot(b.vx*step, b.vy*step);
+    for(const p of entities){
+      if(!p || p.hp <= 0) continue;
+      if(p.team === b.owner.team) continue;
+      const r = getRadius(p);
+      const d = distXY(p.x,p.y,b.x,b.y);
+      if(d <= r + 2){
+        const dmg = calcDamage(p);
+        p.hp -= dmg;
+        if(p.hp <= 0){
+          if(b.owner && typeof b.owner.kills === 'number') b.owner.kills = (b.owner.kills || 0) + 1;
+          if(b.owner === player) updateLegend();
+        } else {
+          if(p.isBot && !p.isVeteran && p.hp > 0 && p.hp < MAX_HEALTH * VETERAN_THRESHOLD){
+            const ci = clamp(Math.floor(p.x/CELL),0,N-1), cj = clamp(Math.floor(p.y/CELL),0,N-1);
+            let lockZone = null;
+            if(cells[ci] && cells[ci][cj] && cells[ci][cj].owner === p.team) lockZone = {i:ci,j:cj};
+            else {
+              let best=null, bestD=1e9;
+              for(let ii=0; ii<N; ii++) for(let jj=0; jj<N; jj++){
+                if(cells[ii] && cells[ii][jj] && cells[ii][jj].owner === p.team){
+                  const cx = ii*CELL + CELL/2, cy = jj*CELL + CELL/2; const dist = distXY(p.x,p.y,cx,cy);
+                  if(dist < bestD){ bestD = dist; best = {i:ii,j:jj}; }
+                }
+              }
+              lockZone = best || {i:ci,j:cj};
+            }
+            p.isVeteran = true; p.veteranZone = lockZone; p.alwaysCrouched = true; p.state='patrol'; p.stateTarget = { x: lockZone.i*CELL + randRange(12,CELL-12), y: lockZone.j*CELL + randRange(12,CELL-12) };
+          }
+        }
+        b.alive = false;
+        break;
+      }
+    }
+    if(b.traveled >= b.max) b.alive = false;
+    if(b.x < -20 || b.y < -20 || b.x > WORLD_W + 20 || b.y > WORLD_H + 20) b.alive = false;
+  }
+  bullets = bullets.filter(b => b.alive);
+}
+
+/* ====== Cleanup ====== */
+function cleanup(){
+  for(let i=entities.length-1;i>=0;i--){
+    const e = entities[i];
+    if(e && e.hp <= 0) entities.splice(i,1);
+  }
+  pickups = pickups.filter(p => !p._remove);
+}
+
+/* ====== Ammo spawn tick (10 points / sec) ====== */
+function spawnAmmoBatch(){ for(let k=0;k<AMMO_SPAWN_PER_SEC_TOTAL;k++) pickups.push({ x: randRange(12,WORLD_W-12), y: randRange(12,WORLD_H-12), type:'ammo', amount:1 }); }
+function pickupsTick(dt){ ammoAccumulator += dt; while(ammoAccumulator >= 1000){ spawnAmmoBatch(); ammoAccumulator -= 1000; } }
+
+/* ====== Main loop ====== */
+function gameLoop(){
+  if(!gameStarted) return;
+  const now = Date.now(); const dt = Math.max(1, now - lastFrame); lastFrame = now;
+
+  pickupsTick(dt);
+  for(const e of entities.slice()) updateEntity(e, dt);
+  updateCaptures(dt);
+  updateBullets(dt);
+  cleanup();
+  draw();
+  updateLegend();
+  requestAnimationFrame(gameLoop);
+}
+
+/* ====== Drawing (zoom + grey background for outside) ====== */
+function draw(){
+  ctx.save();
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.fillStyle = '#777'; ctx.fillRect(0,0,canvas.width, canvas.height);
+
+  if(!player) { ctx.restore(); return; }
+  const z = ZOOM;
+  ctx.setTransform(z, 0, 0, z, canvas.width/2 - player.x*z, canvas.height/2 - player.y*z);
+
+  for(let i=0;i<N;i++){
+    for(let j=0;j<N;j++){
+      const c = cells[i][j];
+      const gx = i*CELL, gy = j*CELL;
+      let base = '#bdbdbd';
+      if(c.owner !== -1 && c.owner >=0 && c.owner < TEAM_COLORS.length) base = TEAM_COLORS[c.owner];
+      if(c.captureTeam !== -1 && c.progress > 0) ctx.fillStyle = blendColors(base, TEAM_COLORS[c.captureTeam], c.progress);
+      else ctx.fillStyle = base;
+      ctx.fillRect(gx, gy, CELL, CELL);
+      ctx.strokeStyle = '#777'; ctx.lineWidth = 1; ctx.strokeRect(gx, gy, CELL, CELL);
+      if(c.captureTeam !== -1 && c.progress > 0){ ctx.fillStyle = TEAM_COLORS[c.captureTeam]; ctx.fillRect(gx, gy + CELL - 6, CELL * c.progress, 6); ctx.strokeStyle = '#222'; ctx.strokeRect(gx, gy + CELL - 6, CELL, 6); }
+    }
+  }
+
+  for(const p of pickups){ if(!p) continue; ctx.beginPath(); ctx.arc(p.x,p.y,8,0,Math.PI*2); ctx.fillStyle = (p.type==='ammo'?'#ff0':'#0ff'); ctx.fill(); ctx.lineWidth=2; ctx.strokeStyle='#333'; ctx.stroke(); }
+
+  for(const e of entities){
+    if(!e) continue;
+    let color = TEAM_COLORS[e.team] || '#999';
+    if(e.reinforcement) color = TEAM_COLORS_LIGHT[e.team] || color;
+    if(e.isVeteran){ const flash = 0.6 + 0.4 * (0.5 + 0.5 * Math.sin(Date.now()/250)); color = brightenHex(TEAM_COLORS[e.team], flash); }
+    const rad = getRadius(e);
+    ctx.beginPath(); ctx.arc(e.x, e.y, rad, 0, Math.PI*2); ctx.fillStyle = color; ctx.fill();
+
+    let ang = Math.atan2(e.facing.y || 0.0001, e.facing.x || 1);
+    ctx.beginPath(); ctx.moveTo(e.x,e.y); ctx.arc(e.x,e.y,rad,ang-0.35,ang+0.35); ctx.closePath(); ctx.fillStyle='black'; ctx.fill();
+
+    if(e.hasArmor){ ctx.beginPath(); ctx.arc(e.x,e.y,3,0,Math.PI*2); ctx.fillStyle='#000'; ctx.fill(); }
+
+    ctx.fillStyle='#000'; ctx.fillRect(e.x-12,e.y-16,24,4);
+    ctx.fillStyle='#0f0'; ctx.fillRect(e.x-12,e.y-16, clamp(e.hp/MAX_HEALTH,0,1)*24, 4);
+    ctx.strokeStyle='#333'; ctx.strokeRect(e.x-12,e.y-16,24,4);
+
+    if(e.isVeteran){ ctx.lineWidth=2; ctx.strokeStyle='#222'; ctx.beginPath(); ctx.arc(e.x,e.y,rad+5,0,Math.PI*2); ctx.stroke(); }
+    if(!e.isBot){ ctx.strokeStyle='#fff'; ctx.lineWidth=1.2; ctx.beginPath(); ctx.arc(e.x,e.y,rad+4,0,Math.PI*2); ctx.stroke(); }
+  }
+
+  for(const b of bullets){ ctx.beginPath(); ctx.arc(b.x,b.y,3,0,Math.PI*2); ctx.fillStyle='#111'; ctx.fill(); }
+
+  ctx.restore();
+
+  drawMinimap();
+  drawHUD();
+}
+
+/* ====== Minimap ====== */
+function drawMinimap(){
+  if(!minimapVisible) return;
+  const w = minimapCanvas.width, h = minimapCanvas.height;
+  mmCtx.clearRect(0,0,w,h);
+  const cellW = w / N, cellH = h / N;
+  for(let i=0;i<N;i++) for(let j=0;j<N;j++){
+    const c = cells[i][j];
+    mmCtx.fillStyle = (c.owner === -1) ? '#555' : (TEAM_COLORS[c.owner] || '#999');
+    mmCtx.fillRect(i*cellW, j*cellH, cellW, cellH);
+    mmCtx.strokeStyle = '#222'; mmCtx.strokeRect(i*cellW, j*cellH, cellW, cellH);
+  }
+}
+
+/* ====== HUD ====== */
+function drawHUD(){
+  if(!player) return;
+  hud.innerHTML = `Team: <span style="color:${TEAM_COLORS[player.team]};font-weight:700"> ${player.team+1} </span> &nbsp;|&nbsp; HP: ${Math.max(0,Math.round(player.hp))} &nbsp;|&nbsp; Ammo: ${Math.floor(player.ammo)} &nbsp;|&nbsp; Armor: ${player.hasArmor ? 'YES' : 'NO'} &nbsp;|&nbsp; Cell: ${Math.floor(player.x/CELL)},${Math.floor(player.y/CELL)}`;
+}
+
+/* ====== Expose debug ====== */
+window.GAME = { get cells(){ return cells; }, get entities(){ return entities; }, get pickups(){ return pickups; }, get bullets(){ return bullets; }, spawnAmmoBatch, spawnArmorOnce: ()=> pickups.push({ x: randRange(12,WORLD_W-12), y: randRange(12,WORLD_H-12), type:'armor', amount:1 }) };
+
+/* ====== beforeunload cleanup ====== */
+window.addEventListener('beforeunload', ()=>{ if(armorIntervalId) clearInterval(armorIntervalId); if(reinforceIntervalId) clearInterval(reinforceIntervalId); });
+
+</script>
+</body>
+</html>
