@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
+<title>Крестики-нолики — компакт • 3 фишки (offline)</title>
+<meta name="theme-color" content="#0f1317">
+<style>
+:root{
+  --bg:#0b0f14;
+  --panel:#0f1720;
+  --muted:#9aa3b2;
+  --accent-x:#45d7b3;
+  --accent-o:#7ba8ff;
+  --glass: rgba(255,255,255,.03);
+  --radius:12px;
+  --slot-size:18px;
+  --gap:10px;
+  --board-max:420px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0;background:linear-gradient(180deg,#071017,#0b1217);color:#eaf0f6;font-family:Inter,system-ui,Segoe UI,Roboto,"Noto Sans",Arial,sans-serif}
+a{color:inherit;text-decoration:none}
+.app{max-width:720px;margin:0 auto;padding:14px;min-height:100%;display:flex;flex-direction:column;gap:12px}
+.header{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.back{background:transparent;border:1px solid rgba(255,255,255,.04);padding:8px 10px;border-radius:10px;color:var(--muted)}
+.title{flex:1;text-align:center;font-weight:700}
+.title small{display:block;font-weight:500;color:var(--muted);font-size:12px}
+
+/* Main card */
+.card{background:linear-gradient(180deg,var(--panel),#071018);border-radius:14px;padding:10px;border:1px solid rgba(255,255,255,.03);box-shadow:0 6px 24px rgba(0,0,0,.45)}
+.row{display:flex;align-items:center;gap:10px}
+.statusRow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 2px}
+.turn{font-weight:700}
+.controls{display:flex;gap:8px;align-items:center}
+.btn{background:transparent;border:1px solid rgba(255,255,255,.04);padding:8px 10px;border-radius:10px;font-weight:600;color:#eaf0f6}
+.toggle{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+.toggle input{width:38px;height:22px;border-radius:999px;appearance:none;background:#1a2230;position:relative;border:1px solid rgba(255,255,255,.04)}
+.toggle input::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left .18s}
+.toggle input:checked{background:#23483a}
+.toggle input:checked::after{left:18px}
+
+/* Board centered and responsive */
+.mainArea{display:flex;flex-direction:column;align-items:center;gap:12px}
+.board{
+  width: min(92vw, var(--board-max));
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:var(--gap);
+  margin:0 auto;
+}
+.cell{
+  aspect-ratio:1/1;
+  border-radius:12px;
+  background:linear-gradient(180deg, rgba(255,255,255,.02), rgba(0,0,0,.12));
+  display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;border:1px solid rgba(255,255,255,.03)
+}
+.cell button{all:unset;position:absolute;inset:0;cursor:pointer}
+.mark{font-size:clamp(34px,10vw,64px);font-weight:800;opacity:0;transform:scale(.95);transition:opacity .14s, transform .14s}
+.cell.filled .mark{opacity:1;transform:scale(1)}
+.mark.X{color:var(--accent-x)}
+.mark.O{color:var(--accent-o)}
+
+/* WIN highlight — subtle glow on winning cells (removed yellow stripe) */
+.cell.winCell{
+  transform:scale(1.02);
+  box-shadow:
+    0 8px 26px rgba(0,0,0,.55),
+    0 0 30px 6px rgba(69,215,179,0.10),
+    inset 0 1px 0 rgba(255,255,255,.02);
+  transition: box-shadow .18s, transform .12s;
+}
+
+/* Players area — компактная, переносится при маленькой ширине */
+.players{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  width:100%;
+  align-items:flex-start;
+  justify-content:space-between;
+}
+.player{
+  display:flex;
+  gap:8px;
+  align-items:center;
+  background:var(--glass);
+  border-radius:10px;
+  padding:8px;
+  min-width:0;
+  flex:1 1 44%;
+  border:1px solid rgba(255,255,255,.03);
+}
+.player .head{display:flex;flex-direction:column;gap:4px;min-width:0}
+.player .name{font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.player .count{font-size:12px;color:var(--muted)}
+.slots{display:flex;gap:6px;align-items:center}
+.slot{
+  width:var(--slot-size);height:var(--slot-size);border-radius:5px;border:1px dashed rgba(255,255,255,.08);display:grid;place-items:center;background:rgba(255,255,255,.015)
+}
+.slot.filled{border-style:solid}
+.slot .mini{font-weight:900;font-size:11px;line-height:1}
+.slot.nextOut{outline:2px dashed rgba(255,255,255,.06);outline-offset:2px}
+
+/* highlight current */
+.player.current{outline:2px solid rgba(124,200,175,.12);box-shadow:inset 0 1px 0 rgba(255,255,255,.02)}
+.kbd{font-family:ui-monospace,SFMono-Regular,Consolas,Monaco,monospace;font-size:12px;background:rgba(0,0,0,.2);padding:3px 6px;border-radius:6px;color:var(--muted)}
+
+/* toast & small indicators */
+.toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%) translateY(12px);background:#081018;padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.04);opacity:0;transition:opacity .16s, transform .18s;color:#eaf0f6}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.net{font-size:12px;color:var(--muted);display:flex;gap:8px;align-items:center}
+
+/* Footer */
+footer{font-size:12px;color:var(--muted);text-align:center;padding-bottom:6px}
+
+/* Small screens: stack players under board full width */
+@media (max-width:420px){
+  .player{flex:1 1 100%}
+  .controls{flex-wrap:wrap;justify-content:flex-end}
+}
+</style>
+</head>
+<body>
+  <div class="app">
+    <div class="header">
+      <a class="back" href="glist.html">← Назад</a>
+      <div class="title">
+        Крестики-нолики — компакт<br><small>максимум 3 фишки у каждого • offline</small>
+      </div>
+      <div style="width:62px"></div>
+    </div>
+
+    <div class="card">
+      <div class="statusRow">
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <div class="turn">Ход: <span id="turnWho">X</span></div>
+          <div class="net" id="netState">Сеть: <span id="netLabel">—</span></div>
+        </div>
+        <div class="controls">
+          <label class="toggle" title="Вибро">
+            <input id="vibrateToggle" type="checkbox" checked>
+          </label>
+          <button class="btn" id="swapBtn">Первым: <span id="firstWho">X</span></button>
+          <button class="btn" id="resetBtn">Новая</button>
+          <!-- сервис-воркер скачиваем по желанию -->
+          <button class="btn" id="downloadSwBtn" title="Скачать файл service worker (опция)">Скачать SW</button>
+        </div>
+      </div>
+
+      <div class="mainArea">
+        <div class="board" id="board" aria-label="Игровое поле"></div>
+
+        <div class="players" id="players">
+          <div class="player" id="playerX">
+            <div class="head">
+              <div class="name">Игрок X</div>
+              <div class="count"><span class="kbd">Счёт: <span id="scoreX">0</span></span></div>
+            </div>
+            <div class="slots" id="slotsX" aria-hidden="false"></div>
+          </div>
+
+          <div class="player" id="playerO">
+            <div class="head">
+              <div class="name">Игрок O</div>
+              <div class="count"><span class="kbd">Счёт: <span id="scoreO">0</span></span></div>
+            </div>
+            <div class="slots" id="slotsO" aria-hidden="false"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer>4-я фишка => самая старая исчезает. Файл — самодостаточный, работает оффлайн.</footer>
+  </div>
+
+  <div class="toast" id="toast">Этот слот занят</div>
+
+<script>
+(() => {
+  // DOM
+  const boardEl = document.getElementById('board');
+  const turnWhoEl = document.getElementById('turnWho');
+  const firstWhoEl = document.getElementById('firstWho');
+  const resetBtn = document.getElementById('resetBtn');
+  const swapBtn = document.getElementById('swapBtn');
+  const vibrateToggle = document.getElementById('vibrateToggle');
+  const toastEl = document.getElementById('toast');
+  const slotsX = document.getElementById('slotsX');
+  const slotsO = document.getElementById('slotsO');
+  const scoreXEl = document.getElementById('scoreX');
+  const scoreOEl = document.getElementById('scoreO');
+  const playerXCard = document.getElementById('playerX');
+  const playerOCard = document.getElementById('playerO');
+  const netLabel = document.getElementById('netLabel');
+  const downloadSwBtn = document.getElementById('downloadSwBtn');
+
+  const LINES = [
+    [0,1,2],[3,4,5],[6,7,8],
+    [0,3,6],[1,4,7],[2,5,8],
+    [0,4,8],[2,4,6]
+  ];
+
+  const state = {
+    board: Array(9).fill(null),
+    queues: { X: [], O: [] },
+    current: 'X',
+    first: 'X',
+    playing: true,
+    scores: { X:0, O:0 },
+    audioCtx: null
+  };
+
+  // build board
+  function buildBoard(){
+    boardEl.innerHTML = '';
+    for(let i=0;i<9;i++){
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.dataset.idx = i;
+      const mark = document.createElement('div');
+      mark.className = 'mark';
+      cell.appendChild(mark);
+      const btn = document.createElement('button');
+      btn.addEventListener('click', onCellClick, {passive:true});
+      cell.appendChild(btn);
+      boardEl.appendChild(cell);
+    }
+    render();
+  }
+
+  function render(){
+    // cells
+    boardEl.querySelectorAll('.cell').forEach((cell, idx)=>{
+      const v = state.board[idx];
+      const mark = cell.querySelector('.mark');
+      if(v){
+        cell.classList.add('filled');
+        mark.textContent = v;
+        mark.className = 'mark ' + v;
+      } else {
+        cell.classList.remove('filled');
+        mark.textContent = '';
+        mark.className = 'mark';
+      }
+    });
+    // turn & first
+    turnWhoEl.textContent = state.current;
+    firstWhoEl.textContent = state.first;
+    // scores
+    scoreXEl.textContent = state.scores.X;
+    scoreOEl.textContent = state.scores.O;
+    // queues
+    renderQueues();
+    updateNetworkState();
+  }
+
+  function renderQueues(){
+    slotsX.innerHTML = '';
+    slotsO.innerHTML = '';
+    for(let i=0;i<3;i++){
+      const sX = document.createElement('div'); sX.className='slot';
+      if(state.queues.X[i]!==undefined){ sX.classList.add('filled'); const m=document.createElement('div'); m.className='mini X'; m.textContent='X'; sX.appendChild(m); }
+      if(i===0 && state.queues.X.length===3) sX.classList.add('nextOut');
+      slotsX.appendChild(sX);
+
+      const sO = document.createElement('div'); sO.className='slot';
+      if(state.queues.O[i]!==undefined){ sO.classList.add('filled'); const m=document.createElement('div'); m.className='mini O'; m.textContent='O'; sO.appendChild(m); }
+      if(i===0 && state.queues.O.length===3) sO.classList.add('nextOut');
+      slotsO.appendChild(sO);
+    }
+    // highlight current
+    if(state.current==='X'){ playerXCard.classList.add('current'); playerOCard.classList.remove('current'); }
+    else { playerOCard.classList.add('current'); playerXCard.classList.remove('current'); }
+  }
+
+  // click handler
+  function onCellClick(e){
+    if(!state.playing) return;
+    const idx = Number(e.currentTarget.parentElement.dataset.idx);
+    if(state.board[idx]){
+      showToast('Клетка занята'); blip(220,60); vibe(12); flash(idx);
+      return;
+    }
+    place(idx, state.current);
+    const win = checkWin();
+    if(win){
+      finishWin(win, state.current);
+      return;
+    }
+    next();
+  }
+
+  function place(idx, who){
+    state.board[idx] = who;
+    state.queues[who].push(idx);
+    blip(who==='X'?760:520, 70);
+    vibe(12);
+    if(state.queues[who].length>3){
+      const old = state.queues[who].shift();
+      state.board[old] = null;
+      animateRemoval(old);
+    }
+    render();
+  }
+
+  function animateRemoval(idx){
+    const c = boardEl.children[idx];
+    if(!c) return;
+    c.classList.add('removeFlash');
+    setTimeout(()=>c.classList.remove('removeFlash'), 320);
+  }
+
+  function checkWin(){
+    for(const line of LINES){
+      const [a,b,c] = line;
+      if(state.board[a] && state.board[a]===state.board[b] && state.board[a]===state.board[c]) return line;
+    }
+    return null;
+  }
+
+  function finishWin(line, who){
+    state.playing=false;
+    state.scores[who]++;
+    highlightWinningCells(line);
+    render();
+    blip(880,120); setTimeout(()=>blip(660,120),120);
+    vibe([40,40,40]);
+    showToast(`Победа: ${who}`);
+    save();
+  }
+
+  function highlightWinningCells(line){
+    clearWinHighlight();
+    line.forEach(i=>{
+      const c = boardEl.children[i];
+      if(c) c.classList.add('winCell');
+    });
+  }
+  function clearWinHighlight(){
+    boardEl.querySelectorAll('.cell.winCell').forEach(n=>n.classList.remove('winCell'));
+  }
+
+  function next(){ state.current = state.current==='X'?'O':'X'; render(); }
+
+  // controls
+  resetBtn.addEventListener('click', ()=>newRound(true));
+  swapBtn.addEventListener('click', ()=>{
+    state.first = state.first==='X'?'O':'X';
+    state.current = state.first;
+    save();
+    newRound(true);
+  });
+
+  function newRound(keepScore=true){
+    state.board = Array(9).fill(null);
+    state.queues = { X:[], O:[] };
+    state.current = state.first;
+    state.playing = true;
+    clearWinHighlight();
+    if(!keepScore) state.scores = { X:0, O:0 };
+    render();
+    showToast('Новая партия');
+  }
+
+  // visual helpers
+  function flash(idx){
+    const c = boardEl.children[idx];
+    c.classList.add('removeFlash');
+    setTimeout(()=>c.classList.remove('removeFlash'),300);
+  }
+
+  // toast
+  function showToast(text){
+    toastEl.textContent = text;
+    toastEl.classList.add('show');
+    clearTimeout(showToast.tid);
+    showToast.tid = setTimeout(()=>toastEl.classList.remove('show'),1200);
+  }
+
+  // audio & vibrate
+  function ensureAudio(){ if(!state.audioCtx){ try{ state.audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ state.audioCtx = null; } } }
+  function blip(freq=600,dur=70){
+    ensureAudio(); if(!state.audioCtx) return;
+    const now = state.audioCtx.currentTime;
+    const o = state.audioCtx.createOscillator();
+    const g = state.audioCtx.createGain();
+    o.frequency.value = freq; o.type = 'sine';
+    g.gain.setValueAtTime(0.001, now);
+    g.gain.exponentialRampToValueAtTime(0.12, now+0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + dur/1000);
+    o.connect(g).connect(state.audioCtx.destination);
+    o.start(now); o.stop(now + dur/1000 + 0.02);
+  }
+  function vibe(pattern){
+    if(!vibrateToggle.checked) return;
+    if(navigator.vibrate) navigator.vibrate(pattern);
+  }
+
+  // persistence
+  const KEY = 'xo3_compact_offline_v1';
+  function save(){
+    try{
+      const p = { first: state.first, scores: state.scores, vibrate: vibrateToggle.checked };
+      localStorage.setItem(KEY, JSON.stringify(p));
+    }catch(e){}
+  }
+  function load(){
+    try{
+      const raw = JSON.parse(localStorage.getItem(KEY));
+      if(!raw) return;
+      if(raw.first) state.first = raw.first;
+      if(raw.scores) state.scores = raw.scores;
+      if(typeof raw.vibrate === 'boolean') vibrateToggle.checked = raw.vibrate;
+      state.current = state.first;
+    }catch(e){}
+  }
+
+  // network indicator & optional SW registration/download
+  function updateNetworkState(){
+    netLabel.textContent = navigator.onLine ? 'online' : 'offline';
+  }
+  window.addEventListener('online', updateNetworkState);
+  window.addEventListener('offline', updateNetworkState);
+
+  // Offer to download service worker file (user can save it next to HTML and register when serving via HTTPS)
+  const swCode = `// Simple Service Worker for xo3 (cache static app shell)
+const CACHE_NAME = 'xo3-shell-v1';
+const ASSETS = [
+  '/', // root (if hosted)
+  '/xo3_compact_offline.html'
+];
+// On install — cache (adjust paths if you host differently)
+self.addEventListener('install', e => {
+  self.skipWaiting();
+  e.waitUntil(
+    caches.open(CACHE_NAME).then(c => c.addAll(ASSETS)).catch(()=>{})
+  );
+});
+self.addEventListener('activate', e => { e.waitUntil(self.clients.claim()); });
+self.addEventListener('fetch', e => {
+  e.respondWith(
+    caches.match(e.request).then(r => r || fetch(e.request)).catch(()=>fetch(e.request))
+  );
+});`;
+
+  downloadSwBtn.addEventListener('click', ()=>{
+    // generate file for user to save (they must put it next to html and register it on HTTPS/localhost)
+    const blob = new Blob([swCode], {type:'text/javascript'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'xo3-sw.js';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    showToast('Скачано: xo3-sw.js — поместите рядом с HTML и регистрируйте при HTTPS/localhost');
+  });
+
+  // Optionally try register if page is served via http(s) and SW available
+  function tryRegisterSW(){
+    if('serviceWorker' in navigator){
+      // we don't auto-generate the file on the server; if you placed xo3-sw.js next to HTML, this will register
+      navigator.serviceWorker.register('./xo3-sw.js').then(()=> {
+        console.log('SW registered (./xo3-sw.js)');
+      }).catch(err=>{
+        // fail silently — most likely file isn't present or we're in file:// context
+        console.log('SW registration failed:', err && err.message);
+      });
+    }
+  }
+
+  // init
+  function init(){
+    load();
+    buildBoard();
+    newRound(true);
+    updateNetworkState();
+    // try register (will silently fail on file:// or if sw missing)
+    tryRegisterSW();
+    // save on hide
+    window.addEventListener('pagehide', save);
+    window.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') save(); });
+    // small easter: double tap title toggles subtle neo style
+    document.querySelector('.title').addEventListener('click', (ev)=>{
+      const now = Date.now();
+      if(!init._last) init._last = now;
+      if(now - init._last < 340){
+        document.body.classList.toggle('neo');
+        showToast(document.body.classList.contains('neo') ? 'Neo: ON' : 'Neo: OFF');
+      }
+      init._last = now;
+    });
+  }
+
+  init();
+
+  // debug helper
+  window.__xo3_offline_reset = ()=>{ localStorage.removeItem(KEY); location.reload(); };
+
+})();
+</script>
+</body>
+                                                                  </html>
+                                                                  
