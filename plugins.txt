@@ -111,3 +111,10 @@ description: Битва в стиле "все против всех". Вам д�
 code_url: https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/WW1game.html
 icon_url: https://i.postimg.cc/TPtdHTWb/1000066452.jpg
 screenshots: https://i.postimg.cc/HxbSkk4c/1000066449.jpg, https://i.postimg.cc/KzbPQrBj/1000066448.jpg
+---
+name: Крестики нолики с вылетом
+description: Как обычная игра, но старые символы исчезают. Игра. Пары. Нечего делать.
+code_url: https://vaneyn.github.io/glistnet/xo.html.html
+icon_url: https://i.postimg.cc/15MPq4hG/1000066939.jpg
+screenshots: 
+---
