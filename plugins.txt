@@ -114,7 +114,14 @@ screenshots: https://i.postimg.cc/HxbSkk4c/1000066449.jpg, https://i.postimg.cc/
 ---
 name: Крестики нолики с вылетом
 description: Как обычная игра, но старые символы исчезают. Игра. Пары. Нечего делать.
-code_url: https://vaneyn.github.io/glistnet/xo.html.html
+code_url: https://vaneyn.github.io/glistnet/xo.html
 icon_url: https://i.postimg.cc/15MPq4hG/1000066939.jpg
+screenshots: 
+---
+name: Высота - горизонт калькулятор 
+description: Позволяет узнать расстояние до горизонта при нахождении на определенной высоте.
+Теги: География, калькулятор, географ, ориентирование
+code_url: https://vaneyn.github.io/glistnet/horizonaltitude.html
+icon_url: 
 screenshots: 
 ---
