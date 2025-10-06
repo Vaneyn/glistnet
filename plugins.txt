@@ -132,7 +132,7 @@ description: Позволяет проверить устройство на к�
 500-1000 - сильно.
 2000 - айфон 10 
 6к - Неплохой ПК 
-code_url: https://vaneyn.github.io/glistnet/xo.html
-icon_url: https://i.postimg.cc/15MPq4hG/1000066939.jpg
+code_url: https://vaneyn.github.io/glistnet/testgpu.html
+icon_url: 
 screenshots: 
 ---
