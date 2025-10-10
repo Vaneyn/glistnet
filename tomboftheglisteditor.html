@@ -1,0 +1,718 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>G-list Level Editor — zoom + fixed palette</title>
+<style>
+:root{
+  --bg:#071018; --panel:#0b1720; --accent:#7be4ff; --muted:rgba(255,255,255,0.06);
+  --ui-h:56px; --pad:10px; --btn-h:44px;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--bg),#021018);color:#eafaff;font-family:Inter, Roboto, Arial, sans-serif}
+.app{display:flex;flex-direction:column;height:100%}
+.header{height:var(--ui-h);display:flex;align-items:center;gap:12px;padding:0 var(--pad);background:linear-gradient(180deg,#071922,#071018);border-bottom:1px solid rgba(255,255,255,0.02);z-index:60;position:relative}
+.h-title{font-weight:800;font-size:16px;flex:1}
+.controls{display:flex;gap:8px;align-items:center}
+.btn{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--accent);padding:8px 12px;border-radius:10px;height:var(--btn-h);display:inline-flex;align-items:center;gap:8px;cursor:pointer}
+.btn.secondary{color:#cfeffd;border-color:rgba(123,228,255,0.06)}
+.small{font-size:13px;color:rgba(255,255,255,0.7)}
+/* fixed palette bar (always visible under header) */
+.palette-bar{
+  position:fixed;
+  top:var(--ui-h);
+  left:0;
+  right:0;
+  height:68px;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:8px 14px;
+  background:linear-gradient(180deg, rgba(2,18,22,0.85), rgba(2,14,18,0.75));
+  border-bottom:1px solid rgba(255,255,255,0.02);
+  z-index:70;
+  overflow-x:auto;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+.palette{display:flex;gap:8px;align-items:center;padding-bottom:4px}
+.palette .tile{width:48px;height:48px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;font-weight:700;cursor:pointer;user-select:none;flex:0 0 auto}
+.tile.active{outline:3px solid rgba(123,228,255,0.12);box-shadow:0 6px 20px rgba(0,0,0,0.6)}
+.main{display:flex;flex:1;gap:12px;padding:12px;padding-top:92px; /* leave space for header + palette */ }
+.left{flex:1;min-width:220px;background:linear-gradient(180deg,#04161a,#031018);border-radius:12px;padding:12px;box-shadow:0 8px 30px rgba(0,0,0,0.5);display:flex;flex-direction:column;overflow:auto}
+.right{width:340px;min-width:260px;background:linear-gradient(180deg,#04121a,#021018);border-radius:12px;padding:12px;box-shadow:0 8px 30px rgba(0,0,0,0.5);display:flex;flex-direction:column;gap:10px;align-self:flex-start}
+.canvas-wrap{flex:1;border-radius:10px;background:linear-gradient(180deg,#031b20,#021015);display:flex;align-items:center;justify-content:center;padding:8px;overflow:hidden;position:relative}
+.canvas-viewport{ /* viewport that clips canvas and holds pan/zoom transforms */
+  width:100%;
+  height:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+  touch-action: none;
+  position:relative;
+}
+canvas.editor{background:linear-gradient(180deg,#06161a,#041014);border-radius:6px;display:block;transform-origin:0 0;will-change:transform}
+.info{font-size:13px;color:var(--muted);padding:8px;border-radius:8px;background:rgba(255,255,255,0.02)}
+.row{display:flex;gap:8px;align-items:center}
+.input, textarea{background:transparent;border:1px solid rgba(255,255,255,0.04);color:#eafaff;padding:8px;border-radius:8px}
+.input[type="number"]{width:80px}
+.tools{display:flex;flex-direction:column;gap:8px}
+.footer{display:flex;gap:8px;align-items:center;justify-content:flex-end}
+.small-muted{font-size:12px;color:rgba(255,255,255,0.45)}
+.icon{opacity:0.9}
+@media (max-width:900px){
+  .main{flex-direction:column;padding-top:120px}
+  .right{width:100%}
+  .palette .tile{width:44px;height:44px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="h-title">G-list — Level Editor (zoom + fixed palette)</div>
+    <div class="controls">
+      <button class="btn" id="newBtn">Новый</button>
+      <button class="btn" id="importBtn">Импорт JSON</button>
+      <button class="btn secondary" id="exportBtn">Экспорт в поле (JSON)</button>
+    </div>
+  </div>
+
+  <!-- Палитра — закреплённая панель под шапкой -->
+  <div class="palette-bar" id="paletteBar" aria-hidden="false">
+    <div class="palette" id="palette"></div>
+    <div style="flex:1"></div>
+    <div style="color:var(--muted);font-size:13px;padding-right:12px">Пинч/колёсико+Ctrl — масштаб, тач/два пальца — пан</div>
+  </div>
+
+  <div class="main">
+    <div class="left">
+      <div class="row" style="gap:12px;margin-bottom:8px;align-items:flex-end">
+        <div style="display:flex;gap:8px;flex-direction:column">
+          <label class="small-muted">Колонки</label>
+          <input id="cols" class="input" type="number" min="5" max="120" value="11">
+        </div>
+        <div style="display:flex;gap:8px;flex-direction:column">
+          <label class="small-muted">Строки</label>
+          <input id="rows" class="input" type="number" min="5" max="80" value="8">
+        </div>
+        <div style="display:flex;gap:8px;flex-direction:column">
+          <label class="small-muted">Размер клетки (px)</label>
+          <input id="tileSize" class="input" type="number" min="16" max="64" value="40">
+        </div>
+        <div style="flex:1"></div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end">
+          <label class="small-muted">Инструмент</label>
+          <div class="small" id="toolLabel">Кисть</div>
+        </div>
+      </div>
+
+      <div class="canvas-wrap">
+        <div class="canvas-viewport" id="viewport">
+          <canvas id="editorCanvas" class="editor"></canvas>
+        </div>
+      </div>
+
+      <div style="margin-top:8px;display:flex;gap:8px;align-items:center;justify-content:space-between">
+        <div class="small-muted">Клик/тап — нарисовать, перетаскивание — рисовать по клеткам. ПК: пробел — ластик.</div>
+        <div class="small-muted" id="statusInfo">Игрок: нет • Выход: нет</div>
+      </div>
+    </div>
+
+    <div class="right">
+      <div class="info">
+        <div style="font-weight:800;margin-bottom:6px">Палитра тайлов</div>
+        <div class="small-muted" style="margin-top:6px">Тайлы: пусто (.), стена #, игрок P (только 1), выход E, шип S, стрелялки ^ > v <</div>
+      </div>
+
+      <div class="tools">
+        <div class="row">
+          <button class="btn" id="eraseBtn">Стереть</button>
+          <button class="btn" id="fillBtn">Заполнить стеной</button>
+          <button class="btn" id="clearBtn">Очистить</button>
+        </div>
+        <div class="row">
+          <button class="btn" id="mirrorX">Зеркало X</button>
+          <button class="btn" id="mirrorY">Зеркало Y</button>
+          <button class="btn" id="randomBtn">Случайно</button>
+        </div>
+
+        <div class="info">
+          <div style="font-weight:700">JSON (импорт/экспорт)</div>
+          <div class="small-muted" style="margin-top:6px">Экспорт — только в поле ниже. Никаких скачиваний.</div>
+          <textarea id="jsonArea" placeholder='{"name":"My","map":["#####","..."]}' style="height:120px"></textarea>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <input id="levelName" class="input" placeholder="Название уровня (при экспорте)" />
+          <div style="display:flex;gap:8px">
+            <button class="btn secondary" id="applyJsonBtn">Загрузить из поля</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="flex:1"></div>
+
+      <div class="footer">
+        <div class="small-muted">Лёгкий редактор — никаких лишних операций.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* Editor with zoom & fixed palette
+   - Pinch-to-zoom (mobile) and wheel+Ctrl (desktop) for zoom
+   - Two-finger drag (or wheel without Ctrl) pans canvas
+   - Palette fixed at top (palette-bar)
+   - Accurate cell hit using boundingClientRect and scaling
+   - Only export to JSON text area (no downloads)
+*/
+
+(() => {
+  // DOM
+  const canvas = document.getElementById('editorCanvas');
+  const viewport = document.getElementById('viewport');
+  const ctx = canvas.getContext('2d');
+  const colsInput = document.getElementById('cols');
+  const rowsInput = document.getElementById('rows');
+  const tileSizeInput = document.getElementById('tileSize');
+  const statusInfo = document.getElementById('statusInfo');
+  const jsonArea = document.getElementById('jsonArea');
+  const levelNameInput = document.getElementById('levelName');
+
+  const eraseBtn = document.getElementById('eraseBtn');
+  const fillBtn = document.getElementById('fillBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const mirrorXBtn = document.getElementById('mirrorX');
+  const mirrorYBtn = document.getElementById('mirrorY');
+  const randomBtn = document.getElementById('randomBtn');
+  const importBtn = document.getElementById('importBtn');
+  const newBtn = document.getElementById('newBtn');
+  const exportBtn = document.getElementById('exportBtn');
+  const applyJsonBtn = document.getElementById('applyJsonBtn');
+
+  const paletteWrap = document.getElementById('palette');
+
+  // tile set
+  const TILESET = [
+    {k:'.', label:'Пусто', color:'#09121a'},
+    {k:'#', label:'Стена #', color:'#25323a'},
+    {k:'P', label:'Игрок P', color:'#7be4ff'},
+    {k:'E', label:'Выход E', color:'#bfffb0'},
+    {k:'S', label:'Шип S', color:'#ff6b6b'},
+    {k:'^', label:'Стрелялка ↑', color:'#19333f'},
+    {k:'>', label:'Стрелялка →', color:'#19333f'},
+    {k:'v', label:'Стрелялка ↓', color:'#19333f'},
+    {k:'<', label:'Стрелялка ←', color:'#19333f'}
+  ];
+
+  // state
+  let cols = parseInt(colsInput.value,10) || 11;
+  let rows = parseInt(rowsInput.value,10) || 8;
+  let tileSize = parseInt(tileSizeInput.value,10) || 40;
+  let grid = [];
+  let currentTile = '#';
+  let drawing = false;
+  let activePointerId = null;
+  let lastPaint = null;
+  let playerPos = null;
+  let exitPos = null;
+
+  // view transform
+  let scale = 1.0;
+  let panX = 0; // in CSS pixels
+  let panY = 0;
+  const SCALE_MIN = 0.5, SCALE_MAX = 4.0;
+
+  // pinch state
+  const pointers = new Map(); // id -> {x,y}
+  let pinchStart = null; // {dist, midX, midY, scaleStart, panXStart, panYStart}
+
+  // helpers
+  function makeGrid(c, r){
+    const g = new Array(r);
+    for(let y=0;y<r;y++) g[y] = new Array(c).fill('.');
+    return g;
+  }
+  function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+
+  // canvas sizing (DPR-aware)
+  function syncCanvasSize(){
+    const DPR = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
+    const cssW = cols * tileSize;
+    const cssH = rows * tileSize;
+    canvas.style.width = cssW + 'px';
+    canvas.style.height = cssH + 'px';
+    canvas.width = Math.round(cssW * DPR);
+    canvas.height = Math.round(cssH * DPR);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    updateCanvasTransform();
+  }
+
+  function updateCanvasTransform(){
+    // apply transform: translate then scale; transform-origin set to 0 0 in CSS
+    canvas.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+  }
+
+  function findTile(tile){
+    for(let y=0;y<rows;y++) for(let x=0;x<cols;x++) if(grid[y][x] === tile) return {x,y};
+    return null;
+  }
+
+  function setTile(x,y,t){
+    if(x<0||y<0||x>=cols||y>=rows) return;
+    const prev = grid[y][x];
+    if(t === 'P'){
+      if(playerPos && !(playerPos.x === x && playerPos.y === y)) grid[playerPos.y][playerPos.x] = '.';
+      playerPos = {x,y};
+    } else if(prev === 'P'){
+      playerPos = null;
+    }
+    if(t === 'E'){
+      if(exitPos && !(exitPos.x === x && exitPos.y === y)) grid[exitPos.y][exitPos.x] = '.';
+      exitPos = {x,y};
+    } else if(prev === 'E'){
+      exitPos = null;
+    }
+    grid[y][x] = t;
+  }
+
+  function render(){
+    // clear using CSS pixel coords (because transform is handled separately)
+    ctx.clearRect(0,0,cols*tileSize, rows*tileSize);
+    for(let y=0;y<rows;y++){
+      for(let x=0;x<cols;x++){
+        const px = x * tileSize;
+        const py = y * tileSize;
+        ctx.fillStyle = ((x+y)%2===0) ? '#041214' : '#031215';
+        ctx.fillRect(px,py,tileSize,tileSize);
+        const ch = grid[y][x];
+        drawTileAt(ch, px, py);
+        ctx.strokeStyle = 'rgba(255,255,255,0.02)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(px+0.5, py+0.5, tileSize-1, tileSize-1);
+      }
+    }
+  }
+
+  function drawTileAt(ch, px, py){
+    const pad = Math.max(2, Math.floor(tileSize*0.08));
+    if(ch === '.') return;
+    if(ch === '#'){
+      ctx.fillStyle = '#26343a'; roundRect(ctx, px+pad, py+pad, tileSize-pad*2, tileSize-pad*2, Math.max(2,tileSize*0.08)); ctx.fill();
+    } else if(ch === 'P'){
+      ctx.fillStyle = '#7be4ff'; roundRect(ctx, px+pad, py+pad, tileSize-pad*2, tileSize-pad*2, Math.max(2,tileSize*0.12)); ctx.fill();
+    } else if(ch === 'E'){
+      ctx.fillStyle = '#bfffb0'; roundRect(ctx, px+pad, py+pad, tileSize-pad*2, tileSize-pad*2, Math.max(2,tileSize*0.12)); ctx.fill();
+    } else if(ch === 'S'){
+      ctx.fillStyle = '#1d262a'; ctx.fillRect(px+pad,py+pad,tileSize-pad*2,tileSize-pad*2);
+      ctx.fillStyle = '#ff6b6b';
+      const base = py + tileSize - pad*1.5;
+      for(let i=0;i<3;i++){
+        ctx.beginPath();
+        const ix = px + pad + 6 + i*(tileSize-12)/2;
+        ctx.moveTo(ix, base);
+        ctx.lineTo(ix + (tileSize-16)/4, base - Math.max(8, tileSize*0.25));
+        ctx.lineTo(ix + (tileSize-16)/2, base);
+        ctx.closePath(); ctx.fill();
+      }
+    } else if("^>v<".includes(ch)){
+      ctx.fillStyle = '#19333f'; roundRect(ctx, px+pad, py+pad, tileSize-pad*2, tileSize-pad*2, Math.max(2,tileSize*0.12)); ctx.fill();
+      ctx.fillStyle = '#ffd';
+      const cx = px + tileSize/2, cy = py + tileSize/2;
+      let ox = 0, oy = 0;
+      if(ch === '^') oy = -tileSize*0.18;
+      if(ch === 'v') oy = tileSize*0.18;
+      if(ch === '>') ox = tileSize*0.18;
+      if(ch === '<') ox = -tileSize*0.18;
+      ctx.beginPath(); ctx.arc(cx - ox*0.2, cy - oy*0.2, Math.max(2, tileSize*0.07), 0, Math.PI*2); ctx.fill();
+    }
+  }
+  function roundRect(ctx, x, y, w, h, r){
+    ctx.beginPath();
+    const radius = Math.max(0, Math.min(r, w/2, h/2));
+    ctx.moveTo(x+radius, y);
+    ctx.arcTo(x+w, y, x+w, y+h, radius);
+    ctx.arcTo(x+w, y+h, x, y+h, radius);
+    ctx.arcTo(x, y+h, x, y, radius);
+    ctx.arcTo(x, y, x+w, y, radius);
+    ctx.closePath();
+  }
+
+  // map client coords -> cell taking into account transform (pan&scale)
+  function clientToCell(clientX, clientY){
+    const rect = canvas.getBoundingClientRect();
+    // position relative to transformed canvas = client - rect.left/top
+    const relX = clientX - rect.left;
+    const relY = clientY - rect.top;
+    if(relX < 0 || relY < 0 || relX > rect.width || relY > rect.height) return null;
+    // logical (CSS) coordinates = rel / scale
+    const logicalX = relX / scale;
+    const logicalY = relY / scale;
+    const cellW = rect.width / scale / cols; // equals tileSize
+    const cellH = rect.height / scale / rows;
+    const x = Math.floor(logicalX / tileSize);
+    const y = Math.floor(logicalY / tileSize);
+    return {x,y};
+  }
+
+  function paintAtClient(clientX, clientY, tile){
+    const c = clientToCell(clientX, clientY);
+    if(!c) return;
+    if(c.x < 0 || c.y < 0 || c.x >= cols || c.y >= rows) return;
+    if(lastPaint && lastPaint.x === c.x && lastPaint.y === c.y) return;
+    lastPaint = c;
+    setTile(c.x, c.y, tile);
+    render();
+    updateStatus();
+  }
+
+  // pointer/pinch/paint logic
+  canvas.style.touchAction = 'none';
+  // pointerdown: add pointer; if multi pointers => start pinch; if single => painting
+  viewport.addEventListener('pointerdown', (e) => {
+    viewport.setPointerCapture(e.pointerId);
+    pointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
+    if(pointers.size >= 2){
+      // start pinch gesture
+      const pts = Array.from(pointers.values());
+      const p0 = pts[0], p1 = pts[1];
+      const dx = p1.x - p0.x, dy = p1.y - p0.y;
+      const dist = Math.hypot(dx, dy);
+      const midX = (p0.x + p1.x) / 2;
+      const midY = (p0.y + p1.y) / 2;
+      pinchStart = {dist, midX, midY, scaleStart: scale, panXStart: panX, panYStart: panY};
+      drawing = false; activePointerId = null; lastPaint = null;
+    } else {
+      // single pointer -> start painting if on canvas
+      const hit = clientToCell(e.clientX, e.clientY);
+      if(hit){
+        drawing = true;
+        activePointerId = e.pointerId;
+        lastPaint = null;
+        const tile = (currentTile === 'ERASE') ? '.' : currentTile;
+        paintAtClient(e.clientX, e.clientY, tile);
+      } else {
+        drawing = false;
+      }
+    }
+  });
+
+  viewport.addEventListener('pointermove', (e) => {
+    if(pinchStart && pointers.has(e.pointerId)){
+      // update stored pointer and compute pinch
+      pointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
+      const pts = Array.from(pointers.values());
+      if(pts.length < 2) return;
+      const p0 = pts[0], p1 = pts[1];
+      const dx = p1.x - p0.x, dy = p1.y - p0.y;
+      const dist = Math.hypot(dx, dy);
+      const midX = (p0.x + p1.x) / 2;
+      const midY = (p0.y + p1.y) / 2;
+      // new scale
+      let newScale = pinchStart.scaleStart * (dist / pinchStart.dist);
+      newScale = clamp(newScale, SCALE_MIN, SCALE_MAX);
+      // compute logical coordinate of midpoint before scaling
+      const rect = canvas.getBoundingClientRect();
+      const relMidX = pinchStart.midX - rect.left;
+      const relMidY = pinchStart.midY - rect.top;
+      // logical coords relative to transformed canvas:
+      const logicalX = (relMidX / pinchStart.scaleStart) ;
+      const logicalY = (relMidY / pinchStart.scaleStart) ;
+      // compute new pan to keep midpoint stable:
+      // newPan = clientMidRel - logical * newScale
+      const newPanX = (midX - rect.left) - logicalX * newScale;
+      const newPanY = (midY - rect.top) - logicalY * newScale;
+      // apply
+      scale = newScale;
+      panX = newPanX;
+      panY = newPanY;
+      updateCanvasTransform();
+      return;
+    }
+
+    if(drawing && e.pointerId === activePointerId){
+      const tile = (currentTile === 'ERASE') ? '.' : currentTile;
+      paintAtClient(e.clientX, e.clientY, tile);
+      return;
+    }
+
+    // If one pointer but not drawing and pointer captured => this can be used for panning (drag)
+    if(pointers.size === 1 && !drawing && activePointerId === null && pointers.has(e.pointerId)){
+      // treat as pan with one finger when not painting
+      const prev = pointers.get(e.pointerId);
+      if(prev){
+        const dx = e.clientX - prev.x;
+        const dy = e.clientY - prev.y;
+        panX += dx;
+        panY += dy;
+        pointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
+        updateCanvasTransform();
+      }
+    }
+
+    // update pointer position if we are tracking
+    if(pointers.has(e.pointerId)) pointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
+  });
+
+  viewport.addEventListener('pointerup', (e) => {
+    viewport.releasePointerCapture(e.pointerId);
+    pointers.delete(e.pointerId);
+    if(pinchStart && pointers.size < 2){
+      pinchStart = null;
+    }
+    if(e.pointerId === activePointerId){
+      drawing = false; activePointerId = null; lastPaint = null;
+    }
+  });
+  viewport.addEventListener('pointercancel', (e) => {
+    viewport.releasePointerCapture(e.pointerId);
+    pointers.delete(e.pointerId);
+    drawing = false; activePointerId = null; lastPaint = null; pinchStart = null;
+  });
+
+  // wheel: Ctrl/Meta + wheel -> zoom ; otherwise pan
+  viewport.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    if(e.ctrlKey || e.metaKey){
+      // zoom anchored to cursor
+      const delta = -e.deltaY;
+      const zoomFactor = Math.exp(delta * 0.0018); // smooth
+      const newScale = clamp(scale * zoomFactor, SCALE_MIN, SCALE_MAX);
+      // logical coordinate under cursor:
+      const relX = e.clientX - rect.left;
+      const relY = e.clientY - rect.top;
+      const logicalX = relX / scale;
+      const logicalY = relY / scale;
+      // new pan so that the same logical point stays under cursor
+      panX = (e.clientX - rect.left) - logicalX * newScale;
+      panY = (e.clientY - rect.top) - logicalY * newScale;
+      scale = newScale;
+      updateCanvasTransform();
+    } else {
+      // pan
+      panX -= e.deltaX;
+      panY -= e.deltaY;
+      updateCanvasTransform();
+    }
+  }, {passive:false});
+
+  // keyboard: space = erase while held
+  window.addEventListener('keydown', (e) => {
+    if(e.code === 'Space'){ e.preventDefault(); currentTile = 'ERASE'; showActiveInPalette(); }
+    if(e.key === '1'){ currentTile = '.'; showActiveInPalette(); }
+    if(e.key === '2'){ currentTile = '#'; showActiveInPalette(); }
+    if(e.key === '3'){ currentTile = 'P'; showActiveInPalette(); }
+    if(e.key === '4'){ currentTile = 'E'; showActiveInPalette(); }
+  });
+  window.addEventListener('keyup', (e) => {
+    if(e.code === 'Space'){ currentTile = '#'; showActiveInPalette(); }
+  });
+
+  // painting with clicks (when clicking directly on canvas area) — handled by pointer handlers above
+
+  // palette UI build
+  function buildPalette(){
+    paletteWrap.innerHTML = '';
+    TILESET.forEach(tile => {
+      const div = document.createElement('div');
+      div.className = 'tile';
+      div.dataset.key = tile.k;
+      div.title = tile.label;
+      div.style.background = 'linear-gradient(180deg,#04181a,#021013)';
+      const mark = document.createElement('div');
+      mark.textContent = tile.k;
+      mark.style.fontSize = '16px';
+      mark.style.fontWeight = '800';
+      mark.style.color = tile.color;
+      div.appendChild(mark);
+      div.addEventListener('click', () => {
+        currentTile = tile.k;
+        showActiveInPalette();
+      });
+      paletteWrap.appendChild(div);
+    });
+    // erase tile
+    const er = document.createElement('div');
+    er.className = 'tile';
+    er.title = 'Стереть (пробел)';
+    er.innerHTML = '<div style="font-size:13px;font-weight:700;color:#ffb4b4">✖</div>';
+    er.addEventListener('click', () => { currentTile = 'ERASE'; showActiveInPalette(); });
+    paletteWrap.appendChild(er);
+    showActiveInPalette();
+  }
+
+  function showActiveInPalette(){
+    Array.from(paletteWrap.children).forEach(el => {
+      const k = el.dataset.key || (el.title === 'Стереть (пробел)' ? 'ERASE' : null);
+      if(k === currentTile) el.classList.add('active'); else el.classList.remove('active');
+    });
+    document.getElementById('toolLabel').textContent = (currentTile === 'ERASE') ? 'Стереть' : `Тайл: ${currentTile}`;
+  }
+
+  // UI actions
+  clearBtn.addEventListener('click', () => {
+    grid = makeGrid(cols, rows);
+    playerPos = null; exitPos = null;
+    render(); updateStatus();
+  });
+  fillBtn.addEventListener('click', () => {
+    for(let y=0;y<rows;y++) for(let x=0;x<cols;x++) grid[y][x] = '#';
+    playerPos = null; exitPos = null;
+    render(); updateStatus();
+  });
+  eraseBtn.addEventListener('click', () => { currentTile = 'ERASE'; showActiveInPalette(); });
+
+  mirrorXBtn.addEventListener('click', () => {
+    const ng = makeGrid(cols, rows);
+    for(let y=0;y<rows;y++) for(let x=0;x<cols;x++) ng[y][x] = grid[y][cols - 1 - x];
+    grid = ng; playerPos = findTile('P'); exitPos = findTile('E'); render(); updateStatus();
+  });
+  mirrorYBtn.addEventListener('click', () => {
+    const ng = makeGrid(cols, rows);
+    for(let y=0;y<rows;y++) for(let x=0;x<cols;x++) ng[y][x] = grid[rows - 1 - y][x];
+    grid = ng; playerPos = findTile('P'); exitPos = findTile('E'); render(); updateStatus();
+  });
+  randomBtn.addEventListener('click', () => {
+    for(let y=0;y<rows;y++){
+      for(let x=0;x<cols;x++){
+        const r = Math.random();
+        grid[y][x] = (r < 0.2) ? '#' : (r < 0.23) ? 'S' : '.';
+      }
+    }
+    grid[1][1] = 'P'; grid[rows-2][cols-2] = 'E';
+    playerPos = {x:1,y:1}; exitPos = {x:cols-2,y:rows-2};
+    render(); updateStatus();
+  });
+
+  newBtn.addEventListener('click', () => {
+    const nc = clamp(parseInt(prompt('Колонки (5-120):', cols) || cols,10), 5, 120);
+    const nr = clamp(parseInt(prompt('Строки (5-80):', rows) || rows,10), 5, 80);
+    colsInput.value = nc; rowsInput.value = nr;
+    cols = nc; rows = nr;
+    grid = makeGrid(cols, rows); playerPos = null; exitPos = null; syncCanvasSize(); render(); updateStatus();
+  });
+
+  importBtn.addEventListener('click', () => {
+    const txt = prompt('Вставьте JSON уровня (формат {name,map:[...]})');
+    if(!txt) return;
+    try{ const obj = JSON.parse(txt); applyImported(obj); } catch(e){ alert('JSON некорректен'); }
+  });
+
+  applyJsonBtn.addEventListener('click', () => {
+    const txt = jsonArea.value.trim(); if(!txt) return alert('Поле пустое');
+    try{ const obj = JSON.parse(txt); applyImported(obj); } catch(e){ alert('JSON некорректен'); }
+  });
+
+  function applyImported(obj){
+    if(!obj || !Array.isArray(obj.map)) return alert('Нужен объект с полем map (массив строк)');
+    const m = obj.map; const newRows = m.length; const newCols = Math.max(...m.map(s=>s.length));
+    colsInput.value = newCols; rowsInput.value = newRows; cols = newCols; rows = newRows;
+    grid = makeGrid(cols, rows);
+    for(let y=0;y<newRows;y++){
+      const line = m[y].padEnd(cols, '.');
+      for(let x=0;x<cols;x++) grid[y][x] = line[x];
+    }
+    playerPos = findTile('P'); exitPos = findTile('E');
+    if(obj.name) levelNameInput.value = obj.name;
+    syncCanvasSize(); render(); updateStatus();
+  }
+
+  // export: ONLY put JSON string into jsonArea (no downloads/copy)
+  exportBtn.addEventListener('click', () => {
+    const name = (levelNameInput.value || '').trim();
+    if(!name){ if(!confirm('Вы не ввели имя уровня. Продолжить без имени?')) return; }
+    const payload = { name: name || 'level', map: grid.map(row => row.join('')) };
+    jsonArea.value = JSON.stringify(payload, null, 2);
+    alert('JSON сформирован в поле ниже. Никаких скачиваний нет.');
+  });
+
+  // inputs change
+  colsInput.addEventListener('change', () => {
+    const nc = clamp(parseInt(colsInput.value || cols,10), 5, 120);
+    resizeGrid(nc, rows);
+  });
+  rowsInput.addEventListener('change', () => {
+    const nr = clamp(parseInt(rowsInput.value || rows,10), 5, 80);
+    resizeGrid(cols, nr);
+  });
+  tileSizeInput.addEventListener('change', () => {
+    tileSize = clamp(parseInt(tileSizeInput.value||tileSize,10), 16, 64);
+    syncCanvasSize(); render();
+  });
+
+  function resizeGrid(newCols, newRows){
+    const ng = makeGrid(newCols, newRows);
+    for(let y=0;y<Math.min(rows,newRows); y++){
+      for(let x=0;x<Math.min(cols,newCols); x++){
+        ng[y][x] = grid[y] ? grid[y][x] : '.';
+      }
+    }
+    cols = newCols; rows = newRows; grid = ng;
+    playerPos = findTile('P');
+    exitPos = findTile('E');
+    syncCanvasSize();
+    render();
+    updateStatus();
+  }
+
+  function updateStatus(){
+    playerPos = findTile('P');
+    exitPos = findTile('E');
+    statusInfo.textContent = `Игрок: ${playerPos ? `${playerPos.x},${playerPos.y}` : 'нет'} • Выход: ${exitPos ? `${exitPos.x},${exitPos.y}` : 'нет'} • Размер ${cols}×${rows}`;
+  }
+
+  // initial
+  function init(){
+    grid = makeGrid(cols, rows);
+    syncCanvasSize();
+    buildPalette();
+    render();
+    updateStatus();
+  }
+
+  function buildPalette(){
+    paletteWrap.innerHTML = '';
+    TILESET.forEach(tile => {
+      const div = document.createElement('div');
+      div.className = 'tile';
+      div.dataset.key = tile.k;
+      div.title = tile.label;
+      div.style.background = 'linear-gradient(180deg,#04181a,#021013)';
+      const mark = document.createElement('div');
+      mark.textContent = tile.k;
+      mark.style.fontSize = '16px';
+      mark.style.fontWeight = '800';
+      mark.style.color = tile.color;
+      div.appendChild(mark);
+      div.addEventListener('click', () => {
+        currentTile = tile.k;
+        showActiveInPalette();
+      });
+      paletteWrap.appendChild(div);
+    });
+    const er = document.createElement('div');
+    er.className = 'tile';
+    er.title = 'Стереть (пробел)';
+    er.innerHTML = '<div style="font-size:13px;font-weight:700;color:#ffb4b4">✖</div>';
+    er.addEventListener('click', () => { currentTile = 'ERASE'; showActiveInPalette(); });
+    paletteWrap.appendChild(er);
+    showActiveInPalette();
+  }
+  function showActiveInPalette(){
+    Array.from(paletteWrap.children).forEach(el => {
+      const k = el.dataset.key || (el.title === 'Стереть (пробел)' ? 'ERASE' : null);
+      if(k === currentTile) el.classList.add('active'); else el.classList.remove('active');
+    });
+    document.getElementById('toolLabel').textContent = (currentTile === 'ERASE') ? 'Стереть' : `Тайл: ${currentTile}`;
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
