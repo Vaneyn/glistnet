@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<title>восхитИИтельные картИИнки</title>
+<style>
+:root{
+  --bg:#05050a;
+  --panel:#0c0c12;
+  --accent1:#ff4d6d;
+  --accent2:#9b5cff;
+  --accent3:#ffcf4d;
+  --muted:#9aa3bf;
+}
+html,body{
+  height:100%;
+  margin:0;
+  padding:0;
+  background:linear-gradient(180deg,#040406,#0b0b10);
+  font-family:Inter, Roboto, Arial, sans-serif;
+  color:#eef5ff;
+  -webkit-font-smoothing:antialiased;
+  overflow:hidden; /* запрещаем прокрутку страницы */
+  touch-action:none;
+}
+
+/* контейнер */
+.wrap{
+  height:100vh;
+  box-sizing:border-box;
+  padding:12px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  position:relative;
+}
+
+/* BACK в углу (отдельно) */
+.back{
+  position:fixed;
+  left:10px;
+  top:10px;
+  z-index:50;
+  width:44px;
+  height:44px;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,0.04);
+  background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  color:var(--accent2);
+  font-weight:800;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  box-shadow:0 6px 20px rgba(0,0,0,0.5);
+}
+
+/* карточка превью (статична, не двигается) */
+.preview-card{
+  background:var(--panel);
+  border-radius:14px;
+  overflow:hidden;
+  border:1px solid rgba(255,255,255,0.035);
+  box-shadow:0 10px 40px rgba(0,0,0,0.6);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  height:calc(100vh - 360px);
+}
+
+/* картинка внутри превью */
+#outImg{
+  max-width:100%;
+  max-height:100%;
+  border-radius:8px;
+  object-fit:cover;
+}
+
+/* БОЛЬШОЕ поле ввода (в потоке) */
+.input-wrap{
+  position:relative;
+  margin-top:8px;
+}
+
+/* textarea в потоке */
+#prompt{
+  width:100%;
+  min-height:96px;
+  max-height:46vh;
+  box-sizing:border-box;
+  padding:14px;
+  border-radius:14px;
+  border:1px solid rgba(255,255,255,0.04);
+  background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00));
+  color:inherit;
+  font-size:16px;
+  line-height:1.35;
+  resize:none;
+  overflow:auto;
+  outline:none;
+  transition: transform 260ms cubic-bezier(.2,.9,.28,1), width 200ms ease, height 200ms ease;
+  z-index:10;
+}
+
+/* textarea в «плавающем» состоянии: фиксируется и поднимается в середину экрана.
+   Только само поле меняет позицию — остальное остаётся на месте. */
+#prompt.floating{
+  position:fixed;
+  left:12px;
+  right:12px;
+  top:50%;
+  transform:translateY(-50%);
+  width:calc(100% - 24px);
+  max-height:60vh;
+  height:40vh;
+  box-shadow:0 20px 60px rgba(0,0,0,0.7);
+  border-radius:14px;
+  z-index:100;
+}
+
+/* Лог-панель: статус, журнал, кнопки */
+.log-panel{
+  margin-top:8px;
+  display:flex;
+  gap:10px;
+  align-items:flex-start;
+  justify-content:space-between;
+}
+
+/* колонка лога */
+.log-col{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+
+/* статус */
+.status-line{
+  font-size:13px;
+  color:var(--muted);
+}
+
+/* журнал — прокручиваемый внутренний блок */
+.journal{
+  background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00));
+  border:1px solid rgba(255,255,255,0.03);
+  border-radius:10px;
+  padding:8px;
+  height:96px;
+  overflow:auto; /* внутренний скролл разрешён */
+  font-size:13px;
+  color:var(--muted);
+}
+
+/* запись журнала */
+.log-entry{margin-bottom:6px;}
+.log-entry.info{color:var(--muted);}
+.log-entry.ok{color:var(--accent2);}
+.log-entry.err{color:var(--accent1); background:rgba(255,77,109,0.04); padding:6px; border-radius:6px; border:1px solid rgba(255,77,109,0.06);}
+
+/* кнопки справа */
+.controls{
+  display:flex;
+  gap:8px;
+  align-items:center;
+}
+
+/* стили кнопок */
+.button{
+  border-radius:12px;
+  padding:10px 12px;
+  border:none;
+  font-weight:800;
+  cursor:pointer;
+}
+.btn-gen{background:linear-gradient(90deg,var(--accent2),var(--accent1)); color:#08060a;}
+.icon-btn{width:52px;height:52px;border-radius:12px;border:none;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));display:flex;align-items:center;justify-content:center;color:var(--muted);cursor:pointer;border:1px solid rgba(255,255,255,0.03);}
+
+/* скрытые элементы */
+.hidden{display:none;}
+
+@media (max-width:520px){
+  #prompt{min-height:110px}
+  .journal{height:88px}
+}
+</style>
+</head>
+<body>
+<div class="wrap" id="wrap" aria-label="восхитИИтельные картИИнки">
+  <button class="back" id="backBtn" title="Назад">←</button>
+
+  <div class="preview-card" id="previewCard" aria-hidden="false">
+    <img id="outImg" src="button.png" alt="Не рисуйте письки детьки пожалуйста" />
+  </div>
+
+  <div class="input-wrap">
+    <textarea id="prompt" placeholder="Опиши картинку здесь..." rows="4" aria-label="Промпт"></textarea>
+
+    <div class="log-panel" role="region" aria-label="Журнал и управление">
+      <div class="log-col">
+        <div class="status-line" id="statusLine">Статус: [0], вводите промпт.</div>
+        <div class="journal" id="journal" aria-live="polite"></div>
+      </div>
+
+      <div class="controls">
+        <button class="button btn-gen" id="genBtn">ГЕНЕРИРОВАТЬ</button>
+        <button class="icon-btn" id="copyImageBtn" title="Копировать фото" disabled>✂</button>
+        <button class="icon-btn" id="copyLinkBtn" title="Копировать ссылку" disabled>🔗</button>
+        <button class="icon-btn" id="keysRefreshBtn" title="Обновить ключи">♻</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+
+
+/* --- конфиг --- */
+const KEYS_URLS = [
+  'https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/freePOE.txt'
+  
+];
+const IMAGE_MODEL = 'gpt-image-1-mini';
+const EXTRA_BODY = { aspect: "1:1", quality: "low" };
+
+/* --- DOM --- */
+const backBtn = document.getElementById('backBtn');
+const promptEl = document.getElementById('prompt');
+const previewCard = document.getElementById('previewCard');
+const outImg = document.getElementById('outImg');
+const statusLine = document.getElementById('statusLine');
+const journal = document.getElementById('journal');
+const genBtn = document.getElementById('genBtn');
+const copyImageBtn = document.getElementById('copyImageBtn');
+const copyLinkBtn = document.getElementById('copyLinkBtn');
+const keysRefreshBtn = document.getElementById('keysRefreshBtn');
+
+let decryptedKeys = [];
+let lastImageSrc = null;         // может быть data: | http(s) | blob-url
+let lastImageOriginalUrl = null; // если ответ от Poe дал внешнюю ссылку — сохраняем её тут (http/https)
+let lastImageBlob = null;
+
+/* --- небольшие хелперы UI --- */
+function setStatusCount(n){
+  statusLine.textContent = 'Статус: [' + (Number.isInteger(n)?n:0) + '], вводите промпт.';
+}
+function appendLog(text, level='info'){ // level: info / ok / err
+  const div = document.createElement('div');
+  div.className = 'log-entry ' + (level==='err'?'err': level==='ok'?'ok':'info');
+  div.textContent = text;
+  journal.appendChild(div);
+  // автопрокрутка вниз внутри journal (внутренний скролл разрешён)
+  journal.scrollTop = journal.scrollHeight;
+}
+function clearLogs(){ journal.innerHTML = ''; }
+
+function decryptLine(line){
+  const a='a'.charCodeAt(0), z='z'.charCodeAt(0), A='A'.charCodeAt(0), Z='Z'.charCodeAt(0);
+  let out='';
+  for(const ch of line){
+    const code = ch.charCodeAt(0);
+    if(code >= A && code <= Z){
+      const shifted = ((code - A - 3) % 26 + 26) % 26 + A;
+      const reflected = A + (Z - shifted);
+      out += String.fromCharCode(reflected);
+    } else if(code >= a && code <= z){
+      const shifted = ((code - a - 3) % 26 + 26) % 26 + a;
+      const reflected = a + (z - shifted);
+      out += String.fromCharCode(reflected);
+    } else out += ch;
+  }
+  return out;
+}
+
+
+async function fetchAndDecryptKeys(){
+  setStatusCount(0);
+  appendLog('Загрузка...', 'info');
+  decryptedKeys = [];
+  for(const url of KEYS_URLS){
+    try{
+      const resp = await fetch(url, {cache:'no-store'});
+      if(!resp.ok){
+        appendLog('Источник куку: ' + url + ' (' + resp.status + ')', 'err');
+        continue;
+      }
+      const txt = await resp.text();
+      const lines = txt.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+      const keys = lines.map(decryptLine).filter(k => k && k.length > 8);
+      if(keys.length){
+        decryptedKeys = keys;
+        appendLog('Ключи загружены: ' + keys.length + ' шт.', 'ok');
+        setStatusCount(keys.length);
+        return;
+      } else {
+        appendLog('Источник вернул данные, но нету ничо: ' + url, 'err');
+      }
+    }catch(e){
+      appendLog('Не удалось получить ключи с ' + url + ' — сеть/ошибка.', 'err');
+      continue;
+    }
+  }
+  appendLog('Не удалось загрузить нихера ни из одного источника.', 'err');
+  setStatusCount(0);
+}
+
+/* --- выбор случайного ключа --- */
+function pickRandomKey(excluded = new Set()){
+  if(!decryptedKeys || decryptedKeys.length === 0) return undefined;
+  const idxs = [];
+  for(let i=0;i<decryptedKeys.length;i++) if(!excluded.has(i)) idxs.push(i);
+  if(idxs.length === 0) return undefined;
+  const idx = idxs[Math.floor(Math.random()*idxs.length)];
+  return {key: decryptedKeys[idx], index: idx};
+}
+
+/* --- парсер ответа (ищет data URL, внешнюю ссылку, или base64) --- */
+function extractImageFromMessage(msg){
+  try{
+    if(!msg) return null;
+    if(typeof msg === 'object'){
+      const fields = ['b64_json','b64','base64','image','images','data','url','output'];
+      for(const f of fields) if(msg[f]){
+        const v = msg[f];
+        if(typeof v === 'string') return v;
+        if(Array.isArray(v) && v.length) return typeof v[0] === 'string' ? v[0] : (v[0].b64_json||v[0].url||null);
+        if(typeof v === 'object'){ if(v.b64_json) return v.b64_json; if(v.url) return v.url; }
+      }
+    }
+    if(typeof msg === 'string'){
+      const dataMatch = msg.match(/data:image\/[A-Za-z0-9.+-]+;base64,[A-Za-z0-9+/=]+/);
+      if(dataMatch) return dataMatch[0];
+      const urlMatch = msg.match(/https?:\/\/[^\s'"]+\.(png|jpg|jpeg|webp|gif)/i);
+      if(urlMatch) return urlMatch[0];
+      const b64Match = msg.match(/([A-Za-z0-9+/]{200,}={0,2})/);
+      if(b64Match && (b64Match[1].length > 300 || b64Match[1].startsWith('iVBOR'))) return b64Match[1];
+      const md = msg.match(/!\[[^\]]*\]\((https?:\/\/[^\s)]+)\)/i);
+      if(md) return md[1];
+      try{ const parsed = JSON.parse(msg); return extractImageFromMessage(parsed); }catch(e){}
+    }
+  }catch(e){}
+  return null;
+}
+function normalizeToSrc(candidate){
+  if(!candidate) return null;
+  if(candidate.startsWith('data:image')) return candidate;
+  if(candidate.startsWith('http')) return candidate;
+  return 'data:image/png;base64,' + candidate;
+}
+
+/* --- запрос к Poe с указанным ключом --- */
+async function requestWithKey(key, prompt){
+  const payload = { model: IMAGE_MODEL, messages:[{role:'user', content: prompt}], extra_body: EXTRA_BODY, stream:false };
+  try{
+    const resp = await fetch('https://api.poe.com/v1/chat/completions', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + key },
+      body: JSON.stringify(payload)
+    });
+    const txt = await resp.text();
+    if(!resp.ok) return { ok:false, http:resp.status, body: txt };
+    let data=null; try{ data = JSON.parse(txt); }catch(e){}
+    return { ok:true, data };
+  }catch(e){
+    return { ok:false, http:null, body: String(e) };
+  }
+}
+
+/* --- генерация картинки с перебором ключей при ошибках --- */
+async function generateImage(prompt){
+  clearLogs();
+  appendLog('Старт генерации...', 'info');
+  lastImageSrc = null; lastImageOriginalUrl = null; lastImageBlob = null;
+  copyImageBtn.disabled = true; copyLinkBtn.disabled = true;
+  if(!prompt || !prompt.trim()){
+    appendLog('Промпт пустой — введите текст.', 'err'); return;
+  }
+  if(!decryptedKeys || decryptedKeys.length === 0){
+    appendLog('Ключи не загружены', 'err'); return;
+  }
+  setStatusCount(decryptedKeys.length);
+
+  const tried = new Set();
+  let lastProblem = null;
+  for(let attempt = 0; attempt < decryptedKeys.length; attempt++){
+    const pick = pickRandomKey(tried);
+    if(!pick) break;
+    tried.add(pick.index);
+    appendLog('Бъхцй' + (attempt+1) + ' ключ №' + (pick.index+1) + '...', 'info');
+    const res = await requestWithKey(pick.key, prompt);
+    if(!res.ok){
+      appendLog('Сервер дал ответ: ' + (res.http || 'network') + ' — ' + String(res.body).slice(0,200), 'err');
+      lastProblem = 'Сервер вернул не-OK';
+      continue;
+    }
+    try{
+      const choice = res.data && res.data.choices && res.data.choices[0];
+      if(!choice || !choice.message){
+        appendLog('Непривычный формат ответа (нет message).', 'err');
+        lastProblem = 'нет message';
+        continue;
+      }
+      const msg = choice.message.content;
+      let candidate = extractImageFromMessage(msg);
+      // tool_calls fallbacks
+      if(!candidate && choice.message.tool_calls && choice.message.tool_calls.length){
+        try{
+          const tc = choice.message.tool_calls[0];
+          const parsed = (typeof tc.arguments === 'string') ? JSON.parse(tc.arguments) : tc.arguments;
+          candidate = extractImageFromMessage(parsed);
+        }catch(e){}
+      }
+      if(!candidate){
+        const text = typeof msg === 'string' ? msg : JSON.stringify(msg);
+        const mdMatch = text.match(/!\[[^\]]*\]\((https?:\/\/[^\s)]+)\)/i);
+        if(mdMatch) candidate = mdMatch[1];
+      }
+      if(!candidate){
+        appendLog('В ответе не найдено изображение.', 'err');
+        lastProblem = 'нет изображения в теле ответа';
+        continue;
+      }
+
+      // нормализуем
+      const normalized = normalizeToSrc(candidate);
+
+      // если это внешняя ссылка, сохраним её как original
+      if(normalized.startsWith('http')){
+        lastImageOriginalUrl = normalized;
+        // пробуем получить blob для копирования в буфер
+        try{
+          const r = await fetch(normalized, {mode:'cors'});
+          if(r.ok){
+            const blob = await r.blob();
+            lastImageBlob = blob;
+            // используем blob-url для отображения (без раскрытия реального http в UI)
+            lastImageSrc = URL.createObjectURL(blob);
+          } else {
+            // если не получилось скачать blob — всё равно покажем внешнюю ссылку (без показа её в UI)
+            lastImageBlob = null;
+            lastImageSrc = normalized;
+          }
+        }catch(e){
+          lastImageBlob = null;
+          lastImageSrc = normalized;
+        }
+      } else {
+        // data URI => покажем прямо и подготовим blob, но внешней ссылки не будет
+        lastImageOriginalUrl = null;
+        lastImageSrc = normalized;
+        try{ const r = await fetch(normalized); lastImageBlob = await r.blob(); }catch(e){ lastImageBlob = null; }
+      }
+
+      // отображаем превью (в UI мы не показываем реальный http URL, только картинку)
+      outImg.src = lastImageSrc;
+      appendLog('Ооо моя картинка :⟩ (ключ №' + (pick.index+1) + ').', 'ok');
+      copyImageBtn.disabled = false;
+      // кнопка копирования ссылки доступна только если сохранилась внешняя ссылка
+      copyLinkBtn.disabled = !lastImageOriginalUrl;
+      setStatusCount(decryptedKeys.length);
+      return;
+    }catch(e){
+      appendLog('Проблема обработки ответа (пробуем следующий ключ).', 'err');
+      lastProblem = 'обработка';
+      continue;
+    }
+  }
+
+  appendLog('Генерация не удалась: ' + (lastProblem || 'неизвестная причина'), 'err');
+  setStatusCount(decryptedKeys.length);
+}
+
+/* --- копирование изображения в буфер --- */
+async function copyImageToClipboard(){
+  if(!lastImageBlob && !lastImageSrc){
+    appendLog('Нет изображения для копирования.', 'err'); return;
+  }
+  try{
+    let blob = lastImageBlob;
+    if(!blob){
+      const r = await fetch(lastImageSrc);
+      blob = await r.blob();
+    }
+    if(navigator.clipboard && window.ClipboardItem){
+      const item = new ClipboardItem({ [blob.type]: blob });
+      await navigator.clipboard.write([item]);
+      appendLog('Изображение скопировано в буфер.', 'ok');
+      return;
+    }
+    // fallback: скачивание как запасной план (не показываем URL)
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'voshhit.png';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    appendLog('Копирование напрямую не поддерживается — изображение скачано (fallback).', 'info');
+  }catch(e){
+    appendLog('Не удалось скопировать изображение: ' + String(e).slice(0,200), 'err');
+  }
+}
+
+/* --- копирование внешней ссылки (только если есть) --- */
+async function copyLinkToClipboard(){
+  if(!lastImageOriginalUrl){
+    appendLog('Внешняя ссылка отсутствует — ответ содержит только встроенные данные.', 'err');
+    return;
+  }
+  try{
+    await navigator.clipboard.writeText(lastImageOriginalUrl);
+    appendLog('Внешняя ссылка скопирована в буфер.', 'ok');
+  }catch(e){
+    // fallback
+    try{
+      const ta = document.createElement('textarea');
+      ta.value = lastImageOriginalUrl;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+      appendLog('Ссылка скопирована (fallback).', 'ok');
+    }catch(e2){
+      appendLog('Не удалось скопировать ссылку.', 'err');
+    }
+  }
+}
+
+/* --- обработчики UI --- */
+backBtn.addEventListener('click', ()=>{ try{ location.href = 'glist.html'; }catch(e){} });
+
+promptEl.addEventListener('focus', ()=>{ promptEl.classList.add('floating'); appendLog('Поле ввода активно — поднято.', 'info'); });
+promptEl.addEventListener('blur', ()=>{ promptEl.classList.remove('floating'); appendLog('Поле ввода снято с фокуса.', 'info'); });
+
+/* autoresize textarea */
+function autosize(){
+  promptEl.style.height = 'auto';
+  const max = window.innerHeight * 0.6;
+  promptEl.style.height = Math.min(max, promptEl.scrollHeight) + 'px';
+}
+promptEl.addEventListener('input', ()=>{ autosize(); });
+
+genBtn.addEventListener('click', async ()=>{ await generateImage(promptEl.value); });
+copyImageBtn.addEventListener('click', async ()=>{ await copyImageToClipboard(); });
+copyLinkBtn.addEventListener('click', async ()=>{ await copyLinkToClipboard(); });
+keysRefreshBtn.addEventListener('click', async ()=>{ appendLog('Обновление ключей по запросу...', 'info'); await fetchAndDecryptKeys(); });
+
+/* --- инициализация --- */
+(async function init(){
+  setStatusCount(0);
+  autosize();
+  appendLog('Инициализация интерфейса...', 'info');
+  await fetchAndDecryptKeys();
+  setStatusCount(decryptedKeys.length);
+  appendLog('Готово.', 'info');
+})();
+</script>
+</body>
+</html>
