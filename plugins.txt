@@ -130,3 +130,8 @@ code_url: https://vaneyn.github.io/glistnet/testgpu.html
 icon_url: 
 screenshots: 
 ---
+name: ВосхитИИтельные картИИнки 
+description: Генератор картинок на ИИ. Простой. Хороший. #ИИ #Картинки #Изображения #API
+code_url: https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/aiimg.html
+icon_url: 
+screenshots: https://i.postimg.cc/Bn3h7KST/1000082045.jpg
