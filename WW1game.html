@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"/>
-<title> Бой за зоны</title>
+<title>Бой за зоны — WW1 final</title>
 <style>
   :root{ --font: system-ui,Segoe UI,Roboto,Arial; }
-  html,body{ margin:0; padding:0; height:100%; background:#222; color:#fff; font-family:var(--font); overflow:hidden; }
-  canvas#game{ display:block; background:#777; } /* серый фон вне поля */
+  html,body{ margin:0; padding:0; height:100%; background:#222; color:#fff; font-family:var(--font); overflow:hidden; -webkit-user-select:none; -ms-user-select:none; user-select:none; touch-action:manipulation; }
+  canvas#game{ display:block; background:#777; touch-action:none; -webkit-tap-highlight-color:transparent; }
 
   /* Меню выбора режима */
   #menu {
@@ -16,32 +16,38 @@
     width:360px; box-shadow:0 8px 30px rgba(0,0,0,0.6);
   }
   #menu h2{ margin:0 0 10px 0; font-size:20px; }
-  .mode-btn{ display:inline-block; padding:10px 14px; margin:8px; border-radius:8px; border:none; background:#333; color:#fff; cursor:pointer; font-size:15px; }
-  .start-btn{ display:block; margin:14px auto 0 auto; padding:10px 14px; width:100%; border-radius:8px; border:none; background:#2a8; color:#042; font-weight:700; cursor:pointer; font-size:16px; }
+  .mode-btn{ display:inline-block; padding:10px 14px; margin:8px; border-radius:8px; border:none; background:#333; color:#fff; cursor:pointer; font-size:15px; -webkit-user-select:none; user-select:none; }
+  .start-btn{ display:block; margin:14px auto 0 auto; padding:10px 14px; width:100%; border-radius:8px; border:none; background:#2a8; color:#042; font-weight:700; cursor:pointer; font-size:16px; -webkit-user-select:none; user-select:none; }
 
   /* Джойстик */
   #joy-bg { position:absolute; bottom:20px; left:20px; width:100px; height:100px; border-radius:50%; background:rgba(0,0,0,0.18); touch-action:none; z-index:60; }
   #joy-stick { position:absolute; left:25px; top:25px; width:50px; height:50px; border-radius:50%; background:rgba(0,0,0,0.46); z-index:61; }
 
   /* Кнопки управления */
-  .btn { position:absolute; width:80px; height:80px; background:rgba(0,0,0,0.25); border:none; border-radius:10px; font-size:14px; color:white; display:flex; align-items:center; justify-content:center; -webkit-tap-highlight-color:transparent; z-index:60; }
+  .btn { position:absolute; width:80px; height:80px; background:rgba(0,0,0,0.25); border:none; border-radius:10px; font-size:14px; color:white; display:flex; align-items:center; justify-content:center; -webkit-tap-highlight-color:transparent; z-index:60; -webkit-user-select:none; user-select:none; }
   #fire { right:20px; bottom:120px; }
+  #lead { right:20px; bottom:210px; } /* кнопка "За мной" над огнём */
   #crouch { right:120px; bottom:20px; }
 
+  /* таймер на кнопке "За мной" */
+  #lead { position: absolute; display:flex; align-items:center; justify-content:center; flex-direction:column; overflow:hidden; }
+  #lead .label { pointer-events:none; z-index:62; font-weight:700; }
+  #lead .cd { position:absolute; inset:0; border-radius:10px; z-index:61; pointer-events:none; background:transparent; }
+
   /* Миникарта */
-  #minimap-wrap { position:absolute; left:20px; top:20px; width:220px; background:rgba(0,0,0,0.25); border-radius:8px; padding:8px; z-index:70; display:flex; flex-direction:column; }
+  #minimap-wrap { position:absolute; left:20px; top:20px; width:220px; background:rgba(0,0,0,0.25); border-radius:8px; padding:8px; z-index:70; display:flex; flex-direction:column; -webkit-user-select:none; user-select:none; }
   #minimap-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; color:#fff; font-size:13px; }
   #minimap-canvas { width:200px; height:200px; display:none; background:#222; border-radius:4px; margin-bottom:6px; }
   #minimap-controls { display:flex; gap:6px; }
-  .mm-btn { flex:1; height:36px; border-radius:6px; border:none; background:rgba(255,255,255,0.06); color:#fff; cursor:pointer; font-size:13px; }
+  .mm-btn { flex:1; height:36px; border-radius:6px; border:none; background:rgba(255,255,255,0.06); color:#fff; cursor:pointer; font-size:13px; -webkit-user-select:none; user-select:none; }
 
-  /* HUD и легенда */
-  #hud { position:absolute; left:50%; transform:translateX(-50%); top:8px; z-index:71; font-size:13px; color:#fff; background:rgba(0,0,0,0.18); padding:6px 10px; border-radius:8px; }
-  #team-legend { position:absolute; right:20px; top:20px; z-index:71; text-align:right; font-size:13px; color:#fff; background:rgba(0,0,0,0.12); padding:8px; border-radius:8px; width:200px; }
-  .legend-item { margin-bottom:6px; display:flex; align-items:center; justify-content:flex-end; gap:10px; }
+  /* HUD и легенда (сделали заметно уже) */
+  #hud { position:absolute; left:50%; transform:translateX(-50%); top:8px; z-index:71; font-size:13px; color:#fff; background:rgba(0,0,0,0.18); padding:6px 10px; border-radius:8px; -webkit-user-select:none; user-select:none; }
+  #team-legend { position:absolute; right:14px; top:20px; z-index:71; text-align:right; font-size:13px; color:#fff; background:rgba(0,0,0,0.12); padding:8px; border-radius:8px; width:120px; -webkit-user-select:none; user-select:none; } /* <-- сильно уже */
+  .legend-item { margin-bottom:6px; display:flex; align-items:center; justify-content:flex-end; gap:8px; font-size:12px; }
   .dot { display:inline-block; width:12px; height:12px; border-radius:50%; margin-right:8px; vertical-align:middle; }
 
-  #player-score { margin-top:8px; font-weight:700; text-align:center; }
+  #player-score { margin-top:8px; font-weight:700; text-align:center; font-size:13px; }
 
   @media (max-width:500px){
     #joy-bg{ width:90px; height:90px; }
@@ -50,7 +56,10 @@
     #minimap-wrap{ width:160px; }
     #minimap-canvas{ width:140px; height:140px; }
     #menu{ width:92%; }
+    #team-legend{ width:98px; right:8px; top:12px; font-size:12px; padding:6px; }
   }
+
+  #lead[disabled] { opacity:0.65; pointer-events:none; }
 </style>
 </head>
 <body>
@@ -62,6 +71,7 @@
   <div>
     <button class="mode-btn" id="mode-4">4 команды — поле 6×6</button>
     <button class="mode-btn" id="mode-8">8 команд — поле 10×10</button>
+    <button class="mode-btn" id="mode-royal">Королевская битва — 15×15</button>
   </div>
   <div style="margin-top:10px; font-size:13px; color:#ddd;">
     Описание команд и правила:
@@ -92,6 +102,10 @@
 <div id="joy-bg"><div id="joy-stick"></div></div>
 
 <!-- Кнопки -->
+<button id="lead" class="btn" aria-label="За мной">
+  <div class="cd" id="lead-cd"></div>
+  <div class="label">За мной</div>
+</button>
 <button id="fire" class="btn">ОГОНЬ</button>
 <button id="crouch" class="btn">ПРИСЕСТЬ</button>
 
@@ -99,61 +113,73 @@
 <div id="team-legend"></div>
 
 <script>
-/* ====== Исправленные и добавленные константы ====== */
+/* ====== Константы и настройки ====== */
 const CELL = 100;
-const CAPTURE_SECONDS_SINGLE = 10;           // <- вот она, 10 секунд на захват
-const BULLET_RANGE = CELL * 1.25;           // 1.25 клетки
+const FOLLOW_RADIUS = CELL * 1; // радиус сопровождения = 1 * CELL
+const BORDER_SLOW_ENEMY_MS = 1000; // 1 секунда между вражескими зонами
+const BORDER_SLOW_NEUTRAL_MS = 500; // 0.5 секунды между чьей-то зоной и нейтральной
+const CAPTURE_SECONDS_SINGLE = 10;
+const BULLET_RANGE = CELL * 1.25;
 const MAX_HEALTH = 100;
 const PLAYER_BASE_SPEED = 100;
 const BOT_BASE_SPEED = 80;
-const AMMO_SPAWN_PER_SEC_TOTAL = 10;        // 10 точек/сек по 1
-const ARMOR_SPAWN_INTERVAL_MS = 3000;       // броня каждые 3 с
-const REINFORCE_CHECK_MS = 3000;            // проверка подкрепления каждые 3 с
-const REINFORCE_HALF_FACTOR = 0.5;          // шанс в 2× меньше
+const AMMO_SPAWN_PER_SEC_TOTAL = 10;
+const ARMOR_SPAWN_INTERVAL_MS = 3000;
+const REINFORCE_CHECK_MS = 3000;
+const REINFORCE_HALF_FACTOR = 0.5;
 const RELOAD_MS = 5000;
 const CROUCH_DURATION_MS = 2000;
 const CROUCH_HITBOX_REDUCE = 0.35;
 const BOT_BONUS_SEARCH_RADIUS = 120;
 const AMMO_PICK_RADIUS = 13;
 const WOUNDED_THRESHOLD = 0.5;
-const VETERAN_THRESHOLD = 0.15;             // <15% HP -> ветеран
+const VETERAN_THRESHOLD = 0.15;
 const BOT_SPREAD_DEGREES_BASE = 6;
-const BOT_SPREAD_MULT = 1.2;                // +20% разброс у ботов
+const BOT_SPREAD_MULT = 1.2;
 const BOT_ENGAGE_RANGE = CELL * 5;
 const ZOOM = 1.1;
 
-/* цвета — под максимум 8 команд */
+/* цвета */
 const TEAM_COLORS_FULL = ['#e44','#4a4','#44e','#ff8','#ff4','#4ff','#f4f','#8ff'];
 const TEAM_COLORS_LIGHT_FULL = ['#f88','#8f8','#88f','#ffd','#ffb','#bff','#f8f','#cff'];
 
 /* ====== Переменные игры ====== */
 let TEAM_COUNT = 4;
-let N = 6; // default 6 (может стать 10)
+let N = 6; // default
 let WORLD_W = N * CELL, WORLD_H = N * CELL;
 let TEAM_COLORS = [], TEAM_COLORS_LIGHT = [];
 let cells = [], entities = [], pickups = [], bullets = [];
 let player = null;
 let gameStarted = false;
-let ammoAccumulator = 0;    // единый аккумулятор для патронов
+let ammoAccumulator = 0;
 let armorIntervalId = null;
 let reinforceIntervalId = null;
 let lastFrame = 0;
+let selectedMode = 4; // 4, 8, 'royal'
 
-/* ====== UI элементы ====== */
+/* Camera */
+const camera = { x: 0, y: 0, zoom: ZOOM, zoomTarget: ZOOM, followPlayer: true, dragging:false, dragStartWorld:{x:0,y:0}, dragStartCam:{x:0,y:0} };
+
+/* Follow periodic and throttles */
+let followCheckAccum = 0;
+let lastLegendUpdateTime = 0;
+
+/* UI элементы */
 const canvas = document.getElementById('game'), ctx = canvas.getContext('2d');
 const menu = document.getElementById('menu'), startBtn = document.getElementById('start-btn');
-const mode4Btn = document.getElementById('mode-4'), mode8Btn = document.getElementById('mode-8');
+const mode4Btn = document.getElementById('mode-4'), mode8Btn = document.getElementById('mode-8'), modeRoyalBtn = document.getElementById('mode-royal');
 const minimapWrap = document.getElementById('minimap-wrap'), minimapCanvas = document.getElementById('minimap-canvas'), mmCtx = minimapCanvas.getContext('2d');
 const mmToggle = document.getElementById('minimap-toggle'), backBtn = document.getElementById('back'), mmStatus = document.getElementById('minimap-status');
 const joyBg = document.getElementById('joy-bg'), joyStick = document.getElementById('joy-stick');
-const fireBtn = document.getElementById('fire'), crouchBtn = document.getElementById('crouch');
+const fireBtn = document.getElementById('fire'), crouchBtn = document.getElementById('crouch'), leadBtn = document.getElementById('lead');
+const leadCd = document.getElementById('lead-cd');
 const hud = document.getElementById('hud'), teamLegend = document.getElementById('team-legend');
 let minimapVisible = false;
 
 /* ====== Меню режимов ====== */
-let selectedMode = 4;
-mode4Btn.addEventListener('click', ()=>{ selectedMode = 4; mode4Btn.style.background='#2a6'; mode8Btn.style.background='#333'; });
-mode8Btn.addEventListener('click', ()=>{ selectedMode = 8; mode8Btn.style.background='#2a6'; mode4Btn.style.background='#333'; });
+mode4Btn.addEventListener('click', ()=>{ selectedMode = 4; mode4Btn.style.background='#2a6'; mode8Btn.style.background='#333'; modeRoyalBtn.style.background='#333'; });
+mode8Btn.addEventListener('click', ()=>{ selectedMode = 8; mode8Btn.style.background='#2a6'; mode4Btn.style.background='#333'; modeRoyalBtn.style.background='#333'; });
+modeRoyalBtn.addEventListener('click', ()=>{ selectedMode = 'royal'; modeRoyalBtn.style.background='#2a6'; mode4Btn.style.background='#333'; mode8Btn.style.background='#333'; });
 mode4Btn.style.background='#2a6';
 
 /* ====== Canvas resize ====== */
@@ -172,7 +198,7 @@ function brightenHex(hex, factor){ const p = hexToRgb(hex); return rgbToStr(p.r*
 function getCellIndexFromXY(x,y){ return { i: clamp(Math.floor(x/CELL), 0, N-1), j: clamp(Math.floor(y/CELL), 0, N-1) }; }
 function playersInCell(i,j){ const res = []; for(const p of entities) if(p && p.hp>0 && Math.floor(p.x/CELL)===i && Math.floor(p.y/CELL)===j) res.push(p); return res; }
 
-/* ====== Start zones генерация ====== */
+/* ====== Start zones генерация (как было) ====== */
 function computeStartZones(){
   const zones = [];
   if(TEAM_COUNT === 4){
@@ -197,39 +223,59 @@ function computeStartZones(){
 
 /* ====== Инициализация игры ====== */
 startBtn.addEventListener('click', ()=>{
-  TEAM_COUNT = (selectedMode === 8) ? 8 : 4;
-  N = (TEAM_COUNT === 8) ? 10 : 6;
+  if(selectedMode === 4){ TEAM_COUNT = 4; N = 6; }
+  else if(selectedMode === 8){ TEAM_COUNT = 8; N = 10; }
+  else if(selectedMode === 'royal'){ N = 15; TEAM_COUNT = N * N; }
   WORLD_W = N * CELL; WORLD_H = N * CELL;
-  TEAM_COLORS = TEAM_COLORS_FULL.slice(0, TEAM_COUNT);
-  TEAM_COLORS_LIGHT = TEAM_COLORS_LIGHT_FULL.slice(0, TEAM_COUNT);
   menu.style.display = 'none';
   initGame();
 });
 
 function initGame(){
-  // очистка
   if(armorIntervalId) clearInterval(armorIntervalId);
   if(reinforceIntervalId) clearInterval(reinforceIntervalId);
   cells = []; entities = []; pickups = []; bullets = [];
   ammoAccumulator = 0;
-
+  player = null;
+  camera.zoom = ZOOM; camera.zoomTarget = ZOOM; camera.followPlayer = true;
   resizeCanvas();
 
   for(let i=0;i<N;i++){ cells[i]=[]; for(let j=0;j<N;j++) cells[i][j] = { owner:-1, captureTeam:-1, progress:0 }; }
 
-  const startZones = computeStartZones();
-  for(let t=0;t<startZones.length && t<TEAM_COUNT;t++){
-    for(const c of startZones[t]) if(cells[c.i] && cells[c.i][c.j]) cells[c.i][c.j].owner = t;
+  if(selectedMode === 'royal'){
+    TEAM_COLORS = new Array(TEAM_COUNT);
+    TEAM_COLORS_LIGHT = new Array(TEAM_COUNT);
+    const cellsList = [];
+    for(let i=0;i<N;i++) for(let j=0;j<N;j++) cellsList.push({i,j});
+    for(let k=cellsList.length-1;k>0;k--){ const t = Math.floor(Math.random()*(k+1)); const tmp = cellsList[k]; cellsList[k]=cellsList[t]; cellsList[t]=tmp; }
+    for(let t=0;t<TEAM_COUNT;t++){
+      const pos = cellsList[t]; cells[pos.i][pos.j].owner = t;
+      if(t===0){ TEAM_COLORS[t] = '#e44'; TEAM_COLORS_LIGHT[t] = '#f88'; }
+      else {
+        const h = Math.floor(Math.random()*360), s = 55 + Math.floor(Math.random()*30), l = 45 + Math.floor(Math.random()*10);
+        TEAM_COLORS[t] = `hsl(${h} ${s}% ${l}%)`;
+        TEAM_COLORS_LIGHT[t] = `hsl(${h} ${Math.max(10,s-30)}% ${Math.min(95,l+20)}%)`;
+      }
+    }
+  } else {
+    for(let i=0;i<N;i++) for(let j=0;j<N;j++) cells[i][j].owner = -1;
+    TEAM_COLORS = TEAM_COLORS_FULL.slice(0, TEAM_COUNT);
+    TEAM_COLORS_LIGHT = TEAM_COLORS_LIGHT_FULL.slice(0, TEAM_COUNT);
+    const startZones = computeStartZones();
+    for(let t=0;t<startZones.length && t<TEAM_COUNT;t++){
+      for(const c of startZones[t]) if(cells[c.i] && cells[c.i][c.j]) cells[c.i][c.j].owner = t;
+    }
   }
 
-  // spawn helper
   function spawnEntityObject(x,y,team,isBot,opts){
     return {
       id: Math.random().toString(36).slice(2,9),
       x: clamp(x,2,WORLD_W-2),
       y: clamp(y,2,WORLD_H-2),
+      vx: 0, vy: 0,
       team: team,
       isBot: !!isBot,
+      isBoss: !!(opts && opts.isBoss),
       baseR: 5,
       moveDir: {x:0,y:0},
       facing: {x:1,y:0},
@@ -247,25 +293,51 @@ function initGame(){
       isVeteran: false,
       veteranZone: null,
       alwaysCrouched: false,
-      kills: 0
+      kills: 0,
+      bossCooldownUntil: 0,
+      following: null,
+      followStart: 0,
+      followHighlight: false,
+      followOffset: null,
+      borderSlowUntil: 0
     };
   }
 
-  // spawn per team
-  for(let t=0;t<TEAM_COUNT;t++){
-    const zone = startZones[t] || [{i:0,j:0}];
-    let sx=0, sy=0, cnt=0;
-    for(const c of zone){ sx += c.i*CELL + CELL/2; sy += c.j*CELL + CELL/2; cnt++; }
-    const cx = sx/cnt, cy = sy/cnt;
-    const ent = spawnEntityObject(cx + randRange(-12,12), cy + randRange(-12,12), t, t!==0, {});
-    entities.push(ent);
-    if(t===0) player = ent;
+  if(selectedMode === 'royal'){
+    for(let t=0;t<TEAM_COUNT;t++){
+      let placed = false;
+      for(let i=0;i<N && !placed;i++) for(let j=0;j<N && !placed;j++){
+        if(cells[i][j].owner === t){
+          const cx = i*CELL + CELL/2 + randRange(-12,12), cy = j*CELL + CELL/2 + randRange(-12,12);
+          const ent = spawnEntityObject(cx, cy, t, true, {isBoss:true});
+          entities.push(ent);
+          placed = true;
+          if(t===0){
+            const playerEnt = spawnEntityObject(cx + randRange(-8,8), cy + randRange(-8,8), 0, false, {isBoss:true});
+            player = playerEnt;
+            player.isBoss = true;
+            entities.push(playerEnt);
+            const idx = entities.indexOf(ent);
+            if(idx>=0) entities.splice(idx,1);
+          }
+        }
+      }
+    }
+  } else {
+    const startZones = computeStartZones();
+    for(let t=0;t<TEAM_COUNT;t++){
+      const zone = startZones[t] || [{i:0,j:0}];
+      let sx=0, sy=0, cnt=0;
+      for(const c of zone){ sx += c.i*CELL + CELL/2; sy += c.j*CELL + CELL/2; cnt++; }
+      const cx = sx/cnt, cy = sy/cnt;
+      const ent = spawnEntityObject(cx + randRange(-12,12), cy + randRange(-12,12), t, t!==0, {isBoss:true});
+      entities.push(ent);
+      if(t===0) player = ent;
+    }
   }
 
-  // armor spawn
   armorIntervalId = setInterval(()=>{ pickups.push({ x: randRange(12,WORLD_W-12), y: randRange(12,WORLD_H-12), type:'armor', amount:1 }); }, ARMOR_SPAWN_INTERVAL_MS);
 
-  // reinforcement check (1 bot)
   reinforceIntervalId = setInterval(()=>{
     for(let t=0;t<TEAM_COUNT;t++){
       let countZones = 0;
@@ -283,39 +355,66 @@ function initGame(){
     }
   }, REINFORCE_CHECK_MS);
 
-  TEAM_COLORS = TEAM_COLORS_FULL.slice(0, TEAM_COUNT);
-  TEAM_COLORS_LIGHT = TEAM_COLORS_LIGHT_FULL.slice(0, TEAM_COUNT);
-
-  updateLegend();
+  updateLegend(true);
   gameStarted = true;
   lastFrame = Date.now();
   requestAnimationFrame(gameLoop);
 }
 
-/* ====== Legend + score ====== */
-function updateLegend(){
+/* ====== Legend + throttling ====== */
+function updateLegend(force){
+  const now = Date.now();
+  if(!force && (now - lastLegendUpdateTime < (selectedMode === 'royal' ? 450 : 80))) return;
+  lastLegendUpdateTime = now;
+
   teamLegend.innerHTML = '';
-  for(let t=0;t<TEAM_COUNT;t++){
-    const count = entities.filter(p => p && p.hp>0 && p.team===t).length;
-    const div = document.createElement('div'); div.className='legend-item';
-    div.innerHTML = `<div style="display:flex;align-items:center;gap:8px;"><div style="width:12px;height:12px;border-radius:50%;background:${TEAM_COLORS[t]}"></div><div>Team ${t+1}</div></div><div style="min-width:30px;text-align:right">${count}</div>`;
-    teamLegend.appendChild(div);
+  if(selectedMode === 'royal'){
+    const teamStats = new Array(TEAM_COUNT).fill(0);
+    for(const p of entities) if(p && p.hp>0) teamStats[p.team] = (teamStats[p.team]||0) + 1;
+    const arr = teamStats.map((cnt,team)=>({team,cnt}));
+    arr.sort((a,b)=>b.cnt - a.cnt);
+    const top = [];
+    let includedPlayer = false;
+    for(let k=0;k<arr.length && top.length<5;k++){
+      top.push(arr[k]);
+      if(arr[k].team === (player?player.team:0)) includedPlayer = true;
+    }
+    if(!includedPlayer && player){
+      top.pop();
+      const playerStat = arr.find(x=>x.team===player.team) || {team:player.team,cnt: teamStats[player.team] || 0};
+      top.push(playerStat);
+    }
+    for(const it of top){
+      const t = it.team;
+      const div = document.createElement('div'); div.className='legend-item';
+      const name = (t=== (player?player.team:-1)) ? `You (${t+1})` : `T${t+1}`;
+      div.innerHTML = `<div style="display:flex;align-items:center;gap:6px;"><div style="width:10px;height:10px;border-radius:50%;background:${TEAM_COLORS[t] || '#999'}"></div><div style="font-size:12px">${name}</div></div><div style="min-width:18px;text-align:right;font-size:12px">${it.cnt}</div>`;
+      teamLegend.appendChild(div);
+    }
+    const scoreDiv = document.createElement('div'); scoreDiv.id = 'player-score';
+    scoreDiv.innerHTML = `Счёт (юнитов): ${player ? (Array.from(entities).filter(p=>p && p.hp>0 && p.team===player.team).length) : 0}`;
+    teamLegend.appendChild(scoreDiv);
+  } else {
+    for(let t=0;t<TEAM_COUNT;t++){
+      const count = entities.filter(p => p && p.hp>0 && p.team===t).length;
+      const div = document.createElement('div'); div.className='legend-item';
+      div.innerHTML = `<div style="display:flex;align-items:center;gap:8px;"><div style="width:10px;height:10px;border-radius:50%;background:${TEAM_COLORS[t] || '#999'}"></div><div style="font-size:12px">Team ${t+1}</div></div><div style="min-width:18px;text-align:right;font-size:12px">${count}</div>`;
+      teamLegend.appendChild(div);
+    }
+    const scoreDiv = document.createElement('div'); scoreDiv.id = 'player-score';
+    scoreDiv.innerHTML = `Индивидуальный счёт: ${player ? (player.kills || 0) : 0}`;
+    teamLegend.appendChild(scoreDiv);
   }
-  const scoreDiv = document.createElement('div'); scoreDiv.id = 'player-score';
-  scoreDiv.innerHTML = `Индивидуальный счёт: ${player ? (player.kills || 0) : 0}`;
-  teamLegend.appendChild(scoreDiv);
 }
 
-/* ====== Joystick & buttons (multi-touch safe) ====== */
+/* ====== Joystick & buttons ====== */
 let passiveSupported = false;
 try { const opts = Object.defineProperty({}, 'passive', { get(){ passiveSupported = true; }}); window.addEventListener('testPassive', null, opts); window.removeEventListener('testPassive', null, opts); } catch(e){}
 const touchOpts = passiveSupported ? { passive:false } : false;
-
 let activeTouchId = null;
 joyBg.addEventListener('touchstart', function(ev){ if(ev.cancelable) ev.preventDefault(); for(const t of ev.changedTouches){ activeTouchId = t.identifier; handleJoyMove(t.clientX, t.clientY); break; } }, touchOpts);
 joyBg.addEventListener('touchmove', function(ev){ if(ev.cancelable) ev.preventDefault(); for(const t of ev.changedTouches) if(t.identifier === activeTouchId) handleJoyMove(t.clientX, t.clientY); }, touchOpts);
 joyBg.addEventListener('touchend', function(ev){ if(ev.cancelable) ev.preventDefault(); for(const t of ev.changedTouches) if(t.identifier === activeTouchId){ activeTouchId = null; joyStick.style.left='25px'; joyStick.style.top='25px'; if(player) player.moveDir = {x:0,y:0}; } }, touchOpts);
-
 function handleJoyMove(clientX, clientY){
   const rect = joyBg.getBoundingClientRect();
   const localX = clientX - (rect.left + rect.width/2);
@@ -347,6 +446,25 @@ fireBtn.addEventListener('touchstart', function(e){ if(e.cancelable) e.preventDe
 fireBtn.addEventListener('click', function(e){ e.preventDefault(); playerShoot(); });
 crouchBtn.addEventListener('touchstart', function(e){ if(e.cancelable) e.preventDefault(); playerCrouch(); }, touchOpts);
 crouchBtn.addEventListener('click', function(e){ e.preventDefault(); playerCrouch(); });
+
+/* Lead button (За мной) + visual cooldown */
+function canPlayerLead(){
+  return player && player.isBoss && (player.kills >= 2) && Date.now() >= (player.bossCooldownUntil || 0);
+}
+leadBtn.addEventListener('click', function(e){ e.preventDefault(); if(!canPlayerLead()) return; bossActivate(player); player.bossCooldownUntil = Date.now() + 60000; updateLeadCd(); });
+function updateLeadButton(){
+  if(canPlayerLead()) { leadBtn.disabled = false; leadBtn.style.opacity = '1'; } else { leadBtn.disabled = true; leadBtn.style.opacity = '0.75'; }
+}
+function updateLeadCd(){
+  if(!player){ leadCd.style.background = 'transparent'; return; }
+  const cd = Math.max(0, (player.bossCooldownUntil || 0) - Date.now());
+  if(cd <= 0){ leadCd.style.background = 'transparent'; return; }
+  const total = 60000;
+  const pct = clamp(cd / total, 0, 1);
+  const filled = 360 * pct;
+  leadCd.style.background = `conic-gradient(rgba(255,255,255,0.16) ${filled}deg, transparent 0deg)`;
+  leadCd.style.borderRadius = '10px';
+}
 
 /* Minimap */
 mmToggle.addEventListener('click', ()=>{
@@ -385,36 +503,43 @@ function getRadius(e){
   return e.baseR;
 }
 
-/* ====== Bot AI (включая wounded и veteran) ====== */
+/* ====== Bot AI (включая follow) ====== */
 function botDecide(e){
   if(!e || e.hp <= 0) return;
 
-  if(e.isVeteran){
-    const vz = e.veteranZone;
-    if(vz){
-      let best=null, bestD=1e9;
-      for(const p of pickups){ if(!p || p.type!=='ammo') continue; const pi=clamp(Math.floor(p.x/CELL),0,N-1), pj=clamp(Math.floor(p.y/CELL),0,N-1); if(pi===vz.i && pj===vz.j){ const d=distXY(e.x,e.y,p.x,p.y); if(d<bestD){bestD=d;best=p;} } }
-      if(best){ e.state='seekBonus'; e.stateTarget={x:best.x,y:best.y,bonus:best}; e.stateTimer=400+Math.random()*800; return; }
-      e.state='patrol'; e.stateTarget={x:vz.i*CELL + randRange(12,CELL-12), y:vz.j*CELL + randRange(12,CELL-12)}; e.stateTimer=600+Math.random()*1000; return;
-    } else { e.state='idle'; e.stateTimer=500; return; }
+  const royalFactor = selectedMode === 'royal' ? 1.6 : 1;
+
+  if(e.following){
+    const boss = entities.find(ent => ent && ent.id === e.following);
+    if(boss && boss.hp>0){
+      if(!e.followOffset){
+        e.followOffset = { angle: Math.random()*Math.PI*2, radius: randRange(12, Math.max(20, FOLLOW_RADIUS - 6)) };
+      }
+      const drift = 6 * (Math.sin(Date.now()/1000 + (e.followOffset.angle*3)) );
+      e.state = 'follow';
+      e.stateTarget = { x: boss.x + Math.cos(e.followOffset.angle) * e.followOffset.radius + randRange(-6,6) + drift, y: boss.y + Math.sin(e.followOffset.angle) * e.followOffset.radius + randRange(-6,6) - drift };
+      e.stateTimer = 300 * royalFactor + Math.random()*500;
+      return;
+    } else {
+      e.following = null; e.followHighlight = false; e.followOffset = null;
+    }
   }
 
   if(e.hp < MAX_HEALTH * WOUNDED_THRESHOLD){
     let nearest=null, bestD=1e9;
     for(const p of pickups){ if(!p || p.type!=='ammo') continue; const pi=clamp(Math.floor(p.x/CELL),0,N-1), pj=clamp(Math.floor(p.y/CELL),0,N-1); if(!(cells[pi]&&cells[pi][pj])) continue; if(cells[pi][pj].owner !== e.team) continue; if(cellBordersEnemy(e.team,pi,pj)) continue; const enemies = playersInCell(pi,pj).filter(x=>x.team!==e.team && x.hp>0).length; if(enemies>0) continue; const d=distXY(e.x,e.y,p.x,p.y); if(d<bestD){bestD=d;nearest=p;} }
-    if(nearest){ e.state='seekBonus'; e.stateTarget={x:nearest.x,y:nearest.y,bonus:nearest}; e.stateTimer=400+Math.random()*800; return; }
+    if(nearest){ e.state='seekBonus'; e.stateTarget={x:nearest.x,y:nearest.y,bonus:nearest}; e.stateTimer=400*royalFactor+Math.random()*800; return; }
     const ownedSafe=[];
     for(let i=0;i<N;i++) for(let j=0;j<N;j++){ if(cells[i][j].owner===e.team && !cellBordersEnemy(e.team,i,j)){ const enem = playersInCell(i,j).filter(x=>x.team !== e.team && x.hp>0).length; if(enem===0) ownedSafe.push({i,j}); } }
-    if(ownedSafe.length>0){ const c=ownedSafe[Math.floor(Math.random()*ownedSafe.length)]; e.state='patrol'; e.stateTarget={x:c.i*CELL + randRange(12,CELL-12), y:c.j*CELL + randRange(12,CELL-12)}; e.stateTimer = 600 + Math.random()*1200; return; }
+    if(ownedSafe.length>0){ const c=ownedSafe[Math.floor(Math.random()*ownedSafe.length)]; e.state='patrol'; e.stateTarget={x:c.i*CELL + randRange(12,CELL-12), y:c.j*CELL + randRange(12,CELL-12)}; e.stateTimer = (600 + Math.random()*1200)*royalFactor; return; }
     const owned=[]; for(let i=0;i<N;i++) for(let j=0;j<N;j++) if(cells[i][j].owner===e.team) owned.push({i,j});
-    if(owned.length>0){ const c=owned[Math.floor(Math.random()*owned.length)]; e.state='patrol'; e.stateTarget={x:c.i*CELL + randRange(12,CELL-12), y:c.j*CELL + randRange(12,CELL-12)}; e.stateTimer=600+Math.random()*1200; return; }
-    e.state='idle'; e.stateTimer=500; return;
+    if(owned.length>0){ const c=owned[Math.floor(Math.random()*owned.length)]; e.state='patrol'; e.stateTarget={x:c.i*CELL + randRange(12,CELL-12), y:c.j*CELL + randRange(12,CELL-12)}; e.stateTimer=(600+Math.random()*1200)*royalFactor; return; }
+    e.state='idle'; e.stateTimer=500*royalFactor; return;
   }
 
-  // Non-wounded normal behavior
   let nearestBonus=null, bestDBonus=1e9;
   for(const b of pickups){ if(!b || (b.type!=='ammo' && b.type!=='armor')) continue; const ci=clamp(Math.floor(b.x/CELL),0,N-1), cj=clamp(Math.floor(b.y/CELL),0,N-1); if(!(cells[ci]&&cells[ci][cj]&&cells[ci][cj].owner===e.team)) continue; if(b.type==='armor' && e.hasArmor) continue; const d=distXY(e.x,e.y,b.x,b.y); if(d<=BOT_BONUS_SEARCH_RADIUS && d<bestDBonus){ nearestBonus=b; bestDBonus=d; } }
-  if(nearestBonus){ e.state='seekBonus'; e.stateTarget={x:nearestBonus.x,y:nearestBonus.y,bonus:nearestBonus}; e.stateTimer=400+Math.random()*800; return; }
+  if(nearestBonus){ e.state='seekBonus'; e.stateTarget={x:nearestBonus.x,y:nearestBonus.y,bonus:nearestBonus}; e.stateTimer=(400+Math.random()*800)*royalFactor; return; }
 
   const myI = clamp(Math.floor(e.x/CELL),0,N-1), myJ = clamp(Math.floor(e.y/CELL),0,N-1);
   let candidate=null, bestScore=1e12;
@@ -435,19 +560,18 @@ function botDecide(e){
       const ai=candidate.i+ofs.di, aj=candidate.j+ofs.dj; if(ai<0||aj<0||ai>=N||aj>=N) continue;
       if(cells[ai][aj].owner !== -1 && cells[ai][aj].owner !== e.team){ bordersEnemy=true; adjEnemy={i:ai,j:aj}; if(playersInCell(ai,aj).filter(x=>x.hp>0).length>0) adjEnemyHasAlive=true; }
     }
-    if(!bordersEnemy){ e.state='moveTo'; e.stateTarget={cell:{i:candidate.i,j:candidate.j}, x:candidate.cx, y:candidate.cy}; e.wantedCaptureCell={i:candidate.i,j:candidate.j}; e.stateTimer=400+Math.random()*1200; return; }
+    if(!bordersEnemy){ e.state='moveTo'; e.stateTarget={cell:{i:candidate.i,j:candidate.j}, x:candidate.cx, y:candidate.cy}; e.wantedCaptureCell={i:candidate.i,j:candidate.j}; e.stateTimer=(400+Math.random()*1200)*royalFactor; return; }
     else {
-      if(adjEnemy && !adjEnemyHasAlive){ e.state='moveTo'; e.stateTarget={cell:{i:candidate.i,j:candidate.j}, x:candidate.cx,y:candidate.cy}; e.wantedCaptureCell={i:candidate.i,j:candidate.j}; e.stateTimer=300+Math.random()*400; return; }
+      if(adjEnemy && !adjEnemyHasAlive){ e.state='moveTo'; e.stateTarget={cell:{i:candidate.i,j:candidate.j}, x:candidate.cx,y:candidate.cy}; e.wantedCaptureCell={i:candidate.i,j:candidate.j}; e.stateTimer=(300+Math.random()*400)*royalFactor; return; }
       else {
         const roll = Math.random()*100;
-        if(roll < 70){ e.state='hold'; e.stateTarget={threatCell:{i:candidate.i,j:candidate.j}, behavior:'shoot_retreat'}; e.stateTimer=150+Math.random()*300; return; }
-        else if(roll < 95){ e.state='moveTo'; e.stateTarget={cell:{i:candidate.i,j:candidate.j}, x:candidate.cx,y:candidate.cy, afterShootGoDeep:true}; e.wantedCaptureCell={i:candidate.i,j:candidate.j}; e.stateTimer=200+Math.random()*300; return; }
-        else { e.state='moveTo'; e.stateTarget={cell:{i:candidate.i,j:candidate.j}, x:candidate.cx,y:candidate.cy, aggressiveCapture:true}; e.wantedCaptureCell={i:candidate.i,j:candidate.j}; e.stateTimer=200+Math.random()*300; return; }
+        if(roll < 70){ e.state='hold'; e.stateTarget={threatCell:{i:candidate.i,j:candidate.j}, behavior:'shoot_retreat'}; e.stateTimer=(150+Math.random()*300)*royalFactor; return; }
+        else if(roll < 95){ e.state='moveTo'; e.stateTarget={cell:{i:candidate.i,j:candidate.j}, x:candidate.cx,y:candidate.cy, afterShootGoDeep:true}; e.wantedCaptureCell={i:candidate.i,j:candidate.j}; e.stateTimer=(200+Math.random()*300)*royalFactor; return; }
+        else { e.state='moveTo'; e.stateTarget={cell:{i:candidate.i,j:candidate.j}, x:candidate.cx,y:candidate.cy, aggressiveCapture:true}; e.wantedCaptureCell={i:candidate.i,j:candidate.j}; e.stateTimer=(200+Math.random()*300)*royalFactor; return; }
       }
     }
   }
 
-  // border enemy behavior
   const myOwned=[];
   for(let i=0;i<N;i++) for(let j=0;j<N;j++) if(cells[i][j].owner===e.team) myOwned.push({i,j});
   let adjacentEnemyCandidates = [];
@@ -465,74 +589,96 @@ function botDecide(e){
       const cx = best.i*CELL + CELL/2, cy = best.j*CELL + CELL/2;
       if(aliveEnemies > 0){
         const roll = Math.random()*100;
-        if(roll < 80){ e.state='hold'; e.stateTarget={threatCell:{i:best.i,j:best.j}, behavior:'shoot_retreat'}; e.stateTimer=150+Math.random()*300; return; }
-        else if(roll < 95){ e.state='moveTo'; e.stateTarget={cell:{i:best.i,j:best.j}, x:cx,y:cy, afterShootGoDeep:true}; e.wantedCaptureCell={i:best.i,j:best.j}; e.stateTimer=200+Math.random()*300; return; }
-        else { e.state='moveTo'; e.stateTarget={cell:{i:best.i,j:best.j}, x:cx,y:cy, aggressiveCapture:true}; e.wantedCaptureCell={i:best.i,j:best.j}; e.stateTimer=200+Math.random()*300; return; }
-      } else { e.state='moveTo'; e.stateTarget={cell:{i:best.i,j:best.j}, x:cx,y:cy}; e.wantedCaptureCell={i:best.i,j:best.j}; e.stateTimer=300+Math.random()*500; return; }
+        if(roll < 80){ e.state='hold'; e.stateTarget={threatCell:{i:best.i,j:best.j}, behavior:'shoot_retreat'}; e.stateTimer=(150+Math.random()*300)*royalFactor; return; }
+        else if(roll < 95){ e.state='moveTo'; e.stateTarget={cell:{i:best.i,j:best.j}, x:cx,y:cy, afterShootGoDeep:true}; e.wantedCaptureCell={i:best.i,j:best.j}; e.stateTimer=(200+Math.random()*300)*royalFactor; return; }
+        else { e.state='moveTo'; e.stateTarget={cell:{i:best.i,j:best.j}, x:cx,y:cy, aggressiveCapture:true}; e.wantedCaptureCell={i:best.i,j:best.j}; e.stateTimer=(200+Math.random()*300)*royalFactor; return; }
+      } else { e.state='moveTo'; e.stateTarget={cell:{i:best.i,j:best.j}, x:cx,y:cy}; e.wantedCaptureCell={i:best.i,j:best.j}; e.stateTimer=(300+Math.random()*500)*royalFactor; return; }
     }
   }
 
-  // default patrol
-  if(myOwned.length>0){ const c=myOwned[Math.floor(Math.random()*myOwned.length)]; e.state='patrol'; e.stateTarget={x:c.i*CELL + randRange(12,CELL-12), y:c.j*CELL + randRange(12,CELL-12)}; e.stateTimer=800+Math.random()*1200; return; }
-  e.state='patrol'; e.stateTarget={x:randRange(12,WORLD_W-12), y:randRange(12,WORLD_H-12)}; e.stateTimer=800+Math.random()*1200; return;
+  if(myOwned.length>0){ const c=myOwned[Math.floor(Math.random()*myOwned.length)]; e.state='patrol'; e.stateTarget={x:c.i*CELL + randRange(12,CELL-12), y:c.j*CELL + randRange(12,CELL-12)}; e.stateTimer=(800+Math.random()*1200)*royalFactor; return; }
+  e.state='patrol'; e.stateTarget={x:randRange(12,WORLD_W-12), y:randRange(12,WORLD_H-12)}; e.stateTimer=(800+Math.random()*1200)*royalFactor; return;
 }
 
-/* ====== Entity update (movement, pickups, shooting) ====== */
+/* ====== Entity update (movement smoothing, follow natural, border slow) ====== */
 function updateEntity(e, dt){
   if(!e || e.hp <= 0) return;
 
   if(e.isBot){ e.stateTimer -= dt; if(e.stateTimer <= 0) botDecide(e); }
 
-  let vx=0, vy=0;
+  let desiredVx = 0, desiredVy = 0;
+
   if(!e.isBot){
     const md = e.moveDir; const mag = Math.hypot(md.x,md.y);
-    if(mag > 0.01){ vx = (md.x/mag)*e.speed; vy = (md.y/mag)*e.speed; e.facing.x = md.x/(mag||1); e.facing.y = md.y/(mag||1); }
+    if(mag > 0.01){ desiredVx = (md.x/mag)*e.speed; desiredVy = (md.y/mag)*e.speed; e.facing.x = md.x/(mag||1); e.facing.y = md.y/(mag||1); }
   } else {
-    let target = null;
-    if(e.state === 'capturing' && e.wantedCaptureCell){
-      const cx = e.wantedCaptureCell.i*CELL + CELL/2, cy = e.wantedCaptureCell.j*CELL + CELL/2;
-      const d = distXY(e.x,e.y,cx,cy);
-      if(d > 4) target = { x: cx + randRange(-6,6), y: cy + randRange(-6,6) };
-    } else if(e.state === 'seekBonus' && e.stateTarget) target = { x: e.stateTarget.x, y: e.stateTarget.y };
-    else if((e.state === 'moveTo' || e.state === 'patrol') && e.stateTarget) target = { x: e.stateTarget.x, y: e.stateTarget.y };
-    else if(e.state === 'hold'){ e.crouchUntil = Date.now() + CROUCH_DURATION_MS; target = null; }
+    if(e.following){
+      const boss = entities.find(ent => ent && ent.id === e.following);
+      if(boss && boss.hp>0){
+        if(!e.followOffset) e.followOffset = { angle: Math.random()*Math.PI*2, radius: randRange(12, Math.max(20, FOLLOW_RADIUS - 6)) };
+        e.followOffset.angle += 0.6 * (dt/1000) * randRange(0.3,1.2);
+        const tx = boss.x + Math.cos(e.followOffset.angle) * e.followOffset.radius + Math.sin(Date.now()/700 + e.followOffset.angle)*6;
+        const ty = boss.y + Math.sin(e.followOffset.angle) * e.followOffset.radius + Math.cos(Date.now()/800 + e.followOffset.angle)*6;
+        const dx = tx - e.x, dy = ty - e.y; const d = Math.hypot(dx,dy) || 1;
+        const desiredSpeed = e.speed * (d > 12 ? 1.0 : 0.6);
+        desiredVx = (dx/d) * desiredSpeed;
+        desiredVy = (dy/d) * desiredSpeed;
+        e.facing.x = dx/(d||1); e.facing.y = dy/(d||1);
+      } else { e.following = null; e.followHighlight = false; e.followOffset = null; }
+    } else {
+      let target = null;
+      if(e.state === 'capturing' && e.wantedCaptureCell){
+        const cx = e.wantedCaptureCell.i*CELL + CELL/2, cy = e.wantedCaptureCell.j*CELL + CELL/2;
+        const d = distXY(e.x,e.y,cx,cy);
+        if(d > 4) target = { x: cx + randRange(-6,6), y: cy + randRange(-6,6) };
+      } else if(e.state === 'seekBonus' && e.stateTarget) target = { x: e.stateTarget.x, y: e.stateTarget.y };
+      else if((e.state === 'moveTo' || e.state === 'patrol' || e.state === 'follow') && e.stateTarget) target = { x: e.stateTarget.x, y: e.stateTarget.y };
+      else if(e.state === 'hold'){ e.crouchUntil = Date.now() + CROUCH_DURATION_MS; target = null; }
 
-    if(target){
-      const dx = target.x - e.x, dy = target.y - e.y, d = Math.hypot(dx,dy);
-      if(d > 2){ vx = (dx/d)*e.speed; vy = (dy/d)*e.speed; e.facing.x = dx/(d||1); e.facing.y = dy/(d||1); }
-      else {
-        if(e.state === 'moveTo' && e.wantedCaptureCell){
-          const ci = e.wantedCaptureCell.i, cj = e.wantedCaptureCell.j;
-          const playersHere = playersInCell(ci,cj);
-          const enemies = playersHere.filter(p=>p.team !== e.team).length;
-          if(enemies === 0){ e.state='capturing'; e.stateTarget=null; e.x = ci*CELL + CELL/2 + randRange(-6,6); e.y = cj*CELL + CELL/2 + randRange(-6,6); return; } else { e.state='idle'; e.stateTimer=300; }
-        } else { if(e.state === 'patrol') e.stateTimer = 400 + Math.random()*800; }
-      }
+      if(target){
+        const dx = target.x - e.x, dy = target.y - e.y, d = Math.hypot(dx,dy) || 1;
+        desiredVx = (dx/d)*e.speed;
+        desiredVy = (dy/d)*e.speed;
+        e.facing.x = dx/(d||1); e.facing.y = dy/(d||1);
+        if(d < 6){ desiredVx *= 0.2; desiredVy *= 0.2; }
+      } else { desiredVx = 0; desiredVy = 0; }
     }
   }
 
+  // smoothing
+  const accelFactor = 0.12 + Math.min(0.28, dt/1000 * 0.18);
+  e.vx += (desiredVx - (e.vx||0)) * accelFactor;
+  e.vy += (desiredVy - (e.vy||0)) * accelFactor;
+
+  // ----- border crossing detection BEFORE movement so slow applies immediately -----
+  const prevX = e.x, prevY = e.y;
+  const prevCi = clamp(Math.floor(prevX/CELL),0,N-1), prevCj = clamp(Math.floor(prevY/CELL),0,N-1);
+  const tentativeX = e.x + e.vx * (dt/1000);
+  const tentativeY = e.y + e.vy * (dt/1000);
+  const trgCi = clamp(Math.floor(tentativeX/CELL),0,N-1), trgCj = clamp(Math.floor(tentativeY/CELL),0,N-1);
+  if((prevCi !== trgCi || prevCj !== trgCj) && prevCi>=0 && prevCj>=0 && trgCi>=0 && trgCj>=0){
+    const ownerPrev = (cells[prevCi] && cells[prevCi][prevCj]) ? cells[prevCi][prevCj].owner : -1;
+    const ownerTrg = (cells[trgCi] && cells[trgCi][trgCj]) ? cells[trgCi][trgCj].owner : -1;
+    // enemy <-> enemy -> 1s; someone <-> neutral -> 0.5s; neutral<->neutral -> 0
+    if(ownerPrev !== ownerTrg){
+      if(ownerPrev !== -1 && ownerTrg !== -1 && ownerPrev !== ownerTrg){
+        e.borderSlowUntil = Date.now() + BORDER_SLOW_ENEMY_MS;
+      } else if((ownerPrev === -1 && ownerTrg !== -1) || (ownerPrev !== -1 && ownerTrg === -1)){
+        e.borderSlowUntil = Date.now() + BORDER_SLOW_NEUTRAL_MS;
+      }
+    }
+  }
+  // ----- end border detection -----
+
+  // apply movement modifiers (crouch, veteran, border slow)
   let moveFactor = 1;
   if(e.alwaysCrouched) moveFactor *= (1 - CROUCH_HITBOX_REDUCE);
   else if(Date.now() < e.crouchUntil) moveFactor *= (1 - CROUCH_HITBOX_REDUCE);
 
-  const localX = e.x % CELL, localY = e.y % CELL;
-  const ci = clamp(Math.floor(e.x/CELL),0,N-1), cj = clamp(Math.floor(e.y/CELL),0,N-1);
-  if(ci>=0 && cj>=0){
-    const neighbors=[]; if(ci>0) neighbors.push({ni:ci-1,nj:cj}); if(ci<N-1) neighbors.push({ni:ci+1,nj:cj}); if(cj>0) neighbors.push({ni:ci,nj:cj-1}); if(cj<N-1) neighbors.push({ni:ci,nj:cj+1});
-    for(const nb of neighbors){
-      const ownerA = (cells[ci] && cells[ci][cj]) ? cells[ci][cj].owner : -1;
-      const ownerB = (cells[nb.ni] && cells[nb.ni][nb.nj]) ? cells[nb.ni][nb.nj].owner : -1;
-      if(ownerA !== ownerB){
-        if(Math.abs(nb.ni - ci) === 1){ if(localX < 6 || localX > CELL-6) moveFactor *= (1/3); }
-        else { if(localY < 6 || localY > CELL-6) moveFactor *= (1/3); }
-      }
-    }
-  }
+  if(Date.now() < e.borderSlowUntil) moveFactor *= 0.25; // замедление при пересечении границы
 
-  if(e.state === 'capturing'){ vx = 0; vy = 0; }
-
-  e.x += vx * moveFactor * (dt/1000);
-  e.y += vy * moveFactor * (dt/1000);
+  e.x += e.vx * (dt/1000) * moveFactor;
+  e.y += e.vy * (dt/1000) * moveFactor;
 
   if(e.isVeteran && e.veteranZone){
     const vi = e.veteranZone.i, vj = e.veteranZone.j;
@@ -544,7 +690,7 @@ function updateEntity(e, dt){
     e.x = clamp(e.x, 2, WORLD_W-2); e.y = clamp(e.y, 2, WORLD_H-2);
   }
 
-  // pickups collection only on owned cells
+  // pickups collection only on owned cells (как было)
   for(const p of pickups){
     if(!p || p._remove) continue;
     const pi = clamp(Math.floor(p.x/CELL),0,N-1), pj = clamp(Math.floor(p.y/CELL),0,N-1);
@@ -557,8 +703,8 @@ function updateEntity(e, dt){
       if(e.ammo >= 10){
         const ang = Math.random()*Math.PI*2; const nx = clamp(e.x + Math.cos(ang)*20, 2, WORLD_W-2), ny = clamp(e.y + Math.sin(ang)*20, 2, WORLD_H-2);
         entities.push({
-          id: Math.random().toString(36).slice(2,9), x:nx, y:ny, team:e.team, isBot:true, baseR:5, moveDir:{x:0,y:0}, facing:{x:1,y:0},
-          speed: BOT_BASE_SPEED, ammo:0, hasArmor:false, reloadUntil:0, crouchUntil:0, hp:MAX_HEALTH, state:'idle', stateTarget:null, stateTimer:0, wantedCaptureCell:null, reinforcement:false, isVeteran:false, veteranZone:null, alwaysCrouched:false, kills:0
+          id: Math.random().toString(36).slice(2,9), x:nx, y:ny, vx:0, vy:0, team:e.team, isBot:true, baseR:5, moveDir:{x:0,y:0}, facing:{x:1,y:0},
+          speed: BOT_BASE_SPEED, ammo:0, hasArmor:false, reloadUntil:0, crouchUntil:0, hp:MAX_HEALTH, state:'idle', stateTarget:null, stateTimer:0, wantedCaptureCell:null, reinforcement:false, isVeteran:false, veteranZone:null, alwaysCrouched:false, kills:0, bossCooldownUntil:0, following:null, followStart:0, followHighlight:false, followOffset:null, borderSlowUntil:0
         });
         e.ammo = 0;
       }
@@ -584,12 +730,6 @@ function updateEntity(e, dt){
         createBullet(e.x, e.y, ang, desiredDist, e);
         e.reloadUntil = Date.now() + RELOAD_MS;
         if(e.state === 'hold') e.crouchUntil = Date.now() + CROUCH_DURATION_MS;
-      }
-      if(!e.isVeteran && e.hp >= MAX_HEALTH * WOUNDED_THRESHOLD){
-        if(e.stateTarget && e.stateTarget.engage){
-          const d = mag;
-          if(d > 60){ e.x += (dx/d) * (e.speed * 0.5) * (dt/1000); e.y += (dy/d) * (e.speed * 0.5) * (dt/1000); }
-        }
       }
     }
   }
@@ -629,8 +769,13 @@ function updateBullets(dt){
         p.hp -= dmg;
         if(p.hp <= 0){
           if(b.owner && typeof b.owner.kills === 'number') b.owner.kills = (b.owner.kills || 0) + 1;
-          if(b.owner === player) updateLegend();
+          if(b.owner === player) updateLegend(true);
+          if(b.owner && b.owner.isBoss && b.owner.isBot && b.owner.kills >= 2 && Date.now() >= (b.owner.bossCooldownUntil || 0)){
+            bossActivate(b.owner);
+            b.owner.bossCooldownUntil = Date.now() + 60000;
+          }
         } else {
+          if(p.following && Math.random() < 0.5){ p.following = null; p.followHighlight = false; p.followOffset = null; }
           if(p.isBot && !p.isVeteran && p.hp > 0 && p.hp < MAX_HEALTH * VETERAN_THRESHOLD){
             const ci = clamp(Math.floor(p.x/CELL),0,N-1), cj = clamp(Math.floor(p.y/CELL),0,N-1);
             let lockZone = null;
@@ -646,6 +791,7 @@ function updateBullets(dt){
               lockZone = best || {i:ci,j:cj};
             }
             p.isVeteran = true; p.veteranZone = lockZone; p.alwaysCrouched = true; p.state='patrol'; p.stateTarget = { x: lockZone.i*CELL + randRange(12,CELL-12), y: lockZone.j*CELL + randRange(12,CELL-12) };
+            if(p.following){ p.following = null; p.followHighlight = false; p.followOffset = null; }
           }
         }
         b.alive = false;
@@ -658,20 +804,94 @@ function updateBullets(dt){
   bullets = bullets.filter(b => b.alive);
 }
 
+/* ====== Boss: активация сопровождения (логика выбора и радиус) ====== */
+function bossActivate(boss){
+  if(!boss || boss.hp <= 0) return;
+  const kills = Math.max(0, Math.floor(boss.kills || 0));
+  if(kills <= 0) return;
+  const candidates = entities.filter(e => e && e.hp>0 && e.team === boss.team && e.id !== boss.id && e.isBot && !e.isVeteran && !e.following);
+  candidates.sort((a,b)=> distXY(a.x,a.y,boss.x,boss.y) - distXY(b.x,b.y,boss.x,boss.y));
+  const pick = candidates.slice(0, kills);
+  for(const f of pick){
+    f.following = boss.id;
+    f.followStart = Date.now();
+    f.followHighlight = true;
+    f.followOffset = { angle: Math.atan2(f.y - boss.y, f.x - boss.x) + randRange(-0.5,0.5), radius: clamp(randRange(FOLLOW_RADIUS*0.5, Math.max(12, FOLLOW_RADIUS - 6)), 8, Math.max(8, FOLLOW_RADIUS - 6)) };
+    const tx = boss.x + Math.cos(f.followOffset.angle) * f.followOffset.radius;
+    const ty = boss.y + Math.sin(f.followOffset.angle) * f.followOffset.radius;
+    const dx = tx - f.x, dy = ty - f.y; const d = Math.hypot(dx,dy) || 1;
+    f.vx = (dx/d) * Math.min(f.speed, Math.max(20, d*2));
+    f.vy = (dy/d) * Math.min(f.speed, Math.max(20, d*2));
+  }
+  boss.bossCooldownUntil = Date.now() + 60000;
+}
+
 /* ====== Cleanup ====== */
 function cleanup(){
   for(let i=entities.length-1;i>=0;i--){
     const e = entities[i];
-    if(e && e.hp <= 0) entities.splice(i,1);
+    if(e && e.hp <= 0){
+      entities.splice(i,1);
+    }
   }
   pickups = pickups.filter(p => !p._remove);
 }
 
-/* ====== Ammo spawn tick (10 points / sec) ====== */
+/* ====== Ammo spawn tick ====== */
 function spawnAmmoBatch(){ for(let k=0;k<AMMO_SPAWN_PER_SEC_TOTAL;k++) pickups.push({ x: randRange(12,WORLD_W-12), y: randRange(12,WORLD_H-12), type:'ammo', amount:1 }); }
 function pickupsTick(dt){ ammoAccumulator += dt; while(ammoAccumulator >= 1000){ spawnAmmoBatch(); ammoAccumulator -= 1000; } }
 
+/* ====== Camera helpers ====== */
+function screenToWorld(screenX, screenY){
+  return {
+    x: (screenX - canvas.width/2)/camera.zoom + camera.x,
+    y: (screenY - canvas.height/2)/camera.zoom + camera.y
+  };
+}
+function worldToScreen(worldX, worldY){
+  return {
+    x: (worldX - camera.x) * camera.zoom + canvas.width/2,
+    y: (worldY - camera.y) * camera.zoom + canvas.height/2
+  };
+}
+
+/* ====== Pointer handlers для панинга камеры ====== */
+let pointerDown = false;
+canvas.addEventListener('pointerdown', (ev)=>{
+  const allowDrag = (!player || player.hp <= 0) || !camera.followPlayer;
+  if(!allowDrag) return;
+  pointerDown = true;
+  try{ canvas.setPointerCapture && canvas.setPointerCapture(ev.pointerId); } catch(e){}
+  const world = screenToWorld(ev.clientX, ev.clientY);
+  camera.dragging = true;
+  camera.dragStartWorld = world;
+  camera.dragStartCam = { x: camera.x, y: camera.y };
+});
+canvas.addEventListener('pointermove', (ev)=>{
+  if(!camera.dragging) return;
+  const world = screenToWorld(ev.clientX, ev.clientY);
+  const dx = world.x - camera.dragStartWorld.x, dy = world.y - camera.dragStartWorld.y;
+  camera.x = camera.dragStartCam.x - dx;
+  camera.y = camera.dragStartCam.y - dy;
+});
+canvas.addEventListener('pointerup', (ev)=>{
+  pointerDown = false;
+  camera.dragging = false;
+  try{ canvas.releasePointerCapture && canvas.releasePointerCapture(ev.pointerId); } catch(e){}
+});
+canvas.addEventListener('pointercancel', (ev)=>{ pointerDown=false; camera.dragging=false; });
+
+/* ====== Follow-check (1% chance to stop each second) ====== */
+function followPeriodicCheck(){
+  for(const e of entities){
+    if(e && e.following){
+      if(Math.random() < 0.01){ e.following = null; e.followHighlight = false; e.followOffset = null; }
+    }
+  }
+}
+
 /* ====== Main loop ====== */
+let playerAlivePrev = true;
 function gameLoop(){
   if(!gameStarted) return;
   const now = Date.now(); const dt = Math.max(1, now - lastFrame); lastFrame = now;
@@ -680,33 +900,89 @@ function gameLoop(){
   for(const e of entities.slice()) updateEntity(e, dt);
   updateCaptures(dt);
   updateBullets(dt);
+
+  followCheckAccum += dt;
+  if(followCheckAccum >= 1000){
+    followCheckAccum -= 1000;
+    followPeriodicCheck();
+  }
+
   cleanup();
+
+  if(player){
+    if(player.hp <= 0 && playerAlivePrev){
+      playerAlivePrev = false;
+      camera.zoomTarget = ZOOM / 1.5;
+      camera.followPlayer = false;
+    } else if(player.hp > 0){
+      playerAlivePrev = true;
+      camera.zoomTarget = ZOOM;
+      camera.followPlayer = true;
+    }
+  }
+
+  updateLeadButton();
+  updateLeadCd();
+
   draw();
   updateLegend();
+
   requestAnimationFrame(gameLoop);
 }
 
-/* ====== Drawing (zoom + grey background for outside) ====== */
+/* ====== Drawing (camera support) ====== */
 function draw(){
   ctx.save();
   ctx.setTransform(1,0,0,1,0,0);
   ctx.fillStyle = '#777'; ctx.fillRect(0,0,canvas.width, canvas.height);
 
-  if(!player) { ctx.restore(); return; }
-  const z = ZOOM;
-  ctx.setTransform(z, 0, 0, z, canvas.width/2 - player.x*z, canvas.height/2 - player.y*z);
+  if(!player){
+    if(camera.x === 0 && camera.y === 0){ camera.x = WORLD_W/2; camera.y = WORLD_H/2; }
+  }
 
-  for(let i=0;i<N;i++){
-    for(let j=0;j<N;j++){
-      const c = cells[i][j];
-      const gx = i*CELL, gy = j*CELL;
-      let base = '#bdbdbd';
-      if(c.owner !== -1 && c.owner >=0 && c.owner < TEAM_COLORS.length) base = TEAM_COLORS[c.owner];
-      if(c.captureTeam !== -1 && c.progress > 0) ctx.fillStyle = blendColors(base, TEAM_COLORS[c.captureTeam], c.progress);
-      else ctx.fillStyle = base;
-      ctx.fillRect(gx, gy, CELL, CELL);
-      ctx.strokeStyle = '#777'; ctx.lineWidth = 1; ctx.strokeRect(gx, gy, CELL, CELL);
-      if(c.captureTeam !== -1 && c.progress > 0){ ctx.fillStyle = TEAM_COLORS[c.captureTeam]; ctx.fillRect(gx, gy + CELL - 6, CELL * c.progress, 6); ctx.strokeStyle = '#222'; ctx.strokeRect(gx, gy + CELL - 6, CELL, 6); }
+  camera.zoom += (camera.zoomTarget - camera.zoom) * 0.08;
+
+  if(camera.followPlayer && player && player.hp > 0){
+    camera.x += (player.x - camera.x) * 0.2;
+    camera.y += (player.y - camera.y) * 0.2;
+  } else {
+    const halfW = canvas.width / (2 * camera.zoom), halfH = canvas.height / (2 * camera.zoom);
+    camera.x = clamp(camera.x, halfW, Math.max(halfW, WORLD_W - halfW));
+    camera.y = clamp(camera.y, halfH, Math.max(halfH, WORLD_H - halfH));
+  }
+
+  ctx.setTransform(camera.zoom, 0, 0, camera.zoom, canvas.width/2 - camera.x*camera.zoom, canvas.height/2 - camera.y*camera.zoom);
+
+  if(selectedMode === 'royal'){
+    ctx.fillStyle = '#555';
+    ctx.fillRect(0,0,WORLD_W,WORLD_H);
+    for(let i=0;i<N;i++){
+      for(let j=0;j<N;j++){
+        const c = cells[i][j];
+        const gx = i*CELL, gy = j*CELL;
+        const owner = c.owner;
+        if(owner !== -1 && owner >= 0 && owner < TEAM_COLORS.length) ctx.fillStyle = TEAM_COLORS[owner];
+        else ctx.fillStyle = '#555';
+        ctx.fillRect(gx, gy, CELL, CELL);
+        if(c.captureTeam !== -1 && c.progress > 0){
+          ctx.fillStyle = TEAM_COLORS[c.captureTeam] || '#fff';
+          ctx.fillRect(gx, gy + CELL - 6, CELL * c.progress, 6);
+        }
+      }
+    }
+  } else {
+    for(let i=0;i<N;i++){
+      for(let j=0;j<N;j++){
+        const c = cells[i][j];
+        const gx = i*CELL, gy = j*CELL;
+        let base = '#bdbdbd';
+        if(c.owner !== -1 && c.owner >=0 && c.owner < TEAM_COLORS.length) base = TEAM_COLORS[c.owner];
+        if(c.captureTeam !== -1 && c.progress > 0) ctx.fillStyle = blendColors(base, TEAM_COLORS[c.captureTeam], c.progress);
+        else ctx.fillStyle = base;
+        ctx.fillRect(gx, gy, CELL, CELL);
+        ctx.strokeStyle = '#777'; ctx.lineWidth = 1; ctx.strokeRect(gx, gy, CELL, CELL);
+        if(c.captureTeam !== -1 && c.progress > 0){ ctx.fillStyle = TEAM_COLORS[c.captureTeam]; ctx.fillRect(gx, gy + CELL - 6, CELL * c.progress, 6); ctx.strokeStyle = '#222'; ctx.strokeRect(gx, gy + CELL - 6, CELL, 6); }
+      }
     }
   }
 
@@ -720,13 +996,15 @@ function draw(){
     const rad = getRadius(e);
     ctx.beginPath(); ctx.arc(e.x, e.y, rad, 0, Math.PI*2); ctx.fillStyle = color; ctx.fill();
 
-    let ang = Math.atan2(e.facing.y || 0.0001, e.facing.x || 1);
+    const ang = Math.atan2(e.facing.y || 0.0001, e.facing.x || 1);
     ctx.beginPath(); ctx.moveTo(e.x,e.y); ctx.arc(e.x,e.y,rad,ang-0.35,ang+0.35); ctx.closePath(); ctx.fillStyle='black'; ctx.fill();
 
     if(e.hasArmor){ ctx.beginPath(); ctx.arc(e.x,e.y,3,0,Math.PI*2); ctx.fillStyle='#000'; ctx.fill(); }
 
     ctx.fillStyle='#000'; ctx.fillRect(e.x-12,e.y-16,24,4);
-    ctx.fillStyle='#0f0'; ctx.fillRect(e.x-12,e.y-16, clamp(e.hp/MAX_HEALTH,0,1)*24, 4);
+    if(e.followHighlight){ ctx.fillStyle='#fff'; }
+    else { ctx.fillStyle='#0f0'; }
+    ctx.fillRect(e.x-12,e.y-16, clamp(e.hp/MAX_HEALTH,0,1)*24, 4);
     ctx.strokeStyle='#333'; ctx.strokeRect(e.x-12,e.y-16,24,4);
 
     if(e.isVeteran){ ctx.lineWidth=2; ctx.strokeStyle='#222'; ctx.beginPath(); ctx.arc(e.x,e.y,rad+5,0,Math.PI*2); ctx.stroke(); }
@@ -751,18 +1029,21 @@ function drawMinimap(){
     const c = cells[i][j];
     mmCtx.fillStyle = (c.owner === -1) ? '#555' : (TEAM_COLORS[c.owner] || '#999');
     mmCtx.fillRect(i*cellW, j*cellH, cellW, cellH);
-    mmCtx.strokeStyle = '#222'; mmCtx.strokeRect(i*cellW, j*cellH, cellW, cellH);
   }
+  mmCtx.strokeStyle = '#222';
+  let ents = entities.filter(e=>e && e.hp>0);
+  if(ents.length > 300) ents = ents.slice(0,300);
+  for(const e of ents){ const sx = (e.x / WORLD_W) * w, sy = (e.y / WORLD_H) * h; mmCtx.beginPath(); mmCtx.arc(sx, sy, 2, 0, Math.PI*2); mmCtx.fillStyle = TEAM_COLORS[e.team] || '#000'; mmCtx.fill(); }
 }
 
 /* ====== HUD ====== */
 function drawHUD(){
   if(!player) return;
-  hud.innerHTML = `Team: <span style="color:${TEAM_COLORS[player.team]};font-weight:700"> ${player.team+1} </span> &nbsp;|&nbsp; HP: ${Math.max(0,Math.round(player.hp))} &nbsp;|&nbsp; Ammo: ${Math.floor(player.ammo)} &nbsp;|&nbsp; Armor: ${player.hasArmor ? 'YES' : 'NO'} &nbsp;|&nbsp; Cell: ${Math.floor(player.x/CELL)},${Math.floor(player.y/CELL)}`;
+  hud.innerHTML = `Team: <span style="color:${(player.team !== undefined && TEAM_COLORS[player.team]) ? TEAM_COLORS[player.team] : '#f44'};font-weight:700"> ${ (player.team !== undefined) ? (player.team+1) : '?' } </span> &nbsp;|&nbsp; HP: ${Math.max(0,Math.round(player.hp))} &nbsp;|&nbsp; Ammo: ${Math.floor(player.ammo)} &nbsp;|&nbsp; Armor: ${player.hasArmor ? 'YES' : 'NO'} &nbsp;|&nbsp; Cell: ${Math.floor((player.x||0)/CELL)},${Math.floor((player.y||0)/CELL)}`;
 }
 
 /* ====== Expose debug ====== */
-window.GAME = { get cells(){ return cells; }, get entities(){ return entities; }, get pickups(){ return pickups; }, get bullets(){ return bullets; }, spawnAmmoBatch, spawnArmorOnce: ()=> pickups.push({ x: randRange(12,WORLD_W-12), y: randRange(12,WORLD_H-12), type:'armor', amount:1 }) };
+window.GAME = { get cells(){ return cells; }, get entities(){ return entities; }, get pickups(){ return pickups; }, get bullets(){ return bullets; }, spawnAmmoBatch, spawnArmorOnce: ()=> pickups.push({ x: randRange(12,WORLD_W-12), y: randRange(12,WORLD_H-12), type:'armor', amount:1 }), bossActivate };
 
 /* ====== beforeunload cleanup ====== */
 window.addEventListener('beforeunload', ()=>{ if(armorIntervalId) clearInterval(armorIntervalId); if(reinforceIntervalId) clearInterval(reinforceIntervalId); });
