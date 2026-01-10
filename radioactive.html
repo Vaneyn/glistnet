@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Как спасти себя от радиации</title>
+
+<style>
+:root{
+  --bg:#0b0b12;
+  --panel:#12121c;
+  --accent:#3cff96;
+  --text:#e8e8f0;
+  --muted:#9aa0b3;
+  --danger:#ff4d4d;
+}
+
+*{
+  box-sizing:border-box;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+}
+
+header{
+  position:sticky;
+  top:0;
+  background:linear-gradient(180deg,#0f0f18,#0b0b12);
+  padding:14px;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  z-index:10;
+}
+
+button.back{
+  background:none;
+  border:1px solid var(--accent);
+  color:var(--accent);
+  padding:8px 14px;
+  border-radius:10px;
+  font-size:14px;
+}
+
+button.back:active{
+  transform:scale(0.97);
+}
+
+h1{
+  font-size:20px;
+  margin:0;
+}
+
+main{
+  padding:16px;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+
+.card{
+  background:var(--panel);
+  border-radius:16px;
+  padding:16px;
+}
+
+.card h2{
+  margin:0 0 8px 0;
+  font-size:17px;
+}
+
+.card p{
+  margin:6px 0;
+  color:var(--muted);
+  line-height:1.5;
+}
+
+details{
+  background:#161625;
+  border-radius:14px;
+  padding:12px;
+}
+
+summary{
+  cursor:pointer;
+  font-weight:600;
+  color:var(--accent);
+}
+
+.list{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  margin-top:10px;
+}
+
+.bad{
+  color:var(--danger);
+  font-weight:600;
+}
+
+.good{
+  color:var(--accent);
+  font-weight:600;
+}
+
+.type{
+  padding:10px;
+  border-radius:12px;
+  background:#1a1a2b;
+}
+
+footer{
+  padding:20px;
+  text-align:center;
+  color:#666;
+  font-size:12px;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <button class="back" onclick="location.href='glist.html'">← Назад</button>
+  <h1>Как спасти себя от радиации</h1>
+</header>
+
+<main>
+
+  <div class="card">
+    <h2>Почему радиация так опасна?</h2>
+    <p>
+      У радиации нет ни запаха, ни вкуса, её нельзя потрогать или увидеть.
+      При этом она может нанести серьёзный вред организму.
+    </p>
+    <p>
+      Без специальных приборов обнаружить радиацию невозможно.
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>Но есть и польза</h2>
+    <p>
+      Радиация — это не только опасность.
+      С её помощью лечат онкологические заболевания,
+      проводят диагностику и научные исследования.
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>Зачем нужен дозиметр?</h2>
+    <p>
+      Если вы работаете с радиоактивными материалами — дозиметр обязателен.
+    </p>
+    <p>
+      Дозиметр — это не просто прибор для измерения фона.
+      Это реальный способ понять, безопасно ли находиться в месте
+      или, например, есть грибы.
+    </p>
+    <p class="good">
+      В идеале дозиметр должен быть в каждом доме.
+    </p>
+  </div>
+
+  <details>
+    <summary>Типы радиоактивного излучения</summary>
+    <div class="list">
+      <div class="type">Альфа-излучение</div>
+      <div class="type">Бета-излучение</div>
+      <div class="type">Гамма-излучение</div>
+      <div class="type">Рентгеновское излучение</div>
+    </div>
+    <p>
+      <span class="bad">Гамма и рентген</span> наиболее опасны
+      из-за высокой проникающей способности.
+    </p>
+    <p>
+      <span class="good">Альфа и бета</span> менее опасны,
+      но при попадании внутрь организма могут быть крайне вредны.
+    </p>
+  </details>
+
+  <details>
+    <summary>Типы дозиметров и счётчиков</summary>
+    <p>
+      Самый распространённый тип — счётчик Гейгера-Мюллера.
+    </p>
+    <p>
+      Самый популярный датчик — <b>СБМ-20</b>.
+    </p>
+    <p>
+      Более чувствительные — слюдяные датчики,
+      например <b>СБТ-11А</b>.
+    </p>
+    <p>
+      Также существуют сцинтилляционные дозиметры.
+      Их время счёта может достигать <b>0.0008 секунды</b> и даже меньше,
+      а ещё они умеют измерять энергетический спектр.
+    </p>
+  </details>
+
+  <div class="card">
+    <h2>Как обезопасить себя</h2>
+    <div class="list">
+      <div class="type">1. Купить дозиметр</div>
+      <div class="type">2. Не ходить по сомнительным местам без защиты</div>
+      <div class="type">
+        3. Хранить радиоактивные предметы
+        только в специальных свинцовых ампулах
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  Автор основного текста: https://t.me/low_bass8  Публикация при поддержке Glist 
+</footer>
+
+</body>
+        </html>
+        
