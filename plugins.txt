@@ -135,3 +135,9 @@ description: Генератор картинок на ИИ. Простой. Хо
 code_url: https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/aiimg.html
 icon_url: 
 screenshots: https://i.postimg.cc/Bn3h7KST/1000082045.jpg
+---
+name: Три в ряд 
+description: Я не знал что сделать и сделал злоедрючий три в ряд
+code_url: https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/3inline.html
+icon_url: 
+screenshots: https://i.postimg.cc/k4nykRyj/1000096236.jpg
