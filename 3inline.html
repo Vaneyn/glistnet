@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>3 в ряд — больше цветов</title>
+<style>
+:root{
+  --bg:#07101b; --text:#e6eef8; --accent:#ffb86b;
+  --grid-size:8; --gap:8px; --tile:56px; --board-pad:12px;
+}
+html,body{height:100%;margin:0;background:linear-gradient(180deg,#041017,#07101b);font-family:Inter,system-ui,-apple-system,Roboto,Arial;color:var(--text);-webkit-font-smoothing:antialiased;overflow:hidden}
+.app{display:flex;flex-direction:column;height:100%}
+header{display:flex;align-items:center;justify-content:space-between;padding:10px 12px}
+.left-row{display:flex;gap:10px;align-items:center}
+a.back{padding:8px 12px;background:#0f1820;color:var(--text);text-decoration:none;border-radius:10px;font-weight:700;border:1px solid rgba(255,255,255,0.02)}
+.status{display:flex;gap:8px;align-items:center}
+.status>div{background:linear-gradient(180deg,#07121a,#07121a);padding:6px 10px;border-radius:10px;border:1px solid rgba(255,255,255,0.02);min-width:72px;text-align:center}
+.controls{display:flex;gap:8px}
+.btn{padding:8px 10px;border-radius:10px;border:none;background:var(--accent);color:#07101b;font-weight:800}
+main{display:flex;flex:1;align-items:center;justify-content:center;padding:6px}
+.board-shell{padding:var(--board-pad);border-radius:16px;box-shadow:0 12px 36px rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.03);background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.04));touch-action:none;position:relative}
+.board{display:grid;grid-template-columns: repeat(var(--grid-size), var(--tile));grid-template-rows: repeat(var(--grid-size), var(--tile));gap:var(--gap);width: calc(var(--grid-size) * var(--tile) + (var(--grid-size)-1) * var(--gap));height: calc(var(--grid-size) * var(--tile) + (var(--grid-size)-1) * var(--gap));position:relative;user-select:none}
+.cell{width:var(--tile);height:var(--tile);border-radius:10px;position:relative;overflow:visible}
+.gem{position:absolute;left:0;top:0;width:100%;height:100%;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:0.86rem;pointer-events:none;box-shadow:0 10px 18px rgba(2,6,23,0.6), inset 0 -8px 22px rgba(255,255,255,0.03);transition: transform 220ms cubic-bezier(.2,.9,.2,1), opacity 220ms linear;will-change: transform, opacity;transform-origin:center}
+.gem .gloss{position:absolute;left:8%;right:8%;top:6%;height:36%;border-radius:8px;background:linear-gradient(180deg, rgba(255,255,255,0.2), rgba(255,255,255,0.02));pointer-events:none;mix-blend-mode:screen}
+.gem .shadow{position:absolute;left:6%;right:6%;bottom:6%;height:18%;border-radius:8px;background:linear-gradient(180deg, rgba(0,0,0,0.18), rgba(0,0,0,0.02));pointer-events:none}
+
+/* original 6 colors */
+.c0{background:radial-gradient(60% 60% at 30% 25%, #ffc7c7 0%, #ff6b6b 40%, #d23b3b 100%)}
+.c1{background:radial-gradient(60% 60% at 30% 25%, #fff0c0 0%, #ffd166 40%, #ffa22a 100%)}
+.c2{background:radial-gradient(60% 60% at 30% 25%, #cfffff 0%, #6be1ff 40%, #1aa3c3 100%)}
+.c3{background:radial-gradient(60% 60% at 30% 25%, #ede0ff 0%, #b28cff 40%, #7b56f0 100%)}
+.c4{background:radial-gradient(60% 60% at 30% 25%, #eaffd3 0%, #9ee37a 40%, #48a93a 100%)}
+.c5{background:radial-gradient(60% 60% at 30% 25%, #ffd9f7 0%, #ffa5e6 40%, #ff6fbf 100%)}
+
+/* NEW colors */
+.c6{ /* коричневый */
+  background: linear-gradient(180deg, #d9b89a 0%, #b08968 45%, #7b4f2b 100%);
+}
+.c7{ /* белый (немного холодный) */
+  background: linear-gradient(180deg, #ffffff 0%, #f7f8fb 60%, #eef1f6 100%); color:#072;
+  box-shadow: 0 8px 18px rgba(0,0,0,0.35), inset 0 -6px 10px rgba(255,255,255,0.06);
+}
+.c8{ /* тёмно-синий */
+  background: linear-gradient(180deg, #274a74 0%, #0b2947 50%, #00182e 100%);
+}
+
+.striped::after{content:"";position:absolute;left:8%;right:8%;top:46%;height:4px;border-radius:2px;background:linear-gradient(90deg, rgba(255,255,255,0.95), rgba(255,255,255,0.25));opacity:0.95;pointer-events:none}
+.colorbomb{border-radius:50%;background:linear-gradient(90deg,#ffffff,#cccccc);color:#07101b;font-weight:900}
+.bomb{border-radius:50%}
+.explosion{position:absolute;border-radius:50%;pointer-events:none;transform:translate(-50%,-50%) scale(0.2);opacity:0;background:radial-gradient(circle at 50% 40%, rgba(255,220,120,0.8) 0%, rgba(255,120,40,0.2) 40%, transparent 60%);transition: transform 420ms cubic-bezier(.2,.9,.2,1), opacity 280ms linear;mix-blend-mode:screen;box-shadow:0 8px 40px rgba(255,140,40,0.12)}
+.line-effect{position:absolute;height:6px;border-radius:4px;background:linear-gradient(90deg, rgba(255,255,255,0.95), rgba(255,255,255,0.25));pointer-events:none;transform-origin:left center;opacity:0;transition:opacity 180ms linear}
+.overlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:linear-gradient(0deg, rgba(2,6,23,0.6), rgba(2,6,23,0.6));z-index:60}
+.modal{background:#07101b;padding:18px;border-radius:12px;border:1px solid rgba(255,255,255,0.03);max-width:420px;width:90%;color:var(--text);text-align:center}
+@media (max-width:420px){ :root{--board-pad:8px} }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <header>
+    <div class="left-row">
+      <a class="back" href="glist.html">← Назад</a>
+      <div class="status">
+        <div><div class="small">Очки</div><div class="big" id="score">0</div></div>
+        <div><div class="small">Рекорд</div><div class="big" id="record">0</div></div>
+      </div>
+    </div>
+    <div class="controls">
+      <button class="btn" id="restartBtn">Рестарт</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="board-shell" id="shell">
+      <div id="board" class="board" data-size="8" aria-label="Игровое поле"></div>
+      <div id="effectsLayer" style="position:absolute;left:0;top:0;right:0;bottom:0;pointer-events:none"></div>
+    </div>
+  </main>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h2 id="overlayTitle">Игра окончена</h2>
+    <p id="overlayMsg">Ходов нет — возможность ходов исчерпана.</p>
+    <div style="margin-top:12px;display:flex;gap:8px;justify-content:center">
+      <button class="btn" id="overlayRestart">Играть снова</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* COLORS increased to 9 (0..8) */
+const GRID_SIZE = 8;
+const COLORS = 8; // было 6, теперь 9 с c6,c7,c8
+const STORAGE_KEY = 'record3inline';
+
+const boardEl = document.getElementById('board');
+const shellEl = document.getElementById('shell');
+const effectsLayer = document.getElementById('effectsLayer');
+const scoreEl = document.getElementById('score');
+const recordEl = document.getElementById('record');
+const restartBtn = document.getElementById('restartBtn');
+const overlay = document.getElementById('overlay');
+const overlayRestart = document.getElementById('overlayRestart');
+
+let tile = 56, gap = 8;
+let grid = [];
+let cellEls = [], gemEls = [];
+let score = 0, record = parseInt(localStorage.getItem(STORAGE_KEY)||'0',10)||0;
+recordEl.textContent = record; scoreEl.textContent = score;
+
+boardEl.style.setProperty('--grid-size', GRID_SIZE);
+
+/* helpers */
+const idx = (r,c)=> r*GRID_SIZE + c;
+const rc = (i)=> [Math.floor(i/GRID_SIZE), i%GRID_SIZE];
+const randColor = ()=> Math.floor(Math.random()*COLORS);
+const delay = ms => new Promise(res=>setTimeout(res,ms));
+
+/* compute tile to fit screen */
+function computeTileSize(){
+  const headerH = document.querySelector('header').getBoundingClientRect().height;
+  const availableW = window.innerWidth - 24;
+  const availableH = window.innerHeight - headerH - 24;
+  const g = gap;
+  const tileByW = Math.floor((availableW - (GRID_SIZE-1)*g)/GRID_SIZE);
+  const tileByH = Math.floor((availableH - (GRID_SIZE-1)*g)/GRID_SIZE);
+  tile = Math.max(30, Math.min(tileByW, tileByH));
+  document.documentElement.style.setProperty('--tile', tile + 'px');
+  document.documentElement.style.setProperty('--gap', g + 'px');
+  boardEl.style.width = `calc(${GRID_SIZE} * ${tile}px + ${(GRID_SIZE-1)*g}px)`;
+  boardEl.style.height = `calc(${GRID_SIZE} * ${tile}px + ${(GRID_SIZE-1)*g}px)`;
+}
+
+/* build DOM once */
+function buildBoardDOM(){
+  boardEl.innerHTML = '';
+  cellEls = new Array(GRID_SIZE*GRID_SIZE);
+  gemEls = new Array(GRID_SIZE*GRID_SIZE);
+  for(let r=0;r<GRID_SIZE;r++){
+    for(let c=0;c<GRID_SIZE;c++){
+      const i = idx(r,c);
+      const cell = document.createElement('div'); cell.className='cell'; cell.dataset.index = i;
+      const gem = document.createElement('div'); gem.className='gem'; gem.style.opacity='0';
+      const gloss = document.createElement('div'); gloss.className='gloss';
+      const sh = document.createElement('div'); sh.className='shadow';
+      gem.appendChild(gloss); gem.appendChild(sh);
+      cell.appendChild(gem);
+      boardEl.appendChild(cell);
+      cellEls[i] = cell; gemEls[i] = gem;
+      cell.addEventListener('click', onCellClick);
+      cell.addEventListener('touchstart', onTouchStart, {passive:true});
+      cell.addEventListener('touchend', onTouchEnd);
+    }
+  }
+}
+
+/* init grid (no starting matches) */
+function initGrid(){
+  grid = new Array(GRID_SIZE*GRID_SIZE).fill(null).map(()=>({color:null,bonus:null}));
+  for(let r=0;r<GRID_SIZE;r++){
+    for(let c=0;c<GRID_SIZE;c++){
+      const i = idx(r,c);
+      let tries=0;
+      do{
+        grid[i].color = randColor(); grid[i].bonus = null; tries++;
+      } while(hasInitialMatchAt(i) && tries<40);
+    }
+  }
+  score = 0; scoreEl.textContent = score;
+  renderAllImmediate();
+  if(!findAnyValidMove()){
+    endGame();
+  }
+}
+
+function hasInitialMatchAt(i){
+  const [r,c] = rc(i); const col = grid[i].color;
+  if(col===null) return false;
+  if(c-2>=0 && grid[idx(r,c-1)].color===col && grid[idx(r,c-2)].color===col) return true;
+  if(c+2<GRID_SIZE && grid[idx(r,c+1)].color===col && grid[idx(r,c+2)].color===col) return true;
+  if(c-1>=0 && c+1<GRID_SIZE && grid[idx(r,c-1)].color===col && grid[idx(r,c+1)].color===col) return true;
+  if(r-2>=0 && grid[idx(r-1,c)].color===col && grid[idx(r-2,c)].color===col) return true;
+  if(r+2<GRID_SIZE && grid[idx(r+1,c)].color===col && grid[idx(r+2,c)].color===col) return true;
+  if(r-1>=0 && r+1<GRID_SIZE && grid[idx(r-1,c)].color===col && grid[idx(r+1,c)].color===col) return true;
+  return false;
+}
+
+/* render minimal */
+function renderCellImmediate(i){
+  const item = grid[i]; const gem = gemEls[i];
+  if(!item || item.color===null){
+    gem.style.opacity='0'; gem.className='gem'; gem.textContent=''; gem.dataset.type=''; gem.style.transform='translateY(0)';
+    return;
+  }
+  gem.style.opacity='1'; gem.dataset.type = item.bonus||'';
+  let cls = 'gem c' + item.color;
+  if(item.bonus==='stripedH' || item.bonus==='stripedV') cls += ' striped';
+  if(item.bonus==='bomb') cls += ' bomb';
+  if(item.bonus==='color') cls += ' colorbomb';
+  gem.className = cls;
+  if(item.bonus==='color'){
+    if(!gem.querySelector('.star')){
+      const star = document.createElement('div'); star.className='star'; star.style.position='absolute'; star.style.fontWeight='900'; star.style.fontSize='0.9rem'; star.style.pointerEvents='none'; star.style.color='#07101b'; star.style.zIndex='2'; star.textContent='★'; gem.appendChild(star);
+    }
+  } else { const star = gem.querySelector('.star'); if(star) star.remove(); }
+  gem.style.transform = 'translateY(0)';
+}
+function renderAllImmediate(){ for(let i=0;i<grid.length;i++) renderCellImmediate(i); }
+
+/* interaction */
+let touchStartIdx=null, touchStartPos=null, selected=null, busy=false;
+function onTouchStart(e){ if(busy) return; const t=e.changedTouches[0]; const cell=e.currentTarget; touchStartIdx=parseInt(cell.dataset.index,10); touchStartPos={x:t.clientX,y:t.clientY}; selectCell(touchStartIdx); }
+function onTouchEnd(e){
+  if(busy) return;
+  const t=e.changedTouches[0]; const cell=e.currentTarget; const endIdx=parseInt(cell.dataset.index,10);
+  if(!touchStartPos) return;
+  const dx=t.clientX-touchStartPos.x, dy=t.clientY-touchStartPos.y; const adx=Math.abs(dx), ady=Math.abs(dy); const TH=18;
+  if(Math.max(adx,ady)>TH){
+    const dir = adx>ady ? (dx>0?[0,1]:[0,-1]) : (dy>0?[1,0]:[-1,0]);
+    const [r,c] = rc(touchStartIdx); const nr=r+dir[0], nc=c+dir[1];
+    if(nr>=0 && nr<GRID_SIZE && nc>=0 && nc<GRID_SIZE){ trySwap(touchStartIdx, idx(nr,nc)); } else deselect();
+  } else {
+    if(selected===null) selectCell(endIdx);
+    else if(selected===endIdx) deselect();
+    else if(isAdjacent(selected,endIdx)) trySwap(selected,endIdx);
+    else selectCell(endIdx);
+  }
+  touchStartIdx=null; touchStartPos=null;
+}
+function onCellClick(e){ if(busy) return; const i=parseInt(e.currentTarget.dataset.index,10); if(selected===null) selectCell(i); else if(selected===i) deselect(); else if(isAdjacent(selected,i)) trySwap(selected,i); else selectCell(i); }
+function selectCell(i){ deselect(); selected=i; cellEls[i].style.boxShadow="0 18px 44px rgba(255,255,255,0.04)"; }
+function deselect(){ if(selected!==null){ cellEls[selected].style.boxShadow=''; } selected=null; }
+function isAdjacent(a,b){ const [ra,ca]=rc(a), [rb,cb]=rc(b); return (Math.abs(ra-rb)+Math.abs(ca-cb))===1; }
+
+/* full match detection (works on provided gridState or on global grid) */
+function findAllMatchesFull(gridState){
+  const g = gridState || grid;
+  let found = [];
+  for(let r=0;r<GRID_SIZE;r++){
+    let c=0;
+    while(c<GRID_SIZE){
+      const start=c; const color = g[idx(r,c)].color;
+      if(color===null){ c++; continue; }
+      c++; while(c<GRID_SIZE && g[idx(r,c)].color===color) c++;
+      const len = c-start;
+      if(len>=3){ const s=new Set(); for(let x=start;x<start+len;x++) s.add(idx(r,x)); found.push({indexes:s,len,orientation:'h',color}); }
+    }
+  }
+  for(let c=0;c<GRID_SIZE;c++){
+    let r=0;
+    while(r<GRID_SIZE){
+      const start=r; const color = g[idx(r,c)].color;
+      if(color===null){ r++; continue; }
+      r++; while(r<GRID_SIZE && g[idx(r,c)].color===color) r++;
+      const len = r-start;
+      if(len>=3){ const s=new Set(); for(let y=start;y<start+len;y++) s.add(idx(y,c)); found.push({indexes:s,len,orientation:'v',color}); }
+    }
+  }
+  // merge overlaps
+  let merged=[];
+  while(found.length){
+    let cur = found.pop();
+    let mergedIndex = new Set(cur.indexes);
+    let changed=true;
+    while(changed){
+      changed=false;
+      for(let i=found.length-1;i>=0;i--){
+        const other = found[i];
+        let inter=false;
+        for(const k of other.indexes) if(mergedIndex.has(k)){ inter=true; break; }
+        if(inter){ for(const k of other.indexes) mergedIndex.add(k); found.splice(i,1); changed=true; }
+      }
+    }
+    merged.push({indexes:mergedIndex,len:mergedIndex.size,color:cur.color});
+  }
+  return merged;
+}
+
+/* strict check - simulate swap and require matches */
+function checkSwapCreatesMatchStrict(a,b){
+  const sim = grid.map(x => ({color:x.color, bonus:x.bonus}));
+  const t = sim[a]; sim[a] = sim[b]; sim[b] = t;
+  const matches = findAllMatchesFull(sim);
+  return matches.length>0;
+}
+
+/* trySwap */
+async function trySwap(a,b){
+  if(busy) return;
+  busy = true; deselect();
+  if(!checkSwapCreatesMatchStrict(a,b)){
+    await animateInvalidSwap(a,b);
+    busy = false; return;
+  }
+  swapGrid(a,b);
+  await animateSwapVisual(a,b);
+  await resolveMatchesWithCascades();
+  busy = false;
+  if(!findAnyValidMove()) endGame();
+}
+function swapGrid(a,b){ const t = {...grid[a]}; grid[a] = {...grid[b]}; grid[b] = t; renderCellImmediate(a); renderCellImmediate(b); }
+function animateSwapVisual(a,b){
+  return new Promise(res=>{
+    const ga = gemEls[a], gb = gemEls[b];
+    ga.style.transition='transform 120ms ease'; gb.style.transition='transform 120ms ease';
+    ga.style.transform='scale(0.95)'; gb.style.transform='scale(0.95)';
+    requestAnimationFrame(()=> setTimeout(()=>{ ga.style.transform=''; gb.style.transform=''; setTimeout(()=>{ ga.style.transition=''; gb.style.transition=''; res(); },140); },80));
+  });
+}
+function animateInvalidSwap(a,b){
+  return new Promise(res=>{
+    const ca = cellEls[a], cb = cellEls[b];
+    ca.style.transform = 'translateY(-6%)'; cb.style.transform = 'translateY(6%)';
+    setTimeout(()=>{ ca.style.transform=''; cb.style.transform=''; setTimeout(res,160); },160);
+  });
+}
+
+/* resolve matches + cascades */
+async function resolveMatchesWithCascades(){
+  let combo = 0;
+  while(true){
+    const matches = findAllMatchesFull();
+    if(matches.length===0) break;
+    combo++;
+    const toRemove = new Set(); const createBonuses = [];
+    for(const m of matches){ for(const id of m.indexes) toRemove.add(id); if(m.len>=5){ const arr=Array.from(m.indexes); createBonuses.push({pos:arr[Math.floor(Math.random()*arr.length)],type:'color'}); } else if(m.len===4){ const arr=Array.from(m.indexes); const pos=arr[Math.floor(arr.length/2)]; const orient=guessOrientationFromSet(m.indexes); createBonuses.push({pos,type: orient==='h'?'stripedH':'stripedV'}); } }
+    const removedCount = toRemove.size;
+    score += calculateScore(removedCount, combo); scoreEl.textContent = score;
+
+    // visual remove
+    for(const id of toRemove){ const g = gemEls[id]; g.style.transition='transform 240ms cubic-bezier(.2,.9,.2,1), opacity 240ms linear'; g.style.opacity='0.12'; g.style.transform='scale(0.86)'; }
+    await delay(180);
+
+    // bonus activation inside removed -> extra removal
+    const extra = new Set();
+    for(const id of toRemove){
+      const item = grid[id];
+      if(item && item.bonus){
+        if(item.bonus==='color'){ const target = item.color; for(let k=0;k<grid.length;k++) if(grid[k].color===target) extra.add(k); spawnFlashAtIndex(id); }
+        else if(item.bonus==='bomb'){ const [r,c]=rc(id); for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++){ const rr=r+dr, cc=c+dc; if(rr>=0 && rr<GRID_SIZE && cc>=0 && cc<GRID_SIZE) extra.add(idx(rr,cc)); } spawnExplosionAtIndex(id); }
+        else if(item.bonus==='stripedH'){ const [r,]=rc(id); for(let cc=0;cc<GRID_SIZE;cc++) extra.add(idx(r,cc)); spawnLineAtIndex(id,'h'); }
+        else if(item.bonus==='stripedV'){ const [,c]=rc(id); for(let rr=0;rr<GRID_SIZE;rr++) extra.add(idx(rr,c)); spawnLineAtIndex(id,'v'); }
+      }
+    }
+    for(const e of extra) toRemove.add(e);
+
+    // mark removed in data
+    for(const id of toRemove){ grid[id].color = null; grid[id].bonus = null; }
+
+    // improved fall-from-top animation
+    await animateFallFromTop();
+
+    // place bonuses after fall
+    for(const b of createBonuses){
+      let pos = b.pos;
+      if(grid[pos].color!==null){
+        const [r,c] = rc(pos);
+        for(let rr=0; rr<GRID_SIZE; rr++){ if(grid[idx(rr,c)].color===null){ pos = idx(rr,c); break; } }
+      }
+      grid[pos].bonus = b.type;
+      if(b.type==='color') grid[pos].color = 0;
+    }
+    renderAllImmediate();
+    await delay(120);
+  }
+  updateRecordIfNeeded();
+}
+
+/* Improved animateFallFromTop (same logic; COLORS change is automatic) */
+async function animateFallFromTop(){
+  const step = tile + gap;
+  const columns = [];
+  for(let c=0;c<GRID_SIZE;c++){
+    const arr = [];
+    for(let r=GRID_SIZE-1;r>=0;r--){
+      const i = idx(r,c);
+      if(grid[i].color!==null) arr.push({color:grid[i].color, bonus:grid[i].bonus});
+    }
+    columns[c] = arr;
+  }
+  const newGrid = new Array(GRID_SIZE*GRID_SIZE).fill(null).map(()=>({color:null,bonus:null}));
+  const newCounts = new Array(GRID_SIZE).fill(0);
+  for(let c=0;c<GRID_SIZE;c++){
+    const col = columns[c];
+    const newCount = GRID_SIZE - col.length;
+    newCounts[c] = newCount;
+    let rWrite = GRID_SIZE-1;
+    for(let k=0;k<col.length;k++){
+      newGrid[idx(rWrite,c)].color = col[k].color;
+      newGrid[idx(rWrite,c)].bonus = col[k].bonus;
+      rWrite--;
+    }
+    for(let r=0;r<=rWrite;r++){
+      newGrid[idx(r,c)].color = randColor();
+      newGrid[idx(r,c)].bonus = null;
+    }
+  }
+  const startTransforms = new Array(GRID_SIZE*GRID_SIZE).fill(0);
+  for(let c=0;c<GRID_SIZE;c++){
+    const col = columns[c];
+    const newCount = newCounts[c];
+    for(let k=0;k<col.length;k++){
+      const targetRow = GRID_SIZE-1 - k;
+      const originalRow = GRID_SIZE-1 - k - newCount;
+      const steps = targetRow - originalRow;
+      startTransforms[idx(targetRow,c)] = -(steps * step);
+    }
+    for(let r=0;r<newCount;r++){
+      startTransforms[idx(r,c)] = -((newCount - r) * step + tile*0.6);
+    }
+  }
+  grid = newGrid;
+  renderAllImmediate();
+  for(let i=0;i<grid.length;i++){
+    const g = gemEls[i];
+    const startY = startTransforms[i] || 0;
+    g.style.transition = '';
+    if(startY < - (tile*0.5)) g.style.opacity = '0';
+    g.style.transform = `translateY(${startY}px)`;
+  }
+  const baseDuration = 380;
+  const colStagger = 40;
+  const promises = [];
+  for(let c=0;c<GRID_SIZE;c++){
+    const delayForCol = c * colStagger;
+    for(let r=0;r<GRID_SIZE;r++){
+      const i = idx(r,c);
+      const g = gemEls[i];
+      const startY = startTransforms[i] || 0;
+      const travel = Math.abs(startY);
+      const dur = baseDuration + Math.min(220, Math.floor(travel / step) * 60);
+      const p = new Promise(res=>{
+        setTimeout(()=>{
+          g.style.transition = `transform ${Math.floor(dur*0.7)}ms cubic-bezier(.05,.7,.1,1), opacity ${Math.floor(dur*0.6)}ms linear`;
+          g.style.transform = 'translateY(10px)';
+          g.style.opacity = '1';
+          setTimeout(()=>{
+            g.style.transition = `transform ${Math.floor(dur*0.35)}ms cubic-bezier(.2,.9,.2,1)`;
+            g.style.transform = 'translateY(0)';
+            setTimeout(()=>{ g.style.transition=''; res(); }, Math.floor(dur*0.36));
+          }, Math.floor(dur*0.7));
+        }, delayForCol + Math.floor((r/GRID_SIZE)*20));
+      });
+      promises.push(p);
+    }
+  }
+  await Promise.all(promises);
+  for(const g of gemEls){ g.style.transition=''; }
+}
+
+/* effects */
+function spawnExplosionAtIndex(i){
+  const [r,c]=rc(i);
+  const el = document.createElement('div'); el.className='explosion';
+  const cx = c*(tile+gap) + tile/2; const cy = r*(tile+gap) + tile/2;
+  el.style.left = cx + 'px'; el.style.top = cy + 'px'; el.style.width = (tile*2.4) + 'px'; el.style.height = (tile*2.4) + 'px';
+  effectsLayer.appendChild(el);
+  requestAnimationFrame(()=>{ el.style.opacity='1'; el.style.transform='translate(-50%,-50%) scale(1)'; });
+  setTimeout(()=>{ el.style.opacity='0'; el.style.transform='translate(-50%,-50%) scale(1.6)'; }, 180);
+  setTimeout(()=> el.remove(), 520);
+}
+function spawnLineAtIndex(i,dir){
+  const el = document.createElement('div'); el.className='line-effect';
+  if(dir==='h'){
+    el.style.width = (boardEl.clientWidth - 8) + 'px';
+    const [r,] = rc(i); const y = r*(tile+gap) + tile/2;
+    el.style.left='50%'; el.style.top = y + 'px'; el.style.transform='translateX(-50%)';
+  } else {
+    el.style.height = (boardEl.clientHeight - 8) + 'px';
+    const [,c] = rc(i); const x = c*(tile+gap) + tile/2;
+    el.style.left = x + 'px'; el.style.top='50%'; el.style.transform='translateY(-50%) rotate(90deg)';
+  }
+  effectsLayer.appendChild(el);
+  requestAnimationFrame(()=> el.style.opacity = '1');
+  setTimeout(()=> el.style.opacity = '0',220);
+  setTimeout(()=> el.remove(),420);
+}
+function spawnFlashAtIndex(i){
+  const [r,c]=rc(i);
+  const el = document.createElement('div'); el.className='explosion';
+  const cx = c*(tile+gap) + tile/2; const cy = r*(tile+gap) + tile/2;
+  el.style.left = cx + 'px'; el.style.top = cy + 'px'; el.style.width = (tile*1.6) + 'px'; el.style.height = (tile*1.6) + 'px';
+  el.style.background = 'radial-gradient(circle at 50% 40%, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.6) 40%, transparent 60%)';
+  effectsLayer.appendChild(el);
+  requestAnimationFrame(()=>{ el.style.opacity='1'; el.style.transform='translate(-50%,-50%) scale(1)'; });
+  setTimeout(()=>{ el.style.opacity='0'; el.style.transform='translate(-50%,-50%) scale(1.6)'; }, 180);
+  setTimeout(()=> el.remove(),420);
+}
+
+/* find any valid move */
+function findAnyValidMove(){
+  for(let i=0;i<grid.length;i++){
+    const [r,c]=rc(i);
+    const dirs = [[0,1],[1,0],[0,-1],[-1,0]];
+    for(const d of dirs){
+      const nr=r+d[0], nc=c+d[1];
+      if(nr<0||nr>=GRID_SIZE||nc<0||nc>=GRID_SIZE) continue;
+      if(checkSwapCreatesMatchStrict(i, idx(nr,nc))) return [i, idx(nr,nc)];
+    }
+  }
+  return null;
+}
+
+/* scoring / helpers */
+function calculateScore(removedCount,combo){ if(removedCount<=0) return 0; const base = 40 + (removedCount-3)*18; const comboBonus = Math.floor(base*(0.18*(combo-1))); return base+comboBonus; }
+function updateRecordIfNeeded(){ if(score>record){ record = score; localStorage.setItem(STORAGE_KEY, String(record)); recordEl.textContent = record; } }
+function guessOrientationFromSet(sset){ const rows={}; for(const k of sset){ const r=rc(k)[0]; rows[r]=(rows[r]||0)+1; } const vals=Object.values(rows); if(vals.length===0) return 'h'; const maxv=Math.max(...vals); return (maxv>=3)?'h':'v'; }
+
+/* end game */
+function endGame(){ overlay.style.display='flex'; }
+overlayRestart.addEventListener('click', ()=>{ overlay.style.display='none'; initGrid(); });
+
+/* resize */
+let resizeTO=null;
+window.addEventListener('resize', ()=>{ if(resizeTO) clearTimeout(resizeTO); resizeTO=setTimeout(()=>{ computeTileSize(); renderAllImmediate(); },120); });
+
+/* storage listener */
+window.addEventListener('storage',(e)=>{ if(e.key===STORAGE_KEY){ record = parseInt(localStorage.getItem(STORAGE_KEY)||'0',10)||0; recordEl.textContent = record; } });
+
+/* init */
+function mount(){ computeTileSize(); buildBoardDOM(); initGrid(); }
+restartBtn.addEventListener('click', ()=> initGrid());
+mount();
+
+</script>
+</body>
+</html>
