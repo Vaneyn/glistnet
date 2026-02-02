@@ -17,7 +17,7 @@ icon_url:
 screenshots: 
 ---
 name: Игра в перевхат
-description: Для игры с другом. Чьё нажатие перехвачено, тот проиграл.
+description: Для игры с другом. Чьё нажатие перехвачено, тот проиграл. #2p
 code_url: https://vaneyn.github.io/glistnet/hvat.html
 icon_url: 
 screenshots: 
@@ -141,3 +141,9 @@ description: Я не знал что сделать и сделал злоедр
 code_url: https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/3inline.html
 icon_url: 
 screenshots: https://i.postimg.cc/k4nykRyj/1000096236.jpg
+---
+name: Бумажная игра
+description:Ещё будучи школьником, бездарно тратя время в школе, я придумал игру на бумаге на двоих. Позже, сидя на парах, я тоже тратил время впустую. Сейчас оцифровал старую игру в точности, чтобы не тратить бумагу - береги природу, чепуха! Правила. Черные ходят три раза подряд, могут перейти стену если займут её полностью. Второй игрок пытается помешать, забивая те или иные точки, чтобы из них нельзя было развиваться дальше. За баланс не шарю, вроде могут выиграть обе стороны. Если игра займет у вас 3-4 часа уроков или пар, потраченное время на оцифровку окупится. #2p
+code_url: https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/papergame.html
+icon_url: 
+screenshots: https://i.postimg.cc/wxtGjymc/1000096285.jpg
