@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<title>Игра — карта 11×17</title>
+<style>
+:root{ --paper-bg:#fbf8ef; --grid-line:rgba(0,0,0,0.12); --wall-line:rgba(0,0,0,0.85); }
+html,body{height:100%;margin:0;font-family:Arial,Helvetica,sans-serif;background:linear-gradient(180deg,#f9f6ea,#f7f4e8);-webkit-font-smoothing:antialiased;}
+.app{padding:8px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:8px;}
+header{width:100%;display:flex;justify-content:space-between;align-items:center;gap:8px;}
+.btn{background:#fff;border-radius:8px;padding:8px 12px;border:1px solid rgba(0,0,0,0.06);}
+.paper{background:var(--paper-bg);border-radius:8px;padding:10px;box-shadow:0 6px 18px rgba(0,0,0,0.12);}
+.grid-wrap{position:relative;display:inline-block;}
+.grid-bg{position:relative;border-radius:4px;overflow:visible;background-image:
+  linear-gradient(to right,var(--grid-line) 1px,transparent 1px),
+  linear-gradient(to bottom,var(--grid-line) 1px,transparent 1px);}
+.cells{position:absolute;left:0;top:0;display:grid;gap:0;}
+.cell{box-sizing:border-box;display:flex;align-items:center;justify-content:center;position:relative;width:var(--cs,44px);height:var(--cs,44px);-webkit-tap-highlight-color:transparent;}
+.dot{width:14px;height:14px;border-radius:50%;box-shadow:inset 0 1px 0 rgba(255,255,255,0.2);}
+.dot.black{background:#111;}
+.dot.white{background:#fff;border:2px solid #222;box-sizing:border-box;}
+.cross{position:absolute;width:26px;height:26px;display:flex;align-items:center;justify-content:center;pointer-events:none;}
+.cross .bar{position:absolute;width:26px;height:4px;background:#fff;box-shadow:0 0 0 1px #222;border-radius:2px;}
+.cross .bar.barA{transform:rotate(45deg);}
+.cross .bar.barB{transform:rotate(-45deg);}
+.cell.highlight{box-shadow:inset 0 0 0 3px rgba(50,160,220,0.18);}
+.wall{position:absolute;background:var(--wall-line);border-radius:2px;pointer-events:auto;}
+.info{font-size:13px;color:#444;}
+.turnbox{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.small{font-size:13px;color:#666;}
+@media(max-width:540px){.btn{padding:6px 10px;}.cross{width:22px;height:22px}.cross .bar{width:22px;height:3px;}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="turnbox">
+      <button class="btn" onclick="location.href='glist.html'">Назад</button>
+      <div style="display:flex;flex-direction:column;">
+        <div id="status" class="info">Загрузка...</div>
+        <div class="small" id="whiteCount">Белых точек: —</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button class="btn" id="btn-new">Новая игра</button>
+    </div>
+  </header>
+  <div class="paper">
+    <div class="grid-wrap">
+      <div id="gridBg" class="grid-bg"></div>
+      <div id="cells" class="cells"></div>
+    </div>
+  </div>
+  <div class="info" id="debug">Игровой движок готов.</div>
+</div>
+
+<script>
+// ─── Конфиг ────────────────────────────────────────────
+const cfg = { cols: 11, rows: 17, baseCell: 44 };
+
+// ─── Состояние ─────────────────────────────────────────
+// cells[y][x]: 'empty' | 'black' | 'black-cross' | 'white'
+// hWalls[y][x]: горизонтальная стена на границе y (0..rows), сегмент x (0..cols-1)
+//   граница y лежит между строкой (y-1) сверху и строкой y снизу
+// vWalls[y][x]: вертикальная стена в строке y (0..rows-1), граница x (0..cols)
+//   граница x лежит между колонкой (x-1) слева и колонкой x справа
+const state = { cells: [], hWalls: [], vWalls: [] };
+
+let currentPlayer = 1;   // 1 или 2
+let movesLeft     = 3;   // для игрока 1
+let whiteRemaining = 0;
+let gameOver      = false;
+
+// ─── Инициализация доски ──────────────────────────────
+// bottomRowToHIndex: «N-й ряд снизу» → индекс горизонтальной границы
+function bottomRowToHIndex(userRow){
+  return Math.max(0, Math.min(cfg.rows, cfg.rows - userRow + 1));
+}
+
+function initBoard(){
+  // cells — все пустые
+  for(let y = 0; y < cfg.rows; y++){
+    state.cells[y] = [];
+    for(let x = 0; x < cfg.cols; x++) state.cells[y][x] = 'empty';
+  }
+  // hWalls — только бордер (y=0 и y=rows)
+  for(let y = 0; y <= cfg.rows; y++){
+    state.hWalls[y] = [];
+    for(let x = 0; x < cfg.cols; x++) state.hWalls[y][x] = (y === 0 || y === cfg.rows);
+  }
+  // vWalls — только бордер (x=0 и x=cols)
+  for(let y = 0; y < cfg.rows; y++){
+    state.vWalls[y] = [];
+    for(let x = 0; x <= cfg.cols; x++) state.vWalls[y][x] = (x === 0 || x === cfg.cols);
+  }
+
+  // ── Чёрные точки: верхние два ряда (y=0, y=1) ──
+  for(let x = 0; x < cfg.cols; x++){
+    state.cells[0][x] = 'black';
+    state.cells[1][x] = 'black';
+  }
+
+  // ── Горизонтальные стены ──
+  // 10-й снизу → hIdx = 8.  Сегменты: [0,1,2], [4,5,6], [8,9,10]
+  (function(){
+    const hIdx = bottomRowToHIndex(10); // 8
+    [[0,2],[4,6],[8,10]].forEach(([a,b])=>{
+      for(let x = a; x <= b; x++) state.hWalls[hIdx][x] = true;
+    });
+  })();
+  // 7-й снизу → hIdx = 11.  Сегменты: 0, 2, 4, 6, 8, 10  (одиночные)
+  (function(){
+    const hIdx = bottomRowToHIndex(7); // 11
+    [0,2,4,6,8,10].forEach(x=>{ state.hWalls[hIdx][x] = true; });
+  })();
+
+  // ── Вертикальные стены ──
+  // Колонки 4 и 8 (1-index) → cellX 3 и 7.
+  // Границы слева и справа от каждой: (3,4) и (7,8).
+  // Строки 9,10,11 (1-index) → rowIdx 8,9,10.
+  (function(){
+    const vIdxs = [3,4,7,8]; // индексы вертикальных границ
+    const rowIdxs = [8,9,10]; // индексы строк
+    rowIdxs.forEach(y=>{
+      vIdxs.forEach(x=>{ state.vWalls[y][x] = true; });
+    });
+  })();
+
+  // ── Белые точки: (2,10),(6,10),(10,10) в 1-index ──
+  // → x: 1,5,9   y: 9
+  [[1,9],[5,9],[9,9]].forEach(([x,y])=>{
+    state.cells[y][x] = 'white';
+  });
+
+  computeWhiteCount();
+}
+
+function computeWhiteCount(){
+  let c = 0;
+  for(let y = 0; y < cfg.rows; y++)
+    for(let x = 0; x < cfg.cols; x++)
+      if(state.cells[y][x] === 'white') c++;
+  whiteRemaining = c;
+  document.getElementById('whiteCount').innerText = 'Белых точек: ' + whiteRemaining;
+}
+
+// ─── DOM-элементы ──────────────────────────────────────
+const cellsEl  = document.getElementById('cells');
+const gridBg   = document.getElementById('gridBg');
+const statusEl = document.getElementById('status');
+const debugEl  = document.getElementById('debug');
+
+// ─── Sizing / layout ───────────────────────────────────
+function applySizing(){
+  const maxW = Math.min(window.innerWidth - 24, 900);
+  const cs   = Math.max(28, Math.floor(Math.min(cfg.baseCell, (maxW - 20) / cfg.cols)));
+  document.documentElement.style.setProperty('--cs', cs + 'px');
+  const W = cfg.cols * cs, H = cfg.rows * cs;
+  gridBg.style.width  = W + 'px';
+  gridBg.style.height = H + 'px';
+  gridBg.style.backgroundSize = cs + 'px ' + cs + 'px';
+  cellsEl.style.width  = W + 'px';
+  cellsEl.style.height = H + 'px';
+  cellsEl.style.gridTemplateColumns = 'repeat(' + cfg.cols + ', ' + cs + 'px)';
+  cellsEl.style.gridTemplateRows    = 'repeat(' + cfg.rows + ', ' + cs + 'px)';
+  relayoutWalls(cs);
+  return cs;
+}
+
+function relayoutWalls(cs){
+  const t = Math.max(2, Math.round(cs * 0.04));
+  const half = Math.floor(t / 2);
+  gridBg.querySelectorAll('.wall').forEach(w=>{
+    const type = w.dataset.type, wx = +w.dataset.wx, wy = +w.dataset.wy;
+    if(type === 'h'){
+      w.style.left   = (wx * cs) + 'px';
+      w.style.top    = (wy * cs - half) + 'px';
+      w.style.width  = cs + 'px';
+      w.style.height = t  + 'px';
+    } else {
+      w.style.left   = (wx * cs - half) + 'px';
+      w.style.top    = (wy * cs) + 'px';
+      w.style.width  = t  + 'px';
+      w.style.height = cs + 'px';
+    }
+  });
+}
+
+// ─── Построение сетки ──────────────────────────────────
+function buildGrid(){
+  cellsEl.innerHTML = '';
+  for(let y = 0; y < cfg.rows; y++){
+    for(let x = 0; x < cfg.cols; x++){
+      const el = document.createElement('div');
+      el.className = 'cell';
+      el.dataset.x = x;
+      el.dataset.y = y;
+      el.addEventListener('click', onCellClick);
+      el.addEventListener('contextmenu', e=>e.preventDefault());
+      cellsEl.appendChild(el);
+    }
+  }
+  // убираем старые стены
+  gridBg.querySelectorAll('.wall').forEach(n=>n.remove());
+
+  const cs = applySizing();
+  const t  = Math.max(2, Math.round(cs * 0.04));
+  const half = Math.floor(t / 2);
+
+  // горизонтальные стены: y 0..rows, x 0..cols-1
+  for(let y = 0; y <= cfg.rows; y++){
+    for(let x = 0; x < cfg.cols; x++){
+      const w = document.createElement('div');
+      w.className = 'wall';
+      w.dataset.type = 'h'; w.dataset.wx = x; w.dataset.wy = y;
+      w.style.left   = (x * cs) + 'px';
+      w.style.top    = (y * cs - half) + 'px';
+      w.style.width  = cs + 'px';
+      w.style.height = t  + 'px';
+      gridBg.appendChild(w);
+    }
+  }
+  // вертикальные стены: y 0..rows-1, x 0..cols
+  for(let y = 0; y < cfg.rows; y++){
+    for(let x = 0; x <= cfg.cols; x++){
+      const w = document.createElement('div');
+      w.className = 'wall';
+      w.dataset.type = 'v'; w.dataset.wx = x; w.dataset.wy = y;
+      w.style.left   = (x * cs - half) + 'px';
+      w.style.top    = (y * cs) + 'px';
+      w.style.width  = t  + 'px';
+      w.style.height = cs + 'px';
+      gridBg.appendChild(w);
+    }
+  }
+  redrawAll();
+}
+
+// ─── Перерисовка ───────────────────────────────────────
+function redrawAll(){
+  cellsEl.querySelectorAll('.cell').forEach(el=>{
+    const x = +el.dataset.x, y = +el.dataset.y;
+    el.innerHTML = '';
+    el.classList.remove('highlight');
+    const v = state.cells[y][x];
+    if(v === 'black' || v === 'black-cross' || v === 'white'){
+      const d = document.createElement('div');
+      d.className = 'dot ' + (v === 'white' ? 'white' : 'black');
+      el.appendChild(d);
+      if(v === 'black-cross'){
+        const cross = document.createElement('div'); cross.className = 'cross';
+        const a = document.createElement('div'); a.className = 'bar barA';
+        const b = document.createElement('div'); b.className = 'bar barB';
+        cross.appendChild(a); cross.appendChild(b);
+        el.appendChild(cross);
+      }
+    }
+  });
+
+  // видимость стен
+  gridBg.querySelectorAll('.wall').forEach(w=>{
+    const type = w.dataset.type, wx = +w.dataset.wx, wy = +w.dataset.wy;
+    w.style.display = (type === 'h' ? state.hWalls[wy][wx] : state.vWalls[wy][wx]) ? 'block' : 'none';
+  });
+
+  if(currentPlayer === 1 && !gameOver) highlightPaintable();
+  updateStatus();
+}
+
+function updateStatus(){
+  statusEl.innerText = gameOver
+    ? 'Игра окончена'
+    : (currentPlayer === 1
+        ? 'Ход: Игрок 1 (закрашивать). Ходов осталось: ' + movesLeft
+        : 'Ход: Игрок 2 (зачеркнуть 1 чёрную)');
+  document.getElementById('whiteCount').innerText = 'Белых точек: ' + whiteRemaining;
+}
+
+// ─── Вспомогательные ──────────────────────────────────
+function inside(x, y){
+  return x >= 0 && x < cfg.cols && y >= 0 && y < cfg.rows;
+}
+
+// Клетка «занята» = black ИЛИ black-cross (зачёркнутая тоже считается!)
+function isOccupied(x, y){
+  if(!inside(x, y)) return false;
+  const v = state.cells[y][x];
+  return v === 'black' || v === 'black-cross';
+}
+
+// ─── Логика прохода через стены ────────────────────────
+// Можно ли перейти между соседними клетками (ax,ay) и (bx,by)?
+function isMovableBetween(ax, ay, bx, by){
+  if(!inside(ax,ay) || !inside(bx,by)) return false;
+  const dx = bx - ax, dy = by - ay;
+  if(Math.abs(dx) + Math.abs(dy) !== 1) return false;
+
+  if(dx === 1){
+    // вправо: стена vWalls[ay][ax+1]
+    if(!state.vWalls[ay][ax+1]) return true;
+    return canCrossVerticalWall(ax+1, ay);
+  }
+  if(dx === -1){
+    // влево: стена vWalls[ay][ax]
+    if(!state.vWalls[ay][ax]) return true;
+    return canCrossVerticalWall(ax, ay);
+  }
+  if(dy === 1){
+    // вниз: стена hWalls[ay+1][ax]
+    if(!state.hWalls[ay+1][ax]) return true;
+    return canCrossHorizontalWall(ay+1, ax);
+  }
+  if(dy === -1){
+    // вверх: стена hWalls[ay][ax]
+    if(!state.hWalls[ay][ax]) return true;
+    return canCrossHorizontalWall(ay, ax);
+  }
+  return false;
+}
+
+// ──────────────────────────────────────────────────────
+// canCrossHorizontalWall(hIdx, curX)
+//   hIdx  — индекс горизонтальной границы (строки стены), 0..rows
+//   curX  — колонка сегмента, через который пытается пройти игрок
+//
+// Правило: существует ли тройка подряд идущих сегментов стены
+//   hWalls[hIdx][s], hWalls[hIdx][s+1], hWalls[hIdx][s+2],
+//   которая ВКЛЮЧАЕТ сегмент curX (т.е. s <= curX <= s+2),
+//   И при этом с какой-то одной стороны этой стены
+//   все три клетки (s..s+2) заняты?
+// ──────────────────────────────────────────────────────
+function canCrossHorizontalWall(hIdx, curX){
+  // startX может быть от max(0, curX-2) до min(cols-3, curX)
+  const lo = Math.max(0, curX - 2);
+  const hi = Math.min(cfg.cols - 3, curX);
+  for(let s = lo; s <= hi; s++){
+    // проверяем тройку сегментов
+    if(!state.hWalls[hIdx][s] || !state.hWalls[hIdx][s+1] || !state.hWalls[hIdx][s+2]) continue;
+
+    // сторона СВЕРХУ стены — строка (hIdx - 1)
+    const topRow = hIdx - 1;
+    if(topRow >= 0 && topRow < cfg.rows){
+      if(isOccupied(s, topRow) && isOccupied(s+1, topRow) && isOccupied(s+2, topRow))
+        return true;
+    }
+    // сторона СНИЗУ стены — строка hIdx
+    const botRow = hIdx;
+    if(botRow >= 0 && botRow < cfg.rows){
+      if(isOccupied(s, botRow) && isOccupied(s+1, botRow) && isOccupied(s+2, botRow))
+        return true;
+    }
+  }
+  return false;
+}
+
+// ──────────────────────────────────────────────────────
+// canCrossVerticalWall(vIdx, curY)
+//   vIdx  — индекс вертикальной границы (столбца стены), 0..cols
+//   curY  — строка сегмента, через который пытается пройти игрок
+//
+// Аналогично горизонтальной, но для вертикальной стены.
+// ──────────────────────────────────────────────────────
+function canCrossVerticalWall(vIdx, curY){
+  const lo = Math.max(0, curY - 2);
+  const hi = Math.min(cfg.rows - 3, curY);
+  for(let s = lo; s <= hi; s++){
+    // проверяем тройку сегментов
+    if(!state.vWalls[s][vIdx] || !state.vWalls[s+1][vIdx] || !state.vWalls[s+2][vIdx]) continue;
+
+    // сторона СЛЕВА стены — колонка (vIdx - 1)
+    const leftCol = vIdx - 1;
+    if(leftCol >= 0 && leftCol < cfg.cols){
+      if(isOccupied(leftCol, s) && isOccupied(leftCol, s+1) && isOccupied(leftCol, s+2))
+        return true;
+    }
+    // сторона СПРАВА стены — колонка vIdx
+    const rightCol = vIdx;
+    if(rightCol >= 0 && rightCol < cfg.cols){
+      if(isOccupied(rightCol, s) && isOccupied(rightCol, s+1) && isOccupied(rightCol, s+2))
+        return true;
+    }
+  }
+  return false;
+}
+
+// ─── Можно ли закрасить клетку (tx, ty)? ───────────────
+// Нужен хотя бы один сосед с 'black' (не black-cross!),
+// между которым и (tx,ty) проход разрешён.
+function canPaintCell(tx, ty){
+  if(!inside(tx, ty)) return false;
+  const v = state.cells[ty][tx];
+  if(v !== 'empty' && v !== 'white') return false;   // можно красить только пустые и белые
+
+  const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+  for(const [dx, dy] of dirs){
+    const sx = tx - dx, sy = ty - dy;           // координаты потенциального источника
+    if(!inside(sx, sy)) continue;
+    if(state.cells[sy][sx] !== 'black') continue; // источник — только чистый чёрный
+    if(isMovableBetween(sx, sy, tx, ty)) return true;
+  }
+  return false;
+}
+
+// ─── Действия игроков ──────────────────────────────────
+function performPlayer1Paint(tx, ty){
+  if(gameOver) return;
+  if(!canPaintCell(tx, ty)){ showTemp('Нельзя закрасить эту клетку.'); return; }
+
+  const prev = state.cells[ty][tx];
+  state.cells[ty][tx] = 'black';
+
+  if(prev === 'white'){
+    whiteRemaining--;
+    if(whiteRemaining <= 0){
+      whiteRemaining = 0;
+      gameOver = true;
+      redrawAll();
+      showTemp('Игрок 1 — победитель! Все белые точки закрашены.');
+      return;
+    }
+  }
+
+  movesLeft--;
+  if(movesLeft <= 0){
+    currentPlayer = 2;
+    movesLeft = 0;
+    showTemp('Теперь ход игрока 2: зачеркни одну чёрную клетку (×).');
+  }
+  redrawAll();
+}
+
+function performPlayer2Cross(tx, ty){
+  if(gameOver) return;
+  if(state.cells[ty][tx] !== 'black'){
+    showTemp('Можно зачеркнуть только чёрную клетку.');
+    return;
+  }
+  state.cells[ty][tx] = 'black-cross';
+  currentPlayer = 1;
+  movesLeft = 3;
+  redrawAll();
+}
+
+// ─── UI ────────────────────────────────────────────────
+function onCellClick(){
+  const x = +this.dataset.x, y = +this.dataset.y;
+  if(gameOver){ showTemp('Игра закончена. Нажми "Новая игра".'); return; }
+  if(currentPlayer === 1) performPlayer1Paint(x, y);
+  else                    performPlayer2Cross(x, y);
+}
+
+let tempTimer = null;
+function showTemp(txt){
+  debugEl.innerText = txt;
+  clearTimeout(tempTimer);
+  tempTimer = setTimeout(()=>{ debugEl.innerText = ''; updateStatus(); }, 2500);
+}
+
+// подсветка доступных ходов для Игрока 1
+function highlightPaintable(){
+  cellsEl.querySelectorAll('.cell').forEach(c=>c.classList.remove('highlight'));
+  if(currentPlayer !== 1 || gameOver) return;
+  for(let y = 0; y < cfg.rows; y++){
+    for(let x = 0; x < cfg.cols; x++){
+      if(canPaintCell(x, y)){
+        const el = cellsEl.children[y * cfg.cols + x];
+        if(el) el.classList.add('highlight');
+      }
+    }
+  }
+}
+
+// ─── Новая игра ────────────────────────────────────────
+function newGame(){
+  initBoard();
+  currentPlayer = 1;
+  movesLeft = 3;
+  gameOver = false;
+  computeWhiteCount();
+  buildGrid();
+  showTemp('Новая игра. Ход игрока 1 (3 хода).');
+}
+
+// ─── Инициализация при загрузке ────────────────────────
+initBoard();
+buildGrid();
+window.addEventListener('resize', ()=>{ applySizing(); });
+
+document.getElementById('btn-new').addEventListener('click', ()=>{
+  if(confirm('Начать новую игру?')) newGame();
+});
+
+// API для отладки в консоли
+window.mapAPI = { state, canPaintCell, isMovableBetween, performPlayer1Paint, performPlayer2Cross, newGame };
+</script>
+</body>
+</html>
