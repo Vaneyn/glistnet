@@ -64,12 +64,6 @@ code_url: https://vaneyn.github.io/glistnet/audiometr.html
 icon_url: 
 screenshots: https://i.postimg.cc/3JZGNYDP/1000059327.jpg
 ---
-name: Ассистент под старый андроид
-description: Попытка запустить ассистента там, где он едва ли работал бы, но без разметки ответов
-code_url: https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/ass4old.html
-icon_url: 
-screenshots: 
----
 name: Банан: Возвращение.
 description: Кажется, он вернулся. Он стал ещё бананее, ещё более желтым... И он готов быть бананом. Навсегда. 
 code_url: https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/banana2.html
@@ -153,3 +147,9 @@ description: Игра стратегия - развивай армию, экон
 code_url: https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/hoika.html
 icon_url: 
 screenshots: https://i.postimg.cc/TPHghcyF/1000096293.jpg
+---
+name: Ассистент 2
+description: Попробуй поболтать с ассистентом Glist 2.0 ещё до выхода самой версии 2.0! Возможно, ещё доработаю. Кнопка заново работает странно. РАБОТАЕТ ВОТ И ВСЁ. ЕСЛИ НАДО - СМОТРИ ЕДРЮЧИЕ ЧЕРТЕЖИ.
+code_url: https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/assistant2.html
+icon_url: 
+screenshots: https://i.postimg.cc/Dz7B15wZ/1000094073.jpg
