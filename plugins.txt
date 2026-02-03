@@ -147,3 +147,9 @@ description:Ещё будучи школьником, бездарно трат�
 code_url: https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/papergame.html
 icon_url: 
 screenshots: https://i.postimg.cc/wxtGjymc/1000096285.jpg
+---
+name: Хойка
+description: Игра стратегия - развивай армию, экономику и захвати страны. Осторожно, твои атки могут вызвать акции возмездия! Если лагает то перезайди.
+code_url: https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/hoika.html
+icon_url: 
+screenshots: https://i.postimg.cc/TPHghcyF/1000096293.jpg
