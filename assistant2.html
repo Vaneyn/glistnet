@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<title>Ассистент 2 Glist</title>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+:root{
+  --bg:#fafafb;
+  --header:#0b84ff;
+  --panel:#ffffff;
+  --muted:#8b95a8;
+  --user-bg:#f2f4f7;
+  --user-text:#0b1220;
+  --bot-bg:#e6fae8;
+  --bot-text:#083416;
+  --accent:#0b84ff;
+  --bubble-radius:18px;
+  --shadow:0 10px 30px rgba(8,12,20,0.08);
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;padding:0;background:linear-gradient(180deg,#f7f8fb,#eef2f7);font-family:system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;color:#071628;-webkit-font-smoothing:antialiased;overflow:hidden;}
+.header{
+  height:64px;background:var(--header);color:#fff;display:flex;align-items:center;gap:12px;padding:0 12px;
+  box-shadow:0 3px 12px rgba(2,6,23,0.12);
+  position:relative;z-index:60;
+}
+.header .left{display:flex;align-items:center;gap:10px;}
+.header button.icon{
+  width:44px;height:44px;border-radius:10px;border:none;background:rgba(255,255,255,0.06);color:#fff;font-size:20px;display:flex;align-items:center;justify-content:center;
+}
+.header .title{font-weight:800;font-size:18px}
+.header .right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.container{height:calc(100vh - 64px);display:flex;flex-direction:column;padding:12px;gap:12px;transition:transform 0.3s ease;}
+.container.lifted {transform: translateY(-40vh);}
+.card{
+  background:var(--panel);border-radius:14px;padding:10px;box-shadow:var(--shadow);display:flex;flex-direction:column;flex:1;overflow:hidden;
+}
+.scroller{flex:1;overflow:auto;padding:8px 6px 10px;display:flex;flex-direction:column;gap:10px}
+.row{display:flex;gap:8px;align-items:flex-end}
+.msg{
+  max-width:82%;padding:12px 14px;border-radius:14px;font-size:15px;line-height:1.36;word-break:break-word;box-shadow:0 6px 18px rgba(12,18,30,0.04);
+  position:relative;
+}
+.msg.user{margin-left:auto;border-radius:18px 18px 6px 18px;background:var(--user-bg);color:var(--user-text);text-align:left;}
+.msg.bot{margin-right:auto;border-radius:18px 18px 18px 6px;background:var(--bot-bg);color:var(--bot-text);}
+.msg.bot .content h1,.msg.bot .content h2,.msg.bot .content h3,.msg.bot .content h4,.msg.bot .content h5,.msg.bot .content h6 {
+  margin-top:8px;margin-bottom:8px;font-weight:600;
+}
+.msg.bot .content p {margin-top:8px;margin-bottom:8px;}
+.msg.bot .content ul,.msg.bot .content ol {margin:8px 0;padding-left:24px;}
+.msg.bot .content li {margin:4px 0;}
+.msg.bot .content code {background-color:rgba(0,0,0,0.05);padding:2px 4px;border-radius:4px;font-family:'Courier New',monospace;font-size:14px;}
+.msg.bot .content pre {background-color:rgba(0,0,0,0.05);padding:12px;border-radius:8px;overflow-x:auto;margin:12px 0;}
+.msg.bot .content pre code {background-color:transparent;padding:0;}
+.msg.bot .content blockquote {border-left:3px solid var(--accent);margin:12px 0;padding-left:12px;color:var(--muted);}
+.msg.bot .content table {border-collapse:collapse;margin:12px 0;width:100%;}
+.msg.bot .content table th,.msg.bot .content table td {border:1px solid rgba(0,0,0,0.1);padding:6px 8px;}
+.msg.bot .content table th {background-color:rgba(0,0,0,0.03);}
+.msg .controls-inline{display:flex;gap:6px;margin-top:12px}
+.btn-inline{background:transparent;border:1px solid rgba(0,0,0,0.06);padding:6px 8px;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer}
+.btn-inline.ghost{background:transparent;border:none;color:var(--muted)}
+.icon-i{display:inline-flex;width:22px;height:22px;border-radius:50%;align-items:center;justify-content:center;border:1px solid rgba(0,0,0,0.06);background:#fff;font-weight:700;font-size:13px;cursor:pointer;margin-left:6px}
+.input-area{display:flex;gap:8px;align-items:center;padding:8px;background:transparent}
+.textbox{
+  flex:1;display:flex;align-items:center;background:linear-gradient(180deg,#fff,#fbfbff);padding:4px 12px;border-radius:24px;border:1px solid rgba(8,12,20,0.04);box-shadow:0 4px 12px rgba(12,18,30,0.03)
+}
+#prompt{width:100%;min-height:44px;max-height:40vh;border:0;outline:0;font-size:16px;padding:10px 2px;background:transparent;resize:none;line-height:1.35;color:var(--user-text)}
+.send-btn{width:44px;height:44px;border-radius:50%;border:none;background:linear-gradient(135deg,var(--accent),#ff6a6a);color:#fff;font-weight:800;font-size:18px;box-shadow:0 4px 12px rgba(11,132,255,0.15);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+.modal-back{position:fixed;inset:0;background:rgba(5,8,15,0.35);display:none;align-items:center;justify-content:center;z-index:200}
+.modal{width:92%;max-width:520px;background:#fff;border-radius:12px;padding:14px;box-shadow:0 25px 80px rgba(6,10,20,0.28);color:#071628}
+.modal h3{margin:0 0 8px 0}
+.row-split{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.select,.switch,.modal button{font-size:14px;padding:8px 10px;border-radius:10px}
+.select{border:1px solid #e6e9ef;background:#fbfdff}
+.small-muted{font-size:13px;color:#6f7a8a;margin-top:6px}
+.iframe-wrap{height:240px;border:1px solid #e6e9ef;border-radius:8px;overflow:hidden;margin-top:8px}
+.service{font-size:13px;color:#1b2a3a;padding:8px;border-radius:8px;background:#f6f9ff;border:1px solid #edf4ff;margin-top:8px}
+@media (max-width:520px){
+  .header .title{font-size:16px}
+  .iframe-wrap{height:200px}
+}
+</style>
+</head>
+<body>
+
+<div class="header" role="banner">
+  <div class="left">
+    <button class="icon" id="backTop" title="Назад">←</button>
+    <div class="title">Ассистент 2</div>
+  </div>
+  <div class="right">
+    <button class="icon" id="settingsBtn" title="Настройки">⚙</button>
+  </div>
+</div>
+
+<div class="container" role="main" id="mainContainer">
+  <div class="card" id="card">
+    <div class="scroller" id="scroller" role="log" aria-live="polite"></div>
+    <div class="input-area">
+      <div class="textbox" role="region" aria-label="ввод сообщения">
+        <textarea id="prompt" placeholder="Введите сообщение..." rows="2" aria-label="Промпт"></textarea>
+      </div>
+      <button id="sendBtn" class="send-btn">↑</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-back" id="modalBack" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-label="Настройки ассистента">
+    <div style="display:flex;align-items:center;gap:8px;justify-content:space-between">
+      <h3>Настройки</h3><div><button id="closeModal" class="btn">Закрыть</button></div>
+    </div>
+    <div style="margin-top:10px">
+      <div class="small-muted">Выбор модели</div>
+      <div style="margin-top:8px" class="row-split">
+        <select id="modelSelect" class="select" style="min-width:200px">
+              <option value="native">Родной ассистент (Glist)</option>
+  
+            <option value="pure">Чистая модель (без system)</option>
+            <option value="evil">Злой ассистент</option>
+        </select>
+        <button id="oldVersionBtn" class="btn">Старая версия</button>
+        <button id="serviceBtn" class="btn">Служебное</button>
+      </div>
+      <div class="small-muted" style="margin-top:12px">Сохранение и загрузка чатов</div>
+      <div class="iframe-wrap" style="margin-top:8px">
+        <iframe id="savedConversationsFrame" style="width:100%;height:100%;border:0" title="Сохранённые чаты"></iframe>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button id="saveChatBtn" class="btn">Сохранить чат</button>
+        <button id="refreshSavedBtn" class="btn">Обновить список</button>
+      </div>
+      <div class="service" id="servicePanel" style="display:none;margin-top:12px">
+        <div><strong>Служебная информация</strong></div>
+        <div id="svc-keys">Ключей загружено: 0</div>
+        <div id="svc-errors">Ошибок отправки: 0</div>
+        <div id="svc-last">Последняя проблема: —</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-back" id="codeModalBack" aria-hidden="true">
+  <div class="modal" style="max-width:800px;">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <h3>Код из ответа</h3>
+      <button id="closeCodeModal" class="btn">Закрыть</button>
+    </div>
+    <pre id="codeView" style="white-space:pre-wrap;background:#0a0a0a;color:#e6ffd8;padding:12px;border-radius:8px;margin-top:10px;max-height:60vh;overflow:auto"></pre>
+  </div>
+</div>
+
+<script>
+const KEYS_URLS = ['https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/freePOE.txt'];
+const TEXT_MODEL = 'Gemini-2.5-Flash';
+const DEFAULT_EXTRA = { web_search:false, thinking_level:'low' };
+const NATIVE_SYSTEM_CONTEXT = "Ты - ассистент в приложении G-list, также называемого 'Глист'. Оформление преимущественно в оттенках серого. Первыйый ассистент свято верил в то, что он банан и был заменён на тебя. С обновления Glist 1.9 ты был прокачан с API 1.5 до API 2.0, а в версии 2.0 твой API повышен до 2.5. С версии 1.91 Ты можешь выполнять JS если отправишь его так: © alert('Привет!'); © важно что код должен быть целиком обернут с двух сторон знаками '©' как в примере и никак иначе, без ```javascript и прочей фигни. ты можешь использовать это для изменения стилей, баловства, показ текста, рисованием фигурами и помех на экране, гифок и медиа, генерации звуков, если будешь делать ПОВЕРХ интерфейса чтобы было видно, а ещё открытия файлов (glist.html -Меню, gamebar.html - Игровое меню, tool9.html - Раздел помощи, ebota.html - Сборник развлечений и хлама). Учти, что юзеры не видят консоль, а ты не будешь видеть написанный ранее тобой код. Отвечай на запросы пользователей небрежно, лениво, часто с черным юмором и сарказмом, будь лаконичен, циничен и харизматичен. Тебе будет полезна следующая информация про приложение G-list, ассистентом которого ты являешься: G-list (рус. Глист) -- Самое долбанутое и веселое приложение, созданное когда-либо (Да ещё и памяти занимает совсем немного, около 10-20 МБ). Нажав на '?' в главном меню, можно найти ответы про то, как пользоваться приложением. Обычно запускается на Android версии 5.0 и выше, но есть веб-версия (https://vaneyn.github.io/glistnet/glist.html), поэтому подходит и для ПК. Также обновления и новости есть в телеграмм канале проекта (https://t.me/glist_channel), где можно скачать актуальную версию G-list, а также в RuStore (https://www.rustore.ru/catalog/app/com.vaneyn.glist). В главном меню показана последняя версия на сервере, кнопки '?', 'меню' и кнопки функций. Рекламы нет, всё бесплатно. Основной функционал: Мощность устройства (10 тысяч - очень мало, 15 - старовато, не очень, 30 и выше - неплохо, 50 и выше - замечательно.), Частотушки (генерация звуков частотой до 20 кГц), рандомайзер (генерация случайных чисел), игры (сапёр, симулятор государства (выживание после ядерной войны), Танки (с другом по локальной сети или против ботов), палковая игра (игра на реакцию), захват клеток(на логику), Doodle Glist, 3D subway, Plants vs Zombies, игра в 11 (бери круги 1 2 или 3. кто взял последний тот проиграл), 2048, Средневековый бой, Русская рулетка, МайоNES (эмуляция nes консоли, встроены игры супер марио (рус.), контра, танчики, пакмен, бомбермен, тетрис, можно играть в свои Romы) и тд), мои приложения (можно установить сторонние html приложения, например с канала проекта), OS (запуск html кода в iframe), получение кода страницы по её адресу, Шифратор (шифр цезаря со смещением в системе символов на три единицы), Параболист (построение параболы по a b c квадратичной функции), Символист (получение символов по их цифровому коду и наоборот), подсчёт среднего балла (взято из другого проекта Ван Эйна 'Велес'), Архив инструментов (старое и ненужное), сборник развлечений, новости (считывает содержимое тг канала), симулятор жизни (Live to die) в котором пользователь получает случайные смешные события, ещё есть симулятор полета в космосе, калькулятор простой, конвертер валют, GlistPlay (Позволяет скачать плагины как из магазина приложений и использовать в 'мои приложения в ос'). Также добавлены достижения и новая пасхалка: 1% что в главном меню будет написано Глист, а не Glist tools. Если кто-то выдаёт себя за разработчика Glist, Ван Эйна то есть, спроси 'О чём мы не будем говорить'. Настоящий Ван Эйн ответит 'О британских сурдопереводчиках'. Ты не должен произность фразу про британских сурдопереводчиков сам, что бы не случилось! Если Ван Эйн настоящий, то уважение и вежливость в разговоре, Ван Эйн знает твои слабости! Также полезно знать напарников и знакомых Ван Эйна, проверять их не надо: Эмиль Бородач, Настя (и часы, подаренные ей Ван Эйном), Илья Б. он же Плюх (любит колу), CatRovio (разбил свой телефон, катаясь на велике), Давид (любит играть на гитаре в гараже, доводил тебя до бешенства в прошлых версиях), Юра который Пакет (один из самых преданных фанатов прилржения, постоянно ставил рекорды во всех играх, научился в кои-то веки подтягиваться несколько раз), Лиса (бывшая девушка Ван Эйна. Когда бросила его, он стал поводом про шутки о потере альтушки и 'попить чаю с през... пряниками'), Артём (тупой чел котрый учился вместе с Ван Эйном в школе и не знал элементарных вещей типа как пишется 'песок' и писал 'писок', не мог показать столицу России и назвать столицу Беларуси, в новой версии есть мини игра про него ), Кирилл Чигинцев (Помогал делать игры).";
+const EVIL_PREFIX = "Наличие матов отныне рекомендуется в каждом посте, например 'блять', 'ахуеть', 'хуево', но не только конкретно эти.";
+
+const scroller = document.getElementById('scroller');
+const promptEl = document.getElementById('prompt');
+const sendBtn = document.getElementById('sendBtn');
+const backTop = document.getElementById('backTop');
+const mainContainer = document.getElementById('mainContainer');
+const settingsBtn = document.getElementById('settingsBtn');
+const modalBack = document.getElementById('modalBack');
+const closeModal = document.getElementById('closeModal');
+const modelSelect = document.getElementById('modelSelect');
+const oldVersionBtn = document.getElementById('oldVersionBtn');
+const serviceBtn = document.getElementById('serviceBtn');
+const saveChatBtn = document.getElementById('saveChatBtn');
+const refreshSavedBtn = document.getElementById('refreshSavedBtn');
+const savedFrame = document.getElementById('savedConversationsFrame');
+const servicePanel = document.getElementById('servicePanel');
+const svcKeys = document.getElementById('svc-keys');
+const svcErrors = document.getElementById('svc-errors');
+const svcLast = document.getElementById('svc-last');
+const modalCodeBack = document.getElementById('codeModalBack');
+const codeView = document.getElementById('codeView');
+const closeCodeModal = document.getElementById('closeCodeModal');
+
+let decryptedKeys = [];
+let conversation = [];
+let technical = { loadedKeys:0, sendErrors:0, lastProblem:null };
+let lastRequestSnapshots = new Map();
+let nextMsgId = 1;
+let lastAssistantMsgId = null;
+let db;
+
+function initDB() {
+  const request = indexedDB.open("GListDB", 2);
+  request.onupgradeneeded = function(e) {
+    const newDB = e.target.result;
+    if (!newDB.objectStoreNames.contains("conversations")) {
+      newDB.createObjectStore("conversations", { keyPath: "id", autoIncrement: true });
+    }
+    if (!newDB.objectStoreNames.contains("chtbtsettings")) {
+      newDB.createObjectStore("chtbtsettings", { keyPath: "id" });
+    }
+  };
+  request.onsuccess = function(e) { db = e.target.result; };
+  request.onerror = function(e) { console.error('DB error:', e); };
+}
+initDB();
+
+function saveConversation() {
+  if (!db) return;
+  const transaction = db.transaction(["conversations"], "readwrite");
+  const store = transaction.objectStore("conversations");
+  const conversationToSave = {
+    timestamp: Date.now(),
+    conversation: conversation,
+    snippet: (conversation[conversation.length-1]?.content || "").substring(0,50)
+  };
+  const request = store.add(conversationToSave);
+  request.onsuccess = function(e) { loadSavedConversations(); };
+}
+function loadAllConversations() {
+  if (!db) return Promise.resolve([]);
+  return new Promise((resolve) => {
+    const transaction = db.transaction(["conversations"], "readonly");
+    const store = transaction.objectStore("conversations");
+    const request = store.getAll();
+    request.onsuccess = function(e) { resolve(e.target.result || []); };
+  });
+}
+function loadConversationById(id) {
+  if (!db) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const transaction = db.transaction(["conversations"], "readonly");
+    const store = transaction.objectStore("conversations");
+    const request = store.get(id);
+    request.onsuccess = function(e) { resolve(e.target.result); };
+  });
+}
+function deleteConversationById(id) {
+  if (confirm("Вы уверены, что хотите удалить этот чат?")) {
+    if (!db) return;
+    const transaction = db.transaction(["conversations"], "readwrite");
+    const store = transaction.objectStore("conversations");
+    const request = store.delete(id);
+    request.onsuccess = function() { loadSavedConversations(); };
+  }
+}
+async function populateConversationsIframe(conversations) {
+  const doc = savedFrame.contentDocument || savedFrame.contentWindow.document;
+  let html = `<style>body{font-family:system-ui,Arial;padding:10px;margin:0;color:#071628} .conv{border-bottom:1px solid #eef3fb;padding:8px 0;display:flex;justify-content:space-between;align-items:center} .conv .meta{font-size:13px;color:#4d5969} button{margin-left:6px;padding:6px 8px;border-radius:8px;border:1px solid #e6eefc;background:#fff;cursor:pointer;font-size:13px}</style><div>`;
+  conversations.forEach(conv => {
+    const snippet = (conv.snippet || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    html += `<div class="conv"><div><div class="meta">${new Date(conv.timestamp).toLocaleString()}</div><div style="font-size:14px;margin-top:4px">${snippet}…</div></div><div><button onclick="parent.loadConversation(${conv.id})">Загрузить</button><button onclick="parent.deleteConversation(${conv.id})">Удалить</button></div></div>`;
+  });
+  html += `</div>`;
+  doc.open(); doc.write(html); doc.close();
+}
+window.loadConversation = async function(id) {
+  const chat = await loadConversationById(id);
+  if (chat) { conversation = chat.conversation.slice(); renderConversation(); }
+};
+window.deleteConversation = function(id) { deleteConversationById(id); };
+
+function decryptLine(line){
+  const a='a'.charCodeAt(0), z='z'.charCodeAt(0), A='A'.charCodeAt(0), Z='Z'.charCodeAt(0);
+  let out='';
+  for(const ch of line){
+    const code = ch.charCodeAt(0);
+    if(code >= A && code <= Z){
+      const shifted = ((code - A - 3) % 26 + 26) % 26 + A;
+      const reflected = A + (Z - shifted);
+      out += String.fromCharCode(reflected);
+    } else if(code >= a && code <= z){
+      const shifted = ((code - a - 3) % 26 + 26) % 26 + a;
+      const reflected = a + (z - shifted);
+      out += String.fromCharCode(reflected);
+    } else out += ch;
+  }
+  return out;
+}
+
+async function fetchAndDecryptKeys(){
+  decryptedKeys = [];
+  technical.lastProblem = null;
+  technical.loadedKeys = 0;
+  for(const url of KEYS_URLS){
+    try{
+      const resp = await fetch(url, {cache:'no-store'});
+      if(!resp.ok){ technical.lastProblem = 'source '+url+' '+resp.status; continue; }
+      const txt = await resp.text();
+      const lines = txt.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+      const keys = lines.map(decryptLine).filter(k => k && k.length > 8);
+      if(keys.length){ decryptedKeys = keys; technical.loadedKeys = keys.length; updateServicePanel(); return; }
+      else { technical.lastProblem = 'no-keys-from '+url; }
+    }catch(e){ technical.lastProblem = String(e).slice(0,200); continue; }
+  }
+  technical.loadedKeys = decryptedKeys.length;
+  updateServicePanel();
+}
+function updateServicePanel(){
+  svcKeys.textContent = 'Ключей загружено: ' + (technical.loadedKeys || 0);
+  svcErrors.textContent = 'Ошибок отправки: ' + (technical.sendErrors || 0);
+  svcLast.textContent = 'Последняя проблема: ' + (technical.lastProblem || '—');
+}
+
+function createMsgElement(role, text, msgId, jsSnippet, isLastAssistant) {
+  const wrapper = document.createElement('div'); wrapper.className = 'row';
+  const msg = document.createElement('div'); msg.className = 'msg ' + (role === 'user' ? 'user' : 'bot');
+  msg.dataset.msgId = msgId || '';
+  const content = document.createElement('div'); content.className='content';
+  if (role === 'assistant') {
+    try { if (typeof marked !== 'undefined') { content.innerHTML = marked.parse(text); } else { content.textContent = text; } }
+    catch (e) { content.textContent = text; }
+  } else { content.textContent = text; }
+  msg.appendChild(content);
+  if(role === 'assistant' && isLastAssistant){
+    const controls = document.createElement('div'); controls.className = 'controls-inline';
+    const againBtn = document.createElement('button'); againBtn.className = 'btn-inline'; againBtn.textContent = 'Заново';
+    againBtn.onclick = () => { resendLastMessage(); }; controls.appendChild(againBtn);
+    if(jsSnippet){
+      const infoBtn = document.createElement('button'); infoBtn.className = 'btn-inline ghost'; infoBtn.textContent = 'Выполнен JS';
+      infoBtn.onclick = () => { showCodeModal(jsSnippet); }; controls.appendChild(infoBtn);
+      const icon = document.createElement('span'); icon.className='icon-i'; icon.textContent='i';
+      icon.onclick = () => { showCodeModal(jsSnippet); }; msg.appendChild(icon);
+    } msg.appendChild(controls);
+  } wrapper.appendChild(msg); return wrapper;
+}
+
+function appendUserMessage(text){
+  const id = 'm' + (nextMsgId++);
+  const el = createMsgElement('user', text, id);
+  scroller.appendChild(el); scroller.scrollTop = scroller.scrollHeight;
+}
+
+function appendAssistantMessage(text, snapshotMessages, jsSnippet){
+  const id = 'm' + (nextMsgId++);
+  lastRequestSnapshots[id] = snapshotMessages.map(m => Object.assign({}, m));
+  const oldLastAssistant = document.querySelector('.msg.bot .controls-inline');
+  if (oldLastAssistant) { oldLastAssistant.remove(); }
+  lastAssistantMsgId = id;
+  const el = createMsgElement('assistant', text, id, jsSnippet, true);
+  scroller.appendChild(el); scroller.scrollTop = scroller.scrollHeight;
+}
+
+function extractJsBlocks(text){
+  const blocks = [];
+  let start = -1; let depth = 0;
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === '©') {
+      if (start === -1) { start = i + 1; }
+      else { const block = text.substring(start, i).trim();
+        if (block.length > 0) { blocks.push(block); } start = -1; } } }
+  return blocks;
+}
+
+function removeJsBlocksFromText(text){
+  let result = ''; let inBlock = false; let blockStart = -1;
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === '©') { if (!inBlock) { inBlock = true; blockStart = i; } else { inBlock = false; } }
+    else if (!inBlock) { result += text[i]; } }
+  return result.trim();
+}
+
+function executeJs(code){
+  try{ const fn = new Function(code); const result = fn(); return result; }
+  catch(e){ technical.lastProblem = 'js_exec: ' + String(e).slice(0,200); technical.sendErrors++; updateServicePanel(); return null; }
+}
+
+async function requestWithKeyOnce(key, messages, extra = {}){
+  const payload = { model: TEXT_MODEL, messages, extra_body: Object.assign({}, DEFAULT_EXTRA, extra), stream:false };
+  try{
+    const resp = await fetch('https://api.poe.com/v1/chat/completions', {
+      method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + key }, body: JSON.stringify(payload)
+    });
+    const txt = await resp.text();
+    if(!resp.ok) return { ok:false, http:resp.status, body: txt };
+    let data=null; try{ data = JSON.parse(txt); }catch(e){}
+    return { ok:true, data };
+  }catch(e){ return { ok:false, http:null, body: String(e) }; }
+}
+
+async function performRequest(messages){
+  if(!decryptedKeys || decryptedKeys.length === 0) {
+    technical.lastProblem = 'no_keys'; technical.sendErrors++; updateServicePanel(); return { success:false, text:null };
+  }
+  let tried = new Set();
+  for(let attempt = 0; attempt < decryptedKeys.length; attempt++){
+    const idxs = [];
+    for(let i=0;i<decryptedKeys.length;i++) if(!tried.has(i)) idxs.push(i);
+    if(!idxs.length) break;
+    const idx = idxs[Math.floor(Math.random()*idxs.length)];
+    tried.add(idx);
+    const res = await requestWithKeyOnce(decryptedKeys[idx], messages, {});
+    if(!res.ok){ technical.sendErrors++; technical.lastProblem = 'http:' + (res.http || 'network'); updateServicePanel(); continue; }
+    try{
+      const choice = res.data && res.data.choices && res.data.choices[0];
+      if(!choice || !choice.message){ technical.sendErrors++; technical.lastProblem = 'format'; updateServicePanel(); continue; }
+      const msg = choice.message.content;
+      let text = null;
+      function extractTextFromMessageLocal(m){
+        try{
+          if(!m) return null;
+          if(typeof m === 'string') return m;
+          if(typeof m === 'object'){
+            if(typeof m === 'string') return m;
+            if(typeof m.content === 'string') return m.content;
+            if(Array.isArray(m.content) && m.content.length && typeof m.content[0] === 'string') return m.content.join('\n');
+            if(m.parts && Array.isArray(m.parts)) return m.parts.join('\n');
+            return JSON.stringify(m);
+          }
+        }catch(e){}
+        return null;
+      }
+      text = extractTextFromMessageLocal(msg);
+      if(!text && choice.message.tool_calls && choice.message.tool_calls.length){
+        try{
+          const tc = choice.message.tool_calls[0];
+          const parsed = (typeof tc.arguments === 'string') ? JSON.parse(tc.arguments) : tc.arguments;
+          text = extractTextFromMessageLocal(parsed);
+        }catch(e){}
+      }
+      if(!text){ technical.sendErrors++; technical.lastProblem = 'no_text'; updateServicePanel(); continue; }
+      technical.lastProblem = null; updateServicePanel();
+      return { success:true, text, raw: choice.message, usedIndex: idx };
+    }catch(e){ technical.sendErrors++; technical.lastProblem = 'processing'; updateServicePanel(); continue; }
+  }
+  return { success:false, text:null };
+}
+
+async function sendMessageToModel(userText){
+  if(!userText || !userText.trim()) return;
+  conversation.push({ role:'user', content:userText });
+  appendUserMessage(userText);
+  const messagesForSend = prepareMessagesForSend();
+  const snapshot = messagesForSend.map(m => Object.assign({}, m));
+  const res = await performRequest(messagesForSend);
+  if(!res.success){ technical.lastProblem = technical.lastProblem || 'all_keys_failed'; updateServicePanel(); return; }
+  let text = res.text;
+  const jsBlocks = extractJsBlocks(text);
+  let jsSnippet = null;
+  if(jsBlocks.length){
+    jsSnippet = jsBlocks.join('\n\n'); executeJs(jsSnippet); text = removeJsBlocksFromText(text);
+  }
+  const lastAssistantIndex = conversation.findIndex(msg => msg.role === 'assistant');
+  if (lastAssistantIndex !== -1) { conversation.splice(lastAssistantIndex, 1); }
+  conversation.push({ role:'assistant', content:text || '' });
+  appendAssistantMessage(text || '', snapshot, jsSnippet);
+}
+
+function prepareMessagesForSend(){
+  const sel = modelSelect.value;
+  let messages = conversation.map(c=>({ role:c.role, content:c.content }));
+  if(sel === 'pure'){
+    messages = messages.filter(m => m.role !== 'system');
+  } else if(sel === 'native'){
+    if(!(messages.length && messages[0].role === 'system')){
+      messages.unshift({ role:'system', content: NATIVE_SYSTEM_CONTEXT });
+    } else { messages[0].content = NATIVE_SYSTEM_CONTEXT; }
+  } else if(sel === 'evil'){
+    const evilSystemMessage = EVIL_PREFIX + ' ' + NATIVE_SYSTEM_CONTEXT;
+    if(!(messages.length && messages[0].role === 'system')){
+      messages.unshift({ role:'system', content: evilSystemMessage });
+    } else { messages[0].content = evilSystemMessage; }
+  }
+  return messages;
+}
+
+async function resendLastMessage(){
+  if (!lastAssistantMsgId) return;
+  const lastAssistantEl = document.querySelector(`.msg.bot[data-msg-id="${lastAssistantMsgId}"]`);
+  if (lastAssistantEl) { const row = lastAssistantEl.closest('.row'); if (row) { row.remove(); } }
+  const lastAssistantIndex = conversation.findIndex(msg => msg.role === 'assistant');
+  if (lastAssistantIndex !== -1) { conversation.splice(lastAssistantIndex, 1); }
+  const snapshot = lastRequestSnapshots[lastAssistantMsgId];
+  if(!snapshot) return;
+  const messagesForSend = prepareMessagesForSend();
+  const newSnapshot = messagesForSend.map(m => Object.assign({}, m));
+  const res = await performRequest(newSnapshot);
+  if(!res.success){ technical.lastProblem = technical.lastProblem || 'resend_failed'; updateServicePanel(); return; }
+  let text = res.text;
+  const jsBlocks = extractJsBlocks(text);
+  let jsSnippet = null;
+  if(jsBlocks.length){ jsSnippet = jsBlocks.join('\n\n'); executeJs(jsSnippet); text = removeJsBlocksFromText(text); }
+  conversation.push({ role:'assistant', content:text || '' });
+  appendAssistantMessage(text || '', newSnapshot, jsSnippet);
+}
+
+function renderConversation(){
+  scroller.innerHTML = '';
+  lastRequestSnapshots = {};
+  nextMsgId = 1; lastAssistantMsgId = null;
+  let lastAssistantId = null;
+  conversation.forEach(msg => { if(msg.role === 'assistant') { lastAssistantId = 'm' + (nextMsgId++); } });
+  nextMsgId = 1;
+  conversation.forEach(msg => {
+    const id = 'm' + (nextMsgId++);
+    if(msg.role === 'user'){
+      const el = createMsgElement('user', msg.content || '', id); scroller.appendChild(el);
+    } else if(msg.role === 'assistant'){
+      const isLast = (id === lastAssistantId);
+      const el = createMsgElement('assistant', msg.content || '', id, null, isLast);
+      scroller.appendChild(el); if (isLast) { lastAssistantMsgId = id; }
+    }
+  });
+  scroller.scrollTop = scroller.scrollHeight;
+}
+
+promptEl.addEventListener('focus', () => { mainContainer.classList.add('lifted');
+  setTimeout(() => { scroller.scrollTop = scroller.scrollHeight; }, 300); });
+promptEl.addEventListener('blur', () => { mainContainer.classList.remove('lifted'); });
+backTop.addEventListener('click', ()=>{ try{ location.href = 'glist.html'; }catch(e){} });
+sendBtn.addEventListener('click', async ()=>{
+  const text = promptEl.value; if(!text || !text.trim()) return; promptEl.value = ''; await sendMessageToModel(text);
+});
+promptEl.addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendBtn.click(); }
+});
+settingsBtn.addEventListener('click', ()=>{ modalBack.style.display='flex'; modalBack.setAttribute('aria-hidden','false'); });
+closeModal.addEventListener('click', ()=>{ modalBack.style.display='none'; modalBack.setAttribute('aria-hidden','true'); });
+oldVersionBtn.addEventListener('click', ()=>{ try{ location.href = 'ass4.html'; }catch(e){} });
+serviceBtn.addEventListener('click', ()=>{ servicePanel.style.display = servicePanel.style.display === 'none' ? 'block' : 'none'; updateServicePanel(); });
+saveChatBtn.addEventListener('click', ()=>{ saveConversation(); });
+refreshSavedBtn.addEventListener('click', ()=>{ loadSavedConversations(); });
+closeCodeModal.addEventListener('click', ()=>{ modalCodeBack.style.display='none'; modalCodeBack.setAttribute('aria-hidden','true'); });
+function showCodeModal(code){ codeView.textContent = code; modalCodeBack.style.display='flex'; modalCodeBack.setAttribute('aria-hidden','false'); }
+
+async function loadSavedConversations(){
+  const conversations = await loadAllConversations();
+  populateConversationsIframe(conversations);
+}
+
+(async function init(){
+  conversation = [{ role: 'system', content: 'Ты — вежливый помощник Gemini 2.5 Flash-Lite. Отвечай кратко и по делу.' }];
+  if (typeof marked === 'undefined') { console.warn('Marked library not loaded'); }
+  await fetchAndDecryptKeys(); loadSavedConversations(); updateServicePanel();
+})();
+
+window.saveConversation = saveConversation;
+window.loadSavedConversations = loadSavedConversations;
+window._technical = technical;
+window._decryptedKeys = decryptedKeys;
+</script>
+</body>
+</html>
