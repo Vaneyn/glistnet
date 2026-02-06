@@ -1,0 +1,2128 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Destruction Physics - Levels</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.18.0/matter.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #121212;
+            color: #fff;
+            overflow: hidden;
+            font-family: 'Arial', sans-serif;
+            touch-action: none;
+        }
+        canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+        
+        /* MENU STYLES */
+        #main-menu {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #1e1e2e 0%, #2d1b3d 100%);
+            z-index: 300;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        
+        #main-menu.hidden {
+            display: none;
+        }
+        
+        .menu-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .menu-title {
+            font-size: 48px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea 0%, #f093fb 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }
+        
+        .menu-subtitle {
+            font-size: 18px;
+            color: #aaa;
+        }
+        
+        .levels-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+            width: 100%;
+            max-width: 1200px;
+            margin-bottom: 30px;
+        }
+        
+        .level-card {
+            background: rgba(40, 40, 60, 0.9);
+            border: 2px solid #444;
+            border-radius: 12px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+        
+        .level-card:hover {
+            transform: translateY(-5px);
+            border-color: #667eea;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        }
+        
+        .level-card.completed {
+            border-color: #44ff77;
+            background: rgba(68, 255, 119, 0.1);
+        }
+        
+        .level-card.locked {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .level-number {
+            font-size: 14px;
+            color: #667eea;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        
+        .level-name {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 12px;
+            color: #fff;
+        }
+        
+        .level-stats {
+            display: flex;
+            gap: 15px;
+            font-size: 14px;
+            color: #aaa;
+            margin-bottom: 12px;
+        }
+        
+        .level-stat {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .completed-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #44ff77;
+            color: #000;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .custom-level-section {
+            width: 100%;
+            max-width: 600px;
+            background: rgba(40, 40, 60, 0.9);
+            border: 2px solid #667eea;
+            border-radius: 12px;
+            padding: 25px;
+            margin-top: 20px;
+        }
+        
+        .custom-level-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-align: center;
+            color: #667eea;
+        }
+        
+        #custom-level-input {
+            width: 100%;
+            min-height: 150px;
+            background: rgba(20, 20, 30, 0.9);
+            border: 2px solid #444;
+            border-radius: 8px;
+            color: #fff;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            resize: vertical;
+            margin-bottom: 15px;
+        }
+        
+        #custom-level-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .custom-level-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            max-width: 600px;
+            background: rgba(40, 40, 60, 0.9);
+            border-radius: 20px;
+            padding: 15px 25px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .progress-text {
+            font-size: 18px;
+            margin-bottom: 10px;
+            color: #aaa;
+        }
+        
+        .progress-fill-container {
+            background: rgba(20, 20, 30, 0.9);
+            border-radius: 10px;
+            height: 20px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #44ff77 100%);
+            transition: width 0.5s;
+            border-radius: 10px;
+        }
+        
+        #ui-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: 150;
+        }
+        .ui-panel {
+            pointer-events: all;
+            background: rgba(20, 20, 30, 0.9);
+            padding: 15px;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+        }
+        #top-bar {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            right: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        #health-display {
+            font-size: 20px;
+            font-weight: bold;
+            color: #44ff77;
+            text-shadow: 0 0 10px rgba(68, 255, 119, 0.5);
+        }
+        #level-info {
+            font-size: 16px;
+            color: #aaa;
+        }
+        #zoom-controls {
+            position: absolute;
+            top: 80px;
+            right: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .zoom-btn {
+            width: 50px;
+            height: 50px;
+            font-size: 24px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(40, 40, 60, 0.95);
+            border: 2px solid #555;
+        }
+        .zoom-btn:active {
+            background: rgba(60, 60, 80, 0.95);
+        }
+        #resources-panel {
+            position: absolute;
+            bottom: 80px;
+            left: 15px;
+            right: 15px;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .resource-item {
+            background: rgba(40, 40, 60, 0.95);
+            padding: 12px 16px;
+            border-radius: 8px;
+            border: 2px solid #444;
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+            min-width: 70px;
+            text-align: center;
+            position: relative;
+        }
+        .resource-item.selected {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.3);
+        }
+        .resource-item:active {
+            transform: scale(0.95);
+        }
+        .resource-item.used {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+        .resource-shape {
+            font-size: 24px;
+            margin-bottom: 3px;
+        }
+        .resource-label {
+            font-size: 11px;
+            color: #aaa;
+        }
+        .resource-count {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #667eea;
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            border: 2px solid #121212;
+        }
+        .resource-count.depleted {
+            background: #666;
+        }
+        #controls-panel {
+            position: absolute;
+            bottom: 15px;
+            left: 15px;
+            right: 15px;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-direction: column;
+            align-items: center;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+            padding: 15px 30px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        button.ready-button {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            font-size: 18px;
+            padding: 18px 40px;
+        }
+        button.ready-button:disabled {
+            background: linear-gradient(135deg, #666 0%, #555 100%);
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+        button.back-button {
+            background: rgba(60, 60, 80, 0.9);
+            padding: 12px 20px;
+            font-size: 14px;
+        }
+        button.menu-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 12px 24px;
+            font-size: 14px;
+        }
+        #game-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(20, 20, 30, 0.98);
+            padding: 40px 60px;
+            border-radius: 15px;
+            text-align: center;
+            font-size: 32px;
+            font-weight: bold;
+            display: none;
+            z-index: 200;
+            border: 3px solid;
+        }
+        #game-message.victory {
+            border-color: #44ff77;
+            color: #44ff77;
+            text-shadow: 0 0 20px rgba(68, 255, 119, 0.8);
+        }
+        #game-message.defeat {
+            border-color: #ff4444;
+            color: #ff4444;
+            text-shadow: 0 0 20px rgba(255, 68, 68, 0.8);
+        }
+        #camera-hint {
+            position: absolute;
+            top: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(40, 40, 60, 0.9);
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            color: #aaa;
+            text-align: center;
+            max-width: 90%;
+        }
+        #collision-warning {
+            font-size: 12px;
+            color: #ff6666;
+            margin-top: 5px;
+            font-weight: bold;
+        }
+        #trajectory-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            z-index: 100;
+        }
+        #game-canvas-wrapper {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        #menu-btn-ingame {
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 160;
+        }
+        
+        @media (max-width: 768px) {
+            .menu-title {
+                font-size: 36px;
+            }
+            .levels-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- MAIN MENU -->
+    <div id="main-menu">
+        <div class="menu-header">
+            <div class="menu-title">⚡ Destruction Physics ⚡</div>
+            <div class="menu-subtitle">Защити шар, построй оборону!</div>
+        </div>
+        
+        <div class="progress-bar">
+            <div class="progress-text">Прогресс: <span id="progress-count">0/2</span></div>
+            <div class="progress-fill-container">
+                <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+            </div>
+        </div>
+        
+        <div class="levels-grid" id="levels-grid">
+            <!-- Levels will be populated here -->
+        </div>
+        
+        <div class="custom-level-section">
+            <div class="custom-level-title">🎮 Запустить свой уровень</div>
+            <textarea id="custom-level-input" placeholder='Вставьте JSON уровня:
+
+Пример 1 (ресурсы для игрока):
+{
+  "name": "Моя защита",
+  "objects": [
+    {"shape": "block", "material": "wood"},
+    {"shape": "block", "material": "wood"},
+    {"shape": "cube", "material": "stone"}
+  ],
+  "trajectories": [
+    {"x": -300, "y": 0, "angle": 30, "force": 28, "delay": 0}
+  ]
+}
+
+Пример 2 (готовая башня справа):
+{
+  "name": "Готовая башня",
+  "objects": [
+    {"shape": "block", "material": "wood", "x": 500, "y": 520},
+    {"shape": "block", "material": "wood", "x": 500, "y": 480},
+    {"shape": "cube", "material": "stone", "x": 500, "y": 430}
+  ],
+  "trajectories": [
+    {"x": -200, "y": 100, "angle": 25, "force": 30, "delay": 0}
+  ]
+}
+
+Формы: block, stick, cube, sphere
+Материалы: wood, stone, metal, glass
+Координаты: игрок на x:200, y:400 (y вниз - больше, вверх - меньше)'></textarea>
+            <div class="custom-level-buttons">
+                <button onclick="launchCustomLevel()" style="flex: 1">🚀 Запустить</button>
+                <button onclick="clearCustomInput()" class="back-button" style="flex: 0 0 auto">Очистить</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- GAME CANVAS -->
+    <div id="game-canvas-wrapper"></div>
+    <canvas id="trajectory-canvas"></canvas>
+    
+    <!-- IN-GAME UI -->
+    <button id="menu-btn-ingame" class="menu-button ui-panel" onclick="returnToMenu()" style="display: none">
+        ← Меню
+    </button>
+    
+    <div id="ui-overlay">
+        <div id="top-bar" class="ui-panel">
+            <div id="health-display">❤️ HP: <span id="health-value">10</span></div>
+            <div id="level-info">Уровень <span id="level-number">1</span></div>
+        </div>
+
+        <div id="camera-hint" class="ui-panel">
+            👆 Тап - размещение | 2 тапа - поворот | Свайп - перемещение
+        </div>
+
+        <div id="zoom-controls">
+            <button class="zoom-btn ui-panel" onclick="zoomIn()">+</button>
+            <button class="zoom-btn ui-panel" onclick="zoomOut()">−</button>
+        </div>
+
+        <div id="resources-panel">
+            <!-- Will be populated dynamically -->
+        </div>
+
+        <div id="controls-panel" class="ui-panel">
+            <div id="collision-warning" style="display: none;">
+                ⚠️ Объекты пересекаются! Переместите их.
+            </div>
+            <button id="ready-btn" class="ready-button" onclick="startCombat()">
+                🚀 Готов!
+            </button>
+        </div>
+    </div>
+
+    <div id="game-message"></div>
+
+    <script>
+        const { Engine, Render, World, Bodies, Body, Events, Runner, Vector, Collision } = Matter;
+
+        // ============ STORAGE (IN-MEMORY) ============
+        // NOTE: localStorage is not supported in Claude.ai artifacts
+        // This uses in-memory storage that resets on page reload
+        // To use persistent localStorage, copy this code to your own environment
+        const gameStorage = {
+            data: { completedLevels: [] },
+            
+            load() {
+                // In a real environment with localStorage support, uncomment:
+                // try {
+                //     const saved = localStorage.getItem('TheBallGameLevel');
+                //     if (saved) this.data = JSON.parse(saved);
+                // } catch(e) {
+                //     console.error('Failed to load from localStorage:', e);
+                // }
+            },
+            
+            save() {
+                // In a real environment with localStorage support, uncomment:
+                try {
+                   localStorage.setItem('TheBallGameLevel', JSON.stringify(this.data));
+                } catch(e) {
+                   console.error('Failed to save to localStorage:', e);
+                }
+            },
+            
+            isLevelCompleted(levelIndex) {
+                return this.data.completedLevels.includes(levelIndex);
+            },
+            
+            markLevelCompleted(levelIndex) {
+                if (!this.data.completedLevels.includes(levelIndex)) {
+                    this.data.completedLevels.push(levelIndex);
+                    this.save();
+                }
+            },
+            
+            reset() {
+                this.data = { completedLevels: [] };
+                this.save();
+            }
+        };
+
+        // ============ CONFIG ============
+        const CONFIG = {
+            PLAYER: {
+                HP: 10,
+                RADIUS: 17,
+                COLOR: '#44ff77',
+                SPAWN_X: 200,
+                SPAWN_Y: 400
+            },
+            PROJECTILE: {
+                RADIUS: 28,
+                COLOR: '#ff4444',
+                DENSITY: 3.5
+            },
+            CAMERA: {
+                ZOOM: 1,
+                ZOOM_MIN: 0.5,
+                ZOOM_MAX: 2,
+                ZOOM_STEP: 0.1,
+                PAN_SPEED: 1
+            },
+            MATERIALS: {
+                glass: { hp: 10,  color: '#2684ff', density: 0.9, name: 'Стекло' },
+                wood:  { hp: 50,  color: '#8b4513', density: 0.7, name: 'Дерево' },
+                stone: { hp: 150, color: '#666666', density: 2.3, name: 'Камень' },
+                metal: { hp: 500, color: '#ff4444', density: 3.5, name: 'Металл' }
+            },
+            SHAPES: {
+                block: { 
+                    width: 58, 
+                    height: 34, 
+                    type: 'rectangle',
+                    icon: '▬',
+                    name: 'Блок'
+                },
+                stick: { 
+                    width: 116, 
+                    height: 17, 
+                    type: 'rectangle',
+                    icon: '━',
+                    name: 'Палка'
+                },
+                cube: { 
+                    width: 58, 
+                    height: 58, 
+                    type: 'rectangle',
+                    icon: '▪',
+                    name: 'Куб'
+                },
+                sphere: { 
+                    radius: 28, 
+                    type: 'circle',
+                    icon: '●',
+                    name: 'Шар'
+                }
+            },
+            DAMAGE: {
+                MIN_SPEED: 1.5,
+                MIN_FORCE: 1.5,
+                MULT: 0.40
+            },
+            VICTORY_DELAY: 5000,
+            TOUCH: {
+                TAP_THRESHOLD: 8,
+                TAP_TIME: 200,
+                DOUBLE_TAP_TIME: 400,
+                HIT_PADDING: 8
+            },
+            ROTATION_ANGLE: Math.PI / 4
+        };
+
+        // ============ LEVELS ============
+        const LEVELS = [
+         {
+  "name": "Толчок",
+  "objects": [
+    {
+      "shape": "stick",
+      "material": "glass"
+    },
+    {
+      "shape": "stick",
+      "material": "wood"
+    },
+    {
+      "shape": "stick",
+      "material": "glass"
+    }
+  ],
+  "trajectories": [
+    {
+      "x": 371,
+      "y": 390,
+      "angle": -175,
+      "force": 12,
+      "delay": 0
+    }
+  ]
+},
+
+            
+               
+                     {
+                "name": "Легкий уровень",
+                "objects": [
+                    {"shape": "block", "material": "glass"},
+                    {"shape": "block", "material": "stone"},
+                    {"shape": "block", "material": "stone"},
+                    {"shape": "block", "material": "stone"},
+                    {"shape": "stick", "material": "stone"}
+                ],
+                "trajectories": [
+                    {"x": -360, "y": -40, "angle": 35, "force": 30, "delay": 0}
+                ]
+            },
+            
+            
+            {
+  "name": "Злые птицы",
+  "objects": [
+    {
+      "shape": "block",
+      "material": "glass"
+    },
+    {
+      "shape": "block",
+      "material": "glass"
+    },
+    {
+      "shape": "stick",
+      "material": "glass"
+    },
+    {
+      "shape": "cube",
+      "material": "glass"
+    },
+    {
+      "shape": "cube",
+      "material": "glass"
+    }
+  ],
+  "trajectories": [
+    {
+      "x": 1133,
+      "y": 357,
+      "angle": -136,
+      "force": 18,
+      "delay": 0
+    },
+    {
+      "x": -8,
+      "y": 505,
+      "angle": 7,
+      "force": 30,
+      "delay": 1500
+    }
+  ]
+},
+
+{
+  "name": "Лазейка",
+  "objects": [
+    {
+      "shape": "block",
+      "material": "wood"
+    },
+    {
+      "shape": "block",
+      "material": "wood"
+    },
+    {
+      "shape": "block",
+      "material": "wood"
+    },
+    {
+      "shape": "cube",
+      "material": "wood"
+    },
+    {
+      "shape": "stick",
+      "material": "stone"
+    }
+  ],
+  "trajectories": [
+    {
+      "x": -16,
+      "y": 391,
+      "angle": -9,
+      "force": 11.8,
+      "delay": 0
+    },
+    {
+      "x": -185,
+      "y": 490,
+      "angle": 3,
+      "force": 30,
+      "delay": 1000
+    },
+    {
+      "x": 482,
+      "y": 332,
+      "angle": 168,
+      "force": 23.4,
+      "delay": 1000
+    }
+  ]
+},
+
+
+
+            {
+                "name": "Бомбардировка",
+                "objects": [
+                    {"shape": "block", "material": "glass"},
+                    {"shape": "block", "material": "glass"},
+                    {"shape": "block", "material": "glass"},
+                    {"shape": "block", "material": "glass"},
+                    {"shape": "block", "material": "glass"},
+                    {"shape": "block", "material": "glass"},
+                    {"shape": "block", "material": "glass"},
+                    {"shape": "block", "material": "glass"},
+                    {"shape": "stick", "material": "wood"}
+                ],
+                "trajectories": [
+                    {"x": 219, "y": -598, "angle": 91, "force": 35, "delay": 500},
+                    {"x": 152, "y": -577, "angle": 87, "force": 30, "delay": 0}
+                ]
+            }
+        ];
+
+        // ============ GAME STATE ============
+        const gameState = {
+            currentLevel: 0,
+            isCustomLevel: false,
+            phase: 'menu',
+            player: null,
+            placedObjects: [],
+            projectiles: [],
+            availableObjectGroups: [],
+            selectedGroupKey: null,
+            selectedPlacedObject: null,
+            savedPositions: [],
+            camera: { x: 0, y: 0, zoom: 1 },
+            touch: {
+                isActive: false,
+                startX: 0,
+                startY: 0,
+                startTime: 0,
+                moved: false,
+                lastTapTime: 0,
+                lastTapObject: null
+            },
+            lastProjectileHitTime: null,
+            victoryTimer: null,
+            collisionHandler: null,
+            projectileCleanupInterval: null,
+            hasCollisions: false
+        };
+
+        // ============ ENGINE & RENDERER ============
+        const engine = Engine.create({
+            gravity: { x: 0, y: 0 }
+        });
+
+        const render = Render.create({
+            element: document.getElementById('game-canvas-wrapper'),
+            engine: engine,
+            options: {
+                width: window.innerWidth,
+                height: window.innerHeight,
+                wireframes: false,
+                background: '#000000'
+            }
+        });
+
+        const runner = Runner.create();
+        Runner.run(runner, engine);
+        Render.run(render);
+
+        // ============ TRAJECTORY CANVAS ============
+        const trajCanvas = document.getElementById('trajectory-canvas');
+        const trajCtx = trajCanvas.getContext('2d');
+        trajCanvas.width = window.innerWidth;
+        trajCanvas.height = window.innerHeight;
+
+        // ============ MENU FUNCTIONS ============
+        function initMenu() {
+            gameStorage.load();
+            renderLevelsMenu();
+            updateProgress();
+        }
+
+        function renderLevelsMenu() {
+            const grid = document.getElementById('levels-grid');
+            grid.innerHTML = '';
+            
+            LEVELS.forEach((level, index) => {
+                const card = document.createElement('div');
+                card.className = 'level-card';
+                
+                const isCompleted = gameStorage.isLevelCompleted(index);
+                const isLocked = false; // Можно добавить логику блокировки
+                
+                if (isCompleted) card.classList.add('completed');
+                if (isLocked) card.classList.add('locked');
+                
+                const objectCount = level.objects.length;
+                const projectileCount = level.trajectories.length;
+                
+                card.innerHTML = `
+                    <div class="level-number">Уровень ${index + 1}</div>
+                    <div class="level-name">${level.name}</div>
+                    <div class="level-stats">
+                        <div class="level-stat">
+                            <span>📦</span>
+                            <span>${objectCount}</span>
+                        </div>
+                        <div class="level-stat">
+                            <span>🎯</span>
+                            <span>${projectileCount}</span>
+                        </div>
+                    </div>
+                    ${isCompleted ? '<div class="completed-badge">✓ Пройдено</div>' : ''}
+                `;
+                
+                if (!isLocked) {
+                    card.onclick = () => startLevel(index, false);
+                }
+                
+                grid.appendChild(card);
+            });
+        }
+
+        function updateProgress() {
+            const completed = gameStorage.data.completedLevels.length;
+            const total = LEVELS.length;
+            const percentage = total > 0 ? (completed / total) * 100 : 0;
+            
+            document.getElementById('progress-count').textContent = `${completed}/${total}`;
+            document.getElementById('progress-fill').style.width = `${percentage}%`;
+        }
+
+        function startLevel(levelIndex, isCustom = false) {
+            gameState.isCustomLevel = isCustom;
+            document.getElementById('main-menu').classList.add('hidden');
+            document.getElementById('menu-btn-ingame').style.display = 'block';
+            
+            // Always load the level, whether custom or not
+            loadLevel(levelIndex, true);
+        }
+
+        window.returnToMenu = function() {
+            // Remove custom level if it exists
+            if (LEVELS[LEVELS.length - 1]?.isCustom) {
+                LEVELS.pop();
+            }
+            
+            // Reset game
+            resetGame(true);
+            
+            // Hide game UI
+            document.getElementById('ui-overlay').style.display = 'none';
+            document.getElementById('menu-btn-ingame').style.display = 'none';
+            document.getElementById('game-message').style.display = 'none';
+            
+            // Show menu
+            document.getElementById('main-menu').classList.remove('hidden');
+            gameState.phase = 'menu';
+            
+            // Update menu
+            renderLevelsMenu();
+            updateProgress();
+        };
+
+        window.launchCustomLevel = function() {
+            const input = document.getElementById('custom-level-input').value.trim();
+            
+            if (!input) {
+                alert('Пожалуйста, вставьте JSON уровня');
+                return;
+            }
+            
+            try {
+                const customLevel = JSON.parse(input);
+                
+                // Comprehensive validation
+                if (!customLevel || typeof customLevel !== 'object') {
+                    throw new Error('JSON должен быть объектом');
+                }
+                
+                // Validate objects array
+                if (!customLevel.objects || !Array.isArray(customLevel.objects)) {
+                    throw new Error('Уровень должен содержать массив objects');
+                }
+                
+                customLevel.objects.forEach((obj, idx) => {
+                    if (!obj.shape || typeof obj.shape !== 'string') {
+                        throw new Error(`objects[${idx}]: отсутствует поле shape`);
+                    }
+                    if (!obj.material || typeof obj.material !== 'string') {
+                        throw new Error(`objects[${idx}]: отсутствует поле material`);
+                    }
+                    // x, y are OPTIONAL - if not provided, these are resources for player
+                    // If provided, these are pre-placed objects
+                    if (obj.x !== undefined && typeof obj.x !== 'number') {
+                        throw new Error(`objects[${idx}]: x должно быть числом`);
+                    }
+                    if (obj.y !== undefined && typeof obj.y !== 'number') {
+                        throw new Error(`objects[${idx}]: y должно быть числом`);
+                    }
+                    if (obj.w !== undefined && typeof obj.w !== 'number') {
+                        throw new Error(`objects[${idx}]: w должно быть числом`);
+                    }
+                    if (obj.h !== undefined && typeof obj.h !== 'number') {
+                        throw new Error(`objects[${idx}]: h должно быть числом`);
+                    }
+                });
+                
+                // Validate trajectories array
+                if (!customLevel.trajectories || !Array.isArray(customLevel.trajectories)) {
+                    throw new Error('Уровень должен содержать массив trajectories');
+                }
+                
+                if (customLevel.trajectories.length === 0) {
+                    throw new Error('Массив trajectories не может быть пустым');
+                }
+                
+                customLevel.trajectories.forEach((traj, idx) => {
+                    if (typeof traj.x !== 'number' || typeof traj.y !== 'number') {
+                        throw new Error(`trajectories[${idx}]: x и y должны быть числами`);
+                    }
+                    if (typeof traj.angle !== 'number') {
+                        throw new Error(`trajectories[${idx}]: angle должен быть числом`);
+                    }
+                    if (typeof traj.force !== 'number' || traj.force <= 0) {
+                        throw new Error(`trajectories[${idx}]: force должен быть положительным числом`);
+                    }
+                    if (traj.delay !== undefined && typeof traj.delay !== 'number') {
+                        throw new Error(`trajectories[${idx}]: delay должен быть числом`);
+                    }
+                });
+                
+                // Set default delay if missing
+                customLevel.trajectories.forEach(traj => {
+                    if (traj.delay === undefined) {
+                        traj.delay = 0;
+                    }
+                });
+                
+                // Add name if missing
+                if (!customLevel.name) {
+                    customLevel.name = 'Кастомный уровень';
+                }
+                
+                // Remove previous custom level if exists
+                if (LEVELS[LEVELS.length - 1]?.isCustom) {
+                    LEVELS.pop();
+                }
+                
+                // Mark as custom
+                customLevel.isCustom = true;
+                
+                // Add to levels temporarily
+                LEVELS.push(customLevel);
+                const customLevelIndex = LEVELS.length - 1;
+                
+                startLevel(customLevelIndex, true);
+                
+            } catch (e) {
+                alert('❌ Ошибка в JSON:\n\n' + e.message + '\n\nПроверьте правильность формата');
+                console.error('Custom level error:', e);
+            }
+        };
+
+        window.clearCustomInput = function() {
+            document.getElementById('custom-level-input').value = '';
+        };
+
+        // ============ INIT ============
+        function init() {
+            createBoundaries();
+            createPlayer();
+            initMenu();
+            setupTouchControls();
+            startRenderLoop();
+            
+            // Hide game UI initially
+            document.getElementById('ui-overlay').style.display = 'none';
+        }
+
+        function createBoundaries() {
+            const ground = Bodies.rectangle(500, 600, 2000, 50, {
+                isStatic: true,
+                label: 'ground',
+                render: { fillStyle: '#3a3a3a' },
+                frictionStatic: 0.3
+            });
+
+            World.add(engine.world, [ground]);
+        }
+
+        function createPlayer() {
+            const platform = Bodies.rectangle(
+                CONFIG.PLAYER.SPAWN_X,
+                CONFIG.PLAYER.SPAWN_Y + 50,
+                220,
+                45,
+                {
+                    isStatic: true,
+                    render: { fillStyle: '#333333' },
+                    frictionStatic: 0.4
+                }
+            );
+
+            gameState.player = Bodies.circle(
+                CONFIG.PLAYER.SPAWN_X,
+                CONFIG.PLAYER.SPAWN_Y,
+                CONFIG.PLAYER.RADIUS,
+                {
+                    label: 'player',
+                    isStatic: true,
+                    restitution: 0.3,
+                    mass: 100,
+                    friction: 0.05,
+                    frictionAir: 0.02,
+                    render: { fillStyle: CONFIG.PLAYER.COLOR }
+                }
+            );
+            gameState.player.health = CONFIG.PLAYER.HP;
+            gameState.player.maxHealth = CONFIG.PLAYER.HP;
+            gameState.player.originalColor = CONFIG.PLAYER.COLOR;
+            
+            World.add(engine.world, [platform, gameState.player]);
+        }
+
+        // ============ LEVEL LOADING ============
+        function loadLevel(levelIndex, resetResources = true) {
+            gameState.currentLevel = levelIndex;
+            gameState.phase = 'setup';
+            
+            // Show game UI
+            document.getElementById('ui-overlay').style.display = 'block';
+            
+            const level = LEVELS[levelIndex];
+            
+            if (resetResources) {
+                const groups = {};
+                level.objects.forEach(obj => {
+                    const key = `${obj.shape}_${obj.material}`;
+                    if (!groups[key]) {
+                        groups[key] = {
+                            shape: obj.shape,
+                            material: obj.material,
+                            total: 0,
+                            used: 0
+                        };
+                    }
+                    groups[key].total++;
+                });
+                
+                gameState.availableObjectGroups = Object.values(groups);
+            }
+            
+            // Update level display
+            const levelNumberEl = document.getElementById('level-number');
+            if (level.isCustom) {
+                levelNumberEl.textContent = level.name || 'Кастомный';
+            } else {
+                levelNumberEl.textContent = levelIndex + 1;
+            }
+            
+            updateResourcesUI();
+            
+            // Auto-place objects with coordinates (for custom levels)
+            if (level.isCustom && level.objects) {
+                level.objects.forEach(objData => {
+                    // Check if this object has x,y coordinates (pre-placed)
+                    if (objData.x !== undefined && objData.y !== undefined) {
+                        const shapeInfo = CONFIG.SHAPES[objData.shape];
+                        const materialInfo = CONFIG.MATERIALS[objData.material];
+                        
+                        if (!shapeInfo || !materialInfo) {
+                            console.warn(`Unknown shape "${objData.shape}" or material "${objData.material}"`);
+                            return;
+                        }
+                        
+                        let newObj;
+                        
+                        if (shapeInfo.type === 'circle') {
+                            newObj = Bodies.circle(objData.x, objData.y, shapeInfo.radius, {
+                                label: 'obstacle',
+                                isStatic: true,
+                                density: materialInfo.density,
+                                friction: 0.05,
+                                frictionAir: 0.02,
+                                render: { 
+                                    fillStyle: materialInfo.color,
+                                    lineWidth: 0
+                                }
+                            });
+                            newObj.shapeType = 'circle';
+                            newObj.objectRadius = shapeInfo.radius;
+                        } else {
+                            newObj = Bodies.rectangle(objData.x, objData.y, shapeInfo.width, shapeInfo.height, {
+                                label: 'obstacle',
+                                isStatic: true,
+                                density: materialInfo.density,
+                                friction: 0.5,
+                                frictionAir: 0.02,
+                                chamfer: { radius: 6 },
+                                render: { 
+                                    fillStyle: materialInfo.color,
+                                    lineWidth: 0
+                                }
+                            });
+                            newObj.shapeType = 'rectangle';
+                            newObj.objectWidth = shapeInfo.width;
+                            newObj.objectHeight = shapeInfo.height;
+                        }
+
+                        newObj.health = materialInfo.hp;
+                        newObj.maxHealth = materialInfo.hp;
+                        newObj.originalColor = materialInfo.color;
+                        newObj.placedByPlayer = false; // Pre-placed, not by player
+                        newObj.groupKey = `${objData.shape}_${objData.material}`;
+
+                        World.add(engine.world, newObj);
+                        gameState.placedObjects.push(newObj);
+                        
+                        // Mark this resource as used
+                        const group = gameState.availableObjectGroups.find(g => 
+                            g.shape === objData.shape && g.material === objData.material
+                        );
+                        if (group) {
+                            group.used++;
+                        }
+                    }
+                });
+                
+                updateResourcesUI();
+                checkCollisions();
+            }
+            
+            centerCameraOnPlayer();
+        }
+
+        function updateResourcesUI() {
+            const panel = document.getElementById('resources-panel');
+            panel.innerHTML = '';
+            
+            gameState.availableObjectGroups.forEach(group => {
+                const key = `${group.shape}_${group.material}`;
+                const item = document.createElement('div');
+                item.className = 'resource-item ui-panel';
+                
+                const allUsed = group.used >= group.total;
+                if (allUsed) item.classList.add('used');
+                if (gameState.selectedGroupKey === key) item.classList.add('selected');
+                
+                const shapeInfo = CONFIG.SHAPES[group.shape];
+                const materialInfo = CONFIG.MATERIALS[group.material];
+                
+                const remaining = group.total - group.used;
+                
+                item.innerHTML = `
+                    <div class="resource-shape" style="color: ${materialInfo.color}">${shapeInfo.icon}</div>
+                    <div class="resource-label">${shapeInfo.name}<br>${materialInfo.name}</div>
+                    ${group.total > 1 ? `<div class="resource-count ${allUsed ? 'depleted' : ''}">${remaining}</div>` : ''}
+                `;
+                
+                item.onclick = () => selectObjectGroup(key);
+                panel.appendChild(item);
+            });
+        }
+
+        function selectObjectGroup(key) {
+            const group = gameState.availableObjectGroups.find(g => `${g.shape}_${g.material}` === key);
+            if (group && group.used < group.total) {
+                gameState.selectedGroupKey = key;
+                gameState.selectedPlacedObject = null;
+                updateResourcesUI();
+                updateObjectHighlight();
+            }
+        }
+
+        // ============ TOUCH CONTROLS ============
+        function setupTouchControls() {
+            const canvas = render.canvas;
+
+            canvas.addEventListener('touchstart', e => {
+                e.preventDefault();
+                if (gameState.phase === 'menu') return;
+                
+                const touch = e.touches[0];
+                
+                gameState.touch.isActive = true;
+                gameState.touch.startX = touch.clientX;
+                gameState.touch.startY = touch.clientY;
+                gameState.touch.startTime = Date.now();
+                gameState.touch.moved = false;
+            }, { passive: false });
+
+            canvas.addEventListener('touchmove', e => {
+                e.preventDefault();
+                if (!gameState.touch.isActive || gameState.phase === 'menu') return;
+                
+                const touch = e.touches[0];
+                const dx = touch.clientX - gameState.touch.startX;
+                const dy = touch.clientY - gameState.touch.startY;
+                
+                if (Math.abs(dx) > CONFIG.TOUCH.TAP_THRESHOLD || 
+                    Math.abs(dy) > CONFIG.TOUCH.TAP_THRESHOLD) {
+                    gameState.touch.moved = true;
+                }
+
+                if (gameState.touch.moved) {
+                    if (gameState.selectedPlacedObject && gameState.phase === 'setup') {
+                        const worldDx = dx * CONFIG.CAMERA.PAN_SPEED / gameState.camera.zoom;
+                        const worldDy = dy * CONFIG.CAMERA.PAN_SPEED / gameState.camera.zoom;
+                        
+                        Body.setPosition(gameState.selectedPlacedObject, {
+                            x: gameState.selectedPlacedObject.position.x + worldDx,
+                            y: gameState.selectedPlacedObject.position.y + worldDy
+                        });
+                        
+                        checkCollisions();
+                    } else {
+                        gameState.camera.x -= dx * CONFIG.CAMERA.PAN_SPEED / gameState.camera.zoom;
+                        gameState.camera.y -= dy * CONFIG.CAMERA.PAN_SPEED / gameState.camera.zoom;
+                        updateCamera();
+                    }
+                    
+                    gameState.touch.startX = touch.clientX;
+                    gameState.touch.startY = touch.clientY;
+                }
+            }, { passive: false });
+
+            canvas.addEventListener('touchend', e => {
+                e.preventDefault();
+                if (!gameState.touch.isActive || gameState.phase === 'menu') return;
+                
+                const touchDuration = Date.now() - gameState.touch.startTime;
+                
+                if (!gameState.touch.moved && touchDuration < CONFIG.TOUCH.TAP_TIME) {
+                    const worldPos = screenToWorld(gameState.touch.startX, gameState.touch.startY);
+                    handleTap(worldPos.x, worldPos.y);
+                }
+                
+                gameState.touch.isActive = false;
+            }, { passive: false });
+
+            canvas.addEventListener('mousedown', e => {
+                if (gameState.phase === 'menu') return;
+                gameState.touch.isActive = true;
+                gameState.touch.startX = e.clientX;
+                gameState.touch.startY = e.clientY;
+                gameState.touch.startTime = Date.now();
+                gameState.touch.moved = false;
+            });
+
+            canvas.addEventListener('mousemove', e => {
+                if (!gameState.touch.isActive || gameState.phase === 'menu') return;
+                
+                const dx = e.clientX - gameState.touch.startX;
+                const dy = e.clientY - gameState.touch.startY;
+                
+                if (Math.abs(dx) > CONFIG.TOUCH.TAP_THRESHOLD || 
+                    Math.abs(dy) > CONFIG.TOUCH.TAP_THRESHOLD) {
+                    gameState.touch.moved = true;
+                }
+
+                if (gameState.touch.moved) {
+                    if (gameState.selectedPlacedObject && gameState.phase === 'setup') {
+                        const worldDx = dx * CONFIG.CAMERA.PAN_SPEED / gameState.camera.zoom;
+                        const worldDy = dy * CONFIG.CAMERA.PAN_SPEED / gameState.camera.zoom;
+                        
+                        Body.setPosition(gameState.selectedPlacedObject, {
+                            x: gameState.selectedPlacedObject.position.x + worldDx,
+                            y: gameState.selectedPlacedObject.position.y + worldDy
+                        });
+                        
+                        checkCollisions();
+                    } else {
+                        gameState.camera.x -= dx * CONFIG.CAMERA.PAN_SPEED / gameState.camera.zoom;
+                        gameState.camera.y -= dy * CONFIG.CAMERA.PAN_SPEED / gameState.camera.zoom;
+                        updateCamera();
+                    }
+                    
+                    gameState.touch.startX = e.clientX;
+                    gameState.touch.startY = e.clientY;
+                }
+            });
+
+            canvas.addEventListener('mouseup', e => {
+                if (!gameState.touch.isActive || gameState.phase === 'menu') return;
+                
+                const touchDuration = Date.now() - gameState.touch.startTime;
+                
+                if (!gameState.touch.moved && touchDuration < CONFIG.TOUCH.TAP_TIME) {
+                    const worldPos = screenToWorld(gameState.touch.startX, gameState.touch.startY);
+                    handleTap(worldPos.x, worldPos.y);
+                }
+                
+                gameState.touch.isActive = false;
+            });
+        }
+
+        function handleTap(x, y) {
+            if (gameState.phase !== 'setup') return;
+
+            const tappedObject = findObjectAtPosition(x, y);
+            const now = Date.now();
+            
+            if (tappedObject) {
+                if (gameState.touch.lastTapObject === tappedObject && 
+                    now - gameState.touch.lastTapTime < CONFIG.TOUCH.DOUBLE_TAP_TIME) {
+                    rotateObject(tappedObject);
+                    gameState.touch.lastTapTime = 0;
+                    gameState.touch.lastTapObject = null;
+                } else {
+                    gameState.selectedPlacedObject = tappedObject;
+                    gameState.selectedGroupKey = null;
+                    gameState.touch.lastTapTime = now;
+                    gameState.touch.lastTapObject = tappedObject;
+                    updateResourcesUI();
+                    updateObjectHighlight();
+                }
+            } else if (gameState.selectedGroupKey !== null) {
+                placeObject(x, y);
+                gameState.touch.lastTapTime = 0;
+                gameState.touch.lastTapObject = null;
+            } else {
+                gameState.touch.lastTapTime = 0;
+                gameState.touch.lastTapObject = null;
+            }
+        }
+
+        function rotateObject(obj) {
+            const currentAngle = obj.angle;
+            Body.setAngle(obj, currentAngle + CONFIG.ROTATION_ANGLE);
+            checkCollisions();
+        }
+
+        function findObjectAtPosition(x, y) {
+            const padding = CONFIG.TOUCH.HIT_PADDING;
+            
+            for (let obj of gameState.placedObjects) {
+                if (obj.shapeType === 'circle') {
+                    const dx = x - obj.position.x;
+                    const dy = y - obj.position.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    if (distance < obj.objectRadius + padding) {
+                        return obj;
+                    }
+                } else {
+                    const localPoint = Vector.rotate(
+                        Vector.sub({ x, y }, obj.position),
+                        -obj.angle
+                    );
+                    
+                    const halfWidth = obj.objectWidth / 2 + padding;
+                    const halfHeight = obj.objectHeight / 2 + padding;
+                    
+                    if (Math.abs(localPoint.x) <= halfWidth && 
+                        Math.abs(localPoint.y) <= halfHeight) {
+                        return obj;
+                    }
+                }
+            }
+            return null;
+        }
+
+        function updateObjectHighlight() {
+            gameState.placedObjects.forEach(obj => {
+                obj.render.lineWidth = 0;
+            });
+            
+            if (gameState.selectedPlacedObject) {
+                gameState.selectedPlacedObject.render.lineWidth = 3;
+                gameState.selectedPlacedObject.render.strokeStyle = '#667eea';
+            }
+        }
+
+        function screenToWorld(screenX, screenY) {
+            const bounds = render.bounds;
+            return {
+                x: bounds.min.x + (screenX / render.canvas.width) * (bounds.max.x - bounds.min.x),
+                y: bounds.min.y + (screenY / render.canvas.height) * (bounds.max.y - bounds.min.y)
+            };
+        }
+
+        // ============ OBJECT PLACEMENT ============
+        function placeObject(x, y) {
+            if (gameState.selectedGroupKey === null) return;
+            
+            const group = gameState.availableObjectGroups.find(g => 
+                `${g.shape}_${g.material}` === gameState.selectedGroupKey
+            );
+            
+            if (!group || group.used >= group.total) return;
+
+            const shapeInfo = CONFIG.SHAPES[group.shape];
+            const materialInfo = CONFIG.MATERIALS[group.material];
+            
+            let newObj;
+            
+            if (shapeInfo.type === 'circle') {
+                newObj = Bodies.circle(x, y, shapeInfo.radius, {
+                    label: 'obstacle',
+                    isStatic: true,
+                    density: materialInfo.density,
+                    friction: 0.05,
+                    frictionAir: 0.02,
+                    render: { 
+                        fillStyle: materialInfo.color,
+                        lineWidth: 0
+                    }
+                });
+                newObj.shapeType = 'circle';
+                newObj.objectRadius = shapeInfo.radius;
+            } else {
+                newObj = Bodies.rectangle(x, y, shapeInfo.width, shapeInfo.height, {
+                    label: 'obstacle',
+                    isStatic: true,
+                    density: materialInfo.density,
+                    friction: 0.5,
+                    frictionAir: 0.02,
+                    chamfer: { radius: 6 },
+                    render: { 
+                        fillStyle: materialInfo.color,
+                        lineWidth: 0
+                    }
+                });
+                newObj.shapeType = 'rectangle';
+                newObj.objectWidth = shapeInfo.width;
+                newObj.objectHeight = shapeInfo.height;
+            }
+
+            newObj.health = materialInfo.hp;
+            newObj.maxHealth = materialInfo.hp;
+            newObj.originalColor = materialInfo.color;
+            newObj.placedByPlayer = true;
+            newObj.groupKey = gameState.selectedGroupKey;
+
+            World.add(engine.world, newObj);
+            gameState.placedObjects.push(newObj);
+            
+            group.used++;
+            
+            if (group.used >= group.total) {
+                gameState.selectedGroupKey = null;
+            }
+            
+            updateResourcesUI();
+            checkCollisions();
+        }
+
+        function checkCollisions() {
+            let hasCollision = false;
+            
+            for (let i = 0; i < gameState.placedObjects.length; i++) {
+                const obj = gameState.placedObjects[i];
+                
+                for (let j = i + 1; j < gameState.placedObjects.length; j++) {
+                    const other = gameState.placedObjects[j];
+                    
+                    const collision = Collision.collides(obj, other);
+                    if (collision) {
+                        hasCollision = true;
+                        break;
+                    }
+                }
+                
+                const playerCollision = Collision.collides(obj, gameState.player);
+                if (playerCollision) {
+                    hasCollision = true;
+                }
+                
+                if (hasCollision) break;
+            }
+            
+            gameState.hasCollisions = hasCollision;
+            document.getElementById('collision-warning').style.display = hasCollision ? 'block' : 'none';
+            document.getElementById('ready-btn').disabled = hasCollision;
+        }
+
+        // ============ CAMERA ============
+        function centerCameraOnPlayer() {
+            gameState.camera = {
+                x: gameState.player.position.x,
+                y: gameState.player.position.y,
+                zoom: 1
+            };
+            updateCamera();
+        }
+
+        function updateCamera() {
+            const { x, y, zoom } = gameState.camera;
+            const width = render.canvas.width / zoom;
+            const height = render.canvas.height / zoom;
+            
+            Render.lookAt(render, {
+                min: { x: x - width / 2, y: y - height / 2 },
+                max: { x: x + width / 2, y: y + height / 2 }
+            });
+        }
+
+        window.zoomIn = function() {
+            gameState.camera.zoom = Math.min(CONFIG.CAMERA.ZOOM_MAX, 
+                gameState.camera.zoom + CONFIG.CAMERA.ZOOM_STEP);
+            updateCamera();
+        };
+
+        window.zoomOut = function() {
+            gameState.camera.zoom = Math.max(CONFIG.CAMERA.ZOOM_MIN, 
+                gameState.camera.zoom - CONFIG.CAMERA.ZOOM_STEP);
+            updateCamera();
+        };
+
+        // ============ SAVE/RESTORE POSITIONS ============
+        function saveObjectPositions() {
+            gameState.savedPositions = gameState.placedObjects.map(obj => ({
+                id: obj.id,
+                x: obj.position.x,
+                y: obj.position.y,
+                angle: obj.angle,
+                groupKey: obj.groupKey
+            }));
+        }
+
+        function restoreObjectPositions() {
+            gameState.savedPositions.forEach(saved => {
+                const obj = gameState.placedObjects.find(o => o.id === saved.id);
+                if (obj) {
+                    Body.setPosition(obj, { x: saved.x, y: saved.y });
+                    Body.setAngle(obj, saved.angle);
+                }
+            });
+            checkCollisions();
+        }
+
+        // ============ START COMBAT ============
+        window.startCombat = function() {
+            if (gameState.hasCollisions) return;
+            
+            saveObjectPositions();
+            
+            gameState.phase = 'combat';
+            engine.gravity.y = 1;
+            
+            Body.setStatic(gameState.player, false);
+            gameState.placedObjects.forEach(obj => Body.setStatic(obj, false));
+            
+            document.getElementById('ready-btn').style.display = 'none';
+            document.getElementById('resources-panel').style.display = 'none';
+            document.getElementById('camera-hint').style.display = 'none';
+            document.getElementById('zoom-controls').style.display = 'none';
+            
+            setupCollisionDamage();
+            launchProjectiles();
+        };
+
+        // ============ PROJECTILE SYSTEM ============
+        function launchProjectiles() {
+            const level = LEVELS[gameState.currentLevel];
+            
+            level.trajectories.forEach((traj, index) => {
+                setTimeout(() => {
+                    const angleRad = traj.angle * (Math.PI / 180);
+                    const projectile = Bodies.circle(
+                        traj.x,
+                        traj.y,
+                        CONFIG.PROJECTILE.RADIUS,
+                        {
+                            label: 'projectile',
+                            density: CONFIG.PROJECTILE.DENSITY,
+                            restitution: 0.6,
+                            friction: 0.03,
+                            frictionAir: 0.005,
+                            render: { 
+                                fillStyle: CONFIG.PROJECTILE.COLOR,
+                                strokeStyle: '#aa0000',
+                                lineWidth: 2
+                            }
+                        }
+                    );
+                    
+                    const vx = Math.cos(angleRad) * traj.force;
+                    const vy = Math.sin(angleRad) * traj.force;
+                    Body.setVelocity(projectile, { x: vx, y: vy });
+                    
+                    World.add(engine.world, projectile);
+                    gameState.projectiles.push(projectile);
+                    
+                    projectile.isLastProjectile = (index === level.trajectories.length - 1);
+                    projectile.spawnTime = Date.now();
+                }, traj.delay);
+            });
+            
+            // Start projectile cleanup system
+            startProjectileCleanup();
+        }
+
+        function startProjectileCleanup() {
+            // Clear any existing cleanup interval
+            if (gameState.projectileCleanupInterval) {
+                clearInterval(gameState.projectileCleanupInterval);
+            }
+            
+            gameState.projectileCleanupInterval = setInterval(() => {
+                if (gameState.phase !== 'combat') {
+                    if (gameState.projectileCleanupInterval) {
+                        clearInterval(gameState.projectileCleanupInterval);
+                        gameState.projectileCleanupInterval = null;
+                    }
+                    return;
+                }
+                
+                const toRemove = [];
+                gameState.projectiles.forEach(proj => {
+                    const vel = proj.velocity;
+                    const speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
+                    const age = Date.now() - (proj.spawnTime || 0);
+                    
+                    // Remove if:
+                    // 1. Too far below ground
+                    // 2. Too far to the sides
+                    // 3. Moving very slowly AND has existed for a while
+                    // 4. Existed for maximum time
+                    if (proj.position.y > 800 || 
+                        proj.position.x < -200 || 
+                        proj.position.x > 1200 ||
+                        (speed < 0.5 && age > 2000) ||
+                        age > 15000) {
+                        toRemove.push(proj);
+                    }
+                });
+                
+                toRemove.forEach(proj => {
+                    const index = gameState.projectiles.indexOf(proj);
+                    if (index > -1) {
+                        gameState.projectiles.splice(index, 1);
+                    }
+                    World.remove(engine.world, proj);
+                });
+            }, 200);
+        }
+
+        function drawTrajectories() {
+            if (gameState.phase !== 'setup') {
+                trajCtx.clearRect(0, 0, trajCanvas.width, trajCanvas.height);
+                return;
+            }
+
+            trajCtx.clearRect(0, 0, trajCanvas.width, trajCanvas.height);
+            
+            const level = LEVELS[gameState.currentLevel];
+            level.trajectories.forEach((traj, index) => {
+                const startWorld = { x: traj.x, y: traj.y };
+                const startScreen = worldToScreen(startWorld.x, startWorld.y);
+                
+                trajCtx.save();
+                trajCtx.strokeStyle = `rgba(255, 100, 100, ${0.7 - index * 0.15})`;
+                trajCtx.lineWidth = 3;
+                trajCtx.setLineDash([10, 5]);
+                
+                trajCtx.beginPath();
+                trajCtx.moveTo(startScreen.x, startScreen.y);
+                
+                const angleRad = traj.angle * (Math.PI / 180);
+                let vx = Math.cos(angleRad) * traj.force;
+                let vy = Math.sin(angleRad) * traj.force;
+                let px = traj.x;
+                let py = traj.y;
+                
+                const dt = 0.05;
+                const steps = 80;
+                
+                for (let i = 0; i < steps; i++) {
+                    vy += 1 * dt;
+                    px += vx * dt;
+                    py += vy * dt;
+                    
+                    const screenPos = worldToScreen(px, py);
+                    trajCtx.lineTo(screenPos.x, screenPos.y);
+                    
+                    if (py > 600) break;
+                }
+                
+                trajCtx.stroke();
+                trajCtx.restore();
+            });
+        }
+
+        function worldToScreen(worldX, worldY) {
+            const bounds = render.bounds;
+            const screenX = ((worldX - bounds.min.x) / (bounds.max.x - bounds.min.x)) * render.canvas.width;
+            const screenY = ((worldY - bounds.min.y) / (bounds.max.y - bounds.min.y)) * render.canvas.height;
+            return { x: screenX, y: screenY };
+        }
+
+        // ============ RENDER LOOP ============
+        function startRenderLoop() {
+            function loop() {
+                drawTrajectories();
+                requestAnimationFrame(loop);
+            }
+            loop();
+        }
+
+        // ============ COLLISION DAMAGE SYSTEM ============
+        function setupCollisionDamage() {
+            if (gameState.collisionHandler) {
+                Events.off(engine, 'collisionStart', gameState.collisionHandler);
+            }
+
+            gameState.collisionHandler = event => {
+                event.pairs.forEach(pair => {
+                    const { bodyA, bodyB, collision } = pair;
+
+                    const projectile = bodyA.label === 'projectile' ? bodyA : 
+                                     (bodyB.label === 'projectile' ? bodyB : null);
+                    
+                    if (projectile && projectile.isLastProjectile) {
+                        if (!gameState.lastProjectileHitTime) {
+                            gameState.lastProjectileHitTime = Date.now();
+                            if (gameState.victoryTimer) {
+                                clearTimeout(gameState.victoryTimer);
+                            }
+                            gameState.victoryTimer = setTimeout(checkVictory, CONFIG.VICTORY_DELAY);
+                        }
+                    }
+
+                    const normal = collision.normal;
+                    const relVelocity = Vector.sub(bodyB.velocity, bodyA.velocity);
+                    const normalSpeed = Vector.dot(relVelocity, normal);
+
+                    [bodyA, bodyB].forEach((body, idx) => {
+                        const otherBody = idx === 0 ? bodyB : bodyA;
+                        const impact = Math.abs(normalSpeed) * (idx === 0 ? 1 : -1);
+
+                        if (body.health === undefined || body.label === 'ground' || body.label === 'wall') return;
+                        if (Math.abs(impact) < CONFIG.DAMAGE.MIN_SPEED) return;
+
+                        const force = (otherBody.mass * impact * 0.5) / 1000;
+                        const damage = force * CONFIG.DAMAGE.MULT;
+                        
+                        if (damage < CONFIG.DAMAGE.MIN_FORCE) return;
+
+                        body.health = Math.max(0, body.health - damage);
+                        updateDamageVisual(body, damage);
+
+                        if (body.label === 'player') {
+                            updateHealthDisplay();
+                            if (body.health <= 0) {
+                                gameOver(false);
+                            }
+                        } else if (body.health <= 0 && body.placedByPlayer) {
+                            destroyObject(body);
+                        }
+                    });
+                });
+            };
+
+            Events.on(engine, 'collisionStart', gameState.collisionHandler);
+        }
+
+        function updateDamageVisual(body, damage) {
+            try {
+                const baseColor = body.originalColor || '#FFFFFF';
+                const damageRatio = (damage / body.maxHealth) * 0.5;
+                body.render.fillStyle = shadeColor(baseColor, -damageRatio * 70);
+            } catch(e) {
+                console.error("Color update error:", e);
+            }
+        }
+
+        function shadeColor(hex, percent) {
+            const f = parseInt(hex.slice(1), 16);
+            const t = percent < 0 ? 0 : 255;
+            const p = Math.abs(percent) / 100;
+            
+            const R = f >> 16;
+            const G = f >> 8 & 0x00FF;
+            const B = f & 0x0000FF;
+            
+            return `rgb(${Math.round(R - (R - t) * p)},${Math.round(G - (G - t) * p)},${Math.round(B - (B - t) * p)})`;
+        }
+
+        function checkVictory() {
+            if (gameState.phase === 'combat' && gameState.player.health > 0) {
+                gameOver(true);
+            }
+        }
+
+        // ============ GAME OVER ============
+        function gameOver(victory) {
+            gameState.phase = victory ? 'victory' : 'defeat';
+            
+            if (gameState.victoryTimer) {
+                clearTimeout(gameState.victoryTimer);
+            }
+            
+            // Save progress for standard levels
+            if (victory && !gameState.isCustomLevel) {
+                gameStorage.markLevelCompleted(gameState.currentLevel);
+            }
+            
+            const messageEl = document.getElementById('game-message');
+            messageEl.className = victory ? 'victory' : 'defeat';
+            messageEl.style.display = 'block';
+
+            if (victory) {
+                const nextIndex = gameState.currentLevel + 1;
+                const hasNextLevel = nextIndex < LEVELS.length && !gameState.isCustomLevel;
+                
+                messageEl.innerHTML = `
+                    ✅ ПОБЕДА!<br>
+                    ${hasNextLevel ? 
+                        `<button onclick="nextLevel()" style="margin-top: 20px">Следующий уровень</button>` :
+                        `<button onclick="returnToMenu()" style="margin-top: 20px">Вернуться в меню</button>`
+                    }
+                `;
+            } else {
+                messageEl.innerHTML = `
+                    ❌ ПОРАЖЕНИЕ<br>
+                    <button onclick="restartLevel()" style="margin-top: 20px">
+                        Попробовать снова
+                    </button>
+                    <button onclick="returnToMenu()" class="back-button" style="margin-top: 10px">
+                        В меню
+                    </button>
+                `;
+            }
+        }
+
+        window.nextLevel = function() {
+            const nextIndex = gameState.currentLevel + 1;
+            if (nextIndex < LEVELS.length && !gameState.isCustomLevel) {
+                resetGame(true);
+                loadLevel(nextIndex, true);
+                document.getElementById('game-message').style.display = 'none';
+            } else {
+                returnToMenu();
+            }
+        };
+
+        window.restartLevel = function() {
+            resetGame(false);
+            loadLevel(gameState.currentLevel, false);
+            document.getElementById('game-message').style.display = 'none';
+        };
+
+        function resetGame(clearResources = false) {
+            engine.gravity.y = 0;
+
+            if (gameState.collisionHandler) {
+                Events.off(engine, 'collisionStart', gameState.collisionHandler);
+                gameState.collisionHandler = null;
+            }
+
+            if (gameState.victoryTimer) {
+                clearTimeout(gameState.victoryTimer);
+                gameState.victoryTimer = null;
+            }
+
+            if (gameState.projectileCleanupInterval) {
+                clearInterval(gameState.projectileCleanupInterval);
+                gameState.projectileCleanupInterval = null;
+            }
+
+            gameState.placedObjects.forEach(obj => {
+                World.remove(engine.world, obj);
+            });
+            gameState.projectiles.forEach(proj => {
+                World.remove(engine.world, proj);
+            });
+            
+            gameState.placedObjects = [];
+            gameState.projectiles = [];
+            gameState.lastProjectileHitTime = null;
+            gameState.hasCollisions = false;
+            gameState.selectedPlacedObject = null;
+            gameState.selectedGroupKey = null;
+            
+            if (clearResources) {
+                gameState.savedPositions = [];
+            } else if (gameState.savedPositions.length > 0) {
+                restoreSavedObjects();
+            }
+            
+            gameState.player.health = CONFIG.PLAYER.HP;
+            Body.setStatic(gameState.player, true);
+            Body.setPosition(gameState.player, { x: CONFIG.PLAYER.SPAWN_X, y: CONFIG.PLAYER.SPAWN_Y });
+            Body.setVelocity(gameState.player, { x: 0, y: 0 });
+            Body.setAngularVelocity(gameState.player, 0);
+            Body.setAngle(gameState.player, 0);
+            gameState.player.render.fillStyle = CONFIG.PLAYER.COLOR;
+            
+            document.getElementById('ready-btn').style.display = 'block';
+            document.getElementById('resources-panel').style.display = 'flex';
+            document.getElementById('camera-hint').style.display = 'block';
+            document.getElementById('zoom-controls').style.display = 'flex';
+            document.getElementById('collision-warning').style.display = 'none';
+            
+            centerCameraOnPlayer();
+            updateHealthDisplay();
+        }
+
+        function restoreSavedObjects() {
+            gameState.savedPositions.forEach(saved => {
+                const [shape, material] = saved.groupKey.split('_');
+                const shapeInfo = CONFIG.SHAPES[shape];
+                const materialInfo = CONFIG.MATERIALS[material];
+                
+                let newObj;
+                
+                if (shapeInfo.type === 'circle') {
+                    newObj = Bodies.circle(saved.x, saved.y, shapeInfo.radius, {
+                        label: 'obstacle',
+                        isStatic: true,
+                        density: materialInfo.density,
+                        friction: 0.05,
+                        frictionAir: 0.02,
+                        render: { 
+                            fillStyle: materialInfo.color,
+                            lineWidth: 0
+                        }
+                    });
+                    newObj.shapeType = 'circle';
+                    newObj.objectRadius = shapeInfo.radius;
+                } else {
+                    newObj = Bodies.rectangle(saved.x, saved.y, shapeInfo.width, shapeInfo.height, {
+                        label: 'obstacle',
+                        isStatic: true,
+                        density: materialInfo.density,
+                        friction: 0.5,
+                        frictionAir: 0.02,
+                        chamfer: { radius: 6 },
+                        render: { 
+                            fillStyle: materialInfo.color,
+                            lineWidth: 0
+                        }
+                    });
+                    newObj.shapeType = 'rectangle';
+                    newObj.objectWidth = shapeInfo.width;
+                    newObj.objectHeight = shapeInfo.height;
+                }
+
+                newObj.health = materialInfo.hp;
+                newObj.maxHealth = materialInfo.hp;
+                newObj.originalColor = materialInfo.color;
+                newObj.placedByPlayer = true;
+                newObj.groupKey = saved.groupKey;
+                
+                Body.setAngle(newObj, saved.angle);
+                
+                World.add(engine.world, newObj);
+                gameState.placedObjects.push(newObj);
+            });
+            
+            updateResourcesUI();
+            checkCollisions();
+        }
+
+        // ============ OBJECT DESTRUCTION ============
+        function destroyObject(body) {
+            const index = gameState.placedObjects.indexOf(body);
+            if (index > -1) {
+                gameState.placedObjects.splice(index, 1);
+            }
+            if (gameState.selectedPlacedObject === body) {
+                gameState.selectedPlacedObject = null;
+            }
+            World.remove(engine.world, body);
+            createDebris(body);
+        }
+
+        function createDebris(body) {
+            const debrisCount = Math.floor(Math.random() * 9) + 7;
+            for (let i = 0; i < debrisCount; i++) {
+                const debris = Bodies.circle(
+                    body.position.x,
+                    body.position.y,
+                    4 + Math.random() * 3,
+                    {
+                        render: { fillStyle: body.render.fillStyle },
+                        density: 0.03,
+                        friction: 0.1,
+                        frictionAir: 0.15
+                    }
+                );
+                
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 2 + Math.random() * 4;
+                Body.setVelocity(debris, {
+                    x: Math.cos(angle) * speed,
+                    y: Math.sin(angle) * speed
+                });
+
+                World.add(engine.world, debris);
+                setTimeout(() => World.remove(engine.world, debris), 2400);
+            }
+        }
+
+        // ============ UI UPDATES ============
+        function updateHealthDisplay() {
+            document.getElementById('health-value').textContent = 
+                Math.max(0, Math.floor(gameState.player.health));
+        }
+
+        // ============ WINDOW RESIZE ============
+        window.addEventListener('resize', () => {
+            render.canvas.width = window.innerWidth;
+            render.canvas.height = window.innerHeight;
+            trajCanvas.width = window.innerWidth;
+            trajCanvas.height = window.innerHeight;
+        });
+
+        // ============ START GAME ============
+        init();
+    </script>
+</body>
+</html>
