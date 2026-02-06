@@ -153,3 +153,16 @@ description: Попробуй поболтать с ассистентом Glist
 code_url: https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/assistant2.html
 icon_url: 
 screenshots: https://i.postimg.cc/Dz7B15wZ/1000094073.jpg
+---
+name: Защита шара 
+description: Защита шара это очень важно, но багов куча так что смирись чел
+code_url: https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/ballprotect.html
+icon_url: 
+screenshots: 
+---
+name: Защита шара - Редактор уровней 
+description: Мне самому впадлу делать уровни, вот и всё.
+code_url: https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/ballprotectredactor.html
+icon_url: 
+screenshots: 
+---
