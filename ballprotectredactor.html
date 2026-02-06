@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Редактор Уровней - Mobile</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.18.0/matter.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        body {
+            background: #0a0a0a;
+            color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            overflow: hidden;
+            touch-action: none;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+        }
+        
+        /* Main Layout */
+        #app {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Canvas Area */
+        #canvas-area {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background: #000;
+        }
+        
+        #trajectory-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            z-index: 10;
+        }
+        
+        /* Top Bar */
+        #top-bar {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            z-index: 100;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        
+        #level-name-display {
+            flex: 1;
+            background: rgba(20, 20, 30, 0.95);
+            padding: 12px 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            color: #667eea;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+        
+        .icon-btn {
+            width: 44px;
+            height: 44px;
+            background: rgba(20, 20, 30, 0.95);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            backdrop-filter: blur(10px);
+        }
+        
+        .icon-btn:active {
+            background: rgba(102, 126, 234, 0.5);
+        }
+        
+        /* Camera Controls */
+        #camera-controls {
+            position: absolute;
+            right: 10px;
+            top: 70px;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        /* Mode Tabs */
+        #mode-tabs {
+            position: absolute;
+            bottom: 280px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            display: flex;
+            gap: 8px;
+            background: rgba(20, 20, 30, 0.95);
+            padding: 6px;
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .mode-tab {
+            padding: 10px 20px;
+            background: transparent;
+            border: 2px solid transparent;
+            border-radius: 8px;
+            color: #888;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .mode-tab.active {
+            background: rgba(102, 126, 234, 0.3);
+            border-color: #667eea;
+            color: #fff;
+        }
+        
+        /* Bottom Panel */
+        #bottom-panel {
+            background: rgba(15, 15, 25, 0.98);
+            padding: 15px;
+            max-height: 270px;
+            overflow-y: auto;
+            border-top: 2px solid #667eea;
+            backdrop-filter: blur(10px);
+        }
+        
+        /* Objects Panel */
+        #objects-panel h3 {
+            font-size: 14px;
+            color: #667eea;
+            margin-bottom: 12px;
+        }
+        
+        .object-selector {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .select-wrapper {
+            position: relative;
+        }
+        
+        .select-wrapper label {
+            display: block;
+            font-size: 11px;
+            color: #aaa;
+            margin-bottom: 4px;
+        }
+        
+        select {
+            width: 100%;
+            padding: 10px;
+            background: rgba(40, 40, 60, 0.8);
+            border: 2px solid #444;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 14px;
+            appearance: none;
+        }
+        
+        .add-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 12px;
+        }
+        
+        .add-btn:active {
+            transform: scale(0.98);
+        }
+        
+        .objects-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        
+        .object-chip {
+            background: rgba(102, 126, 234, 0.2);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid rgba(102, 126, 234, 0.3);
+        }
+        
+        .object-chip .remove {
+            color: #ff4444;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        /* Trajectories Panel */
+        #trajectories-panel {
+            display: none;
+        }
+        
+        .traj-hint {
+            background: rgba(255, 100, 100, 0.1);
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            color: #ffaaaa;
+            margin-bottom: 12px;
+            border-left: 3px solid #ff4444;
+        }
+        
+        .traj-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .traj-item {
+            background: rgba(255, 100, 100, 0.15);
+            padding: 12px;
+            border-radius: 8px;
+            border-left: 3px solid #ff4444;
+        }
+        
+        .traj-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .traj-header h4 {
+            font-size: 14px;
+            color: #ff8888;
+        }
+        
+        .traj-controls {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+        
+        .input-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .input-group label {
+            font-size: 10px;
+            color: #aaa;
+            margin-bottom: 3px;
+        }
+        
+        .input-group input {
+            padding: 6px;
+            background: rgba(20, 20, 30, 0.8);
+            border: 1px solid #444;
+            border-radius: 4px;
+            color: #fff;
+            font-size: 13px;
+        }
+        
+        .btn-small {
+            padding: 6px 12px;
+            background: rgba(255, 68, 68, 0.8);
+            border: none;
+            border-radius: 6px;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        /* Modal */
+        #modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .modal-content {
+            background: #1a1a2e;
+            padding: 20px;
+            border-radius: 12px;
+            max-width: 500px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .modal-content h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+        
+        .modal-content input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            background: rgba(40, 40, 60, 0.8);
+            border: 2px solid #444;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+        
+        .modal-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .btn {
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: rgba(60, 60, 80, 0.9);
+            color: white;
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%);
+            color: white;
+        }
+        
+        .json-output {
+            background: #0a0a0a;
+            padding: 12px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 11px;
+            color: #44ff77;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+            margin: 15px 0;
+        }
+        
+        .color-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 4px;
+        }
+        
+        /* Instructions */
+        #instructions {
+            position: absolute;
+            bottom: 300px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(20, 20, 30, 0.95);
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 12px;
+            color: #aaa;
+            text-align: center;
+            z-index: 90;
+            max-width: 90%;
+            backdrop-filter: blur(10px);
+        }
+        
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.3);
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- Canvas Area -->
+        <div id="canvas-area">
+            <canvas id="trajectory-canvas"></canvas>
+            
+            <!-- Top Bar -->
+            <div id="top-bar">
+                <div id="level-name-display">Новый уровень</div>
+                <button class="icon-btn" onclick="openMenu()">☰</button>
+            </div>
+            
+            <!-- Camera Controls -->
+            <div id="camera-controls">
+                <button class="icon-btn" onclick="zoomIn()">+</button>
+                <button class="icon-btn" onclick="zoomOut()">−</button>
+                <button class="icon-btn" onclick="resetCamera()">🎯</button>
+            </div>
+            
+            <!-- Instructions -->
+            <div id="instructions">
+                Один палец - перемещение камеры | Два пальца - зум
+            </div>
+            
+            <!-- Mode Tabs -->
+            <div id="mode-tabs">
+                <div class="mode-tab active" onclick="switchMode('objects')">🧱 Объекты</div>
+                <div class="mode-tab" onclick="switchMode('trajectories')">🎯 Снаряды</div>
+            </div>
+        </div>
+        
+        <!-- Bottom Panel -->
+        <div id="bottom-panel">
+            <!-- Objects Panel -->
+            <div id="objects-panel">
+                <h3>Добавить объект защиты</h3>
+                <div class="object-selector">
+                    <div class="select-wrapper">
+                        <label>Форма</label>
+                        <select id="shape-select">
+                            <option value="block">▬ Блок</option>
+                            <option value="stick">━ Палка</option>
+                            <option value="cube">▪ Куб</option>
+                            <option value="sphere">● Шар</option>
+                        </select>
+                    </div>
+                    <div class="select-wrapper">
+                        <label>Материал</label>
+                        <select id="material-select">
+                            <option value="glass">🔷 Стекло</option>
+                            <option value="wood">🟫 Дерево</option>
+                            <option value="stone">⬜ Камень</option>
+                            <option value="metal">🔴 Металл</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="add-btn" onclick="addObject()">➕ Добавить объект</button>
+                <div class="objects-list" id="objects-list"></div>
+            </div>
+            
+            <!-- Trajectories Panel -->
+            <div id="trajectories-panel">
+                <h3>Траектории снарядов</h3>
+                <div class="traj-hint">
+                    👆 Тапните и перетащите на холсте для создания траектории
+                </div>
+                <button class="add-btn" onclick="addTrajectory()">➕ Добавить вручную</button>
+                <div class="traj-list" id="traj-list"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Menu Modal -->
+    <div id="modal" onclick="closeModalOnBackdrop(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <h2>⚙️ Настройки уровня</h2>
+            
+            <label style="display: block; margin-bottom: 5px; color: #aaa; font-size: 13px;">Название уровня</label>
+            <input type="text" id="level-name-input" placeholder="Введите название...">
+            
+            <h3 style="color: #667eea; margin: 20px 0 10px; font-size: 16px;">Действия</h3>
+            
+            <button class="btn btn-primary" style="width: 100%; margin-bottom: 10px;" onclick="exportJSON()">
+                💾 Экспорт JSON
+            </button>
+            
+            <button class="btn btn-primary" style="width: 100%; margin-bottom: 10px;" onclick="copyJSON()">
+                📋 Копировать JSON
+            </button>
+            
+            <button class="btn btn-secondary" style="width: 100%; margin-bottom: 10px;" onclick="document.getElementById('file-input').click()">
+                📂 Импорт JSON
+            </button>
+            <input type="file" id="file-input" accept=".json" style="display: none;" onchange="importJSON(event)">
+            
+            <button class="btn btn-danger" style="width: 100%; margin-bottom: 15px;" onclick="clearLevel()">
+                🗑️ Очистить уровень
+            </button>
+            
+            <h3 style="color: #667eea; margin: 20px 0 10px; font-size: 16px;">JSON код</h3>
+            <div class="json-output" id="json-output"></div>
+            
+            <button class="btn btn-secondary" style="width: 100%;" onclick="closeModal()">
+                Закрыть
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const { Engine, Render, World, Bodies, Body, Runner, Vector } = Matter;
+
+        // Configuration
+        const CONFIG = {
+            PLAYER: {
+                RADIUS: 17,
+                COLOR: '#44ff77',
+                X: 200,
+                Y: 400
+            },
+            MATERIALS: {
+                glass: { hp: 10, color: '#2684ff', name: 'Стекло' },
+                wood: { hp: 50, color: '#8b4513', name: 'Дерево' },
+                stone: { hp: 150, color: '#666666', name: 'Камень' },
+                metal: { hp: 500, color: '#ff4444', name: 'Металл' }
+            },
+            SHAPES: {
+                block: { width: 58, height: 34, icon: '▬', name: 'Блок' },
+                stick: { width: 116, height: 17, icon: '━', name: 'Палка' },
+                cube: { width: 58, height: 58, icon: '▪', name: 'Куб' },
+                sphere: { radius: 28, icon: '●', name: 'Шар' }
+            }
+        };
+
+        // State
+        const state = {
+            mode: 'objects',
+            levelData: {
+                name: 'Новый уровень',
+                objects: [],
+                trajectories: []
+            },
+            camera: { x: 400, y: 400, zoom: 1 },
+            touch: {
+                active: false,
+                startX: 0,
+                startY: 0,
+                startCameraX: 0,
+                startCameraY: 0,
+                startTime: 0,
+                moved: false,
+                fingers: 0,
+                startDistance: 0,
+                startZoom: 1
+            },
+            trajectory: {
+                drawing: false,
+                startX: 0,
+                startY: 0
+            }
+        };
+
+        // Engine Setup
+        const engine = Engine.create({ gravity: { x: 0, y: 0 } });
+        const canvasArea = document.getElementById('canvas-area');
+        
+        const render = Render.create({
+            element: canvasArea,
+            engine: engine,
+            options: {
+                width: window.innerWidth,
+                height: window.innerHeight,
+                wireframes: false,
+                background: '#000000'
+            }
+        });
+
+        Render.run(render);
+
+        // Trajectory Canvas
+        const trajCanvas = document.getElementById('trajectory-canvas');
+        const trajCtx = trajCanvas.getContext('2d');
+        trajCanvas.width = window.innerWidth;
+        trajCanvas.height = window.innerHeight;
+
+        // Initialize Scene
+        function initScene() {
+            // Ground
+            const ground = Bodies.rectangle(500, 600, 2000, 50, {
+                isStatic: true,
+                render: { fillStyle: '#3a3a3a' }
+            });
+
+            // Platform
+            const platform = Bodies.rectangle(200, 450, 220, 45, {
+                isStatic: true,
+                render: { fillStyle: '#333333' }
+            });
+
+            // Player
+            const player = Bodies.circle(CONFIG.PLAYER.X, CONFIG.PLAYER.Y, CONFIG.PLAYER.RADIUS, {
+                isStatic: true,
+                render: { fillStyle: CONFIG.PLAYER.COLOR }
+            });
+
+            World.add(engine.world, [ground, platform, player]);
+            updateCamera();
+        }
+
+        // Touch Controls
+        function setupTouchControls() {
+            const canvas = render.canvas;
+
+            canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+            canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+            canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+            
+            canvas.addEventListener('mousedown', handleMouseDown);
+            canvas.addEventListener('mousemove', handleMouseMove);
+            canvas.addEventListener('mouseup', handleMouseUp);
+        }
+
+        function handleTouchStart(e) {
+            e.preventDefault();
+            const touches = e.touches;
+            state.touch.fingers = touches.length;
+            
+            if (touches.length === 1) {
+                const touch = touches[0];
+                state.touch.active = true;
+                state.touch.startX = touch.clientX;
+                state.touch.startY = touch.clientY;
+                state.touch.startCameraX = state.camera.x;
+                state.touch.startCameraY = state.camera.y;
+                state.touch.startTime = Date.now();
+                state.touch.moved = false;
+                
+                if (state.mode === 'trajectories') {
+                    const worldPos = screenToWorld(touch.clientX, touch.clientY);
+                    state.trajectory.drawing = true;
+                    state.trajectory.startX = worldPos.x;
+                    state.trajectory.startY = worldPos.y;
+                }
+            } else if (touches.length === 2) {
+                const dx = touches[0].clientX - touches[1].clientX;
+                const dy = touches[0].clientY - touches[1].clientY;
+                state.touch.startDistance = Math.sqrt(dx * dx + dy * dy);
+                state.touch.startZoom = state.camera.zoom;
+            }
+        }
+
+        function handleTouchMove(e) {
+            e.preventDefault();
+            const touches = e.touches;
+            
+            if (touches.length === 1 && state.touch.active) {
+                const touch = touches[0];
+                const dx = touch.clientX - state.touch.startX;
+                const dy = touch.clientY - state.touch.startY;
+                
+                if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+                    state.touch.moved = true;
+                }
+                
+                if (state.mode === 'trajectories' && state.trajectory.drawing) {
+                    const worldPos = screenToWorld(touch.clientX, touch.clientY);
+                    drawTrajPreview(state.trajectory.startX, state.trajectory.startY, worldPos.x, worldPos.y);
+                } else {
+                    // Pan camera
+                    state.camera.x = state.touch.startCameraX - (dx / state.camera.zoom);
+                    state.camera.y = state.touch.startCameraY - (dy / state.camera.zoom);
+                    updateCamera();
+                    redrawTrajectories();
+                }
+            } else if (touches.length === 2) {
+                // Pinch zoom
+                const dx = touches[0].clientX - touches[1].clientX;
+                const dy = touches[0].clientY - touches[1].clientY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                const scale = distance / state.touch.startDistance;
+                state.camera.zoom = Math.max(0.3, Math.min(3, state.touch.startZoom * scale));
+                updateCamera();
+                redrawTrajectories();
+            }
+        }
+
+        function handleTouchEnd(e) {
+            e.preventDefault();
+            
+            if (state.trajectory.drawing) {
+                const touches = e.changedTouches;
+                if (touches.length > 0) {
+                    const touch = touches[0];
+                    const worldPos = screenToWorld(touch.clientX, touch.clientY);
+                    
+                    const dx = worldPos.x - state.trajectory.startX;
+                    const dy = worldPos.y - state.trajectory.startY;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance > 20) {
+                        const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+                        const force = Math.min(30, Math.max(10, distance / 8));
+                        
+                        state.levelData.trajectories.push({
+                            x: Math.round(state.trajectory.startX),
+                            y: Math.round(state.trajectory.startY),
+                            angle: Math.round(angle),
+                            force: Math.round(force * 10) / 10,
+                            delay: 0
+                        });
+                        
+                        updateUI();
+                    }
+                }
+                state.trajectory.drawing = false;
+                redrawTrajectories();
+            }
+            
+            state.touch.active = false;
+            state.touch.fingers = 0;
+        }
+
+        // Mouse support
+        function handleMouseDown(e) {
+            state.touch.active = true;
+            state.touch.startX = e.clientX;
+            state.touch.startY = e.clientY;
+            state.touch.startCameraX = state.camera.x;
+            state.touch.startCameraY = state.camera.y;
+            state.touch.moved = false;
+            
+            if (state.mode === 'trajectories') {
+                const worldPos = screenToWorld(e.clientX, e.clientY);
+                state.trajectory.drawing = true;
+                state.trajectory.startX = worldPos.x;
+                state.trajectory.startY = worldPos.y;
+            }
+        }
+
+        function handleMouseMove(e) {
+            if (!state.touch.active) return;
+            
+            const dx = e.clientX - state.touch.startX;
+            const dy = e.clientY - state.touch.startY;
+            
+            if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+                state.touch.moved = true;
+            }
+            
+            if (state.mode === 'trajectories' && state.trajectory.drawing) {
+                const worldPos = screenToWorld(e.clientX, e.clientY);
+                drawTrajPreview(state.trajectory.startX, state.trajectory.startY, worldPos.x, worldPos.y);
+            } else if (state.touch.moved) {
+                state.camera.x = state.touch.startCameraX - (dx / state.camera.zoom);
+                state.camera.y = state.touch.startCameraY - (dy / state.camera.zoom);
+                updateCamera();
+                redrawTrajectories();
+            }
+        }
+
+        function handleMouseUp(e) {
+            if (state.trajectory.drawing) {
+                const worldPos = screenToWorld(e.clientX, e.clientY);
+                const dx = worldPos.x - state.trajectory.startX;
+                const dy = worldPos.y - state.trajectory.startY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance > 20) {
+                    const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+                    const force = Math.min(30, Math.max(10, distance / 8));
+                    
+                    state.levelData.trajectories.push({
+                        x: Math.round(state.trajectory.startX),
+                        y: Math.round(state.trajectory.startY),
+                        angle: Math.round(angle),
+                        force: Math.round(force * 10) / 10,
+                        delay: 0
+                    });
+                    
+                    updateUI();
+                }
+                state.trajectory.drawing = false;
+                redrawTrajectories();
+            }
+            
+            state.touch.active = false;
+        }
+
+        // Camera Functions
+        function screenToWorld(screenX, screenY) {
+            const bounds = render.bounds;
+            return {
+                x: bounds.min.x + (screenX / render.canvas.width) * (bounds.max.x - bounds.min.x),
+                y: bounds.min.y + (screenY / render.canvas.height) * (bounds.max.y - bounds.min.y)
+            };
+        }
+
+        function worldToScreen(worldX, worldY) {
+            const bounds = render.bounds;
+            return {
+                x: ((worldX - bounds.min.x) / (bounds.max.x - bounds.min.x)) * render.canvas.width,
+                y: ((worldY - bounds.min.y) / (bounds.max.y - bounds.min.y)) * render.canvas.height
+            };
+        }
+
+        function updateCamera() {
+            const { x, y, zoom } = state.camera;
+            const width = render.canvas.width / zoom;
+            const height = render.canvas.height / zoom;
+            
+            Render.lookAt(render, {
+                min: { x: x - width / 2, y: y - height / 2 },
+                max: { x: x + width / 2, y: y + height / 2 }
+            });
+        }
+
+        function resetCamera() {
+            state.camera = { x: 400, y: 400, zoom: 1 };
+            updateCamera();
+            redrawTrajectories();
+        }
+
+        function zoomIn() {
+            state.camera.zoom = Math.min(3, state.camera.zoom + 0.2);
+            updateCamera();
+            redrawTrajectories();
+        }
+
+        function zoomOut() {
+            state.camera.zoom = Math.max(0.3, state.camera.zoom - 0.2);
+            updateCamera();
+            redrawTrajectories();
+        }
+
+        // Mode Switching
+        function switchMode(mode) {
+            state.mode = mode;
+            
+            document.querySelectorAll('.mode-tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            document.getElementById('objects-panel').style.display = mode === 'objects' ? 'block' : 'none';
+            document.getElementById('trajectories-panel').style.display = mode === 'trajectories' ? 'block' : 'none';
+            
+            const instructions = document.getElementById('instructions');
+            if (mode === 'objects') {
+                instructions.textContent = 'Один палец - перемещение камеры | Два пальца - зум';
+            } else {
+                instructions.textContent = 'Тапните и перетащите для создания траектории снаряда';
+            }
+        }
+
+        // Object Management
+        function addObject() {
+            const shape = document.getElementById('shape-select').value;
+            const material = document.getElementById('material-select').value;
+            
+            state.levelData.objects.push({ shape, material });
+            updateUI();
+        }
+
+        function removeObject(index) {
+            state.levelData.objects.splice(index, 1);
+            updateUI();
+        }
+
+        // Trajectory Management
+        function addTrajectory() {
+            state.levelData.trajectories.push({
+                x: 50,
+                y: 250,
+                angle: 35,
+                force: 18,
+                delay: 0
+            });
+            updateUI();
+        }
+
+        function removeTrajectory(index) {
+            state.levelData.trajectories.splice(index, 1);
+            updateUI();
+        }
+
+        function updateTrajField(index, field, value) {
+            state.levelData.trajectories[index][field] = parseFloat(value);
+            updateJSON();
+            redrawTrajectories();
+        }
+
+        // Drawing
+        function redrawTrajectories() {
+            trajCtx.clearRect(0, 0, trajCanvas.width, trajCanvas.height);
+            
+            state.levelData.trajectories.forEach((traj, idx) => {
+                const startScreen = worldToScreen(traj.x, traj.y);
+                
+                trajCtx.save();
+                trajCtx.strokeStyle = `rgba(255, 100, 100, ${0.9 - idx * 0.1})`;
+                trajCtx.lineWidth = 3;
+                trajCtx.setLineDash([8, 4]);
+                
+                trajCtx.beginPath();
+                trajCtx.moveTo(startScreen.x, startScreen.y);
+                
+                const angleRad = traj.angle * (Math.PI / 180);
+                let vx = Math.cos(angleRad) * traj.force;
+                let vy = Math.sin(angleRad) * traj.force;
+                let px = traj.x;
+                let py = traj.y;
+                
+                for (let i = 0; i < 100; i++) {
+                    vy += 1 * 0.05;
+                    px += vx * 0.05;
+                    py += vy * 0.05;
+                    
+                    const screenPos = worldToScreen(px, py);
+                    trajCtx.lineTo(screenPos.x, screenPos.y);
+                    
+                    if (py > 650) break;
+                }
+                
+                trajCtx.stroke();
+                
+                // Start point
+                trajCtx.fillStyle = '#ff4444';
+                trajCtx.beginPath();
+                trajCtx.arc(startScreen.x, startScreen.y, 6, 0, Math.PI * 2);
+                trajCtx.fill();
+                
+                // Number
+                trajCtx.fillStyle = '#fff';
+                trajCtx.font = 'bold 16px Arial';
+                trajCtx.fillText(idx + 1, startScreen.x + 12, startScreen.y - 8);
+                
+                trajCtx.restore();
+            });
+        }
+
+        function drawTrajPreview(startX, startY, endX, endY) {
+            redrawTrajectories();
+            
+            const startScreen = worldToScreen(startX, startY);
+            const endScreen = worldToScreen(endX, endY);
+            
+            trajCtx.save();
+            trajCtx.strokeStyle = '#ffff00';
+            trajCtx.lineWidth = 4;
+            trajCtx.setLineDash([]);
+            
+            trajCtx.beginPath();
+            trajCtx.moveTo(startScreen.x, startScreen.y);
+            trajCtx.lineTo(endScreen.x, endScreen.y);
+            trajCtx.stroke();
+            
+            // Arrow
+            const angle = Math.atan2(endScreen.y - startScreen.y, endScreen.x - startScreen.x);
+            trajCtx.beginPath();
+            trajCtx.moveTo(endScreen.x, endScreen.y);
+            trajCtx.lineTo(
+                endScreen.x - 20 * Math.cos(angle - Math.PI / 6),
+                endScreen.y - 20 * Math.sin(angle - Math.PI / 6)
+            );
+            trajCtx.lineTo(
+                endScreen.x - 20 * Math.cos(angle + Math.PI / 6),
+                endScreen.y - 20 * Math.sin(angle + Math.PI / 6)
+            );
+            trajCtx.closePath();
+            trajCtx.fillStyle = '#ffff00';
+            trajCtx.fill();
+            
+            trajCtx.restore();
+        }
+
+        // UI Updates
+        function updateUI() {
+            // Objects list
+            const objectsList = document.getElementById('objects-list');
+            objectsList.innerHTML = '';
+            
+            state.levelData.objects.forEach((obj, idx) => {
+                const shapeInfo = CONFIG.SHAPES[obj.shape];
+                const matInfo = CONFIG.MATERIALS[obj.material];
+                
+                const chip = document.createElement('div');
+                chip.className = 'object-chip';
+                chip.innerHTML = `
+                    <span class="color-dot" style="background: ${matInfo.color}"></span>
+                    ${shapeInfo.icon} ${shapeInfo.name}
+                    <span class="remove" onclick="removeObject(${idx})">✕</span>
+                `;
+                objectsList.appendChild(chip);
+            });
+            
+            // Trajectories list
+            const trajList = document.getElementById('traj-list');
+            trajList.innerHTML = '';
+            
+            state.levelData.trajectories.forEach((traj, idx) => {
+                const item = document.createElement('div');
+                item.className = 'traj-item';
+                item.innerHTML = `
+                    <div class="traj-header">
+                        <h4>Снаряд ${idx + 1}</h4>
+                        <button class="btn-small" onclick="removeTrajectory(${idx})">✕</button>
+                    </div>
+                    <div class="traj-controls">
+                        <div class="input-group">
+                            <label>X</label>
+                            <input type="number" value="${traj.x}" onchange="updateTrajField(${idx}, 'x', this.value)">
+                        </div>
+                        <div class="input-group">
+                            <label>Y</label>
+                            <input type="number" value="${traj.y}" onchange="updateTrajField(${idx}, 'y', this.value)">
+                        </div>
+                        <div class="input-group">
+                            <label>Угол</label>
+                            <input type="number" value="${traj.angle}" onchange="updateTrajField(${idx}, 'angle', this.value)">
+                        </div>
+                        <div class="input-group">
+                            <label>Сила</label>
+                            <input type="number" value="${traj.force}" onchange="updateTrajField(${idx}, 'force', this.value)">
+                        </div>
+                        <div class="input-group">
+                            <label>Задержка</label>
+                            <input type="number" value="${traj.delay}" onchange="updateTrajField(${idx}, 'delay', this.value)">
+                        </div>
+                    </div>
+                `;
+                trajList.appendChild(item);
+            });
+            
+            updateJSON();
+            redrawTrajectories();
+        }
+
+        function updateJSON() {
+            const json = JSON.stringify(state.levelData, null, 2);
+            document.getElementById('json-output').textContent = json;
+        }
+
+        // Modal
+        function openMenu() {
+            document.getElementById('level-name-input').value = state.levelData.name;
+            document.getElementById('modal').style.display = 'flex';
+            updateJSON();
+        }
+
+        function closeModal() {
+            const newName = document.getElementById('level-name-input').value.trim();
+            if (newName) {
+                state.levelData.name = newName;
+                document.getElementById('level-name-display').textContent = newName;
+                updateJSON();
+            }
+            document.getElementById('modal').style.display = 'none';
+        }
+
+        function closeModalOnBackdrop(e) {
+            if (e.target.id === 'modal') {
+                closeModal();
+            }
+        }
+
+        // Actions
+        function clearLevel() {
+            if (confirm('Очистить весь уровень?')) {
+                state.levelData.objects = [];
+                state.levelData.trajectories = [];
+                updateUI();
+            }
+        }
+
+        function exportJSON() {
+            const json = JSON.stringify(state.levelData, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `level-${state.levelData.name.replace(/\s+/g, '-')}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function copyJSON() {
+            const text = document.getElementById('json-output').textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                alert('JSON скопирован!');
+            }).catch(() => {
+                // Fallback
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                alert('JSON скопирован!');
+            });
+        }
+
+        function importJSON(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    state.levelData = data;
+                    document.getElementById('level-name-input').value = data.name;
+                    document.getElementById('level-name-display').textContent = data.name;
+                    updateUI();
+                    alert('Уровень загружен!');
+                } catch (err) {
+                    alert('Ошибка загрузки: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // Window Resize
+        window.addEventListener('resize', () => {
+            render.canvas.width = window.innerWidth;
+            render.canvas.height = window.innerHeight;
+            trajCanvas.width = window.innerWidth;
+            trajCanvas.height = window.innerHeight;
+            updateCamera();
+            redrawTrajectories();
+        });
+
+        // Initialize
+        initScene();
+        setupTouchControls();
+        updateUI();
+    </script>
+</body>
+</html>
