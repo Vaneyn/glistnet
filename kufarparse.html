@@ -1,0 +1,1287 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kufar Parser + AI</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Unbounded:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0d0f14; --surface:#161a22; --border:#252b38;
+  --accent:#f5c842; --accent2:#42c8f5; --text:#e4e8f0;
+  --muted:#6b7689; --danger:#f54242; --good:#42f58a;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospace;min-height:100vh;overflow-x:hidden}
+
+/* HEADER */
+header{border-bottom:2px solid var(--accent);padding:13px 18px;display:flex;align-items:center;gap:12px;background:var(--surface);position:sticky;top:0;z-index:100}
+.logo{font-family:'Unbounded',sans-serif;font-weight:900;font-size:17px;letter-spacing:-1px;color:var(--accent);white-space:nowrap}
+.logo span{color:var(--accent2)}
+.header-tag{background:var(--border);color:var(--muted);font-size:9px;padding:3px 7px;border-radius:2px;letter-spacing:2px;text-transform:uppercase}
+.header-count{margin-left:auto;font-size:11px;color:var(--muted);white-space:nowrap}
+.header-count strong{color:var(--accent)}
+.btn-debug{background:rgba(245,66,66,.12);border:1px solid rgba(245,66,66,.35);color:#f54242;font-family:'JetBrains Mono',monospace;font-size:12px;padding:6px 11px;border-radius:4px;cursor:pointer;transition:background .15s;white-space:nowrap}
+.btn-debug:hover{background:rgba(245,66,66,.22)}
+.btn-filters-toggle{display:none;background:var(--border);border:none;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:11px;padding:8px 13px;border-radius:4px;cursor:pointer;white-space:nowrap}
+
+/* LAYOUT */
+.layout{display:grid;grid-template-columns:295px 1fr;min-height:calc(100vh - 51px)}
+
+/* SIDEBAR */
+aside{background:var(--surface);border-right:1px solid var(--border);padding:18px 15px;display:flex;flex-direction:column;gap:15px;position:sticky;top:51px;height:calc(100vh - 51px);overflow-y:auto;transition:transform .3s ease}
+.section-label{font-size:9px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;margin-bottom:5px}
+.field-group{display:flex;flex-direction:column;gap:5px}
+label{font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase}
+input,select{background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:12px;padding:10px 11px;border-radius:4px;outline:none;transition:border-color .15s;width:100%}
+input:focus,select:focus{border-color:var(--accent)}
+input::placeholder{color:var(--muted)}
+select option{background:var(--surface)}
+.price-row{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.btn-search{background:var(--accent);color:#0d0f14;border:none;padding:12px;font-family:'Unbounded',sans-serif;font-size:11px;font-weight:700;letter-spacing:1px;cursor:pointer;border-radius:4px;transition:background .15s;width:100%;text-transform:uppercase}
+.btn-search:hover:not(:disabled){background:#ffd95a}
+.btn-search:disabled{opacity:.5;cursor:not-allowed}
+.btn-ai{background:transparent;color:var(--good);border:1px solid var(--good);padding:11px;font-family:'Unbounded',sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;cursor:pointer;border-radius:4px;transition:background .15s,opacity .15s;width:100%;text-transform:uppercase}
+.btn-ai:hover:not(:disabled){background:rgba(66,245,138,.1)}
+.btn-ai:disabled{opacity:.4;cursor:not-allowed}
+.btn-export{background:transparent;color:var(--accent2);border:1px solid var(--accent2);padding:9px;font-family:'JetBrains Mono',monospace;font-size:11px;cursor:pointer;border-radius:4px;transition:background .15s;width:100%}
+.btn-export:hover{background:rgba(66,200,245,.1)}
+.divider{border:none;border-top:1px solid var(--border)}
+.proxy-note{background:rgba(245,200,66,.07);border:1px solid rgba(245,200,66,.2);color:var(--muted);font-size:10px;padding:8px 10px;border-radius:4px;line-height:1.6}
+.proxy-note strong{color:var(--accent)}
+
+/* AI STATUS */
+.ai-status-box{background:rgba(66,245,138,.06);border:1px solid rgba(66,245,138,.2);border-radius:4px;padding:9px 11px;font-size:10px;color:var(--good);line-height:1.7;display:none}
+.ai-status-box.active{display:block}
+.ai-progress{background:var(--border);border-radius:2px;height:3px;margin-top:7px;overflow:hidden}
+.ai-progress-fill{height:100%;background:var(--good);width:0%;transition:width .4s ease;border-radius:2px}
+
+/* MAIN */
+main{padding:18px 15px;overflow-y:auto;height:calc(100vh - 51px)}
+.status-bar{display:flex;align-items:center;gap:9px;margin-bottom:14px;font-size:11px;color:var(--muted);flex-wrap:wrap}
+.status-bar .count{color:var(--accent);font-weight:700;font-size:15px}
+.ai-sort-btn{margin-left:auto;background:transparent;border:1px solid rgba(66,245,138,.4);color:var(--good);font-family:'JetBrains Mono',monospace;font-size:10px;padding:5px 11px;border-radius:3px;cursor:pointer}
+.ai-sort-btn:hover{background:rgba(66,245,138,.1)}
+.ai-sort-btn.active{background:rgba(66,245,138,.2);border-color:var(--good)}
+
+/* GRID */
+.results-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(255px,1fr));gap:13px}
+
+/* CARD */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:6px;overflow:hidden;text-decoration:none;display:block;transition:border-color .15s,transform .15s;animation:fadeUp .25s ease;position:relative}
+.card:hover{border-color:var(--accent);transform:translateY(-2px)}
+.card.deal-hot{border-color:rgba(66,245,138,.7)!important;box-shadow:0 0 12px rgba(66,245,138,.15)}
+.card.deal-good{border-color:rgba(66,245,138,.4)!important}
+.card.deal-bad{border-color:rgba(245,66,66,.3)!important}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* RATE BADGE */
+.rate-badge{position:absolute;top:8px;right:8px;font-family:'Unbounded',sans-serif;font-size:10px;font-weight:700;padding:3px 7px;border-radius:3px;z-index:5;backdrop-filter:blur(4px);display:none}
+.rate-badge.vis{display:block}
+.rate-badge.rate-hot{background:rgba(66,245,138,.92);color:#0d0f14}
+.rate-badge.rate-good{background:rgba(66,245,138,.65);color:#0d0f14}
+.rate-badge.rate-ok{background:rgba(245,200,66,.85);color:#0d0f14}
+.rate-badge.rate-bad{background:rgba(245,66,66,.8);color:#fff}
+.rate-badge.rate-loading{background:rgba(66,200,245,.3);color:var(--accent2);animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.45}50%{opacity:1}}
+
+.card-img{width:100%;height:165px;object-fit:cover;display:block;background:var(--border)}
+.card-no-img{width:100%;height:165px;background:var(--border);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:10px;letter-spacing:2px}
+.card-body{padding:11px 13px}
+.card-price{font-family:'Unbounded',sans-serif;font-size:16px;font-weight:700;color:var(--accent);margin-bottom:5px}
+.card-title{font-size:12px;color:var(--text);line-height:1.5;margin-bottom:5px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.card-desc{font-size:11px;color:var(--muted);line-height:1.5;margin-bottom:9px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+
+/* CARD ACTIONS */
+.card-actions{display:flex;gap:6px;margin-top:8px}
+.btn-copy-link{flex:1;background:rgba(66,200,245,.1);border:1px solid rgba(66,200,245,.35);color:var(--accent2);font-family:'JetBrains Mono',monospace;font-size:10px;padding:6px 8px;border-radius:3px;cursor:pointer;transition:background .15s;text-align:center}
+.btn-copy-link:hover{background:rgba(66,200,245,.2)}
+.btn-copy-link.copied{background:rgba(66,245,138,.15);border-color:rgba(66,245,138,.5);color:var(--good)}
+.btn-expand{flex:1;background:rgba(245,200,66,.08);border:1px solid rgba(245,200,66,.3);color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:10px;padding:6px 8px;border-radius:3px;cursor:pointer;transition:background .15s}
+.btn-expand:hover{background:rgba(245,200,66,.15)}
+
+/* MODAL */
+#ad-modal{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:800;display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)}
+#ad-modal.open{display:flex}
+.modal-box{background:var(--surface);border:1px solid var(--border);border-radius:8px;width:100%;max-width:640px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;animation:fadeUp .2s ease}
+.modal-hdr{display:flex;align-items:flex-start;gap:12px;padding:16px 18px;border-bottom:1px solid var(--border);flex-shrink:0}
+.modal-title{font-size:14px;color:var(--text);line-height:1.4;flex:1}
+.modal-price{font-family:'Unbounded',sans-serif;font-size:18px;color:var(--accent);white-space:nowrap;font-weight:700}
+.modal-close{background:transparent;border:none;color:var(--muted);font-size:22px;cursor:pointer;padding:0 2px;line-height:1;flex-shrink:0;margin-top:-2px}
+.modal-close:hover{color:var(--text)}
+.modal-body{overflow-y:auto;padding:16px 18px;flex:1;display:flex;flex-direction:column;gap:14px}
+.modal-img{width:100%;max-height:300px;object-fit:contain;border-radius:4px;background:var(--border)}
+.modal-desc-label{font-size:9px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;margin-bottom:4px}
+.modal-desc-text{font-size:12px;color:var(--text);line-height:1.7;white-space:pre-wrap;word-break:break-word}
+.modal-desc-loading{font-size:11px;color:var(--muted);font-style:italic}
+.modal-meta{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--muted)}
+.modal-footer{padding:12px 18px;border-top:1px solid var(--border);display:flex;gap:8px;flex-shrink:0}
+.modal-btn-copy{flex:1;background:rgba(66,200,245,.1);border:1px solid rgba(66,200,245,.35);color:var(--accent2);font-family:'JetBrains Mono',monospace;font-size:11px;padding:10px;border-radius:4px;cursor:pointer;transition:background .15s}
+.modal-btn-copy:hover{background:rgba(66,200,245,.2)}
+.modal-btn-copy.copied{background:rgba(66,245,138,.15);border-color:rgba(66,245,138,.5);color:var(--good)}
+.modal-btn-open{background:rgba(245,200,66,.1);border:1px solid rgba(245,200,66,.35);color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:11px;padding:10px 16px;border-radius:4px;cursor:pointer;transition:background .15s;text-decoration:none;text-align:center}
+.modal-btn-open:hover{background:rgba(245,200,66,.2)}
+.card-meta{display:flex;gap:8px;flex-wrap:wrap;font-size:10px;color:var(--muted);align-items:center}
+.tag-co{color:var(--accent2);border:1px solid rgba(66,200,245,.3);font-size:9px;padding:2px 6px;border-radius:2px;text-transform:uppercase;letter-spacing:1px}
+
+.placeholder{text-align:center;padding:80px 20px;color:var(--muted)}
+.placeholder .big{font-family:'Unbounded',sans-serif;font-size:52px;margin-bottom:12px;opacity:.2}
+.placeholder p{font-size:12px;letter-spacing:1px}
+.loader{display:flex;align-items:center;justify-content:center;gap:10px;padding:70px;color:var(--muted);font-size:12px}
+.spinner{width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.error-box{background:rgba(245,66,66,.1);border:1px solid rgba(245,66,66,.3);color:var(--danger);padding:14px;border-radius:4px;font-size:12px;margin-bottom:14px;line-height:1.5}
+.pagination{display:flex;justify-content:center;margin-top:22px}
+.page-btn{background:var(--surface);border:1px solid var(--border);color:var(--text);padding:10px 24px;font-family:'JetBrains Mono',monospace;font-size:11px;cursor:pointer;border-radius:4px;transition:border-color .15s}
+.page-btn:hover{border-color:var(--accent)}
+.sidebar-close{display:none;align-self:flex-end;background:var(--border);border:none;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:11px;padding:8px 13px;border-radius:4px;cursor:pointer}
+
+/* ══ DEBUG PANEL ══ */
+#debug-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:900;display:none;backdrop-filter:blur(3px)}
+#debug-overlay.open{display:block}
+#debug-panel{position:fixed;right:0;top:0;height:100vh;width:700px;max-width:100vw;background:#080a0f;border-left:2px solid #f54242;z-index:901;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .3s ease}
+#debug-panel.open{transform:translateX(0)}
+.dbg-header{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid #1e2330;flex-shrink:0;background:#0b0d13}
+.dbg-title{font-family:'Unbounded',sans-serif;font-size:13px;color:#f54242;font-weight:700;white-space:nowrap}
+.dbg-tabs{display:flex;gap:4px;flex-wrap:wrap}
+.dbg-tab{background:transparent;border:1px solid #252b38;color:#6b7689;font-family:'JetBrains Mono',monospace;font-size:10px;padding:5px 10px;border-radius:3px;cursor:pointer;transition:all .15s;white-space:nowrap}
+.dbg-tab:hover{border-color:#f5c842;color:#e4e8f0}
+.dbg-tab.active{border-color:#f54242;color:#f0f0f0;background:rgba(245,66,66,.1)}
+.dbg-close{background:transparent;border:none;color:#6b7689;font-size:20px;cursor:pointer;padding:0 4px;line-height:1;margin-left:auto}
+.dbg-close:hover{color:#fff}
+.dbg-pane{display:none;flex-direction:column;flex:1;overflow:hidden;min-height:0}
+.dbg-pane.active{display:flex}
+.dbg-toolbar{padding:8px 12px;border-bottom:1px solid #1a1e28;display:flex;gap:7px;flex-shrink:0;flex-wrap:wrap;align-items:center;background:#0d0f14}
+.dbg-btn{background:transparent;border:1px solid #252b38;color:#a0a8b8;font-family:'JetBrains Mono',monospace;font-size:10px;padding:4px 9px;border-radius:3px;cursor:pointer;transition:all .15s;white-space:nowrap}
+.dbg-btn:hover{border-color:#f5c842;color:#f5c842}
+.dbg-btn.red:hover{border-color:#f54242;color:#f54242}
+.dbg-btn.green{border-color:rgba(66,245,138,.4);color:#42f58a}
+.dbg-btn.green:hover{background:rgba(66,245,138,.1)}
+.dbg-filter{background:#0d0f14;border:1px solid #252b38;color:#e4e8f0;font-family:'JetBrains Mono',monospace;font-size:10px;padding:4px 8px;border-radius:3px;outline:none;width:160px}
+.dbg-filter:focus{border-color:#42c8f5}
+
+/* LOG */
+#dbg-log{flex:1;overflow-y:auto;padding:6px 0;font-size:11px;line-height:1.55;min-height:0}
+.log-entry{padding:3px 14px;border-left:3px solid transparent;display:flex;gap:8px;align-items:flex-start;cursor:pointer;transition:background .1s}
+.log-entry:hover{background:rgba(255,255,255,.03)}
+.log-entry.INFO .log-lv{color:#42c8f5} .log-entry.INFO{border-color:#42c8f5}
+.log-entry.OK   .log-lv{color:#42f58a} .log-entry.OK  {border-color:#42f58a}
+.log-entry.WARN .log-lv{color:#f5c842} .log-entry.WARN{border-color:#f5c842}
+.log-entry.ERR  .log-lv{color:#f54242} .log-entry.ERR {border-color:#f54242}
+.log-entry.DATA .log-lv{color:#c042f5} .log-entry.DATA{border-color:#c042f5}
+.log-ts{color:#2a3245;flex-shrink:0;font-size:9px;padding-top:2px}
+.log-lv{flex-shrink:0;width:32px;font-size:9px;font-weight:700;text-transform:uppercase;padding-top:1px}
+.log-msg{color:#b8bfcc;word-break:break-all;flex:1}
+.log-entry.ERR .log-msg{color:#ff8585}
+.log-entry.WARN .log-msg{color:#f5d98f}
+.log-meta{color:#2f3a50;font-size:9px;flex-shrink:0;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* RAW */
+#dbg-raw{flex:1;overflow-y:auto;padding:10px}
+.raw-block{margin-bottom:12px;border:1px solid #1e2330;border-radius:4px;overflow:hidden}
+.raw-hdr{background:#141820;padding:7px 12px;font-size:10px;color:#6b7689;display:flex;justify-content:space-between}
+.raw-hdr span{color:#9aa3b5}
+.raw-body{padding:10px 12px;font-size:10px;white-space:pre-wrap;word-break:break-all;color:#8a93a8;max-height:260px;overflow-y:auto;line-height:1.5}
+.clr-ok{color:#42f58a} .clr-err{color:#f54242} .clr-warn{color:#f5c842}
+
+/* RATES TABLE */
+#dbg-rates{flex:1;overflow-y:auto;padding:10px}
+.rt{width:100%;border-collapse:collapse;font-size:11px}
+.rt th{background:#141820;padding:7px 10px;text-align:left;color:#6b7689;font-size:9px;text-transform:uppercase;letter-spacing:1px;position:sticky;top:0}
+.rt td{padding:6px 10px;border-bottom:1px solid #141820;color:#b8bfcc;vertical-align:middle}
+.rt tr:hover td{background:rgba(255,255,255,.02)}
+.rc{font-family:'Unbounded',sans-serif;font-weight:700;font-size:12px}
+.rc-hot{color:#42f58a} .rc-good{color:#a8f5c0} .rc-ok{color:#f5c842} .rc-bad{color:#f54242}
+
+/* JSON TEST */
+#dbg-json-in{flex:1;background:#0d0f14;border:none;border-bottom:1px solid #252b38;color:#c8cdd8;font-family:'JetBrains Mono',monospace;font-size:11px;padding:12px;resize:none;outline:none;min-height:120px;max-height:45%}
+#dbg-json-out{flex:1;overflow-y:auto;padding:12px;font-size:11px;white-space:pre-wrap;word-break:break-all;color:#8a93a8;line-height:1.5;min-height:0}
+
+/* STATE */
+#dbg-state{flex:1;overflow-y:auto;padding:12px;font-size:11px;line-height:1.8;color:#8a93a8;white-space:pre-wrap;word-break:break-all}
+
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:#0a0c10}
+::-webkit-scrollbar-thumb{background:#1e2330;border-radius:2px}
+
+@media(max-width:700px){
+  .header-tag,.header-count{display:none}
+  .btn-filters-toggle{display:block}
+  .layout{grid-template-columns:1fr}
+  aside{position:fixed;inset:0;width:100%;height:100%;z-index:200;transform:translateX(-100%);border-right:none;padding:16px 14px 90px}
+  aside.open{transform:translateX(0)}
+  .sidebar-close{display:block!important;margin-bottom:2px}
+  main{height:auto;overflow-y:visible;padding:13px 11px}
+  .results-grid{grid-template-columns:repeat(2,1fr);gap:10px}
+  .card-img,.card-no-img{height:125px}
+  .card-body{padding:8px 10px}
+  .card-price{font-size:13px}
+  .card-title{font-size:11px}
+  .card-desc{display:none}
+  #debug-panel{width:100vw}
+}
+@media(max-width:390px){
+  .results-grid{grid-template-columns:1fr}
+  .card-img,.card-no-img{height:160px}
+  .card-desc{display:-webkit-box}
+  .card-body{padding:11px 12px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">KUF<span>AR</span>.PARSE</div>
+  <div class="header-tag">v3.1 + AI</div>
+  <div class="header-count" id="hdr-count"></div>
+  <button class="btn-debug" onclick="openDebug()">🐛 DEBUG</button>
+  <button class="btn-filters-toggle" onclick="toggleSidebar()">☰ Фильтры</button>
+</header>
+
+<div class="layout">
+  <aside id="sidebar">
+    <button class="sidebar-close" onclick="toggleSidebar()">✕ Закрыть</button>
+    <div>
+      <div class="section-label">Поиск</div>
+      <div class="field-group">
+        <label>Ключевое слово</label>
+        <input type="text" id="query" placeholder="iphone, диван, авто…"/>
+      </div>
+    </div>
+    <hr class="divider">
+    <div>
+      <div class="section-label">Цена BYN (клиентский фильтр)</div>
+      <div class="price-row">
+        <div class="field-group"><label>От</label><input type="number" id="price-min" placeholder="0" min="0"/></div>
+        <div class="field-group"><label>До</label><input type="number" id="price-max" placeholder="∞" min="0"/></div>
+      </div>
+    </div>
+    <div class="field-group">
+      <label>Показать</label>
+      <select id="size">
+        <option value="30">30 объявлений</option>
+        <option value="60" selected>60 объявлений</option>
+        <option value="100">100 объявлений</option>
+        <option value="200">200 объявлений</option>
+      </select>
+    </div>
+    <button class="btn-search" id="btn-search" onclick="doSearch(true)">▶ ПОИСК</button>
+    <hr class="divider">
+    <div>
+      <div class="section-label">AI Анализ выгодности</div>
+      <button class="btn-ai" id="btn-ai" onclick="analyzeWithAI()" disabled>✦ АНАЛИЗ AI</button>
+    </div>
+    <div class="ai-status-box" id="ai-status">
+      <span id="ai-status-text">Инициализация…</span>
+      <div class="ai-progress"><div class="ai-progress-fill" id="ai-progress-fill"></div></div>
+    </div>
+    <button class="btn-export" id="btn-export" onclick="exportCSV()" style="display:none">↓ ЭКСПОРТ CSV</button>
+    <hr class="divider">
+    <div class="proxy-note">
+      <strong>ℹ API:</strong> <code>cre-api.kufar.by</code> без авторизации.<br>AI: POE → Gemini-2.5-Flash-Lite.
+    </div>
+  </aside>
+
+  <main id="main">
+    <div class="placeholder"><div class="big">◈</div><p>Введите запрос и нажмите поиск</p></div>
+  </main>
+</div>
+
+<!-- ══════════ AD MODAL ══════════ -->
+<div id="ad-modal" onclick="handleModalBgClick(event)">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <div style="flex:1">
+        <div class="modal-title" id="modal-title"></div>
+        <div class="modal-meta" id="modal-meta" style="margin-top:6px"></div>
+      </div>
+      <div class="modal-price" id="modal-price"></div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <img class="modal-img" id="modal-img" style="display:none" onerror="this.style.display='none'">
+      <div>
+        <div class="modal-desc-label">Описание</div>
+        <div id="modal-desc" class="modal-desc-loading">Загружаем описание…</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-btn-copy" id="modal-copy-btn" onclick="copyModalLink()">📋 Копировать ссылку</button>
+      <a class="modal-btn-open" id="modal-open-link" href="#" target="_blank" rel="noopener">↗ Открыть</a>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ DEBUG PANEL ══════════ -->
+<div id="debug-overlay" onclick="closeDebug()"></div>
+<div id="debug-panel">
+  <div class="dbg-header">
+    <span class="dbg-title">🐛 DEBUG</span>
+    <div class="dbg-tabs">
+      <button class="dbg-tab active" onclick="showTab('log')">LOG</button>
+      <button class="dbg-tab" onclick="showTab('raw')">RAW</button>
+      <button class="dbg-tab" onclick="showTab('rates')">RATES</button>
+      <button class="dbg-tab" onclick="showTab('json')">JSON TEST</button>
+      <button class="dbg-tab" onclick="showTab('state')">STATE</button>
+    </div>
+    <button class="dbg-close" onclick="closeDebug()">✕</button>
+  </div>
+
+  <!-- LOG TAB -->
+  <div class="dbg-pane active" id="dbg-pane-log">
+    <div class="dbg-toolbar">
+      <button class="dbg-btn green" onclick="dbgTestKeys()">🔑 Тест ключей POE</button>
+      <button class="dbg-btn green" onclick="dbgTestPrompt()">📤 Тест запроса</button>
+      <button class="dbg-btn" onclick="dbgCopyLog()">📋 Копировать</button>
+      <button class="dbg-btn red" onclick="dbgClear()">🗑 Очистить</button>
+      <input class="dbg-filter" id="dbg-log-filter" placeholder="Фильтр…" oninput="dbgApplyFilter()">
+    </div>
+    <div id="dbg-log"></div>
+  </div>
+
+  <!-- RAW TAB -->
+  <div class="dbg-pane" id="dbg-pane-raw">
+    <div class="dbg-toolbar">
+      <button class="dbg-btn red" onclick="rawLog=[];renderRaw()">🗑 Очистить</button>
+      <span style="font-size:10px;color:var(--muted)" id="raw-cnt">0 записей</span>
+    </div>
+    <div id="dbg-raw"></div>
+  </div>
+
+  <!-- RATES TAB -->
+  <div class="dbg-pane" id="dbg-pane-rates">
+    <div class="dbg-toolbar">
+      <button class="dbg-btn" onclick="renderRatesTable()">↻ Обновить</button>
+      <span style="font-size:10px;color:var(--muted)" id="rates-cnt">0 оценок</span>
+    </div>
+    <div id="dbg-rates"></div>
+  </div>
+
+  <!-- JSON TEST TAB -->
+  <div class="dbg-pane" id="dbg-pane-json">
+    <div class="dbg-toolbar">
+      <button class="dbg-btn green" onclick="runJsonTest()">▶ Распарсить</button>
+      <button class="dbg-btn" onclick="pasteLastRaw()">↙ Последний RAW</button>
+      <span style="font-size:10px;color:var(--muted)">Вставьте ответ AI → Распарсить</span>
+    </div>
+    <textarea id="dbg-json-in" placeholder="Вставьте сюда raw-текст ответа от AI…"></textarea>
+    <div id="dbg-json-out" style="padding:12px;font-size:11px;white-space:pre-wrap;word-break:break-all;color:#8a93a8;flex:1;overflow-y:auto">← результат появится здесь</div>
+  </div>
+
+  <!-- STATE TAB -->
+  <div class="dbg-pane" id="dbg-pane-state">
+    <div class="dbg-toolbar">
+      <button class="dbg-btn" onclick="renderState()">↻ Обновить</button>
+      <button class="dbg-btn green" onclick="dbgForceAISort()">↕ Форс AI-сорт</button>
+      <button class="dbg-btn" onclick="dbgResetAI()">⟳ Сброс AI</button>
+    </div>
+    <div id="dbg-state"></div>
+  </div>
+</div>
+
+<script>
+/* ════════════════════════════════════
+   DEBUG ENGINE
+════════════════════════════════════ */
+const LOG  = [];
+let rawLog = [];
+let panelOpen = false;
+
+function log(level, msg, meta) {
+  const ts = new Date().toTimeString().slice(0,12).replace(' ','.');
+  const entry = { ts, level, msg: String(msg), meta: meta !== undefined ? JSON.stringify(meta).slice(0,200) : '' };
+  LOG.push(entry);
+  if (panelOpen) _appendEntry(entry);
+  (level==='ERR' ? console.error : level==='WARN' ? console.warn : console.log)('['+level+'] '+msg, meta !== undefined ? meta : '');
+}
+
+function _appendEntry(e) {
+  const el = document.getElementById('dbg-log');
+  if (!el) return;
+  const d = document.createElement('div');
+  d.className = 'log-entry ' + e.level;
+  d.dataset.txt = (e.msg+' '+e.meta).toLowerCase();
+  d.innerHTML = `<span class="log-ts">${e.ts}</span><span class="log-lv">${e.level}</span>`+
+    `<span class="log-msg">${_esc(e.msg)}</span>`+
+    (e.meta ? `<span class="log-meta" title="${_esc(e.meta)}">${_esc(e.meta.slice(0,60))}</span>` : '');
+  d.onclick = () => { document.getElementById('dbg-json-in').value = e.meta || e.msg; showTab('json'); };
+  el.appendChild(d);
+  el.scrollTop = el.scrollHeight;
+}
+
+function _esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function openDebug() {
+  document.getElementById('debug-overlay').classList.add('open');
+  document.getElementById('debug-panel').classList.add('open');
+  panelOpen = true;
+  const el = document.getElementById('dbg-log');
+  el.innerHTML = '';
+  const f = (document.getElementById('dbg-log-filter').value||'').toLowerCase();
+  LOG.forEach(e => { if (!f || e.txt && e.txt.includes(f)) _appendEntry(e); });
+  el.scrollTop = el.scrollHeight;
+}
+
+function closeDebug() {
+  document.getElementById('debug-overlay').classList.remove('open');
+  document.getElementById('debug-panel').classList.remove('open');
+  panelOpen = false;
+}
+
+function showTab(name) {
+  const names = ['log','raw','rates','json','state'];
+  document.querySelectorAll('.dbg-tab').forEach((b,i)=>b.classList.toggle('active', names[i]===name));
+  document.querySelectorAll('.dbg-pane').forEach(p=>p.classList.remove('active'));
+  document.getElementById('dbg-pane-'+name).classList.add('active');
+  if (name==='raw')   renderRaw();
+  if (name==='rates') renderRatesTable();
+  if (name==='state') renderState();
+}
+
+function dbgApplyFilter() {
+  const f = (document.getElementById('dbg-log-filter').value||'').toLowerCase();
+  document.querySelectorAll('#dbg-log .log-entry').forEach(el => {
+    el.style.display = (!f || el.dataset.txt.includes(f)) ? '' : 'none';
+  });
+}
+
+function dbgClear() { LOG.length=0; document.getElementById('dbg-log').innerHTML=''; log('INFO','Лог очищен'); }
+function dbgCopyLog() {
+  navigator.clipboard.writeText(LOG.map(e=>`[${e.ts}][${e.level}] ${e.msg} ${e.meta}`).join('\n'))
+    .then(()=>log('OK','Лог скопирован'));
+}
+
+function renderRaw() {
+  const el = document.getElementById('dbg-raw');
+  document.getElementById('raw-cnt').textContent = rawLog.length + ' записей';
+  if (!rawLog.length) { el.innerHTML='<div style="padding:20px;color:var(--muted);font-size:11px">Нет данных</div>'; return; }
+  el.innerHTML = [...rawLog].reverse().map((r,ri)=>{
+    const n = rawLog.length - ri;
+    const sc = r.ok ? 'clr-ok' : 'clr-err';
+    const st = r.ok ? `<span class="clr-ok">HTTP ${r.status} OK</span>` : `<span class="clr-err">FAIL ${r.status||'?'} ${_esc(r.error||'')}</span>`;
+    return `<div class="raw-block">
+      <div class="raw-hdr"><span>#${n} ${_esc(r.label)} — ${r.ts}</span>${st}</div>
+      <div class="raw-body ${sc}">${_esc(r.body||'(пусто)')}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderRatesTable() {
+  const el = document.getElementById('dbg-rates');
+  const entries = Object.entries(aiRates);
+  document.getElementById('rates-cnt').textContent = entries.length + ' оценок';
+  if (!entries.length) { el.innerHTML='<div style="padding:20px;color:var(--muted);font-size:11px">AI ещё не запускался</div>'; return; }
+  const rows = entries.map(([id,rate])=>{
+    const ad = allAds.find(a=>String(a.ad_id)===String(id));
+    return { id, rate, title:(ad?ad.subject||'?':'(не найдено)').slice(0,48) };
+  }).sort((a,b)=>b.rate-a.rate);
+  el.innerHTML = `<table class="rt"><tr><th>#</th><th>ad_id</th><th>Коэф.</th><th>Название</th></tr>
+    ${rows.map((r,i)=>{
+      const c = r.rate>=1.5?'rc-hot':r.rate>=1.1?'rc-good':r.rate>=0.95?'rc-ok':'rc-bad';
+      return `<tr><td>${i+1}</td><td style="color:var(--muted)">${r.id}</td><td class="rc ${c}">×${r.rate.toFixed(2)}</td><td>${_esc(r.title)}</td></tr>`;
+    }).join('')}
+  </table>`;
+}
+
+function renderState() {
+  const el = document.getElementById('dbg-state');
+  el.textContent = JSON.stringify({
+    allAds_count: allAds.length,
+    aiRates_count: Object.keys(aiRates).length,
+    aiAnalyzed, sortByAI,
+    decryptedKeys_count: decryptedKeys.length,
+    cursor: cursor ? cursor.slice(0,40)+'…' : null,
+    first5_rates: allAds.slice(0,5).map(a=>({id:a.ad_id, rate:aiRates[a.ad_id]??'—'})),
+    top5_by_rate: Object.entries(aiRates).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([id,r])=>({id,rate:r}))
+  }, null, 2);
+}
+
+function dbgForceAISort() {
+  log('INFO','Форс-сортировка: aiAnalyzed='+aiAnalyzed+' sortByAI='+sortByAI+' rates='+Object.keys(aiRates).length);
+  if (!Object.keys(aiRates).length) { log('WARN','aiRates пустой — нечего сортировать'); return; }
+  aiAnalyzed = true;
+  sortByAI   = true;
+  updateSortBtn();
+  renderResults(allAds.length, allAds.length);
+  log('OK','Форс-сортировка применена');
+}
+
+function dbgResetAI() {
+  aiRates = {}; aiAnalyzed = false; sortByAI = false;
+  document.getElementById('ai-status').classList.remove('active');
+  document.getElementById('ai-progress-fill').style.width = '0%';
+  document.getElementById('btn-ai').textContent = '✦ АНАЛИЗ AI';
+  document.getElementById('btn-ai').disabled = allAds.length === 0;
+  updateSortBtn();
+  renderResults(allAds.length, allAds.length);
+  log('INFO','AI состояние сброшено');
+}
+
+function runJsonTest() {
+  const raw = document.getElementById('dbg-json-in').value.trim();
+  const out = document.getElementById('dbg-json-out');
+  if (!raw) { out.textContent='Введите текст'; return; }
+  const result = parseAIResponse(raw);
+  if (!result) {
+    out.innerHTML = `<span style="color:#f54242">❌ parseAIResponse вернул null\n\n</span>${_analyzeFailure(raw)}`;
+    return;
+  }
+  const valid = result.filter(r=>!isNaN(Number(r.ID??r.id))&&!isNaN(Number(r.Rate??r.rate??r.RATE)));
+  out.innerHTML = `<span style="color:#42f58a">✓ Элементов: ${result.length}, валидных (ID+Rate): ${valid.length}\n\n</span>`
+    + _esc(JSON.stringify(result.slice(0,30), null, 2))
+    + (result.length>30 ? `\n… ещё ${result.length-30}` : '');
+}
+
+function _analyzeFailure(raw) {
+  return `Длина: ${raw.length}\nСодержит '[': ${raw.includes('[')}\nСодержит '{': ${raw.includes('{')}\n`+
+    `Матч []: ${(raw.match(/\[[\s\S]*?\]/)||['нет'])[0].slice(0,100)}\n\n`+
+    `Первые 500 симв.:\n${raw.slice(0,500)}`;
+}
+
+function pasteLastRaw() {
+  if (!rawLog.length) { log('WARN','Нет RAW ответов'); return; }
+  document.getElementById('dbg-json-in').value = rawLog[rawLog.length-1].body || '';
+  log('INFO','Последний RAW вставлен в JSON Test');
+}
+
+/* ════ TEST BUTTONS ════ */
+async function dbgTestKeys() {
+  log('INFO','══ Тест ключей POE ══');
+  await fetchAndDecryptKeys();
+  if (decryptedKeys.length) {
+    log('OK',`Загружено ${decryptedKeys.length} ключей. Первый: …${decryptedKeys[0].slice(-8)}`);
+  } else {
+    log('ERR','Ни одного ключа не загружено!');
+  }
+}
+
+async function dbgTestPrompt() {
+  if (!allAds.length) { log('WARN','Нет объявлений'); return; }
+  if (!decryptedKeys.length) await fetchAndDecryptKeys();
+  if (!decryptedKeys.length) { log('ERR','Нет ключей'); return; }
+  const sample = allAds.slice(0,5).map((ad,i)=>({index:i+1,ad}));
+  const block  = buildPromptBlock(sample);
+  log('INFO','══ Тест промпта через POE (5 объявлений) ══');
+  log('DATA','Data block:\n'+block);
+  const full = SYSTEM_PROMPT+'\n\n'+block;
+  const resp = await callGeminiWithRetry(full);
+  if (!resp) { log('ERR','Нет ответа от POE'); return; }
+  log('OK','Ответ: '+resp.length+' симв.');
+  log('DATA', resp);
+  const parsed = parseAIResponse(resp);
+  if (!parsed) log('ERR','parseAIResponse: null');
+  else log('OK',`parseAIResponse: ${parsed.length} эл.`, parsed.slice(0,5));
+}
+
+/* ════════════════════════════════════
+   AI CONFIG
+════════════════════════════════════ */
+const KEYS_URLS   = ['https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/freePOE.txt'];
+const AI_MODEL    = 'Gemini-2.5-Flash-Lite';   // имя модели на платформе POE
+const AI_BATCH    = 100;
+const POE_API     = 'https://api.poe.com/v1/chat/completions';
+const SYSTEM_PROMPT = `ТЫ - анализатор выгодности предложений на куфаре. Твоя задача - найти самые выгодные, что аж по ошибке выставленные, предложения. Ты должен каждому варианту выставить оценку выгодности - коэффициент выгодности цены по сравнению с рыночной. Например 0.90 значит что это немного не выгодно, а 2.00 значит, что это в 2 раза дешевле рынка. Результаты отправляй как JSON где ID= порядковый номер элемента, Rate = коэффициент цены. Отвечай ТОЛЬКО JSON массивом без пояснений, без markdown-блоков.`;
+
+let decryptedKeys = [];
+let aiRates     = {};
+let aiAnalyzed  = false;
+let sortByAI    = false;
+
+/* ════ KEY MGMT ════ */
+function decryptLine(line) {
+  const a='a'.charCodeAt(0),z='z'.charCodeAt(0),A='A'.charCodeAt(0),Z='Z'.charCodeAt(0);
+  let out='';
+  for (const ch of line) {
+    const c=ch.charCodeAt(0);
+    if(c>=A&&c<=Z) out+=String.fromCharCode(A+(Z-(((c-A-3)%26+26)%26+A)));
+    else if(c>=a&&c<=z) out+=String.fromCharCode(a+(z-(((c-a-3)%26+26)%26+a)));
+    else out+=ch;
+  }
+  return out;
+}
+
+async function fetchAndDecryptKeys() {
+  decryptedKeys = [];
+  for (const url of KEYS_URLS) {
+    log('INFO','Загружаем ключи: '+url);
+    try {
+      const r = await fetch(url, {cache:'no-store'});
+      if (!r.ok) { log('WARN','HTTP '+r.status); continue; }
+      const txt = await r.text();
+      const keys = txt.split(/\r?\n/).map(s=>s.trim()).filter(Boolean).map(decryptLine).filter(k=>k&&k.length>8);
+      log(keys.length?'OK':'WARN','Ключей расшифровано: '+keys.length+' (строк в файле: '+txt.split(/\r?\n/).filter(Boolean).length+')');
+      if (keys.length) { decryptedKeys = keys; return; }
+    } catch(e) { log('ERR','Ошибка загрузки ключей: '+e.message); }
+  }
+}
+
+function pickKey(excl=new Set()) {
+  const avail = decryptedKeys.map((_,i)=>i).filter(i=>!excl.has(i));
+  if (!avail.length) return undefined;
+  const idx = avail[Math.floor(Math.random()*avail.length)];
+  return { key:decryptedKeys[idx], index:idx };
+}
+
+/* ════ GEMINI CALL ════ */
+async function callPoe(key, prompt) {
+  // POE использует OpenAI-совместимый API: Bearer-токен, messages[], choices[0].message.content
+  log('INFO', `POE (ключ …${key.slice(-6)}), модель: ${AI_MODEL}, prompt: ${prompt.length} симв.`);
+  try {
+    const r = await fetch(POE_API, {
+      method: 'POST',
+      headers: {
+        'Content-Type':  'application/json',
+        'Authorization': 'Bearer ' + key
+      },
+      body: JSON.stringify({
+        model:    AI_MODEL,
+        messages: [{ role: 'user', content: prompt }],
+        stream:   false
+      })
+    });
+    const body = await r.text();
+    rawLog.push({ label: 'POE '+AI_MODEL+' …'+key.slice(-6), ts: new Date().toTimeString().slice(0,8), ok: r.ok, status: r.status, body });
+    if (rawLog.length > 30) rawLog.shift();
+    if (panelOpen && document.getElementById('dbg-pane-raw').classList.contains('active')) renderRaw();
+
+    if (!r.ok) { log('ERR', 'POE HTTP '+r.status, body.slice(0,300)); return { ok: false }; }
+    let data;
+    try { data = JSON.parse(body); } catch(e) { log('ERR', 'JSON parse ответа POE: '+e.message, body.slice(0,200)); return { ok: false }; }
+    log('OK', 'POE choices: '+(data?.choices?.length??0));
+    return { ok: true, data };
+  } catch(e) {
+    log('ERR', 'fetch exception: '+e.message);
+    rawLog.push({ label: 'POE EXCEPTION', ts: new Date().toTimeString().slice(0,8), ok: false, error: e.message, body: String(e) });
+    return { ok: false };
+  }
+}
+
+async function callGeminiWithRetry(prompt) {
+  const tried = new Set();
+  for (let i = 0; i < Math.max(decryptedKeys.length, 1); i++) {
+    const pick = pickKey(tried);
+    if (!pick) { log('WARN', 'Все ключи перебраны'); break; }
+    tried.add(pick.index);
+    const res = await callPoe(pick.key, prompt);
+    if (!res.ok) continue;
+    // OpenAI-compatible response: choices[0].message.content
+    const text = res.data?.choices?.[0]?.message?.content || '';
+    if (!text) { log('WARN', 'Пустой content в ответе POE'); continue; }
+    log('OK', 'Текст ответа ('+text.length+' симв.): '+text.slice(0,80));
+    return text;
+  }
+  return null;
+}
+
+/* ════ PROMPT BUILDER ════ */
+const USD_RATE = 3.25;
+function buildPromptBlock(batch) {
+  return batch.map(({index,ad})=>{
+    const byn = ad.price_byn ? (ad.price_byn/100).toFixed(0) : null;
+    const usd = ad.price_usd ? (ad.price_usd/100).toFixed(0) : null;
+    let price = '—';
+    if (byn&&usd) price=`${byn} BYN / $${usd} USD`;
+    else if (byn) price=`${byn} BYN (~$${(byn/USD_RATE).toFixed(0)} USD)`;
+    else if (usd) price=`$${usd} USD (~${(usd*USD_RATE).toFixed(0)} BYN)`;
+    const title = (ad.subject||'без названия').slice(0,80);
+    const desc  = (ad.description || ad.body||'').replace(/\s+/g,' ').slice(0,300);
+    const city  = getCity(ad);
+    return `${index}, ${title}${desc?' — '+desc:''}${city?' ['+city+']':''}, ${price}`;
+  }).join('\n');
+}
+
+/* ════ JSON PARSER ════ */
+function parseAIResponse(text) {
+  if (!text) return null;
+  log('DATA','parseAIResponse: длина='+text.length+', начало: '+text.slice(0,80));
+
+  // 1. Strip markdown
+  let s = text.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
+
+  // 2. Find outermost array
+  const si = s.indexOf('['), ei = s.lastIndexOf(']');
+  if (si !== -1 && ei > si) {
+    const chunk = s.slice(si, ei+1);
+    // Direct parse
+    try { const a=JSON.parse(chunk); log('OK','parseAIResponse direct OK: '+a.length+' эл.'); return a; } catch {}
+    // Fix: trailing commas, unquoted keys
+    const fixed = chunk.replace(/,(\s*[}\]])/g,'$1').replace(/([{,]\s*)(\w+)(\s*:)/g,'$1"$2"$3');
+    try { const a=JSON.parse(fixed); log('OK','parseAIResponse fixed OK: '+a.length+' эл.'); return a; } catch(e) { log('WARN','fixed parse fail: '+e.message+'\nChunk: '+chunk.slice(0,200)); }
+    // Regex pairs extraction
+    const pairs=[];
+    const rx = /[{,\s]["\s]*(?:ID|id|Id)["\s]*[=:]\s*(\d+)[\s\S]*?["\s]*(?:Rate|rate|RATE)["\s]*[=:]\s*([\d.]+)/g;
+    let m;
+    while ((m=rx.exec(chunk))!==null) pairs.push({ID:+m[1],Rate:+m[2]});
+    if (pairs.length) { log('OK','parseAIResponse regex: '+pairs.length+' пар'); return pairs; }
+  }
+
+  // 3. Try single object (possibly wrapped)
+  const oi=s.indexOf('{'), oe=s.lastIndexOf('}');
+  if (oi!==-1&&oe>oi) {
+    try {
+      const obj=JSON.parse(s.slice(oi,oe+1));
+      if (Array.isArray(obj.results)) return obj.results;
+      if (Array.isArray(obj.data))    return obj.data;
+      if (obj.ID!==undefined||obj.id!==undefined) return [obj];
+    } catch {}
+  }
+
+  log('ERR','parseAIResponse: ничего не получилось');
+  return null;
+}
+
+/* ════ BADGE HELPERS ════ */
+function rateClass(r) { return r>=1.5?'rate-hot':r>=1.1?'rate-good':r>=0.95?'rate-ok':'rate-bad'; }
+
+function setBadge(adId, rate) {
+  const el   = document.getElementById('rate-'+adId);
+  const card = document.getElementById('card-'+adId);
+  if (el) {
+    el.textContent = '×'+rate.toFixed(2);
+    el.className   = 'rate-badge vis ' + rateClass(rate);
+  }
+  if (card) {
+    card.classList.remove('deal-hot','deal-good','deal-bad');
+    if      (rate>=1.5)  card.classList.add('deal-hot');
+    else if (rate>=1.1)  card.classList.add('deal-good');
+    else if (rate<0.95)  card.classList.add('deal-bad');
+  }
+}
+
+function setLoadingBadge(adId, text='…AI…') {
+  const el = document.getElementById('rate-'+adId);
+  if (el) { el.textContent=text; el.className='rate-badge vis rate-loading'; }
+}
+
+/* ════ SORT BUTTON ════ */
+function updateSortBtn() {
+  const btn = document.getElementById('ai-sort-btn');
+  if (!btn) return;
+  btn.style.display = aiAnalyzed ? 'inline-block' : 'none';
+  btn.classList.toggle('active', sortByAI);
+  btn.textContent = sortByAI ? '✦ По AI ↓' : '↕ Сорт. по AI';
+  log('INFO','updateSortBtn: visible='+aiAnalyzed+' active='+sortByAI);
+}
+
+function toggleAISort() {
+  log('INFO','toggleAISort: aiAnalyzed='+aiAnalyzed+' rates='+Object.keys(aiRates).length);
+  if (!aiAnalyzed) { log('WARN','aiAnalyzed=false, ничего не делаем'); return; }
+  sortByAI = !sortByAI;
+  updateSortBtn();
+  renderResults(allAds.length, allAds.length);
+}
+
+/* ════ MAIN AI FLOW ════ */
+async function analyzeWithAI() {
+  if (!allAds.length) return;
+  const btnAI = document.getElementById('btn-ai');
+  const aiBox = document.getElementById('ai-status');
+  const aiTxt = document.getElementById('ai-status-text');
+  const aiBar = document.getElementById('ai-progress-fill');
+
+  btnAI.disabled = true;
+  aiBox.classList.add('active');
+  aiTxt.textContent = 'Загружаем ключи…';
+  aiBar.style.width = '0%';
+  aiRates = {}; aiAnalyzed = false; sortByAI = false;
+  log('INFO','════ AI АНАЛИЗ СТАРТ: '+allAds.length+' объявл. ════');
+
+  await fetchAndDecryptKeys();
+  if (!decryptedKeys.length) {
+    aiTxt.textContent = '❌ Нет ключей';
+    log('ERR','Нет ключей — анализ отменён');
+    btnAI.disabled = false;
+    return;
+  }
+
+  // loading badges
+  allAds.forEach(ad => setLoadingBadge(ad.ad_id));
+
+  const indexed = allAds.map((ad,i)=>({index:i+1,ad}));
+  const batches = [];
+  for (let i=0; i<indexed.length; i+=AI_BATCH) batches.push(indexed.slice(i,i+AI_BATCH));
+  log('INFO',`Пакетов: ${batches.length} (по ${AI_BATCH})`);
+
+  let processed=0, totalRated=0;
+
+  for (let b=0; b<batches.length; b++) {
+    const batch = batches[b];
+    const range = `${batch[0].index}–${batch[batch.length-1].index}`;
+    aiTxt.textContent = `Пакет ${b+1}/${batches.length} (${range})…`;
+    log('INFO',`Пакет ${b+1}/${batches.length}: ${range}`);
+
+    const block = buildPromptBlock(batch);
+    log('DATA','Data block (начало):\n'+block.slice(0,300));
+    const responseText = await callGeminiWithRetry(SYSTEM_PROMPT+'\n\n'+block);
+    processed += batch.length;
+    aiBar.style.width = Math.round(processed/allAds.length*100)+'%';
+
+    if (!responseText) {
+      log('ERR',`Пакет ${b+1}: нет ответа`);
+      batch.forEach(({index})=>setLoadingBadge(allAds[index-1]?.ad_id,'?'));
+      continue;
+    }
+
+    const parsed = parseAIResponse(responseText);
+    if (!parsed || !Array.isArray(parsed)) {
+      log('ERR',`Пакет ${b+1}: parseAIResponse вернул null`);
+      continue;
+    }
+    log('OK',`Пакет ${b+1}: распарсено ${parsed.length} элементов`);
+
+    let bRated = 0;
+    for (const item of parsed) {
+      const idx  = Number(item.ID  ?? item.id  ?? item.Id  ?? item['ID'] ?? 0);
+      const rate = Number(item.Rate ?? item.rate ?? item.RATE ?? item.коэффициент ?? NaN);
+      if (!idx || isNaN(rate)) { log('WARN','Пропускаем: нет ID/Rate',item); continue; }
+      if (idx < 1 || idx > allAds.length) { log('WARN',`Индекс ${idx} вне диапазона [1..${allAds.length}]`); continue; }
+
+      const ad = allAds[idx-1];
+      aiRates[ad.ad_id] = rate;
+      setBadge(ad.ad_id, rate);
+      bRated++;
+    }
+    totalRated += bRated;
+    log('OK',`Пакет ${b+1}: применено ${bRated}/${batch.length}`);
+  }
+
+  aiAnalyzed = true;
+  aiTxt.textContent = `✓ Готово — ${totalRated}/${allAds.length} оценок`;
+  aiBar.style.width = '100%';
+  btnAI.textContent = '✦ ПОВТОРИТЬ';
+  btnAI.disabled = false;
+  log('OK','════ AI АНАЛИЗ ЗАВЕРШЁН. aiAnalyzed='+aiAnalyzed+' rates='+Object.keys(aiRates).length+' ════');
+
+  updateSortBtn();
+  if (panelOpen) { renderRatesTable(); renderState(); }
+}
+
+/* ════════════════════════════════════
+   PARSER CORE
+════════════════════════════════════ */
+const CORS_PROXY = 'https://api.allorigins.win/get?url=';
+const API_BASE   = 'https://cre-api.kufar.by/ads-search/v1/engine/v1/search/rendered-paginated';
+let allAds = [], cursor = null;
+
+function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
+
+function buildApiUrl() {
+  const q=document.getElementById('query').value.trim(), sz=document.getElementById('size').value;
+  const p=new URLSearchParams();
+  p.set('lang','ru'); p.set('size',sz);
+  if(q)p.set('query',q); if(cursor)p.set('cursor',cursor);
+  return API_BASE+'?'+p.toString();
+}
+
+function getPrice(ad) {
+  if(ad.price_byn)return ad.price_byn/100;
+  if(ad.price_usd)return ad.price_usd/100;
+  for(const arr of[ad.ad_parameters||[],ad.account_parameters||[]])
+    for(const e of arr)if((e.p==='price'||e.p==='prc')&&e.v)return parseFloat(e.v)||null;
+  return null;
+}
+
+function passesFilter(ad) {
+  const mn=parseFloat(document.getElementById('price-min').value);
+  const mx=parseFloat(document.getElementById('price-max').value);
+  if(isNaN(mn)&&isNaN(mx))return true;
+  const p=getPrice(ad); if(p===null)return true;
+  if(!isNaN(mn)&&p<mn)return false;
+  if(!isNaN(mx)&&p>mx)return false;
+  return true;
+}
+
+function getCity(ad) {
+  for(const arr of[ad.account_parameters||[],ad.ad_parameters||[]])
+    for(const e of arr)if(['region','city','area','location'].includes(e.p)&&e.v)return e.v;
+  const l=ad.location||{};
+  return l.region_name||l.city||l.region||l.name||'';
+}
+
+function getDesc(ad){return(ad.description||ad.body||'').trim();}
+
+/* ════ ОПИСАНИЕ ТОВАРА ════ */
+const DESC_SELECTORS = [
+  '[class*="description__"]',
+  '[class*="Description__"]',
+  '[class*="styles_description"]',
+  '[class*="ad-description"]',
+  '[class*="adDescription"]',
+  '[class*="itemDescription"]',
+  '[class*="item-description"]',
+  '[class*="product-description"]',
+  '.description',
+  '[data-name="description"]',
+  '[itemprop="description"]',
+];
+
+function extractDescFromHtml(html) {
+  /* 1. Попробуем вытащить из Next.js __NEXT_DATA__ JSON — самый надёжный способ */
+  try {
+    const m = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
+    if (m) {
+      const data = JSON.parse(m[1]);
+      /* Рекурсивно ищем поля с именем description/body/text в объекте */
+      function findDesc(obj, depth = 0) {
+        if (!obj || typeof obj !== 'object' || depth > 10) return null;
+        for (const key of Object.keys(obj)) {
+          if (['description', 'body', 'ad_description', 'text'].includes(key.toLowerCase())) {
+            const v = obj[key];
+            if (typeof v === 'string' && v.trim().length > 10) return v.trim();
+          }
+          if (typeof obj[key] === 'object') {
+            const r = findDesc(obj[key], depth + 1);
+            if (r) return r;
+          }
+        }
+        return null;
+      }
+      const found = findDesc(data);
+      if (found) return found;
+    }
+  } catch {}
+
+  /* 2. CSS-селекторы */
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  for (const sel of DESC_SELECTORS) {
+    const el = doc.querySelector(sel);
+    if (el) {
+      let text = (el.innerText || el.textContent || '').trim();
+      if (text.length > 5) return text;
+    }
+  }
+
+  /* 3. Поиск по data-атрибутам */
+  const dataEl = doc.querySelector('[data-testid*="description"],[data-qa*="description"],[data-cy*="description"]');
+  if (dataEl) {
+    const t = (dataEl.innerText || dataEl.textContent || '').trim();
+    if (t.length > 5) return t;
+  }
+
+  /* 4. Эвристика: блок у которого перед ним или в нём есть слово "Описание" */
+  const allEls = doc.querySelectorAll('p,div,section,article');
+  for (const el of allEls) {
+    const t = (el.innerText || el.textContent || '').trim();
+    if (t.startsWith('Описание') && t.length > 15) return t;
+  }
+
+  return null;
+}
+
+function cleanDesc(text) {
+  return text.replace(/^[\s\uFEFF\xA0]*(описание|description)[\s\uFEFF\xA0:\-]*/i, '').trim();
+}
+
+async function fetchDescription(ad, retryCount = 0) {
+  if (ad.description) return;
+  const MAX_RETRIES = 5;
+  const RETRY_DELAY = [800, 1500, 2500, 4000, 6000];
+  const pageUrl = `https://www.kufar.by/item/${ad.ad_id}`;
+
+  let html = null;
+  try {
+    const r = await fetch(pageUrl, {
+      signal: AbortSignal.timeout(10000),
+      headers: { 'Accept': 'text/html,application/xhtml+xml', 'Accept-Language': 'ru-RU,ru;q=0.9' }
+    });
+    if (r.ok) html = await r.text();
+    else log('WARN', `fetchDesc ${ad.ad_id}: HTTP ${r.status}, попытка ${retryCount+1}`);
+  } catch(e) {
+    log('WARN', `fetchDesc ${ad.ad_id}: ${e.message}, попытка ${retryCount+1}`);
+  }
+
+  if (html) {
+    const raw = extractDescFromHtml(html);
+    if (raw) {
+      const text = cleanDesc(raw);
+      if (text) {
+        ad.description = text;
+        updateCardDesc(ad.ad_id, text);
+        return;
+      }
+    }
+    /* Получили HTML но без описания — не ретраим, страница реально без описания */
+    if (html.length > 5000) {
+      log('INFO', `fetchDesc ${ad.ad_id}: HTML есть (${html.length}б), описание не найдено селекторами`);
+      ad.description = ''; /* пустая строка = "проверили, нет описания" */
+      return;
+    }
+  }
+
+  /* Ретрай — сеть не ответила или отдала пустую страницу */
+  if (retryCount < MAX_RETRIES) {
+    await new Promise(r => setTimeout(r, RETRY_DELAY[retryCount] || 3000));
+    return fetchDescription(ad, retryCount + 1);
+  }
+  log('ERR', `fetchDesc ${ad.ad_id}: исчерпаны ${MAX_RETRIES} попыток`);
+}
+
+function updateCardDesc(adId, text) {
+  const cardEl = document.getElementById(`card-${adId}`);
+  if (!cardEl) return;
+  let descEl = cardEl.querySelector('.card-desc');
+  if (descEl) {
+    descEl.textContent = text;
+    descEl.style.cssText = ''; // убрать курсив-заглушку
+  } else {
+    const titleEl = cardEl.querySelector('.card-title');
+    if (titleEl) {
+      const d = document.createElement('div');
+      d.className = 'card-desc';
+      d.textContent = text;
+      titleEl.insertAdjacentElement('afterend', d);
+    }
+  }
+}
+
+async function fetchAllDescriptions(ads) {
+  if (!ads.length) return;
+  const todo = ads.filter(ad => !ad.description && ad.description !== '');
+  if (!todo.length) return;
+  log('INFO', `Загружаем описания для ${todo.length} объявлений…`);
+  /* Параллельно, но не более 6 одновременно чтобы не флудить */
+  const CHUNK = 6;
+  for (let i = 0; i < todo.length; i += CHUNK) {
+    await Promise.allSettled(todo.slice(i, i + CHUNK).map(ad => fetchDescription(ad)));
+  }
+  const got = todo.filter(ad => ad.description && ad.description.length > 0).length;
+  log('OK', `Описания загружены: ${got}/${todo.length}`);
+}
+
+async function doSearch(reset=true) {
+  if(reset){cursor=null;allAds=[];aiRates={};aiAnalyzed=false;sortByAI=false;}
+  document.getElementById('sidebar').classList.remove('open');
+  const btn=document.getElementById('btn-search');
+  btn.disabled=true; btn.textContent='⏳ ЗАГРУЗКА…';
+  document.getElementById('main').innerHTML=`<div class="loader"><div class="spinner"></div>Загружаем…</div>`;
+  const apiUrl=buildApiUrl();
+  log('INFO','Поиск: '+apiUrl);
+  try {
+    let data, res;
+    try {
+      res=await fetch(apiUrl,{headers:{Accept:'application/json'}});
+      if(!res.ok)throw new Error(res.status);
+      data=await res.json(); log('OK','Прямой запрос ОК');
+    } catch(e1) {
+      log('WARN','Прямой: '+e1.message+' → прокси');
+      res=await fetch(CORS_PROXY+encodeURIComponent(apiUrl));
+      if(!res.ok)throw new Error('Прокси: '+res.status);
+      data=JSON.parse((await res.json()).contents); log('OK','Прокси ОК');
+    }
+    const raw=data?.ads||[], filtered=raw.filter(passesFilter);
+    allAds=allAds.concat(filtered);
+    cursor=data?.pagination?.durationToken||null;
+    log('OK',`Загружено ${raw.length}, прошло: ${filtered.length}, всего: ${allAds.length}`);
+    renderResults(raw.length,filtered.length);
+    document.getElementById('btn-ai').disabled=allAds.length===0;
+    fetchAllDescriptions(filtered); // фоновая загрузка описаний
+  } catch(e) {
+    log('ERR','doSearch: '+e.message);
+    document.getElementById('main').innerHTML=
+      `<div class="error-box">❌ ${e.message}</div><div class="placeholder"><div class="big">✕</div><p>Не удалось получить данные</p></div>`;
+  } finally { btn.disabled=false; btn.textContent='▶ ПОИСК'; }
+}
+
+/* ════ RENDER ════ */
+function renderResults(rawCount, filteredCount) {
+  document.getElementById('btn-export').style.display=allAds.length?'block':'none';
+  document.getElementById('hdr-count').innerHTML=allAds.length?`<strong>${allAds.length}</strong> объявл.`:'';
+
+  if(!allAds.length){
+    document.getElementById('main').innerHTML=`<div class="placeholder"><div class="big">∅</div>`+
+      `<p>${rawCount>0?'Все отфильтрованы по цене':'Ничего не найдено'}</p></div>`;
+    return;
+  }
+
+  let disp=[...allAds];
+  if(sortByAI && aiAnalyzed){
+    disp.sort((a,b)=>(aiRates[b.ad_id]??0)-(aiRates[a.ad_id]??0));
+    log('INFO','renderResults: сортировка по AI. Топ-3: '+disp.slice(0,3).map(a=>`${a.ad_id}(×${(aiRates[a.ad_id]??0).toFixed(2)})`).join(', '));
+  }
+
+  const note=filteredCount<rawCount?` <span>(из ${rawCount}, скрыто ${rawCount-filteredCount})</span>`:'';
+  let html=`<div class="status-bar">
+    <span class="count">${allAds.length}</span><span>объявлений${note}</span>
+    <button class="ai-sort-btn${sortByAI?' active':''}" id="ai-sort-btn"
+      onclick="toggleAISort()" style="display:${aiAnalyzed?'inline-block':'none'}">
+      ${sortByAI?'✦ По AI ↓':'↕ Сорт. по AI'}</button>
+  </div><div class="results-grid">`;
+
+  for(const ad of disp) html+=renderCard(ad);
+  html+=`</div>`;
+  if(cursor)html+=`<div class="pagination"><button class="page-btn" onclick="loadMore()">↓ Загрузить ещё</button></div>`;
+
+  document.getElementById('main').innerHTML=html;
+
+  // Restore badges
+  if(aiAnalyzed){
+    let restored=0;
+    for(const ad of disp){
+      const r=aiRates[ad.ad_id];
+      if(r!==undefined){setBadge(ad.ad_id,r);restored++;}
+    }
+    log('INFO','renderResults: восстановлено '+restored+' бейджей');
+  }
+}
+
+function renderCard(ad) {
+  const link=`https://www.kufar.by/item/${ad.ad_id}`;
+  const subject=ad.subject||'Без названия', desc=getDesc(ad), city=getCity(ad);
+  const isCo=ad.account_type==='company';
+  const rawP=getPrice(ad);
+  let priceStr='—';
+  if(rawP!==null) priceStr=(!ad.price_byn&&ad.price_usd)?`$${rawP.toFixed(0)}`:`${rawP.toFixed(0)} BYN`;
+  let date='';
+  try{if(ad.list_time)date=new Date(ad.list_time).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit'});}catch{}
+
+  const imgs=ad.images||[];
+  let imgHtml, imgUrl='';
+  if(imgs.length){
+    const img=imgs[0];
+    if(img.path)imgUrl=img.yams_storage?`https://yams.kufar.by/v1/gallery/${img.path}`:`https://rms.kufar.by/v1/gallery/${img.path}`;
+    else{const sid=typeof(img.id??img)==='string'?img.id??img:'';if(sid)imgUrl=`https://yams.kufar.by/api/v1/kufar-ads/images/${sid.slice(0,2)}/${sid}.jpg?rule=list`;}
+    imgHtml=imgUrl?`<img class="card-img" src="${imgUrl}" loading="lazy" onerror="this.outerHTML='<div class=card-no-img>NO PHOTO</div>'">`:`<div class="card-no-img">NO PHOTO</div>`;
+  }else imgHtml=`<div class="card-no-img">NO PHOTO</div>`;
+
+  const adData=JSON.stringify({id:ad.ad_id,link,subject,priceStr,city,date,imgUrl,isCo}).replace(/'/g,'&#39;');
+
+  return`<div class="card" id="card-${ad.ad_id}">
+    <span class="rate-badge" id="rate-${ad.ad_id}"></span>
+    ${imgHtml}
+    <div class="card-body">
+      <div class="card-price">${priceStr}</div>
+      <div class="card-title">${esc(subject)}</div>
+      ${desc?`<div class="card-desc">${esc(desc)}</div>`:`<div class="card-desc" style="color:var(--border);font-style:italic">загружаем описание…</div>`}
+      <div class="card-meta">
+        ${city?`<span>📍 ${esc(city)}</span>`:''}
+        ${date?`<span>🕐 ${date}</span>`:''}
+        ${isCo?`<span class="tag-co">КОМПАНИЯ</span>`:''}
+      </div>
+      <div class="card-actions">
+        <button class="btn-expand" onclick="openModal('${ad.ad_id}')">⤢ Раскрыть</button>
+        <button class="btn-copy-link" onclick="copyLink(event,'${link}',this)">📋 Ссылка</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+async function loadMore(){await doSearch(false);}
+
+function exportCSV(){
+  if(!allAds.length)return;
+  const rows=[['ID','Название','Описание','Цена','Город','Дата','AI Коэф.','Ссылка']];
+  for(const ad of allAds){
+    const p=getPrice(ad);
+    const pStr=p!==null?((!ad.price_byn&&ad.price_usd)?`$${p.toFixed(2)}`:`${p.toFixed(2)} BYN`):'';
+    rows.push([ad.ad_id||'',`"${(ad.subject||'').replace(/"/g,'""')}"`,
+      `"${getDesc(ad).replace(/"/g,'""').replace(/\n/g,' ')}"`,pStr,getCity(ad),
+      ad.list_time?new Date(ad.list_time).toLocaleDateString('ru-RU'):'',
+      aiRates[ad.ad_id]!==undefined?aiRates[ad.ad_id].toFixed(2):'',
+      `https://www.kufar.by/item/${ad.ad_id}`]);
+  }
+  const blob=new Blob(['\uFEFF'+rows.map(r=>r.join(',')).join('\n')],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  Object.assign(document.createElement('a'),{href:url,download:'kufar.csv'}).click();
+  URL.revokeObjectURL(url);
+}
+
+/* ════ MODAL ════ */
+let _modalAdId = null;
+function openModal(adId) {
+  const ad = allAds.find(a=>String(a.ad_id)===String(adId));
+  if (!ad) return;
+  _modalAdId = adId;
+  const link = `https://www.kufar.by/item/${ad.ad_id}`;
+  const rawP = getPrice(ad);
+  let priceStr = '—';
+  if (rawP!==null) priceStr = (!ad.price_byn&&ad.price_usd)?`$${rawP.toFixed(0)}`:`${rawP.toFixed(0)} BYN`;
+
+  document.getElementById('modal-title').textContent = ad.subject||'Без названия';
+  document.getElementById('modal-price').textContent = priceStr;
+  document.getElementById('modal-open-link').href = link;
+
+  const city = getCity(ad);
+  let date = '';
+  try{if(ad.list_time)date=new Date(ad.list_time).toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'2-digit'});}catch{}
+  const metaEl = document.getElementById('modal-meta');
+  metaEl.innerHTML = [
+    city?`<span>📍 ${esc(city)}</span>`:'',
+    date?`<span>🕐 ${date}</span>`:'',
+    ad.account_type==='company'?`<span class="tag-co">КОМПАНИЯ</span>`:''
+  ].join('');
+
+  /* Фото */
+  const imgs = ad.images||[];
+  const imgEl = document.getElementById('modal-img');
+  let imgUrl = '';
+  if (imgs.length) {
+    const img = imgs[0];
+    if (img.path) imgUrl = img.yams_storage?`https://yams.kufar.by/v1/gallery/${img.path}`:`https://rms.kufar.by/v1/gallery/${img.path}`;
+    else { const sid=typeof(img.id??img)==='string'?img.id??img:''; if(sid)imgUrl=`https://yams.kufar.by/api/v1/kufar-ads/images/${sid.slice(0,2)}/${sid}.jpg?rule=gallery`; }
+  }
+  if (imgUrl) { imgEl.src=imgUrl; imgEl.style.display='block'; } else { imgEl.style.display='none'; }
+
+  /* Описание */
+  const descEl = document.getElementById('modal-desc');
+  if (ad.description) {
+    descEl.className = 'modal-desc-text';
+    descEl.textContent = ad.description;
+  } else {
+    descEl.className = 'modal-desc-loading';
+    descEl.textContent = 'Загружаем описание…';
+    fetchDescription(ad).then(()=>{
+      if (_modalAdId !== adId) return;
+      if (ad.description) {
+        descEl.className = 'modal-desc-text';
+        descEl.textContent = ad.description;
+      } else {
+        descEl.textContent = 'Описание не найдено';
+      }
+    });
+  }
+
+  const copyBtn = document.getElementById('modal-copy-btn');
+  copyBtn.textContent = '📋 Копировать ссылку';
+  copyBtn.classList.remove('copied');
+  document.getElementById('ad-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal() {
+  _modalAdId = null;
+  document.getElementById('ad-modal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function handleModalBgClick(e) {
+  if (e.target === document.getElementById('ad-modal')) closeModal();
+}
+
+function copyModalLink() {
+  const link = document.getElementById('modal-open-link').href;
+  navigator.clipboard.writeText(link).then(()=>{
+    const btn = document.getElementById('modal-copy-btn');
+    btn.textContent = '✓ Скопировано!';
+    btn.classList.add('copied');
+    setTimeout(()=>{ btn.textContent='📋 Копировать ссылку'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+function copyLink(e, url, btn) {
+  e.stopPropagation();
+  navigator.clipboard.writeText(url).then(()=>{
+    const orig = btn.textContent;
+    btn.textContent = '✓ Скопировано';
+    btn.classList.add('copied');
+    setTimeout(()=>{ btn.textContent=orig; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModal(); });
+
+document.getElementById('query').addEventListener('keydown',e=>{if(e.key==='Enter')doSearch(true);});
+log('INFO','Kufar Parser + AI v3.1 инициализирован');
+</script>
+</body>
+</html>
