@@ -166,3 +166,9 @@ code_url: https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/ball
 icon_url: 
 screenshots: 
 ---
+name: Парсер куфара ИИ 
+description: Не трогай ничего кроме названия и цены. ИИ оценка работает.
+code_url: https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/kufarparse.html
+icon_url: 
+screenshots: https://i.postimg.cc/L8XQKrP6/IMG-20260221-103312-377.jpg
+---
