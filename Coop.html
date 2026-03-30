@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Cormorant+Garant:ital,wght@0,300;0,600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--gold:#DF8F03;--cream:#E9DDD2;--olive:#ACB475;--forest:#3A473C;--sand:#AA947E;--moss:#61695A;--mahog:#6B453B;--sienna:#B65927;--light:#E0E0E0;--silver:#A3A8AB;--dark:#534B44;--steel:#6B747E}
+body{background:var(--cream);font-family:'Cormorant Garant',serif;color:var(--dark);width:99vw;overflow-x:hidden}
+.w{padding:13px 16px 14px;max-width:900px;margin:0 auto}
+
+/* HEADER */
+.hdr{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:9px;padding-bottom:9px;border-bottom:1px solid var(--sand)}
+.ht{font-size:clamp(13px,2.4vw,18px);font-style:italic;color:var(--forest);flex:1}
+.ht b{font-style:normal;font-weight:700;color:var(--gold)}
+.pill{background:var(--forest);color:var(--cream);border-radius:3px;padding:4px 10px;font-family:'IBM Plex Mono',monospace}
+.pl{font-size:8px;opacity:.55;text-transform:uppercase;letter-spacing:.12em}
+.pv{font-size:15px;font-weight:500;color:var(--olive);line-height:1.2}
+.ps{font-size:8px;opacity:.4}
+
+/* STATUS */
+.st{display:flex;align-items:center;gap:5px;font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--silver);margin-bottom:12px}
+.dot{width:5px;height:5px;border-radius:50%;background:var(--silver)}
+.dot.live{background:var(--olive)}.dot.err{background:var(--sienna)}
+
+/* INPUT — centred column */
+.ir{display:flex;flex-direction:column;align-items:center;gap:8px;margin-bottom:14px}
+.lb{font-family:'IBM Plex Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.15em;color:var(--steel);text-align:center}
+.pw{display:flex}
+input[type=text]{
+  padding:10px 14px;
+  font-family:'IBM Plex Mono',monospace;
+  font-size:20px;
+  letter-spacing:.18em;
+  border:1.5px solid var(--sand);
+  border-radius:4px 0 0 4px;
+  background:white;
+  color:var(--dark);
+  outline:none;
+  width:190px;
+  text-align:right;
+}
+input[type=text]:focus{border-color:var(--gold)}
+.cur{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--steel);padding:0 12px;border:1.5px solid var(--sand);border-left:none;border-radius:0 4px 4px 0;background:var(--light);display:flex;align-items:center;letter-spacing:.05em}
+.btn{
+  padding:10px 0;
+  width:218px;
+  background:var(--gold);
+  color:white;
+  border:none;
+  border-radius:4px;
+  font-family:'IBM Plex Mono',monospace;
+  font-size:13px;
+  font-weight:500;
+  cursor:pointer;
+  letter-spacing:.12em;
+  transition:background .15s;
+}
+.btn:hover{background:var(--sienna)}
+.params{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--steel);line-height:1.5;text-align:center;opacity:.75}
+
+/* RESULTS */
+.res{display:none}.res.on{display:block}
+
+/* DONUT */
+.da{margin-bottom:6px;text-align:center}
+.ds{max-width:540px;width:100%}
+#dBP,#dBO,#dCP,#dCO{stroke-dasharray:0 520}
+
+/* OVERPAY ROW — under donuts */
+.ov-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:540px;margin:0 auto 14px;font-family:'IBM Plex Mono',monospace}
+.ov{border-radius:4px;padding:8px 12px;line-height:1.5}
+.ov .ov-lbl{font-size:9px;text-transform:uppercase;letter-spacing:.12em;opacity:.7;display:block}
+.ov .ov-val{font-size:16px;font-weight:500;display:block}
+.ov.bk{background:rgba(182,89,39,.1);color:var(--sienna)}
+.ov.ck{background:rgba(172,180,117,.15);color:var(--moss)}
+
+/* PHYSICS */
+.pa{margin-bottom:12px}
+.phy-hdr{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:4px;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em}
+.pb{text-align:center;padding:6px 8px;border-radius:3px;font-weight:500}
+.pb.bk{background:rgba(182,89,39,.12);color:var(--sienna)}
+.pb.ck{background:rgba(172,180,117,.15);color:var(--moss)}
+.phy-note{font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--steel);opacity:.7;margin-bottom:5px;letter-spacing:.04em}
+#physBox{width:100%;border-radius:5px;overflow:hidden}
+#physBox canvas{display:block}
+
+/* FOOTNOTE */
+.fn{font-size:10px;color:var(--moss);font-style:italic;padding:6px 10px;background:rgba(172,180,117,.1);border:1px solid rgba(172,180,117,.25);border-radius:3px;line-height:1.5;display:none;margin-top:8px}
+.fn b{font-style:normal}
+</style>
+</head>
+<body>
+<div class="w">
+
+  <div class="hdr">
+    <div class="ht"> <b>Калькулятор переплат</b> при покупке квартиры</div>
+    <div class="pill">
+      <div class="pl">Ставка НБ РБ</div>
+      <div class="pv" id="nbVal">…</div>
+      <div class="ps" id="nbSrc">загрузка</div>
+    </div>
+  </div>
+
+  <div class="st"><div class="dot" id="dot"></div><span id="stTxt">Получение данных…</span></div>
+
+  <div class="ir">
+    <div class="lb">Стоимость квартиры</div>
+    <div class="pw">
+      <input type="text" id="priceDisp" value="250 000" inputmode="numeric" autocomplete="off">
+      <div class="cur">BYN</div>
+    </div>
+    <button class="btn" id="calcBtn" onclick="doCalc()" disabled style="opacity:.5;cursor:not-allowed">Рассчитать</button>
+    
+  </div>
+
+  <div class="res" id="res">
+
+    <!-- DONUT INFOGRAPHIC -->
+    <div class="da">
+      <svg class="ds" id="donutSvg" viewBox="0 0 540 242" xmlns="http://www.w3.org/2000/svg">
+        <!-- BG full rings -->
+        <circle cx="120" cy="121" r="83" fill="none" stroke="#E0E0E0" stroke-width="26"/>
+        <circle cx="420" cy="121" r="83" fill="none" stroke="#E0E0E0" stroke-width="26"/>
+
+        <!-- Bank arcs -->
+        <circle id="dBP" cx="120" cy="121" r="83" fill="none" stroke="#AA947E" stroke-width="26" transform="rotate(-90 120 121)"/>
+        <circle id="dBO" cx="120" cy="121" r="83" fill="none" stroke="#B65927" stroke-width="26" transform="rotate(-90 120 121)"/>
+
+        <!-- Coop arcs -->
+        <circle id="dCP" cx="420" cy="121" r="83" fill="none" stroke="#AA947E" stroke-width="26" transform="rotate(-90 420 121)"/>
+        <circle id="dCO" cx="420" cy="121" r="83" fill="none" stroke="#ACB475" stroke-width="26" transform="rotate(-90 420 121)"/>
+
+        <!-- Bank center: big bright label -->
+        <text x="120" y="101" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="13" font-weight="500" fill="#E9DDD2" letter-spacing="1">БАНК</text>
+        <text x="120" y="118" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="14" font-weight="500" fill="#DF8F03" letter-spacing=".5">18,5%</text>
+        <text id="lBP" x="120" y="140" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="22" font-weight="500" fill="#B65927">—</text>
+        <text x="120" y="153" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="11" fill="#AA947E" letter-spacing=".3">переплата к долгу</text>
+
+        <!-- Coop center: big bright label -->
+        <text x="420" y="101" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="13" font-weight="500" fill="#E9DDD2" letter-spacing="1">КООП</text>
+        <text id="lCR" x="420" y="118" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="14" font-weight="500" fill="#ACB475" letter-spacing=".5">…%</text>
+        <text id="lCP" x="420" y="140" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="22" font-weight="500" fill="#ACB475">—</text>
+        <text x="420" y="153" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="11" fill="#AA947E" letter-spacing=".3">переплата к долгу</text>
+
+
+        
+        <text id="lSV" x="266" y="125" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="15" font-weight="500" fill="#DF8F03">—</text>
+        <text id="lSP" x="266" y="138" text-anchor="middle" font-family="IBM Plex Mono,monospace" font-size="14" fill="#ACB475">—</text>
+      </svg>
+    </div>
+
+    <!-- OVERPAY TOTALS under donuts -->
+    <div class="ov-row">
+      <div class="ov bk">
+        <span class="ov-lbl">Банк · сумма переплат</span>
+        <span class="ov-val" id="lBA">—</span>
+      </div>
+      <div class="ov ck">
+        <span class="ov-lbl">Кооператив · сумма переплат</span>
+        <span class="ov-val" id="lCA">—</span>
+      </div>
+    </div>
+
+    <!-- PHYSICS COINS -->
+    <div class="pa">
+      <div class="phy-hdr">
+        <div class="pb bk" id="phyB">БАНК</div>
+        <div class="pb ck" id="phyC">КООПЕРАТИВ</div>
+      </div>
+      <div class="phy-note">* Наглядное сравнение. Масштаб условный, без претензий на точность.</div>
+      <div id="physBox"></div>
+    </div>
+
+  </div>
+
+  <div class="fn" id="fn"><b>⁎</b> Кооперативная ставка = ставка рефинансирования НБ РБ. <b>1 💵 = 300 BYN.</b> Информационный расчёт - только для справки. Расчет при: Первоначальный взнос 30% стоимости жилья · Срок 10 лет · Банк 18,5% годовых ·  Кооператив - ставка нацбанка</div>
+
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+<script>
+let S={price:150000,bRate:18.5,cRate:null};
+const g=id=>document.getElementById(id);
+const set=(id,v)=>{const el=g(id);if(el)el.textContent=v;};
+const fBYN=n=>isNaN(n)?'—':Math.round(n).toLocaleString('ru-RU')+'\u00a0BYN';
+const ann=(P,r,y)=>{const m=r/100/12,n=y*12;return m?P*m*Math.pow(1+m,n)/(Math.pow(1+m,n)-1):P/n};
+
+/* ─── INPUT FORMATTING ─── */
+(function(){
+  const inp=g('priceDisp');
+  function fmt(raw){return raw.replace(/\D/g,'').replace(/\B(?=(\d{3})+(?!\d))/g,'\u2009');}
+  inp.addEventListener('input',function(){
+    const sel=this.selectionStart;
+    const old=this.value;
+    const raw=old.replace(/\D/g,'');
+    if(!raw){this.value='';return;}
+    const f=fmt(raw);
+    this.value=f;
+    // keep cursor roughly in place
+    const diff=f.length-old.length;
+    try{this.setSelectionRange(sel+diff,sel+diff);}catch(e){}
+  });
+  inp.addEventListener('blur',function(){
+    if(!this.value.replace(/\D/g,''))this.value='';
+  });
+})();
+function getPriceVal(){return parseInt((g('priceDisp').value||'').replace(/\D/g,''),10)||0;}
+
+/* ─── RATE LOAD ─── */
+async function loadRate(){
+  try{
+    const r=await fetch('https://api.nbrb.by/refinancingrate');
+    if(!r.ok)throw 0;
+    const d=await r.json();
+    const l=d[d.length-1];
+    S.cRate=parseFloat(l.Value);
+    const dt=new Date(l.Date).toLocaleDateString('ru');
+    set('nbVal',S.cRate.toFixed(2)+'%');
+    set('nbSrc','с '+dt);
+    set('lCR',S.cRate.toFixed(2)+'%');
+    setSt('live','Данные актуальны · Нацбанк РБ');
+    enableBtn();
+  }catch{
+    S.cRate=9.5;
+    set('nbVal','9,50%');set('nbSrc','резерв');set('lCR','9,50%');
+    setSt('err','Резервное значение 9,50%');
+    enableBtn();
+  }
+}
+function setSt(t,txt){
+  g('dot').className='dot '+(t==='live'?'live':t==='err'?'err':'');
+  set('stTxt',txt);
+}
+
+/* ─── DONUT ─── */
+const CR=2*Math.PI*83;
+
+function arcAnim(id,len,rotDeg,cx,cy,delay){
+  const el=g(id);
+  el.setAttribute('transform',`rotate(${rotDeg} ${cx} ${cy})`);
+  el.style.transition='none';
+  el.style.strokeDasharray=`0,${CR+1}`;
+  void el.getBoundingClientRect();
+  setTimeout(()=>{
+    el.style.transition='stroke-dasharray 1.1s cubic-bezier(.4,0,.2,1)';
+    el.style.strokeDasharray=`${len},${CR+1}`;
+  },delay);
+}
+
+function updateDonut(loan,bO,cO){
+  const bT=loan+bO,cT=loan+cO;
+  const bPL=(loan/bT)*CR,bOL=(bO/bT)*CR,bPA=(loan/bT)*360;
+  const cPL=(loan/cT)*CR,cOL=(cO/cT)*CR,cPA=(loan/cT)*360;
+
+  arcAnim('dBP',bPL,-90,120,121,50);
+  arcAnim('dBO',bOL,-90+bPA,120,121,250);
+  arcAnim('dCP',cPL,-90,420,121,50);
+  arcAnim('dCO',cOL,-90+cPA,420,121,250);
+
+  set('lBP',(bO/loan*100).toFixed(1)+'%');
+  set('lCP',(cO/loan*100).toFixed(1)+'%');
+  g('lBA').textContent=fBYN(bO);
+  g('lCA').textContent=fBYN(cO);
+  const sv=bO-cO;
+  set('lSV',fBYN(sv));
+  set('lSP','−'+(sv/bO*100).toFixed(1)+'%');
+}
+
+/* ─── PHYSICS ─── */
+let mE,mR,mRn,coins=[];
+
+function startPhysics(bN,cN){
+  if(typeof Matter==='undefined'){console.warn('Matter not loaded');return;}
+  const {Engine,Render,Runner,Bodies,Body,World,Events}=Matter;
+  const box=g('physBox');
+  box.innerHTML='';coins=[];
+  if(mE){World.clear(mE.world);Engine.clear(mE);}
+  if(mRn)Runner.stop(mRn);
+  if(mR)Render.stop(mR);
+
+  const W=box.offsetWidth||600,H=300;
+  const mid=Math.floor(W/2);
+
+  mE=Engine.create({
+    gravity:{y:3},
+    enableSleeping:true,
+    positionIterations:4,
+    velocityIterations:4,
+    constraintIterations:2
+  });
+
+  mR=Render.create({
+    element:box,engine:mE,
+    options:{width:W,height:H,wireframes:false,background:'#3A473C'}
+  });
+
+  const ws={isStatic:true,render:{fillStyle:'#4d564c'}};
+  World.add(mE.world,[
+    Bodies.rectangle(W/2,H+15,W+60,30,ws),
+    Bodies.rectangle(5,H/2,10,H*2,ws),
+    Bodies.rectangle(mid,H/2,8,H*2,ws),
+    Bodies.rectangle(W-5,H/2,10,H*2,ws)
+  ]);
+
+  Events.on(mR,'afterRender',()=>{
+    const ctx=mR.context;
+    ctx.font='14px serif';
+    ctx.textAlign='center';
+    ctx.textBaseline='middle';
+    coins.forEach(b=>{
+      ctx.save();
+      ctx.translate(b.position.x,b.position.y);
+      ctx.rotate(b.angle);
+      ctx.fillText('💵',0,0);
+      ctx.restore();
+    });
+  });
+
+  /* Each coin freezes 2.5s after its own first collision */
+  Events.on(mE,'collisionStart',evt=>{
+    evt.pairs.forEach(pair=>{
+      [pair.bodyA,pair.bodyB].forEach(b=>{
+        if(!b.isStatic&&!b._hitTime) b._hitTime=Date.now();
+      });
+    });
+  });
+  const freezeTimer=setInterval(()=>{
+    const now=Date.now();
+    coins.forEach(b=>{
+      if(!b.isStatic&&b._hitTime&&now-b._hitTime>2500){
+        Body.setStatic(b,true);
+      }
+    });
+  },100);
+
+  mRn=Runner.create();
+  Render.run(mR);
+  Runner.run(mRn,mE);
+
+  const lx=mid/2,rx=mid+(W-mid)/2;
+  let bd=0,cd=0;
+  const coinOpts={restitution:.04,friction:.92,frictionAir:.07,density:.0004,sleepThreshold:25,render:{opacity:0}};
+  function drop(){
+    if(bd<bN){
+      const c=Bodies.circle(lx+(Math.random()-.5)*50,-15,8,coinOpts);
+      coins.push(c);World.add(mE.world,c);bd++;
+    }
+    if(cd<cN){
+      const c=Bodies.circle(rx+(Math.random()-.5)*50,-15,8,coinOpts);
+      coins.push(c);World.add(mE.world,c);cd++;
+    }
+    if(bd<bN||cd<cN)setTimeout(drop,38);
+  }
+  drop();
+}
+
+/* ─── CALCULATE ─── */
+function doCalc(){
+  if(!S.cRate){setSt('err','Ставка не загружена');return;}
+  const p=getPriceVal();
+  if(!p||p<1000)return;
+  S.price=p;
+
+  const loan=p*.7;
+  const bM=ann(loan,S.bRate,10),cM=ann(loan,S.cRate,10);
+  const bO=bM*120-loan,cO=cM*120-loan;
+
+  g('res').classList.add('on');
+  g('fn').style.display='block';
+  setTimeout(()=>updateDonut(loan,bO,cO),60);
+
+  const CVAL=400,MAX=120;
+  const bR=Math.round(bO/CVAL),cR=Math.round(cO/CVAL);
+  const sc=Math.max(1,Math.ceil(Math.max(bR,cR)/MAX));
+  const bN=Math.round(bR/sc),cN=Math.round(cR/sc);
+  const scLbl=sc>1?` (×${sc})`:'';
+  g('phyB').textContent='БАНК'+scLbl;
+  g('phyC').textContent='КООПЕРАТИВ'+scLbl;
+
+  setTimeout(()=>startPhysics(bN,cN),400);
+}
+
+function enableBtn(){const b=g('calcBtn');if(b){b.disabled=false;b.style.opacity='';b.style.cursor='';} }
+loadRate();
+</script>
+</body>
+  </html>
+  
