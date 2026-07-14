@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>Скоро увидимся</title>
+    <link href="https://fonts.googleapis.com/css2?family=Uncial+Antiqua&display=swap" rel="stylesheet">
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            background: #0b0808;
+            background-image: radial-gradient(circle at 30% 40%, #1f1210 0%, #0b0808 90%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Uncial Antiqua', serif;
+            padding: 12px;
+            touch-action: none;
+        }
+        .container {
+            max-width: 500px;
+            width: 100%;
+            background: rgba(18, 10, 10, 0.88);
+            border: 2px solid #4a2a1a;
+            border-radius: 32px;
+            padding: 20px 16px 24px;
+            box-shadow: 0 0 50px rgba(120,30,10,0.5), inset 0 0 40px rgba(60,20,10,0.3);
+            backdrop-filter: blur(3px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+        .container::before, .container::after {
+            content: "✠";
+            position: absolute;
+            font-size: 28px;
+            color: #7a5a3a;
+            text-shadow: 0 0 20px #b8860b;
+        }
+        .container::before { top: -6px; left: 10px; transform: rotate(-15deg); }
+        .container::after { bottom: -6px; right: 10px; transform: rotate(165deg); }
+
+        .title {
+            color: #d4b48c;
+            font-size: 2.0rem;
+            letter-spacing: 4px;
+            text-shadow: 0 0 20px #b8860b, 0 0 40px #8b4513;
+            margin-bottom: 4px;
+            text-align: center;
+        }
+        .period-info {
+            color: #b09880;
+            font-size: 1.0rem;
+            border-top: 1px solid #4a2a1a;
+            border-bottom: 1px solid #4a2a1a;
+            padding: 8px 0;
+            width: 100%;
+            text-align: center;
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        .period-info span { color: #e0c0a0; }
+
+        .canvas-wrapper {
+            display: flex;
+            justify-content: center;
+            width: 100%;
+            margin: 6px 0 12px;
+        }
+        #pixelCanvas {
+            width: min(70vw, 400px);
+            height: min(70vw, 400px);
+            image-rendering: pixelated;
+            background: #1a1210;
+            border: 2px solid #3a2a1a;
+            border-radius: 8px;
+            box-shadow: inset 0 0 30px #0a0505, 0 0 40px rgba(80,20,10,0.4);
+        }
+        .progress-digits {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 220px;
+            margin-top: 12px;
+            color: #b09880;
+            font-size: 0.9rem;
+            letter-spacing: 1px;
+        }
+        .progress-digits .percent {
+            color: #e0b090;
+            font-size: 1.6rem;
+            text-shadow: 0 0 20px #8b3a1a;
+        }
+        .time-grid {
+            display: flex;
+            gap: 14px;
+            margin: 10px 0 4px;
+            color: #b09880;
+            font-size: 0.75rem;
+        }
+        .time-item { text-align: center; }
+        .time-value {
+            font-size: 1.8rem;
+            color: #f0d0b0;
+            text-shadow: 0 0 20px #8b3a1a;
+            font-weight: bold;
+            line-height: 1.2;
+        }
+        .time-label {
+            font-size: 0.6rem;
+            letter-spacing: 1px;
+            color: #7a6050;
+        }
+        @media (max-width: 400px) {
+            .title { font-size: 1.6rem; }
+            .period-info { font-size: 0.8rem; gap: 8px; }
+            #pixelCanvas { width: 80vw; height: 80vw; }
+            .time-value { font-size: 1.4rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="title">⚔ Скоро увидимся ⚔</div>
+    <div class="period-info">
+        <span id="phaseName">Смена</span>
+        <span id="dateRange">10–24 июля</span>
+    </div>
+
+    <div class="canvas-wrapper">
+        <canvas id="pixelCanvas" width="100" height="100"></canvas>
+    </div>
+
+    <div class="progress-digits">
+        <span>прогресс</span>
+        <span class="percent" id="percentDisplay">0%</span>
+    </div>
+
+    <div class="time-grid">
+        <div class="time-item"><div class="time-value" id="days">00</div><div class="time-label">дней</div></div>
+        <div class="time-item"><div class="time-value" id="hours">00</div><div class="time-label">часов</div></div>
+        <div class="time-item"><div class="time-value" id="minutes">00</div><div class="time-label">минут</div></div>
+        <div class="time-item"><div class="time-value" id="seconds">00</div><div class="time-label">секунд</div></div>
+    </div>
+</div>
+
+<script>
+(function() {
+    // ========== НАСТРОЙКИ ==========
+    const INVERT_X = true;   // инвертировать ось X (если наклон влево – течёт вправо, поставьте true)
+    const INVERT_Y = false;  // инвертировать ось Y (если жидкость липнет к потолку, поставьте true)
+    const SMOOTHING = 0.3;   // 0..1, меньше – плавнее
+    // ================================
+
+    const canvas = document.getElementById('pixelCanvas');
+    const ctx = canvas.getContext('2d');
+    const W = 100, H = 100;
+    const TOTAL = W * H;
+    canvas.width = W; canvas.height = H;
+
+    const BG = [26, 18, 16];
+    const FILL_BOTTOM = [181, 58, 26];
+    const FILL_TOP = [74, 16, 8];
+
+    const imageData = ctx.createImageData(W, H);
+    const data = imageData.data;
+    const depths = new Float32Array(TOTAL);
+    const order = new Array(TOTAL);
+    for (let i = 0; i < TOTAL; i++) order[i] = i;
+
+    let gravX = 0, gravY = 1;
+    let lastGravX = 0, lastGravY = 1;
+    let filledPixels = 0;
+
+    // Периоды
+    const now = new Date();
+    const year = now.getFullYear();
+    const periods = [
+        { start: new Date(year, 6, 10), end: new Date(year, 6, 24), label: 'Смена', short: '10–24 июля' },
+        { start: new Date(year, 6, 25), end: new Date(year, 6, 27), label: 'Отдых', short: '25–27 июля' },
+        { start: new Date(year, 6, 28), end: new Date(year, 7, 13), label: 'Смена', short: '28 июля – 13 авг' }
+    ];
+
+    function getCurrentPeriod(date) {
+        for (let p of periods) if (date >= p.start && date <= p.end) return p;
+        return null;
+    }
+
+    function getPixelProgress(period, date) {
+        if (!period) return { filled: TOTAL, totalMs: 1 };
+        const start = period.start.getTime();
+        const end = new Date(period.end.getFullYear(), period.end.getMonth(), period.end.getDate(), 23, 59, 59).getTime();
+        const totalMs = end - start;
+        if (totalMs <= 0) return { filled: TOTAL, totalMs: 1 };
+        const elapsed = Math.max(0, Math.min(date.getTime() - start, totalMs));
+        return { filled: Math.floor((elapsed / totalMs) * TOTAL), totalMs };
+    }
+
+    function updateOrder() {
+        const cx = (W - 1) / 2, cy = (H - 1) / 2;
+        for (let y = 0; y < H; y++) {
+            for (let x = 0; x < W; x++) {
+                const dx = x - cx, dy = y - cy;
+                const idx = y * W + x;
+                depths[idx] = dx * gravX + dy * gravY;
+            }
+        }
+        order.sort((a, b) => depths[b] - depths[a]);
+    }
+
+    function draw() {
+        for (let i = 0; i < data.length; i += 4) {
+            data[i] = BG[0];
+            data[i+1] = BG[1];
+            data[i+2] = BG[2];
+            data[i+3] = 255;
+        }
+
+        const count = Math.min(filledPixels, TOTAL);
+        const minDepth = depths[order[TOTAL-1]];
+        const maxDepth = depths[order[0]];
+        const range = maxDepth - minDepth;
+
+        for (let idx = 0; idx < count; idx++) {
+            const pixelIndex = order[idx];
+            const y = Math.floor(pixelIndex / W);
+            const x = pixelIndex % W;
+            const offset = (y * W + x) * 4;
+            let t = 0;
+            if (range > 0.0001) t = (depths[pixelIndex] - minDepth) / range;
+            const r = Math.round(FILL_BOTTOM[0] + (FILL_TOP[0] - FILL_BOTTOM[0]) * t);
+            const g = Math.round(FILL_BOTTOM[1] + (FILL_TOP[1] - FILL_BOTTOM[1]) * t);
+            const b = Math.round(FILL_BOTTOM[2] + (FILL_TOP[2] - FILL_BOTTOM[2]) * t);
+            data[offset] = r;
+            data[offset+1] = g;
+            data[offset+2] = b;
+            data[offset+3] = 255;
+        }
+        ctx.putImageData(imageData, 0, 0);
+    }
+
+    // Обновление времени и прогресса
+    function updateUI() {
+        const now = new Date();
+        const period = getCurrentPeriod(now);
+
+        if (!period) {
+            document.getElementById('phaseName').textContent = 'Завершено';
+            document.getElementById('dateRange').textContent = '—';
+            filledPixels = TOTAL;
+            draw();
+            document.getElementById('percentDisplay').textContent = '100%';
+            document.getElementById('days').textContent = '00';
+            document.getElementById('hours').textContent = '00';
+            document.getElementById('minutes').textContent = '00';
+            document.getElementById('seconds').textContent = '00';
+            return;
+        }
+
+        const { filled, totalMs } = getPixelProgress(period, now);
+        filledPixels = filled;
+        const progress = filled / TOTAL;
+
+        const remainingMs = Math.max(0, new Date(period.end.getFullYear(), period.end.getMonth(), period.end.getDate(), 23, 59, 59).getTime() - now.getTime());
+        const totalSec = Math.floor(remainingMs / 1000);
+        const days = String(Math.floor(totalSec / 86400)).padStart(2, '0');
+        const hours = String(Math.floor((totalSec % 86400) / 3600)).padStart(2, '0');
+        const minutes = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
+        const seconds = String(Math.floor(totalSec % 60)).padStart(2, '0');
+
+        document.getElementById('phaseName').textContent = period.label;
+        document.getElementById('dateRange').textContent = period.short;
+        document.getElementById('percentDisplay').textContent = Math.round(progress * 100) + '%';
+        document.getElementById('days').textContent = days;
+        document.getElementById('hours').textContent = hours;
+        document.getElementById('minutes').textContent = minutes;
+        document.getElementById('seconds').textContent = seconds;
+
+        draw();
+    }
+
+    // === Гравитация с фильтром и инверсией ===
+    let smoothGravX = 0, smoothGravY = 1;
+
+    function applyGravity(rawX, rawY) {
+        // Применяем инверсии
+        if (INVERT_X) rawX = -rawX;
+        if (INVERT_Y) rawY = -rawY;
+
+        // Если оба почти нулевые – оставляем (0,1)
+        if (Math.abs(rawX) < 0.01 && Math.abs(rawY) < 0.01) {
+            rawX = 0; rawY = 1;
+        } else {
+            const len = Math.sqrt(rawX*rawX + rawY*rawY);
+            rawX /= len;
+            rawY /= len;
+        }
+        // Экспоненциальное сглаживание
+        smoothGravX = smoothGravX * (1 - SMOOTHING) + rawX * SMOOTHING;
+        smoothGravY = smoothGravY * (1 - SMOOTHING) + rawY * SMOOTHING;
+        // Нормализуем сглаженный вектор
+        const len = Math.sqrt(smoothGravX*smoothGravX + smoothGravY*smoothGravY);
+        if (len > 0.001) {
+            gravX = smoothGravX / len;
+            gravY = smoothGravY / len;
+        } else {
+            gravX = 0; gravY = 1;
+        }
+        // Если изменился заметно – пересортировать
+        if (Math.abs(gravX - lastGravX) > 0.01 || Math.abs(gravY - lastGravY) > 0.01) {
+            lastGravX = gravX;
+            lastGravY = gravY;
+            updateOrder();
+            draw();
+        }
+    }
+
+    // Обработчик акселерометра
+    if (window.DeviceMotionEvent) {
+        window.addEventListener('devicemotion', function(event) {
+            const acc = event.accelerationIncludingGravity;
+            if (acc && acc.x !== null && acc.y !== null) {
+                let x = acc.x;
+                let y = acc.y;
+                applyGravity(x, y);
+            }
+        }, { passive: true });
+    } else if (window.DeviceOrientationEvent) {
+        // Запасной вариант через углы (с фильтром)
+        window.addEventListener('deviceorientation', function(event) {
+            let beta = event.beta;   // -180..180
+            let gamma = event.gamma; // -90..90
+            if (beta === null || gamma === null) return;
+            let rawX = gamma / 45;
+            let rawY = beta / 45;
+            rawX = Math.max(-1, Math.min(1, rawX));
+            rawY = Math.max(-1, Math.min(1, rawY));
+            applyGravity(rawX, rawY);
+        }, { passive: true });
+    }
+
+    // Инициализация
+    updateOrder();
+    updateUI();
+    setInterval(updateUI, 1000);
+})();
+</script>
+</body>
+</html>
