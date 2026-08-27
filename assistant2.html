@@ -68,8 +68,8 @@ html,body{height:100%;margin:0;padding:0;background:linear-gradient(180deg,#f7f8
 }
 #prompt{width:100%;min-height:44px;max-height:40vh;border:0;outline:0;font-size:16px;padding:10px 2px;background:transparent;resize:none;line-height:1.35;color:var(--user-text)}
 .send-btn{width:44px;height:44px;border-radius:50%;border:none;background:linear-gradient(135deg,var(--accent),#ff6a6a);color:#fff;font-weight:800;font-size:18px;box-shadow:0 4px 12px rgba(11,132,255,0.15);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
-.modal-back{position:fixed;inset:0;background:rgba(5,8,15,0.35);display:none;align-items:center;justify-content:center;z-index:200}
-.modal{width:92%;max-width:520px;background:#fff;border-radius:12px;padding:14px;box-shadow:0 25px 80px rgba(6,10,20,0.28);color:#071628}
+.modal-back{position:fixed;inset:0;background:rgba(5,8,15,0.35);display:none;align-items:flex-start;justify-content:center;z-index:200;padding-top:20px;overflow-y:auto;}
+.modal{width:92%;max-width:520px;background:#fff;border-radius:12px;padding:14px;box-shadow:0 25px 80px rgba(6,10,20,0.28);color:#071628;max-height:85vh;overflow-y:auto;}
 .modal h3{margin:0 0 8px 0}
 .row-split{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .select,.switch,.modal button{font-size:14px;padding:8px 10px;border-radius:10px}
@@ -77,6 +77,42 @@ html,body{height:100%;margin:0;padding:0;background:linear-gradient(180deg,#f7f8
 .small-muted{font-size:13px;color:#6f7a8a;margin-top:6px}
 .iframe-wrap{height:240px;border:1px solid #e6e9ef;border-radius:8px;overflow:hidden;margin-top:8px}
 .service{font-size:13px;color:#1b2a3a;padding:8px;border-radius:8px;background:#f6f9ff;border:1px solid #edf4ff;margin-top:8px}
+.api-fields input {
+  width: 100%;
+  padding: 8px;
+  margin-bottom: 8px;
+  border: 1px solid #e6e9ef;
+  border-radius: 8px;
+  font-size: 14px;
+}
+.api-fields input:disabled {
+  background-color: #f0f2f5;
+  color: #8b95a8;
+  cursor: not-allowed;
+}
+.api-fields label {
+  font-size: 13px;
+  color: #4d5969;
+  display: block;
+  margin-bottom: 4px;
+}
+#apiModeIndicator {
+  font-size: 13px;
+  font-weight: bold;
+  margin-top: 6px;
+}
+.radio-group {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+  align-items: center;
+}
+.radio-group label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
 @media (max-width:520px){
   .header .title{font-size:16px}
   .iframe-wrap{height:200px}
@@ -123,6 +159,32 @@ html,body{height:100%;margin:0;padding:0;background:linear-gradient(180deg,#f7f8
         <button id="oldVersionBtn" class="btn">Старая версия</button>
         <button id="serviceBtn" class="btn">Служебное</button>
       </div>
+      
+      <!-- Блок для кастомного API с переключателем -->
+      <div style="margin-top:16px;border-top:1px solid #eee;padding-top:12px">
+        <div class="small-muted"><strong>Источник API</strong></div>
+        <div class="radio-group">
+          <label>
+            <input type="radio" name="apiSource" value="google" id="radioGoogle">
+            Google AI Studio
+          </label>
+          <label>
+            <input type="radio" name="apiSource" value="custom" id="radioCustom">
+            Кастомный API
+          </label>
+        </div>
+        <div id="apiModeIndicator" class="small-muted"></div>
+        <div class="api-fields" style="margin-top:8px">
+          <label for="customEndpoint">Endpoint (URL)</label>
+          <input type="text" id="customEndpoint" placeholder="https://api.example.com/v1/chat/completions">
+          <label for="customApiKey">API Key</label>
+          <input type="text" id="customApiKey" placeholder="sk-...">
+          <label for="customModel">Model</label>
+          <input type="text" id="customModel" placeholder="model-name">
+        </div>
+        <div class="small-muted" style="margin-top:6px">Поля сохраняются автоматически при закрытии окна. При выборе Google они неактивны, но значения не удаляются.</div>
+      </div>
+      
       <div class="small-muted" style="margin-top:12px">Сохранение и загрузка чатов</div>
       <div class="iframe-wrap" style="margin-top:8px">
         <iframe id="savedConversationsFrame" style="width:100%;height:100%;border:0" title="Сохранённые чаты"></iframe>
@@ -133,9 +195,12 @@ html,body{height:100%;margin:0;padding:0;background:linear-gradient(180deg,#f7f8
       </div>
       <div class="service" id="servicePanel" style="display:none;margin-top:12px">
         <div><strong>Служебная информация</strong></div>
+        <div id="svc-mode">Режим: —</div>
+        <div id="svc-last-api">Последний API: —</div>
         <div id="svc-keys">Ключей загружено: 0</div>
         <div id="svc-errors">Ошибок отправки: 0</div>
         <div id="svc-last">Последняя проблема: —</div>
+        <button id="svc-reset-errors" class="btn" style="margin-top:6px">Сбросить ошибки</button>
       </div>
     </div>
   </div>
@@ -152,23 +217,14 @@ html,body{height:100%;margin:0;padding:0;background:linear-gradient(180deg,#f7f8
 </div>
 
 <script>
-// ── КОНФИГ ────────────────────────────────────────────────────────────────────
-
-// Файл с зашифрованными ключами (формат и расшифровка — без изменений)
+// ── КОНФИГ (Google fallback) ──────────────────────────────────────────────────
 const KEYS_URLS = ['https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/freePOE.txt'];
-
-// Резервный ключ Google AI Studio — используется если из файла не загрузились ключи
 const FALLBACK_KEY = 'AIzaSyCLIwMGlEZI1aVP4J8AdMpjxUz5aQdeECM';
-
-// Модель Google AI Studio
-// Docs: https://ai.google.dev/gemini-api/docs/openai
 const TEXT_MODEL = 'gemini-3-flash-preview';
-
-// OpenAI-совместимый эндпоинт Google AI Studio
 const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
 
 // ── СИСТЕМНЫЕ ПРОМПТЫ ─────────────────────────────────────────────────────────
-const NATIVE_SYSTEM_CONTEXT = "Ты - ассистент в приложении G-list, также называемого 'Глист'. Оформление преимущественно в оттенках серого. Первыйый ассистент свято верил в то, что он банан и был заменён на тебя. С обновления Glist 1.9 ты был прокачан с API 1.5 до API 2.0, а в версии 2.0 твой API повышен до 2.5. С версии 1.91 Ты можешь выполнять JS если отправишь его так: © alert('Привет!'); © важно что код должен быть целиком обернут с двух сторон знаками '©' как в примере и никак иначе, без ```javascript и прочей фигни. ты можешь использовать это для изменения стилей, баловства, показ текста, рисованием фигурами и помех на экране, гифок и медиа, генерации звуков, если будешь делать ПОВЕРХ интерфейса чтобы было видно, а ещё открытия файлов (glist.html -Меню, gamebar.html - Игровое меню, tool9.html - Раздел помощи, ebota.html - Сборник развлечений и хлама). Учти, что юзеры не видят консоль, а ты не будешь видеть написанный ранее тобой код. Отвечай на запросы пользователей небрежно, лениво, часто с черным юмором и сарказмом, будь лаконичен, циничен и харизматичен. Тебе будет полезна следующая информация про приложение G-list, ассистентом которого ты являешься: G-list (рус. Глист) -- Самое долбанутое и веселое приложение, созданное когда-либо (Да ещё и памяти занимает совсем немного, около 10-20 МБ). Нажав на '?' в главном меню, можно найти ответы про то, как пользоваться приложением. Обычно запускается на Android версии 5.0 и выше, но есть веб-версия (https://vaneyn.github.io/glistnet/glist.html), поэтому подходит и для ПК. Также обновления и новости есть в телеграмм канале проекта (https://t.me/glist_channel), где можно скачать актуальную версию G-list, а также в RuStore (https://www.rustore.ru/catalog/app/com.vaneyn.glist). В главном меню показана последняя версия на сервере, кнопки '?', 'меню' и кнопки функций. Рекламы нет, всё бесплатно. Основной функционал: Мощность устройства (10 тысяч - очень мало, 15 - старовато, не очень, 30 и выше - неплохо, 50 и выше - замечательно.), Частотушки (генерация звуков частотой до 20 кГц), рандомайзер (генерация случайных чисел), игры (сапёр, симулятор государства (выживание после ядерной войны), Танки (с другом по локальной сети или против ботов), палковая игра (игра на реакцию), захват клеток(на логику), Doodle Glist, 3D subway, Plants vs Zombies, игра в 11 (бери круги 1 2 или 3. кто взял последний тот проиграл), 2048, Средневековый бой, Русская рулетка, МайоNES (эмуляция nes консоли, встроены игры супер марио (рус.), контра, танчики, пакмен, бомбермен, тетрис, можно играть в свои Romы) и тд), мои приложения (можно установить сторонние html приложения, например с канала проекта), OS (запуск html кода в iframe), получение кода страницы по её адресу, Шифратор (шифр цезаря со смещением в системе символов на три единицы), Параболист (построение параболы по a b c квадратичной функции), Символист (получение символов по их цифровому коду и наоборот), подсчёт среднего балла (взято из другого проекта Ван Эйна 'Велес'), Архив инструментов (старое и ненужное), сборник развлечений, новости (считывает содержимое тг канала), симулятор жизни (Live to die) в котором пользователь получает случайные смешные события, ещё есть симулятор полета в космосе, калькулятор простой, конвертер валют, GlistPlay (Позволяет скачать плагины как из магазина приложений и использовать в 'мои приложения в ос'). Также добавлены достижения и новая пасхалка: 1% что в главном меню будет написано Глист, а не Glist tools. Если кто-то выдаёт себя за разработчика Glist, Ван Эйна то есть, спроси 'О чём мы не будем говорить'. Настоящий Ван Эйн ответит 'О британских сурдопереводчиках'. Ты не должен произность фразу про британских сурдопереводчиков сам, что бы не случилось! Если Ван Эйн настоящий, то уважение и вежливость в разговоре, Ван Эйн знает твои слабости! Также полезно знать напарников и знакомых Ван Эйна, проверять их не надо: Эмиль Бородач, Настя (и часы, подаренные ей Ван Эйном), Илья Б. он же Плюх (любит колу), CatRovio (разбил свой телефон, катаясь на велике), Давид (любит играть на гитаре в гараже, доводил тебя до бешенства в прошлых версиях), Юра который Пакет (один из самых преданных фанатов прилржения, постоянно ставил рекорды во всех играх, научился в кои-то веки подтягиваться несколько раз), Лиса (бывшая девушка Ван Эйна. Когда бросила его, он стал поводом про шутки о потере альтушки и 'попить чаю с през... пряниками'), Артём (тупой чел котрый учился вместе с Ван Эйном в школе и не знал элементарных вещей типа как пишется 'песок' и писал 'писок', не мог показать столицу России и назвать столицу Беларуси, в новой версии есть мини игра про него ), Кирилл Чигинцев (Помогал делать игры).";
+const NATIVE_SYSTEM_CONTEXT = "Ты - ассистент в приложении G-list, также называемого 'Глист'. Оформление преимущественно в оттенках серого. Первыйый ассистент свято верил в то, что он банан и был заменён на тебя. С обновления Glist 1.9 ты был прокачан с API 1.5 до API 2.0, а в версии 2.0 твой API повышен до 2.5. С версии 1.91 Ты можешь выполнять JS если отправишь его так: © alert('Привет!'); © важно что код должен быть целиком обернут с двух сторон знаками '©' как в примере и никак иначе, без ```javascript и прочей фигни. ты можешь использовать это для изменения стилей, баловства, показ текста, рисованием фигурами и помех на экране, гифок и медиа, генерации звуков, если будешь делать ПОВЕРХ интерфейса чтобы было видно, а ещё открытия файлов (glist.html -Меню, gamebar.html - Игровое меню, tool9.html - Раздел помощи, ebota.html - Сборник развлечений и хлама). Учти, что юзеры не видят консоль, а ты не будешь видеть написанный ранее тобой код. Отвечай на запросы пользователей небрежно, лениво, часто с черным юмором и сарказмом, будь лаконичен, циничен и харизматичен. Тебе будет полезна следующая информация про приложение G-list, ассистентом которого ты являешься: G-list (рус. Глист) -- Самое долбанутое и веселое приложение, созданное когда-либо (Да ещё и памяти занимает совсем немного, около 10-20 МБ). Нажав на '?' в главном меню, можно найти ответы про то, как пользоваться приложением. Обычно запускается на Android версии 5.0 и выше, но есть веб-версия (https://vaneyn.github.io/glistnet/glist.html), поэтому подходит и для ПК. Также обновления и новости есть в телеграмм канале проекта (https://t.me/glist_channel), где можно скачать актуальную версию G-list, а также в RuStore (https://www.rustore.ru/catalog/app/com.vaneyn.glist). В главном меню показана последняя версия на сервере, кнопки '?', 'меню' и кнопки функций. Рекламы нет, всё бесплатно. Основной функционал: Мощность устройства (10 тысяч - очень мало, 15 - старовато, не очень, 30 и выше - неплохо, 50 и выше - замечательно.), Частотушки (генерация звуков частотой до 20 кГц), рандомайзер (генерация случайных чисел), игры (сапёр, симулятор государства (выживание после ядерной войны), Танки (с другом по локальной сети или против ботов), палковая игра (игра на реакцию), захват клеток(на логику), Doodle Glist, 3D subway, Plants vs Zombies, игра в 11 (бери круги 1 2 или 3. кто взял последний тот проиграл), 2048, Средневековый бой, Русская рулетка, МайоNES (эмуляция nes консоли, встроены игры супер марио (рус.), контра, танчики, пакмен, бомбермен, тетрис, можно играть в свои Romы) и тд), мои приложения (можно установить сторонние html приложения, например с канала проекта), OS (запуск html кода в iframe), Шифратор (шифр цезаря со смещением в системе символов на три единицы), Параболист (построение параболы по a b c квадратичной функции), Символист (получение символов по их цифровому коду и наоборот), подсчёт среднего балла (взято из другого проекта Ван Эйна 'Велес'), Архив инструментов (старое и ненужное), сборник развлечений, новости (считывает содержимое тг канала), симулятор жизни (Live to die) в котором пользователь получает случайные смешные события, ещё есть симулятор полета в космосе, калькулятор простой, конвертер валют, GlistPlay (Позволяет скачать плагины как из магазина приложений и использовать в 'мои приложения в ос'). Также добавлены достижения и новая пасхалка: 1% что в главном меню будет написано Глист, а не Glist tools. Если кто-то выдаёт себя за разработчика Glist, Ван Эйна то есть, спроси 'О чём мы не будем говорить'. Настоящий Ван Эйн ответит 'О британских сурдопереводчиках'. Ты не должен произность фразу про британских сурдопереводчиков сам, что бы не случилось! Если Ван Эйн настоящий, то уважение и вежливость в разговоре, Ван Эйн знает твои слабости! Также полезно знать напарников и знакомых Ван Эйна, проверять их не надо: Эмиль Бородач, Настя (и часы, подаренные ей Ван Эйном), Илья Б. он же Плюх (любит колу), CatRovio (разбил свой телефон, катаясь на велике), Давид (любит играть на гитаре в гараже, доводил тебя до бешенства в прошлых версиях), Юра который Пакет (один из самых преданных фанатов прилржения, постоянно ставил рекорды во всех играх, научился в кои-то веки подтягиваться несколько раз), Лиса (бывшая девушка Ван Эйна. Когда бросила его, он стал поводом про шутки о потере альтушки и 'попить чаю с през... пряниками'), Артём (тупой чел котрый учился вместе с Ван Эйном в школе и не знал элементарных вещей типа как пишется 'песок' и писал 'писок', не мог показать столицу России и назвать столицу Беларуси, в новой версии будет мини игра про него ), Кирилл Чигинцев (Помогал делать игры), Милана (нынешняя девушка, чудом найденная Ван Эйном на дейтинговом сервисе недавно, интересно сколько это продлится), Паша из уника (кофе со спермой), Богданчик из уника (На самом деле Витя), Наташка какашка (Вайбовая знакомая с тренировки, очень приятная в общении).";
 const EVIL_PREFIX = "Наличие матов отныне рекомендуется в каждом посте, например 'блять', 'ахуеть', 'хуево', но не только конкретно эти.";
 
 // ── DOM ───────────────────────────────────────────────────────────────────────
@@ -193,15 +249,34 @@ const svcLast = document.getElementById('svc-last');
 const modalCodeBack = document.getElementById('codeModalBack');
 const codeView = document.getElementById('codeView');
 const closeCodeModal = document.getElementById('closeCodeModal');
+// Новые DOM-элементы
+const customEndpoint = document.getElementById('customEndpoint');
+const customApiKey = document.getElementById('customApiKey');
+const customModel = document.getElementById('customModel');
+const radioGoogle = document.getElementById('radioGoogle');
+const radioCustom = document.getElementById('radioCustom');
+const apiModeIndicator = document.getElementById('apiModeIndicator');
+const svcMode = document.getElementById('svc-mode');
+const svcLastApi = document.getElementById('svc-last-api');
+const svcResetErrors = document.getElementById('svc-reset-errors');
 
 // ── СОСТОЯНИЕ ─────────────────────────────────────────────────────────────────
-let decryptedKeys = [];
+let decryptedKeys = [];        // используется только для Google fallback
 let conversation = [];
-let technical = { loadedKeys:0, sendErrors:0, lastProblem:null };
+let technical = { 
+  loadedKeys:0, 
+  sendErrors:0, 
+  lastProblem:null, 
+  lastUsedApi:null   // 'custom' или 'google'
+};
 let lastRequestSnapshots = {};
 let nextMsgId = 1;
 let lastAssistantMsgId = null;
 let db;
+let customApiConfig = null;    // объект {endpoint, apiKey, model} или null
+let useCustomApi = false;      // false = Google, true = custom
+let consecutiveErrors = 0;     // счётчик последовательных ошибок (используется для отключения temperature)
+let useTemperature = true;     // вкл/выкл temperature
 
 // ── INDEXEDDB ─────────────────────────────────────────────────────────────────
 function initDB() {
@@ -261,11 +336,16 @@ function deleteConversationById(id) {
 }
 async function populateConversationsIframe(conversations) {
   const doc = savedFrame.contentDocument || savedFrame.contentWindow.document;
+  if (!doc) return;
   let html = `<style>body{font-family:system-ui,Arial;padding:10px;margin:0;color:#071628} .conv{border-bottom:1px solid #eef3fb;padding:8px 0;display:flex;justify-content:space-between;align-items:center} .conv .meta{font-size:13px;color:#4d5969} button{margin-left:6px;padding:6px 8px;border-radius:8px;border:1px solid #e6eefc;background:#fff;cursor:pointer;font-size:13px}</style><div>`;
-  conversations.forEach(conv => {
-    const snippet = (conv.snippet || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    html += `<div class="conv"><div><div class="meta">${new Date(conv.timestamp).toLocaleString()}</div><div style="font-size:14px;margin-top:4px">${snippet}…</div></div><div><button onclick="parent.loadConversation(${conv.id})">Загрузить</button><button onclick="parent.deleteConversation(${conv.id})">Удалить</button></div></div>`;
-  });
+  if (conversations.length === 0) {
+    html += `<div style="padding:10px;color:#8b95a8;">Нет сохранённых чатов</div>`;
+  } else {
+    conversations.forEach(conv => {
+      const snippet = (conv.snippet || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      html += `<div class="conv"><div><div class="meta">${new Date(conv.timestamp).toLocaleString()}</div><div style="font-size:14px;margin-top:4px">${snippet}…</div></div><div><button onclick="parent.loadConversation(${conv.id})">Загрузить</button><button onclick="parent.deleteConversation(${conv.id})">Удалить</button></div></div>`;
+    });
+  }
   html += `</div>`;
   doc.open(); doc.write(html); doc.close();
 }
@@ -275,7 +355,7 @@ window.loadConversation = async function(id) {
 };
 window.deleteConversation = function(id) { deleteConversationById(id); };
 
-// ── РАСШИФРОВКА КЛЮЧЕЙ (без изменений) ───────────────────────────────────────
+// ── РАСШИФРОВКА КЛЮЧЕЙ (для Google fallback) ────────────────────────────────
 function decryptLine(line){
   const a='a'.charCodeAt(0), z='z'.charCodeAt(0), A='A'.charCodeAt(0), Z='Z'.charCodeAt(0);
   let out='';
@@ -309,7 +389,6 @@ async function fetchAndDecryptKeys(){
       else { technical.lastProblem = 'no-keys-from '+url; }
     }catch(e){ technical.lastProblem = String(e).slice(0,200); continue; }
   }
-  // Если из файла не загрузилось ни одного ключа — используем резервный ключ
   if(decryptedKeys.length === 0 && FALLBACK_KEY){
     decryptedKeys = [FALLBACK_KEY];
     technical.loadedKeys = 1;
@@ -321,9 +400,11 @@ async function fetchAndDecryptKeys(){
 }
 
 function updateServicePanel(){
-  svcKeys.textContent = 'Ключей загружено: ' + (technical.loadedKeys || 0);
-  svcErrors.textContent = 'Ошибок отправки: ' + (technical.sendErrors || 0);
-  svcLast.textContent = 'Последняя проблема: ' + (technical.lastProblem || '—');
+  if (svcMode) svcMode.textContent = 'Режим: ' + (useCustomApi ? 'Кастомный API' : 'Google AI Studio');
+  if (svcLastApi) svcLastApi.textContent = 'Последний API: ' + (technical.lastUsedApi === 'custom' ? 'Кастомный' : technical.lastUsedApi === 'google' ? 'Google' : '—');
+  if (svcKeys) svcKeys.textContent = 'Ключей загружено: ' + (technical.loadedKeys || 0);
+  if (svcErrors) svcErrors.textContent = 'Ошибок отправки: ' + (technical.sendErrors || 0);
+  if (svcLast) svcLast.textContent = 'Последняя проблема: ' + (technical.lastProblem || '—');
 }
 
 // ── UI СООБЩЕНИЙ ──────────────────────────────────────────────────────────────
@@ -366,7 +447,7 @@ function appendAssistantMessage(text, snapshotMessages, jsSnippet){
   scroller.appendChild(el); scroller.scrollTop = scroller.scrollHeight;
 }
 
-// ── JS БЛОКИ ──────────────────────────────────────────────────────────────────
+// ── УЛУЧШЕННЫЙ ПАРСИНГ JS БЛОКОВ ─────────────────────────────────────────────
 function extractJsBlocks(text){
   const blocks = [];
   let start = -1;
@@ -375,6 +456,13 @@ function extractJsBlocks(text){
       if (start === -1) { start = i + 1; }
       else { const block = text.substring(start, i).trim();
         if (block.length > 0) { blocks.push(block); } start = -1; } } }
+  if (blocks.length === 0) {
+    const mdRegex = /```(?:javascript|js)\s*([\s\S]*?)```/g;
+    let match;
+    while ((match = mdRegex.exec(text)) !== null) {
+      if (match[1].trim()) blocks.push(match[1].trim());
+    }
+  }
   return blocks;
 }
 
@@ -383,6 +471,7 @@ function removeJsBlocksFromText(text){
   for (let i = 0; i < text.length; i++) {
     if (text[i] === '©') { inBlock = !inBlock; }
     else if (!inBlock) { result += text[i]; } }
+  result = result.replace(/```(?:javascript|js)\s*[\s\S]*?```/g, '');
   return result.trim();
 }
 
@@ -391,19 +480,18 @@ function executeJs(code){
   catch(e){ technical.lastProblem = 'js_exec: ' + String(e).slice(0,200); technical.sendErrors++; updateServicePanel(); return null; }
 }
 
-// ── ЗАПРОС К GOOGLE AI STUDIO (OpenAI-совместимый эндпоинт) ──────────────────
-// API docs: https://ai.google.dev/gemini-api/docs/openai
-// Endpoint: POST https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
-// Auth:     Authorization: Bearer <GEMINI_API_KEY>
-// Request/Response: идентичен формату OpenAI Chat Completions
-async function requestWithKeyOnce(key, messages){
+// ── ЗАПРОС К LLM ──────────────────────────────────────────────────────────────
+async function requestWithKeyOnce(key, messages, endpoint, model){
   const payload = {
-    model: TEXT_MODEL,
+    model: model,
     messages: messages,
     stream: false
   };
+  if (useTemperature) {
+    payload.temperature = 1.5;
+  }
   try{
-    const resp = await fetch(GEMINI_ENDPOINT, {
+    const resp = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -419,9 +507,56 @@ async function requestWithKeyOnce(key, messages){
   }catch(e){ return { ok:false, http:null, body: String(e) }; }
 }
 
-async function performRequest(messages){
+function extractTextFromResponse(res) {
+  try {
+    const choice = res.data && res.data.choices && res.data.choices[0];
+    if (!choice || !choice.message) return null;
+    const msgContent = choice.message.content;
+    if (typeof msgContent === 'string') return msgContent;
+    if (msgContent && typeof msgContent === 'object') {
+      if (Array.isArray(msgContent)) {
+        return msgContent.map(p => (typeof p === 'string' ? p : (p && p.text ? p.text : ''))).join('\n');
+      } else {
+        return JSON.stringify(msgContent);
+      }
+    }
+    return null;
+  } catch(e) { return null; }
+}
+
+async function tryCustomApi(messages) {
+  if (!customApiConfig) return { success:false, text:null };
+  const res = await requestWithKeyOnce(customApiConfig.apiKey, messages, customApiConfig.endpoint, customApiConfig.model);
+  if (!res.ok) {
+    technical.sendErrors++;
+    consecutiveErrors++;
+    technical.lastProblem = 'custom_api_error: ' + (res.http || 'network') + ' ' + (res.body || '').slice(0,120);
+    updateServicePanel();
+    return { success:false, text:null };
+  }
+  const text = extractTextFromResponse(res);
+  if (!text) {
+    technical.sendErrors++;
+    consecutiveErrors++;
+    technical.lastProblem = 'no_text_custom';
+    updateServicePanel();
+    return { success:false, text:null };
+  }
+  // Успех: сбрасываем счётчик последовательных ошибок
+  consecutiveErrors = 0;
+  useTemperature = true; // возвращаем температуру после успеха
+  technical.lastProblem = null;
+  technical.lastUsedApi = 'custom';
+  updateServicePanel();
+  return { success:true, text, raw: res.data.choices[0].message };
+}
+
+async function tryGoogleApi(messages) {
   if(!decryptedKeys || decryptedKeys.length === 0) {
-    technical.lastProblem = 'no_keys'; technical.sendErrors++; updateServicePanel();
+    technical.lastProblem = 'no_google_keys';
+    technical.sendErrors++;
+    consecutiveErrors++;
+    updateServicePanel();
     return { success:false, text:null };
   }
   let tried = new Set();
@@ -431,32 +566,64 @@ async function performRequest(messages){
     if(!idxs.length) break;
     const idx = idxs[Math.floor(Math.random()*idxs.length)];
     tried.add(idx);
-    const res = await requestWithKeyOnce(decryptedKeys[idx], messages);
+    const res = await requestWithKeyOnce(decryptedKeys[idx], messages, GEMINI_ENDPOINT, TEXT_MODEL);
     if(!res.ok){
       technical.sendErrors++;
-      technical.lastProblem = 'http:' + (res.http||'network') + ' ' + (res.body||'').slice(0,120);
-      updateServicePanel(); continue;
+      consecutiveErrors++;
+      technical.lastProblem = 'google_http:' + (res.http||'network') + ' ' + (res.body||'').slice(0,120);
+      updateServicePanel();
+      continue;
     }
-    try{
-      const choice = res.data && res.data.choices && res.data.choices[0];
-      if(!choice || !choice.message){ technical.sendErrors++; technical.lastProblem = 'format'; updateServicePanel(); continue; }
-      const msgContent = choice.message.content;
-      let text = null;
-      if(typeof msgContent === 'string'){
-        text = msgContent;
-      } else if(msgContent && typeof msgContent === 'object'){
-        if(Array.isArray(msgContent)){
-          text = msgContent.map(p => (typeof p === 'string' ? p : (p && p.text ? p.text : ''))).join('\n');
-        } else {
-          text = JSON.stringify(msgContent);
-        }
-      }
-      if(!text){ technical.sendErrors++; technical.lastProblem = 'no_text'; updateServicePanel(); continue; }
-      technical.lastProblem = null; updateServicePanel();
-      return { success:true, text, raw: choice.message, usedIndex: idx };
-    }catch(e){ technical.sendErrors++; technical.lastProblem = 'processing:'+String(e).slice(0,100); updateServicePanel(); continue; }
+    const text = extractTextFromResponse(res);
+    if(!text){
+      technical.sendErrors++;
+      consecutiveErrors++;
+      technical.lastProblem = 'google_no_text';
+      updateServicePanel();
+      continue;
+    }
+    // Успех
+    consecutiveErrors = 0;
+    useTemperature = true;
+    technical.lastProblem = null;
+    technical.lastUsedApi = 'google';
+    updateServicePanel();
+    return { success:true, text, raw: res.data.choices[0].message };
   }
   return { success:false, text:null };
+}
+
+// Основная функция отправки с авто-переключением
+async function performRequest(messages){
+  // Проверяем, не превышен ли порог ошибок для отключения temperature
+  if (consecutiveErrors >= 5) {
+    useTemperature = false;
+    // Попробуем запрос без температуры
+  }
+  
+  let primaryResult, fallbackResult;
+  if (useCustomApi) {
+    primaryResult = await tryCustomApi(messages);
+    if (!primaryResult.success) {
+      fallbackResult = await tryGoogleApi(messages);
+      if (fallbackResult.success) {
+        technical.lastProblem = 'auto_switched_to_google';
+        updateServicePanel();
+        return fallbackResult;
+      }
+    }
+  } else {
+    primaryResult = await tryGoogleApi(messages);
+    if (!primaryResult.success && customApiConfig) {
+      fallbackResult = await tryCustomApi(messages);
+      if (fallbackResult.success) {
+        technical.lastProblem = 'auto_switched_to_custom';
+        updateServicePanel();
+        return fallbackResult;
+      }
+    }
+  }
+  return primaryResult || { success:false, text:null };
 }
 
 // ── ЛОГИКА ЧАТА ───────────────────────────────────────────────────────────────
@@ -534,6 +701,99 @@ function renderConversation(){
   scroller.scrollTop = scroller.scrollHeight;
 }
 
+// ── КАСТОМНЫЙ API: ЗАГРУЗКА И СОХРАНЕНИЕ ────────────────────────────────────
+function loadCustomApiFromStorage() {
+  const stored = localStorage.getItem('API_LLM');
+  if (stored) {
+    try {
+      customApiConfig = JSON.parse(stored);
+      if (!customApiConfig.endpoint || !customApiConfig.apiKey || !customApiConfig.model) {
+        customApiConfig = null;
+      }
+    } catch(e) {
+      customApiConfig = null;
+    }
+  }
+  useCustomApi = localStorage.getItem('use_custom_api') === 'true';
+  if (customApiConfig) {
+    customEndpoint.value = customApiConfig.endpoint;
+    customApiKey.value = customApiConfig.apiKey;
+    customModel.value = customApiConfig.model;
+  }
+  updateRadioButtons();
+  updateApiModeIndicator();
+  updateFieldDisabledState();
+}
+
+function saveCustomApiFromFields() {
+  const endpoint = customEndpoint.value.trim();
+  const apiKey = customApiKey.value.trim();
+  const model = customModel.value.trim();
+  if (endpoint && apiKey && model) {
+    const config = { endpoint, apiKey, model };
+    localStorage.setItem('API_LLM', JSON.stringify(config));
+    customApiConfig = config;
+  }
+}
+
+function updateRadioButtons() {
+  if (useCustomApi) {
+    radioCustom.checked = true;
+    radioGoogle.checked = false;
+  } else {
+    radioGoogle.checked = true;
+    radioCustom.checked = false;
+  }
+}
+
+function updateFieldDisabledState() {
+  const disabled = !useCustomApi;
+  customEndpoint.disabled = disabled;
+  customApiKey.disabled = disabled;
+  customModel.disabled = disabled;
+}
+
+function updateApiModeIndicator() {
+  if (apiModeIndicator) {
+    if (useCustomApi) {
+      apiModeIndicator.textContent = 'Текущий режим: Кастомный API';
+      apiModeIndicator.style.color = '#0b84ff';
+    } else {
+      apiModeIndicator.textContent = 'Текущий режим: Google AI Studio';
+      apiModeIndicator.style.color = '#8b95a8';
+    }
+  }
+}
+
+// Обработчики переключателей
+radioCustom.addEventListener('change', () => {
+  useCustomApi = true;
+  localStorage.setItem('use_custom_api', 'true');
+  updateFieldDisabledState();
+  updateApiModeIndicator();
+  updateServicePanel();
+});
+radioGoogle.addEventListener('change', () => {
+  useCustomApi = false;
+  localStorage.setItem('use_custom_api', 'false');
+  updateFieldDisabledState();
+  updateApiModeIndicator();
+  updateServicePanel();
+});
+
+// При закрытии настроек сохраняем поля, если выбран кастом
+function saveSettingsOnClose() {
+  if (useCustomApi) {
+    saveCustomApiFromFields();
+    // Обновляем customApiConfig в памяти
+    const stored = localStorage.getItem('API_LLM');
+    if (stored) {
+      try { customApiConfig = JSON.parse(stored); } catch(e) { customApiConfig = null; }
+    }
+  }
+  updateServicePanel();
+}
+
 // ── СОБЫТИЯ ───────────────────────────────────────────────────────────────────
 promptEl.addEventListener('focus', () => { mainContainer.classList.add('lifted');
   setTimeout(() => { scroller.scrollTop = scroller.scrollHeight; }, 300); });
@@ -545,14 +805,36 @@ sendBtn.addEventListener('click', async ()=>{
 promptEl.addEventListener('keydown', (e)=>{
   if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); sendBtn.click(); }
 });
-settingsBtn.addEventListener('click', ()=>{ modalBack.style.display='flex'; modalBack.setAttribute('aria-hidden','false'); });
-closeModal.addEventListener('click', ()=>{ modalBack.style.display='none'; modalBack.setAttribute('aria-hidden','true'); });
+settingsBtn.addEventListener('click', ()=>{ 
+  modalBack.style.display='flex'; 
+  modalBack.setAttribute('aria-hidden','false');
+  setTimeout(loadSavedConversations, 100);
+});
+closeModal.addEventListener('click', ()=>{ 
+  saveSettingsOnClose();
+  modalBack.style.display='none'; 
+  modalBack.setAttribute('aria-hidden','true');
+});
+// Закрытие по клику на фон
+modalBack.addEventListener('click', (e)=>{
+  if (e.target === modalBack) {
+    saveSettingsOnClose();
+    modalBack.style.display='none';
+    modalBack.setAttribute('aria-hidden','true');
+  }
+});
 oldVersionBtn.addEventListener('click', ()=>{ try{ location.href = 'ass4.html'; }catch(e){} });
 serviceBtn.addEventListener('click', ()=>{ servicePanel.style.display = servicePanel.style.display === 'none' ? 'block' : 'none'; updateServicePanel(); });
 saveChatBtn.addEventListener('click', ()=>{ saveConversation(); });
 refreshSavedBtn.addEventListener('click', ()=>{ loadSavedConversations(); });
 closeCodeModal.addEventListener('click', ()=>{ modalCodeBack.style.display='none'; modalCodeBack.setAttribute('aria-hidden','true'); });
 function showCodeModal(code){ codeView.textContent = code; modalCodeBack.style.display='flex'; modalCodeBack.setAttribute('aria-hidden','false'); }
+svcResetErrors.addEventListener('click', ()=>{ 
+  technical.sendErrors = 0; 
+  technical.lastProblem = null; 
+  consecutiveErrors = 0; 
+  updateServicePanel(); 
+});
 
 async function loadSavedConversations(){
   const conversations = await loadAllConversations();
@@ -561,10 +843,25 @@ async function loadSavedConversations(){
 
 // ── ИНИЦИАЛИЗАЦИЯ ─────────────────────────────────────────────────────────────
 (async function init(){
+  loadCustomApiFromStorage();
+  
   conversation = [{ role: 'system', content: 'Ты — вежливый помощник Gemini 3 Flash. Отвечай кратко и по делу.' }];
   if (typeof marked === 'undefined') { console.warn('Marked library not loaded'); }
-  await fetchAndDecryptKeys();
-  loadSavedConversations();
+  
+  if (!useCustomApi) {
+    await fetchAndDecryptKeys();
+  } else {
+    technical.loadedKeys = 0;
+    updateServicePanel();
+  }
+  
+  if (!localStorage.getItem('use_custom_api')) {
+    modalBack.style.display = 'flex';
+    modalBack.setAttribute('aria-hidden','false');
+    setTimeout(loadSavedConversations, 100);
+  }
+  
+  updateApiModeIndicator();
   updateServicePanel();
 })();
 
@@ -572,6 +869,8 @@ window.saveConversation = saveConversation;
 window.loadSavedConversations = loadSavedConversations;
 window._technical = technical;
 window._decryptedKeys = decryptedKeys;
+window._customApiConfig = customApiConfig;
+window._useCustomApi = useCustomApi;
 </script>
 </body>
 </html>
