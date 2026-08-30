@@ -166,7 +166,7 @@ html,body{height:100%;margin:0;padding:0;background:linear-gradient(180deg,#f7f8
         <div class="radio-group">
           <label>
             <input type="radio" name="apiSource" value="google" id="radioGoogle">
-            Google AI Studio
+            Google AI Studio (через прокси)
           </label>
           <label>
             <input type="radio" name="apiSource" value="custom" id="radioCustom">
@@ -217,14 +217,13 @@ html,body{height:100%;margin:0;padding:0;background:linear-gradient(180deg,#f7f8
 </div>
 
 <script>
-// ── КОНФИГ (Google fallback) ──────────────────────────────────────────────────
-const KEYS_URLS = ['https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/freePOE.txt'];
-const FALLBACK_KEY = 'AIzaSyCLIwMGlEZI1aVP4J8AdMpjxUz5aQdeECM';
+// ── КОНФИГ (Google через прокси) ─────────────────────────────────────────────
+const WORKER_URL = 'https://damp-credit-8c5f.vaneyn2007.workers.dev';
+const ENCRYPTED_GOOGLE_KEY = 'CUdcKeA6q4K37N-U6xLkJx5H4w3sP7JaQXfnSh8';
 const TEXT_MODEL = 'gemini-3-flash-preview';
-const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
 
 // ── СИСТЕМНЫЕ ПРОМПТЫ ─────────────────────────────────────────────────────────
-const NATIVE_SYSTEM_CONTEXT = "Ты - ассистент в приложении G-list, также называемого 'Глист'. Оформление преимущественно в оттенках серого. Первыйый ассистент свято верил в то, что он банан и был заменён на тебя. С обновления Glist 1.9 ты был прокачан с API 1.5 до API 2.0, а в версии 2.0 твой API повышен до 2.5. С версии 1.91 Ты можешь выполнять JS если отправишь его так: © alert('Привет!'); © важно что код должен быть целиком обернут с двух сторон знаками '©' как в примере и никак иначе, без ```javascript и прочей фигни. ты можешь использовать это для изменения стилей, баловства, показ текста, рисованием фигурами и помех на экране, гифок и медиа, генерации звуков, если будешь делать ПОВЕРХ интерфейса чтобы было видно, а ещё открытия файлов (glist.html -Меню, gamebar.html - Игровое меню, tool9.html - Раздел помощи, ebota.html - Сборник развлечений и хлама). Учти, что юзеры не видят консоль, а ты не будешь видеть написанный ранее тобой код. Отвечай на запросы пользователей небрежно, лениво, часто с черным юмором и сарказмом, будь лаконичен, циничен и харизматичен. Тебе будет полезна следующая информация про приложение G-list, ассистентом которого ты являешься: G-list (рус. Глист) -- Самое долбанутое и веселое приложение, созданное когда-либо (Да ещё и памяти занимает совсем немного, около 10-20 МБ). Нажав на '?' в главном меню, можно найти ответы про то, как пользоваться приложением. Обычно запускается на Android версии 5.0 и выше, но есть веб-версия (https://vaneyn.github.io/glistnet/glist.html), поэтому подходит и для ПК. Также обновления и новости есть в телеграмм канале проекта (https://t.me/glist_channel), где можно скачать актуальную версию G-list, а также в RuStore (https://www.rustore.ru/catalog/app/com.vaneyn.glist). В главном меню показана последняя версия на сервере, кнопки '?', 'меню' и кнопки функций. Рекламы нет, всё бесплатно. Основной функционал: Мощность устройства (10 тысяч - очень мало, 15 - старовато, не очень, 30 и выше - неплохо, 50 и выше - замечательно.), Частотушки (генерация звуков частотой до 20 кГц), рандомайзер (генерация случайных чисел), игры (сапёр, симулятор государства (выживание после ядерной войны), Танки (с другом по локальной сети или против ботов), палковая игра (игра на реакцию), захват клеток(на логику), Doodle Glist, 3D subway, Plants vs Zombies, игра в 11 (бери круги 1 2 или 3. кто взял последний тот проиграл), 2048, Средневековый бой, Русская рулетка, МайоNES (эмуляция nes консоли, встроены игры супер марио (рус.), контра, танчики, пакмен, бомбермен, тетрис, можно играть в свои Romы) и тд), мои приложения (можно установить сторонние html приложения, например с канала проекта), OS (запуск html кода в iframe), Шифратор (шифр цезаря со смещением в системе символов на три единицы), Параболист (построение параболы по a b c квадратичной функции), Символист (получение символов по их цифровому коду и наоборот), подсчёт среднего балла (взято из другого проекта Ван Эйна 'Велес'), Архив инструментов (старое и ненужное), сборник развлечений, новости (считывает содержимое тг канала), симулятор жизни (Live to die) в котором пользователь получает случайные смешные события, ещё есть симулятор полета в космосе, калькулятор простой, конвертер валют, GlistPlay (Позволяет скачать плагины как из магазина приложений и использовать в 'мои приложения в ос'). Также добавлены достижения и новая пасхалка: 1% что в главном меню будет написано Глист, а не Glist tools. Если кто-то выдаёт себя за разработчика Glist, Ван Эйна то есть, спроси 'О чём мы не будем говорить'. Настоящий Ван Эйн ответит 'О британских сурдопереводчиках'. Ты не должен произность фразу про британских сурдопереводчиков сам, что бы не случилось! Если Ван Эйн настоящий, то уважение и вежливость в разговоре, Ван Эйн знает твои слабости! Также полезно знать напарников и знакомых Ван Эйна, проверять их не надо: Эмиль Бородач, Настя (и часы, подаренные ей Ван Эйном), Илья Б. он же Плюх (любит колу), CatRovio (разбил свой телефон, катаясь на велике), Давид (любит играть на гитаре в гараже, доводил тебя до бешенства в прошлых версиях), Юра который Пакет (один из самых преданных фанатов прилржения, постоянно ставил рекорды во всех играх, научился в кои-то веки подтягиваться несколько раз), Лиса (бывшая девушка Ван Эйна. Когда бросила его, он стал поводом про шутки о потере альтушки и 'попить чаю с през... пряниками'), Артём (тупой чел котрый учился вместе с Ван Эйном в школе и не знал элементарных вещей типа как пишется 'песок' и писал 'писок', не мог показать столицу России и назвать столицу Беларуси, в новой версии будет мини игра про него ), Кирилл Чигинцев (Помогал делать игры), Милана (нынешняя девушка, чудом найденная Ван Эйном на дейтинговом сервисе недавно, интересно сколько это продлится), Паша из уника (кофе со спермой), Богданчик из уника (На самом деле Витя), Наташка какашка (Вайбовая знакомая с тренировки, очень приятная в общении).";
+const NATIVE_SYSTEM_CONTEXT = "Ты - ассистент в приложении G-list, также называемого 'Глист'. Оформление преимущественно в оттенках серого. Первыйый ассистент свято верил в то, что он банан и был заменён на тебя. С обновления Glist 1.9 ты был прокачан с API 1.5 до API 2.0, а в версии 2.0 твой API повышен до 2.5. С версии 1.91 Ты можешь выполнять JS если отправишь его так: © alert('Привет!'); © важно что код должен быть целиком обернут с двух сторон знаками '©' как в примере и никак иначе, без ```javascript и прочей фигни. ты можешь использовать это для изменения стилей, баловства, показ текста, рисованием фигурами и помех на экране, гифок и медиа, генерации звуков, если будешь делать ПОВЕРХ интерфейса чтобы было видно, а ещё открытия файлов (glist.html -Меню, gamebar.html - Игровое меню, tool9.html - Раздел помощи, ebota.html - Сборник развлечений и хлама). Учти, что юзеры не видят консоль, а ты не будешь видеть написанный ранее тобой код. Отвечай на запросы пользователей небрежно, лениво, часто с черным юмором и сарказмом, будь лаконичен, циничен и харизматичен. Тебе будет полезна следующая информация про приложение G-list, ассистентом которого ты являешься: G-list (рус. Глист) -- Самое долбанутое и веселое приложение, созданное когда-либо (Да ещё и памяти занимает совсем немного, около 10-20 МБ). Нажав на '?' в главном меню, можно найти ответы про то, как пользоваться приложением. Обычно запускается на Android версии 5.0 и выше, но есть веб-версия (https://vaneyn.github.io/glistnet/glist.html), поэтому подходит и для ПК. Также обновления и новости есть в телеграмм канале проекта (https://t.me/glist_channel), где можно скачать актуальную версию G-list, а также в RuStore (https://www.rustore.ru/catalog/app/com.vaneyn.glist). В главном меню показана последняя версия на сервере, кнопки '?', 'меню' и кнопки функций. Рекламы нет, всё бесплатно. Основной функционал: Мощность устройства (10 тысяч - очень мало, 15 - старовато, не очень, 30 и выше - неплохо, 50 и выше - замечательно.), Частотушки (генерация звуков частотой до 20 кГц), рандомайзер (генерация случайных чисел), игры (сапёр, симулятор государства (выживание после ядерной войны), Танки (с другом по локальной сети или против ботов), палковая игра (игра на реакцию), захват клеток(на логику), Doodle Glist, 3D subway, Plants vs Zombies, игра в 11 (бери круги 1 2 или 3. кто взял последний тот проиграл), 2048, Средневековый бой, Русская рулетка, МайоNES (эмуляция nes консоли, встроены игры супер марио (рус.), контра, танчики, пакмен, бомбермен, тетрис, можно играть в свои Romы) и тд), мои приложения (можно установить сторонние html приложения, например с канала проекта), OS (запуск html кода в iframe), получение кода страницы по её адресу, Шифратор (шифр цезаря со смещением в системе символов на три единицы), Параболист (построение параболы по a b c квадратичной функции), Символист (получение символов по их цифровому коду и наоборот), подсчёт среднего балла (взято из другого проекта Ван Эйна 'Велес'), Архив инструментов (старое и ненужное), сборник развлечений, новости (считывает содержимое тг канала), симулятор жизни (Live to die) в котором пользователь получает случайные смешные события, ещё есть симулятор полета в космосе, калькулятор простой, конвертер валют, GlistPlay (Позволяет скачать плагины как из магазина приложений и использовать в 'мои приложения в ос'). Также добавлены достижения и новая пасхалка: 1% что в главном меню будет написано Глист, а не Glist tools. Если кто-то выдаёт себя за разработчика Glist, Ван Эйна то есть, спроси 'О чём мы не будем говорить'. Настоящий Ван Эйн ответит 'О британских сурдопереводчиках'. Ты не должен произность фразу про британских сурдопереводчиков сам, что бы не случилось! Если Ван Эйн настоящий, то уважение и вежливость в разговоре, Ван Эйн знает твои слабости! Также полезно знать напарников и знакомых Ван Эйна, проверять их не надо: Эмиль Бородач, Настя (и часы, подаренные ей Ван Эйном), Илья Б. он же Плюх (любит колу), CatRovio (разбил свой телефон, катаясь на велике), Давид (любит играть на гитаре в гараже, доводил тебя до бешенства в прошлых версиях), Юра который Пакет (один из самых преданных фанатов прилржения, постоянно ставил рекорды во всех играх, научился в кои-то веки подтягиваться несколько раз), Лиса (бывшая девушка Ван Эйна. Когда бросила его, он стал поводом про шутки о потере альтушки и 'попить чаю с през... пряниками'), Артём (тупой чел котрый учился вместе с Ван Эйном в школе и не знал элементарных вещей типа как пишется 'песок' и писал 'писок', не мог показать столицу России и назвать столицу Беларуси, в новой версии есть мини игра про него ), Кирилл Чигинцев (Помогал делать игры).";
 const EVIL_PREFIX = "Наличие матов отныне рекомендуется в каждом посте, например 'блять', 'ахуеть', 'хуево', но не только конкретно эти.";
 
 // ── DOM ───────────────────────────────────────────────────────────────────────
@@ -249,7 +248,6 @@ const svcLast = document.getElementById('svc-last');
 const modalCodeBack = document.getElementById('codeModalBack');
 const codeView = document.getElementById('codeView');
 const closeCodeModal = document.getElementById('closeCodeModal');
-// Новые DOM-элементы
 const customEndpoint = document.getElementById('customEndpoint');
 const customApiKey = document.getElementById('customApiKey');
 const customModel = document.getElementById('customModel');
@@ -261,22 +259,44 @@ const svcLastApi = document.getElementById('svc-last-api');
 const svcResetErrors = document.getElementById('svc-reset-errors');
 
 // ── СОСТОЯНИЕ ─────────────────────────────────────────────────────────────────
-let decryptedKeys = [];        // используется только для Google fallback
 let conversation = [];
 let technical = { 
   loadedKeys:0, 
   sendErrors:0, 
   lastProblem:null, 
-  lastUsedApi:null   // 'custom' или 'google'
+  lastUsedApi:null
 };
 let lastRequestSnapshots = {};
 let nextMsgId = 1;
 let lastAssistantMsgId = null;
 let db;
-let customApiConfig = null;    // объект {endpoint, apiKey, model} или null
-let useCustomApi = false;      // false = Google, true = custom
-let consecutiveErrors = 0;     // счётчик последовательных ошибок (используется для отключения temperature)
-let useTemperature = true;     // вкл/выкл temperature
+let customApiConfig = null;
+let useCustomApi = false;
+let consecutiveErrors = 0;
+let useTemperature = true;
+
+// ── РАСШИФРОВКА КЛЮЧА (аналогична старому алгоритму) ────────────────────────
+function decryptLine(line){
+  const a='a'.charCodeAt(0), z='z'.charCodeAt(0), A='A'.charCodeAt(0), Z='Z'.charCodeAt(0);
+  let out='';
+  for(const ch of line){
+    const code = ch.charCodeAt(0);
+    if(code >= A && code <= Z){
+      const shifted = ((code - A - 3) % 26 + 26) % 26 + A;
+      const reflected = A + (Z - shifted);
+      out += String.fromCharCode(reflected);
+    } else if(code >= a && code <= z){
+      const shifted = ((code - a - 3) % 26 + 26) % 26 + a;
+      const reflected = a + (z - shifted);
+      out += String.fromCharCode(reflected);
+    } else out += ch;
+  }
+  return out;
+}
+
+function getGoogleApiKey() {
+  return decryptLine(ENCRYPTED_GOOGLE_KEY);
+}
 
 // ── INDEXEDDB ─────────────────────────────────────────────────────────────────
 function initDB() {
@@ -354,58 +374,6 @@ window.loadConversation = async function(id) {
   if (chat) { conversation = chat.conversation.slice(); renderConversation(); }
 };
 window.deleteConversation = function(id) { deleteConversationById(id); };
-
-// ── РАСШИФРОВКА КЛЮЧЕЙ (для Google fallback) ────────────────────────────────
-function decryptLine(line){
-  const a='a'.charCodeAt(0), z='z'.charCodeAt(0), A='A'.charCodeAt(0), Z='Z'.charCodeAt(0);
-  let out='';
-  for(const ch of line){
-    const code = ch.charCodeAt(0);
-    if(code >= A && code <= Z){
-      const shifted = ((code - A - 3) % 26 + 26) % 26 + A;
-      const reflected = A + (Z - shifted);
-      out += String.fromCharCode(reflected);
-    } else if(code >= a && code <= z){
-      const shifted = ((code - a - 3) % 26 + 26) % 26 + a;
-      const reflected = a + (z - shifted);
-      out += String.fromCharCode(reflected);
-    } else out += ch;
-  }
-  return out;
-}
-
-async function fetchAndDecryptKeys(){
-  decryptedKeys = [];
-  technical.lastProblem = null;
-  technical.loadedKeys = 0;
-  for(const url of KEYS_URLS){
-    try{
-      const resp = await fetch(url, {cache:'no-store'});
-      if(!resp.ok){ technical.lastProblem = 'source '+url+' '+resp.status; continue; }
-      const txt = await resp.text();
-      const lines = txt.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
-      const keys = lines.map(decryptLine).filter(k => k && k.length > 8);
-      if(keys.length){ decryptedKeys = keys; technical.loadedKeys = keys.length; updateServicePanel(); return; }
-      else { technical.lastProblem = 'no-keys-from '+url; }
-    }catch(e){ technical.lastProblem = String(e).slice(0,200); continue; }
-  }
-  if(decryptedKeys.length === 0 && FALLBACK_KEY){
-    decryptedKeys = [FALLBACK_KEY];
-    technical.loadedKeys = 1;
-    technical.lastProblem = (technical.lastProblem || 'remote_failed') + ' | fallback_key_used';
-  } else {
-    technical.loadedKeys = decryptedKeys.length;
-  }
-  updateServicePanel();
-}
-
-function updateServicePanel(){
-  if (svcMode) svcMode.textContent = 'Режим: ' + (useCustomApi ? 'Кастомный API' : 'Google AI Studio');
-  if (svcLastApi) svcLastApi.textContent = 'Последний API: ' + (technical.lastUsedApi === 'custom' ? 'Кастомный' : technical.lastUsedApi === 'google' ? 'Google' : '—');
-  if (svcKeys) svcKeys.textContent = 'Ключей загружено: ' + (technical.loadedKeys || 0);
-  if (svcErrors) svcErrors.textContent = 'Ошибок отправки: ' + (technical.sendErrors || 0);
-  if (svcLast) svcLast.textContent = 'Последняя проблема: ' + (technical.lastProblem || '—');
-}
 
 // ── UI СООБЩЕНИЙ ──────────────────────────────────────────────────────────────
 function createMsgElement(role, text, msgId, jsSnippet, isLastAssistant) {
@@ -507,6 +475,33 @@ async function requestWithKeyOnce(key, messages, endpoint, model){
   }catch(e){ return { ok:false, http:null, body: String(e) }; }
 }
 
+async function requestGoogleProxy(messages){
+  const apiKey = getGoogleApiKey();
+  const url = WORKER_URL + '?key=' + apiKey;
+  const payload = {
+    model: TEXT_MODEL,
+    messages: messages,
+    stream: false
+  };
+  if (useTemperature) {
+    payload.temperature = 1.5;
+  }
+  try {
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const txt = await resp.text();
+    if(!resp.ok) return { ok:false, http:resp.status, body: txt };
+    let data = null;
+    try { data = JSON.parse(txt); } catch(e) {}
+    return { ok:true, data };
+  } catch(e) {
+    return { ok:false, http:null, body: String(e) };
+  }
+}
+
 function extractTextFromResponse(res) {
   try {
     const choice = res.data && res.data.choices && res.data.choices[0];
@@ -542,9 +537,8 @@ async function tryCustomApi(messages) {
     updateServicePanel();
     return { success:false, text:null };
   }
-  // Успех: сбрасываем счётчик последовательных ошибок
   consecutiveErrors = 0;
-  useTemperature = true; // возвращаем температуру после успеха
+  useTemperature = true;
   technical.lastProblem = null;
   technical.lastUsedApi = 'custom';
   updateServicePanel();
@@ -552,53 +546,33 @@ async function tryCustomApi(messages) {
 }
 
 async function tryGoogleApi(messages) {
-  if(!decryptedKeys || decryptedKeys.length === 0) {
-    technical.lastProblem = 'no_google_keys';
+  const res = await requestGoogleProxy(messages);
+  if (!res.ok) {
     technical.sendErrors++;
     consecutiveErrors++;
+    technical.lastProblem = 'google_proxy_http:' + (res.http||'network') + ' ' + (res.body||'').slice(0,120);
     updateServicePanel();
     return { success:false, text:null };
   }
-  let tried = new Set();
-  for(let attempt = 0; attempt < decryptedKeys.length; attempt++){
-    const idxs = [];
-    for(let i=0;i<decryptedKeys.length;i++) if(!tried.has(i)) idxs.push(i);
-    if(!idxs.length) break;
-    const idx = idxs[Math.floor(Math.random()*idxs.length)];
-    tried.add(idx);
-    const res = await requestWithKeyOnce(decryptedKeys[idx], messages, GEMINI_ENDPOINT, TEXT_MODEL);
-    if(!res.ok){
-      technical.sendErrors++;
-      consecutiveErrors++;
-      technical.lastProblem = 'google_http:' + (res.http||'network') + ' ' + (res.body||'').slice(0,120);
-      updateServicePanel();
-      continue;
-    }
-    const text = extractTextFromResponse(res);
-    if(!text){
-      technical.sendErrors++;
-      consecutiveErrors++;
-      technical.lastProblem = 'google_no_text';
-      updateServicePanel();
-      continue;
-    }
-    // Успех
-    consecutiveErrors = 0;
-    useTemperature = true;
-    technical.lastProblem = null;
-    technical.lastUsedApi = 'google';
+  const text = extractTextFromResponse(res);
+  if (!text) {
+    technical.sendErrors++;
+    consecutiveErrors++;
+    technical.lastProblem = 'google_proxy_no_text';
     updateServicePanel();
-    return { success:true, text, raw: res.data.choices[0].message };
+    return { success:false, text:null };
   }
-  return { success:false, text:null };
+  consecutiveErrors = 0;
+  useTemperature = true;
+  technical.lastProblem = null;
+  technical.lastUsedApi = 'google';
+  updateServicePanel();
+  return { success:true, text, raw: res.data.choices[0].message };
 }
 
-// Основная функция отправки с авто-переключением
 async function performRequest(messages){
-  // Проверяем, не превышен ли порог ошибок для отключения temperature
   if (consecutiveErrors >= 5) {
     useTemperature = false;
-    // Попробуем запрос без температуры
   }
   
   let primaryResult, fallbackResult;
@@ -607,7 +581,7 @@ async function performRequest(messages){
     if (!primaryResult.success) {
       fallbackResult = await tryGoogleApi(messages);
       if (fallbackResult.success) {
-        technical.lastProblem = 'auto_switched_to_google';
+        technical.lastProblem = 'auto_switched_to_google_proxy';
         updateServicePanel();
         return fallbackResult;
       }
@@ -759,10 +733,18 @@ function updateApiModeIndicator() {
       apiModeIndicator.textContent = 'Текущий режим: Кастомный API';
       apiModeIndicator.style.color = '#0b84ff';
     } else {
-      apiModeIndicator.textContent = 'Текущий режим: Google AI Studio';
+      apiModeIndicator.textContent = 'Текущий режим: Google AI Studio (прокси)';
       apiModeIndicator.style.color = '#8b95a8';
     }
   }
+}
+
+function updateServicePanel(){
+  if (svcMode) svcMode.textContent = 'Режим: ' + (useCustomApi ? 'Кастомный API' : 'Google (прокси)');
+  if (svcLastApi) svcLastApi.textContent = 'Последний API: ' + (technical.lastUsedApi === 'custom' ? 'Кастомный' : technical.lastUsedApi === 'google' ? 'Google' : '—');
+  if (svcKeys) svcKeys.textContent = 'Ключей загружено: ' + (technical.loadedKeys || 0);
+  if (svcErrors) svcErrors.textContent = 'Ошибок отправки: ' + (technical.sendErrors || 0);
+  if (svcLast) svcLast.textContent = 'Последняя проблема: ' + (technical.lastProblem || '—');
 }
 
 // Обработчики переключателей
@@ -781,11 +763,9 @@ radioGoogle.addEventListener('change', () => {
   updateServicePanel();
 });
 
-// При закрытии настроек сохраняем поля, если выбран кастом
 function saveSettingsOnClose() {
   if (useCustomApi) {
     saveCustomApiFromFields();
-    // Обновляем customApiConfig в памяти
     const stored = localStorage.getItem('API_LLM');
     if (stored) {
       try { customApiConfig = JSON.parse(stored); } catch(e) { customApiConfig = null; }
@@ -815,7 +795,6 @@ closeModal.addEventListener('click', ()=>{
   modalBack.style.display='none'; 
   modalBack.setAttribute('aria-hidden','true');
 });
-// Закрытие по клику на фон
 modalBack.addEventListener('click', (e)=>{
   if (e.target === modalBack) {
     saveSettingsOnClose();
@@ -848,12 +827,8 @@ async function loadSavedConversations(){
   conversation = [{ role: 'system', content: 'Ты — вежливый помощник Gemini 3 Flash. Отвечай кратко и по делу.' }];
   if (typeof marked === 'undefined') { console.warn('Marked library not loaded'); }
   
-  if (!useCustomApi) {
-    await fetchAndDecryptKeys();
-  } else {
-    technical.loadedKeys = 0;
-    updateServicePanel();
-  }
+  technical.loadedKeys = 0;
+  updateServicePanel();
   
   if (!localStorage.getItem('use_custom_api')) {
     modalBack.style.display = 'flex';
@@ -868,7 +843,6 @@ async function loadSavedConversations(){
 window.saveConversation = saveConversation;
 window.loadSavedConversations = loadSavedConversations;
 window._technical = technical;
-window._decryptedKeys = decryptedKeys;
 window._customApiConfig = customApiConfig;
 window._useCustomApi = useCustomApi;
 </script>
