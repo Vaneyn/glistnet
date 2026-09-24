@@ -3,89 +3,172 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"/>
-<title>Бой за зоны — WW1 final</title>
+<title>Бой за зоны — WW1</title>
 <style>
   :root{ --font: system-ui,Segoe UI,Roboto,Arial; }
   html,body{ margin:0; padding:0; height:100%; background:#222; color:#fff; font-family:var(--font); overflow:hidden; -webkit-user-select:none; -ms-user-select:none; user-select:none; touch-action:manipulation; }
+  textarea,input{ -webkit-user-select:text; user-select:text; }
   canvas#game{ display:block; background:#777; touch-action:none; -webkit-tap-highlight-color:transparent; }
 
-  /* Меню выбора режима */
-  #menu {
-    position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
-    background:rgba(0,0,0,0.85); padding:18px; border-radius:10px; z-index:200;
-    width:360px; box-shadow:0 8px 30px rgba(0,0,0,0.6);
-  }
+  #menu { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); background:rgba(0,0,0,0.85); padding:18px; border-radius:10px; z-index:200; width:360px; max-height:92vh; overflow:auto; box-shadow:0 8px 30px rgba(0,0,0,0.6); }
   #menu h2{ margin:0 0 10px 0; font-size:20px; }
   .mode-btn{ display:inline-block; padding:10px 14px; margin:8px; border-radius:8px; border:none; background:#333; color:#fff; cursor:pointer; font-size:15px; -webkit-user-select:none; user-select:none; }
   .start-btn{ display:block; margin:14px auto 0 auto; padding:10px 14px; width:100%; border-radius:8px; border:none; background:#2a8; color:#042; font-weight:700; cursor:pointer; font-size:16px; -webkit-user-select:none; user-select:none; }
+  .start-btn[disabled]{ background:#444; color:#999; cursor:default; }
+  .small-btn{ display:inline-block; padding:8px 10px; margin:4px 4px 0 0; border-radius:8px; border:none; background:#333; color:#fff; cursor:pointer; font-size:13px; }
 
-  /* Джойстик */
+  /* уровни */
+  #lv-msg{ font-size:12px; color:#9d9; margin:8px 0 0 0; min-height:14px; white-space:pre-wrap; }
+  #lv-paste{ margin-top:8px; }
+  #lv-paste summary{ cursor:pointer; font-size:13px; color:#9cf; padding:4px 0; }
+  #lv-json{ width:100%; height:130px; background:#111; color:#eee; border:1px solid #444; border-radius:6px; font-family:monospace; font-size:11px; padding:6px; box-sizing:border-box; white-space:pre; }
+  .lv-card{ background:#1c1c1c; border-radius:8px; padding:10px; margin-top:8px; cursor:pointer; border:1px solid #333; }
+  .lv-card.locked{ opacity:0.45; cursor:default; }
+  .lv-top{ display:flex; justify-content:space-between; gap:8px; font-size:15px; }
+  .lv-desc{ font-size:12px; color:#ccc; margin-top:4px; }
+  .lv-meta{ font-size:11px; color:#8ab; margin-top:4px; }
+  .lv-act{ margin-top:6px; }
+  .lv-act button{ padding:3px 9px; margin-right:6px; border-radius:6px; border:none; background:#333; color:#fff; font-size:12px; }
+  .tag{ font-size:10px; background:#345; color:#9cf; border-radius:4px; padding:1px 5px; margin-left:6px; }
+
+  /* результат уровня */
+  #result { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); background:rgba(0,0,0,0.88); padding:20px; border-radius:12px; z-index:210; width:300px; text-align:center; box-shadow:0 8px 30px rgba(0,0,0,0.6); display:none; }
+  #result h2{ margin:0 0 8px 0; }
+  #result .start-btn{ margin-top:10px; }
+
   #joy-bg { position:absolute; bottom:20px; left:20px; width:100px; height:100px; border-radius:50%; background:rgba(0,0,0,0.18); touch-action:none; z-index:60; }
   #joy-stick { position:absolute; left:25px; top:25px; width:50px; height:50px; border-radius:50%; background:rgba(0,0,0,0.46); z-index:61; }
 
-  /* Кнопки управления */
   .btn { position:absolute; width:80px; height:80px; background:rgba(0,0,0,0.25); border:none; border-radius:10px; font-size:14px; color:white; display:flex; align-items:center; justify-content:center; -webkit-tap-highlight-color:transparent; z-index:60; -webkit-user-select:none; user-select:none; }
   #fire { right:20px; bottom:120px; }
-  #lead { right:20px; bottom:210px; } /* кнопка "За мной" над огнём */
+  #lead { right:20px; bottom:210px; }
   #crouch { right:120px; bottom:20px; }
+  #surrender { left:20px; bottom:130px; width:100px; height:44px; background:rgba(120,20,20,0.45); font-size:13px; font-weight:700; display:none; }
+  #weapon { left:20px; bottom:182px; width:100px; height:40px; background:rgba(0,0,0,0.35); font-size:13px; font-weight:700; text-align:center; padding:0 4px; }
 
-  /* таймер на кнопке "За мной" */
   #lead { position: absolute; display:flex; align-items:center; justify-content:center; flex-direction:column; overflow:hidden; }
   #lead .label { pointer-events:none; z-index:62; font-weight:700; }
   #lead .cd { position:absolute; inset:0; border-radius:10px; z-index:61; pointer-events:none; background:transparent; }
 
-  /* Миникарта */
   #minimap-wrap { position:absolute; left:20px; top:20px; width:220px; background:rgba(0,0,0,0.25); border-radius:8px; padding:8px; z-index:70; display:flex; flex-direction:column; -webkit-user-select:none; user-select:none; }
   #minimap-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; color:#fff; font-size:13px; }
   #minimap-canvas { width:200px; height:200px; display:none; background:#222; border-radius:4px; margin-bottom:6px; }
   #minimap-controls { display:flex; gap:6px; }
   .mm-btn { flex:1; height:36px; border-radius:6px; border:none; background:rgba(255,255,255,0.06); color:#fff; cursor:pointer; font-size:13px; -webkit-user-select:none; user-select:none; }
 
-  /* HUD и легенда (сделали заметно уже) */
   #hud { position:absolute; left:50%; transform:translateX(-50%); top:8px; z-index:71; font-size:13px; color:#fff; background:rgba(0,0,0,0.18); padding:6px 10px; border-radius:8px; -webkit-user-select:none; user-select:none; }
-  #team-legend { position:absolute; right:14px; top:20px; z-index:71; text-align:right; font-size:13px; color:#fff; background:rgba(0,0,0,0.12); padding:8px; border-radius:8px; width:120px; -webkit-user-select:none; user-select:none; } /* <-- сильно уже */
+  #banner { position:absolute; left:50%; transform:translateX(-50%); top:46px; z-index:71; font-size:14px; font-weight:700; color:#fff; background:rgba(0,0,0,0.45); padding:5px 12px; border-radius:8px; display:none; pointer-events:none; white-space:nowrap; }
+  #goal { position:absolute; left:50%; transform:translateX(-50%); top:82px; z-index:71; font-size:13px; font-weight:700; color:#ffd; background:rgba(0,0,0,0.35); padding:4px 10px; border-radius:8px; display:none; pointer-events:none; white-space:nowrap; }
+  #team-legend { position:absolute; right:14px; top:20px; z-index:71; text-align:right; font-size:13px; color:#fff; background:rgba(0,0,0,0.12); padding:8px; border-radius:8px; width:120px; -webkit-user-select:none; user-select:none; }
   .legend-item { margin-bottom:6px; display:flex; align-items:center; justify-content:flex-end; gap:8px; font-size:12px; }
   .dot { display:inline-block; width:12px; height:12px; border-radius:50%; margin-right:8px; vertical-align:middle; }
-
   #player-score { margin-top:8px; font-weight:700; text-align:center; font-size:13px; }
 
   @media (max-width:500px){
     #joy-bg{ width:90px; height:90px; }
     #joy-stick{ width:46px; height:46px; left:22px; top:22px; }
     .btn{ width:70px; height:70px; font-size:13px; }
+    #surrender{ width:90px; height:40px; bottom:120px; }
+    #weapon{ width:90px; height:38px; bottom:168px; }
     #minimap-wrap{ width:160px; }
     #minimap-canvas{ width:140px; height:140px; }
-    #menu{ width:92%; }
+    #menu{ width:92%; box-sizing:border-box; }
     #team-legend{ width:98px; right:8px; top:12px; font-size:12px; padding:6px; }
   }
-
   #lead[disabled] { opacity:0.65; pointer-events:none; }
+
+  /* ===== редактор (оверлей) ===== */
+  #editor{ position:fixed; inset:0; z-index:500; background:#1b1b1b; color:#eee; overflow:auto; display:none; font-size:14px; -webkit-overflow-scrolling:touch; touch-action:pan-x pan-y; }
+  #editor, #editor *{ box-sizing:border-box; -webkit-user-select:auto; user-select:auto; }
+  #editor header{ position:sticky; top:0; z-index:20; background:#111; padding:8px; display:flex; flex-wrap:wrap; gap:6px; align-items:center; border-bottom:1px solid #333; }
+  #editor header b{ margin-right:6px; }
+  #editor button, #editor select, #editor input, #editor textarea{ font:inherit; color:#eee; background:#2b2b2b; border:1px solid #444; border-radius:6px; padding:6px 8px; }
+  #editor button{ cursor:pointer; }
+  #editor button.on{ background:#2a8; color:#032; border-color:#2a8; font-weight:700; }
+  #editor button.danger{ background:#5a2222; }
+  #editor button.ok{ background:#1f5f3a; }
+  #editor input[type=checkbox]{ width:18px; height:18px; padding:0; vertical-align:middle; }
+  #editor input[type=color]{ padding:0; width:40px; height:30px; }
+  #editor input[type=number]{ width:90px; }
+  #editor details{ background:#222; margin:8px; border-radius:8px; border:1px solid #333; }
+  #editor summary{ padding:10px; cursor:pointer; font-weight:700; }
+  #editor .box{ padding:0 10px 10px 10px; }
+  #editor .row{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:6px 0; }
+  #editor .row label{ display:flex; align-items:center; gap:6px; }
+  #editor .grp{ margin:10px 0 2px 0; color:#8ab; font-weight:700; font-size:12px; text-transform:uppercase; }
+  #editor .set{ display:flex; justify-content:space-between; align-items:center; gap:8px; padding:4px 0; border-bottom:1px solid #2c2c2c; }
+  #editor .set span{ flex:1; }
+  #editor .set.mod span{ color:#fc6; }
+  #editor .set small{ color:#777; display:block; }
+  #editor #tools{ position:sticky; top:48px; z-index:15; background:#161616; padding:6px 8px; display:flex; flex-wrap:wrap; gap:6px; border-bottom:1px solid #333; }
+  #editor #chips{ display:flex; flex-wrap:wrap; gap:6px; padding:6px 8px; background:#161616; }
+  #editor .chip{ padding:4px 10px; border-radius:14px; border:2px solid #444; color:#fff; text-shadow:0 0 3px #000; }
+  #editor .chip.on{ border-color:#fff; }
+  #editor #wrap{ margin:8px; overflow:auto; max-height:70vh; background:#000; border:1px solid #333; border-radius:6px; }
+  #editor canvas{ display:block; }
+  #editor textarea{ width:100%; height:260px; font-family:monospace; font-size:12px; white-space:pre; }
+  #editor #status{ padding:6px 10px; color:#9d9; font-size:12px; min-height:16px; }
+  #editor .tr{ display:flex; gap:8px; align-items:center; margin:4px 0; }
+  #editor .tr input[type=text]{ flex:1; }
 </style>
 </head>
 <body>
 <canvas id="game"></canvas>
 
-<!-- Меню выбора режима -->
 <div id="menu">
-  <h2>Выберите режим игры</h2>
-  <div>
-    <button class="mode-btn" id="mode-4">4 команды — поле 6×6</button>
-    <button class="mode-btn" id="mode-8">8 команд — поле 10×10</button>
-    <button class="mode-btn" id="mode-royal">Королевская битва — 15×15</button>
-  </div>
-  <div style="margin-top:10px; font-size:13px; color:#ddd;">
-    Описание команд и правила:
-    <ul style="margin:6px 0 0 18px;">
-      <li>Патроны: 10 точек/сек (по 1). Патроны собираются только на вашей занятой клетке.</li>
-      <li>Броня: спавн раз в 3 секунды. После двух убийств ты сможешь вызывать подкрепление</li>
-      <li>Дальность выстрела: 1.25 клетки. Боты стреляют с дистанции до цели ±10%.</li>
-    </ul>
+  <div id="menu-main">
+    <h2>Бой за зоны</h2>
+    <button class="start-btn" id="levels-btn">Уровни</button>
+    <button class="start-btn" id="free-btn">Свободная игра</button>
   </div>
 
-  <button class="start-btn" id="start-btn">Start</button>
+  <div id="menu-levels" style="display:none">
+    <h2>Уровни</h2>
+    <div>
+      <button class="small-btn" id="lv-editor" style="background:#2a6">✏ Редактор</button>
+      <button class="small-btn" id="lv-import">Импорт JSON</button>
+      <button class="small-btn" id="lv-export">Экспорт</button>
+      <button class="small-btn" id="lv-reset">Сброс прогресса</button>
+    </div>
+    <input type="file" id="lv-file" accept=".json,application/json" multiple style="display:none">
+    <details id="lv-paste">
+      <summary>Вставить и запустить JSON</summary>
+      <textarea id="lv-json" spellcheck="false" placeholder="Вставь JSON уровня (или массив / пакет уровней)"></textarea>
+      <button class="small-btn" id="lv-run" style="background:#2a6">▶ Запустить</button>
+      <button class="small-btn" id="lv-savejson">＋ В мои уровни</button>
+      <button class="small-btn" id="lv-clearjson">Очистить</button>
+    </details>
+    <div id="lv-msg"></div>
+    <div id="lv-list"></div>
+    <button class="start-btn" id="levels-back" style="background:#333;color:#fff">← В меню</button>
+  </div>
+
+  <div id="menu-free" style="display:none">
+    <h2>Свободная игра</h2>
+    <div>
+      <button class="mode-btn" id="mode-4">4 команды — поле 6×6</button>
+      <button class="mode-btn" id="mode-8">8 команд — поле 10×10</button>
+      <button class="mode-btn" id="mode-royal">Королевская битва — 15×15</button>
+      <button class="mode-btn" id="mode-hundred">Большая сотня — 29×29</button>
+    </div>
+    <div style="margin-top:10px; font-size:13px; color:#ddd;">
+      Описание команд и правила:
+      <ul style="margin:6px 0 0 18px;">
+        <li>Пайки: 10 точек/сек (по 1). Пайки собираются только на вашей занятой клетке.</li>
+        <li>Броня: спавн раз в 3 секунды. После двух убийств ты сможешь вызывать подкрепление</li>
+        <li>Дальность выстрела: 1.25 клетки. Боты стреляют с дистанции до цели ±10%.</li>
+        <li>Оружие: Автомат; Дробовик после 2 убийств; РПГ после 5 убийств (перезарядка 15 с, выстрел стоит 5 пайков). Переключатель над кнопкой «Сдаться».</li>
+        <li>Королевская битва и Большая сотня: стрелять можно через 3 секунды после старта.</li>
+        <li>Упавшая мотивация толкает бойцов к сдаче в плен 🕊️. Когда дух совсем упал, над джойстиком появится кнопка «Сдаться».</li>
+      </ul>
+    </div>
+    <button class="start-btn" id="start-btn">Start</button>
+    <button class="start-btn" id="menu-back" style="background:#333;color:#fff;margin-top:8px">← В меню</button>
+  </div>
 </div>
 
-<!-- Миникарта -->
+<div id="result"><h2 id="res-title"></h2><div id="res-text" style="font-size:14px;color:#ddd"></div><div id="res-btns"></div></div>
+
 <div id="minimap-wrap">
   <div id="minimap-header">
     <div>Миникарта</div>
@@ -98,10 +181,10 @@
   </div>
 </div>
 
-<!-- Джойстик -->
 <div id="joy-bg"><div id="joy-stick"></div></div>
 
-<!-- Кнопки -->
+<button id="weapon" class="btn">Автомат</button>
+<button id="surrender" class="btn">СДАТЬСЯ</button>
 <button id="lead" class="btn" aria-label="За мной">
   <div class="cd" id="lead-cd"></div>
   <div class="label">За мной</div>
@@ -110,77 +193,2616 @@
 <button id="crouch" class="btn">ПРИСЕСТЬ</button>
 
 <div id="hud"></div>
+<div id="banner"></div>
+<div id="goal"></div>
 <div id="team-legend"></div>
 
-<script>
-/* ====== Константы и настройки ====== */
-const CELL = 100;
-const FOLLOW_RADIUS = CELL * 1; // радиус сопровождения = 1 * CELL
-const BORDER_SLOW_ENEMY_MS = 1000; // 1 секунда между вражескими зонами
-const BORDER_SLOW_NEUTRAL_MS = 500; // 0.5 секунды между чьей-то зоной и нейтральной
-const CAPTURE_SECONDS_SINGLE = 10;
-const BULLET_RANGE = CELL * 1.25;
-const MAX_HEALTH = 100;
-const PLAYER_BASE_SPEED = 100;
-const BOT_BASE_SPEED = 80;
-const AMMO_SPAWN_PER_SEC_TOTAL = 10;
-const ARMOR_SPAWN_INTERVAL_MS = 3000;
-const REINFORCE_CHECK_MS = 3000;
-const REINFORCE_HALF_FACTOR = 0.5;
-const RELOAD_MS = 5000;
-const CROUCH_DURATION_MS = 2000;
-const CROUCH_HITBOX_REDUCE = 0.35;
-const BOT_BONUS_SEARCH_RADIUS = 120;
-const AMMO_PICK_RADIUS = 13;
-const WOUNDED_THRESHOLD = 0.5;
-const VETERAN_THRESHOLD = 0.15;
-const BOT_SPREAD_DEGREES_BASE = 6;
-const BOT_SPREAD_MULT = 1.2;
-const BOT_ENGAGE_RANGE = CELL * 5;
-const ZOOM = 1.1;
+<!-- ===================== РЕДАКТОР УРОВНЕЙ ===================== -->
+<div id="editor">
+<header id="ed-header">
+  <b>🗺 Редактор</b>
+  <button id="b-new">Новый</button>
+  <button id="b-load">Загрузить JSON</button>
+  <button id="b-save">Скачать JSON</button>
+  <button id="b-copy">Копировать</button>
+  <button id="b-test" class="ok">▶ Тест</button>
+  <button id="b-mine" class="ok">💾 В мои уровни</button>
+  <button id="b-close" class="danger">✕ Закрыть</button>
+  <input type="file" id="file" accept=".json,application/json" style="display:none">
+</header>
+<div id="status"></div>
 
-/* цвета */
+<details open><summary>Основное</summary><div class="box">
+  <div class="row"><label>id <input type="text" id="m-id" style="width:170px"></label><label>Порядок <input type="number" id="m-order"></label></div>
+  <div class="row"><label>Название <input type="text" id="m-name" style="width:230px"></label></div>
+  <div class="row"><label style="width:100%">Описание <input type="text" id="m-desc" style="flex:1;width:100%"></label></div>
+  <div class="row"><label style="width:100%">Требует пройти (id через запятую) <input type="text" id="m-req" style="flex:1;width:100%"></label></div>
+  <div class="grp">Цель</div>
+  <div class="row">
+    <select id="g-type"><option value="eliminate">Уничтожить всех</option><option value="capture">Захватить % клеток</option><option value="survive">Продержаться</option></select>
+    <label>% <input type="number" id="g-percent" min="1" max="100"></label>
+    <label>Секунд <input type="number" id="g-seconds" min="1"></label>
+  </div>
+  <div class="row">
+    <label>Лимит времени, с (0 = нет) <input type="number" id="g-limit" min="0"></label>
+  </div>
+  <div class="row">
+    <label>★★★ до, с <input type="number" id="g-s3" min="0"></label>
+    <label>★★ до, с <input type="number" id="g-s2" min="0"></label>
+  </div>
+</div></details>
+
+<details><summary>Поле и команды</summary><div class="box">
+  <div class="row">
+    <label>Ширина <input type="number" id="f-w" min="2" max="60"></label>
+    <label>Высота <input type="number" id="f-h" min="2" max="60"></label>
+    <button id="f-apply">Применить размер</button>
+  </div>
+  <div class="grp">Команды (2–16)</div>
+  <div id="teams"></div>
+  <button id="t-add">+ Команда</button>
+</div></details>
+
+<div id="tools"></div>
+<div id="chips"></div>
+<div class="row" style="padding:0 10px"><label>Масштаб <input type="range" id="zoom" min="16" max="90" value="40"></label></div>
+<div id="wrap"><canvas id="cv"></canvas></div>
+
+<details id="unit-panel"><summary>Выбранный юнит</summary><div class="box" id="unit-box">Выбери юнита инструментом «Юнит».</div></details>
+
+<details><summary>Массовые действия</summary><div class="box">
+  <div class="row"><button id="a-fill">Залить всё выбранной командой</button><button id="a-clear">Очистить клетки (нейтральные)</button></div>
+  <div class="row">
+    <label>Ботов <input type="number" id="a-n" value="5" min="1" max="200"></label>
+    <label><input type="checkbox" id="a-zone" checked> только в зоне команды</label>
+    <button id="a-bots">Добавить ботов выбранной команде</button>
+  </div>
+  <div class="row">
+    <label>Пайков <input type="number" id="a-pn" value="10" min="1" max="500"></label>
+    <select id="a-pt"><option value="ammo">пайки</option><option value="armor">броня</option></select>
+    <button id="a-pk">Раскидать по полю</button>
+  </div>
+  <div class="row"><button class="danger" id="a-delu">Удалить всех юнитов</button><button class="danger" id="a-delp">Удалить все пайки/броню</button></div>
+</div></details>
+
+<details><summary>Симуляция (любые значения)</summary><div class="box">
+  <div class="row"><button id="s-reset" class="danger">Сбросить всё к умолчаниям</button></div>
+  <div id="settings"></div>
+</div></details>
+
+<details id="json-panel"><summary>JSON уровня</summary><div class="box">
+  <div class="row"><button id="j-refresh">Обновить из редактора</button><button id="j-apply">Применить JSON</button></div>
+  <textarea id="json" spellcheck="false"></textarea>
+</div></details>
+<div style="height:40px"></div>
+</div>
+
+<script>
+/* =====================================================================
+   СИСТЕМНЫЕ (ВСТРОЕННЫЕ) УРОВНИ
+   ---------------------------------------------------------------------
+   Вставляй новые JSON уровней в этот массив через запятую.
+   Порядок в меню — по полю "order" (при равенстве — по названию).
+   Пользовательские уровни хранятся отдельно в localStorage.
+   ===================================================================== */
+const BUILTIN_LEVELS = [
+
+{
+  "format": "zone-battle-level",
+  "version": 1,
+  "id": "level-1",
+  "name": "Дуэль",
+  "description": "Научись управлению и базовым механикам игры",
+  "order": 1,
+  "requires": [],
+  "field": { "width": 2, "height": 2 },
+  "teams": [
+    { "name": "Красные", "color": "#ee4444" },
+    { "name": "Зелёные", "color": "#44aa44" }
+  ],
+  "grid": [
+    [0,-1],
+    [-1,1]
+  ],
+  "units": [
+    { "team": 1, "x": 1.75, "y": 1.75, "player": false, "boss": true, "hold": false, "hp": 100, "ammo": 0, "kills": 0, "armor": false, "motivation": 1 },
+    { "team": 0, "x": 0.25, "y": 0.25, "player": true, "boss": true, "hold": false, "hp": 100, "ammo": 0, "kills": 0, "armor": false, "motivation": 1 }
+  ],
+  "pickups": [
+    { "x": 0.75, "y": 0.5, "type": "armor" },
+    { "x": 1.25, "y": 1.25, "type": "armor" },
+    { "x": 0.75, "y": 0.5, "type": "armor" },
+    { "x": 0.75, "y": 0.5, "type": "armor" },
+    { "x": 0.5, "y": 0.75, "type": "armor" },
+    { "x": 1.5, "y": 1.5, "type": "armor" }
+  ],
+  "settings": {},
+  "goal": { "type": "eliminate", "percent": 50, "seconds": 100, "timeLimitSec": 0, "starTimesSec": [100, 100] }
+},
+
+{
+  "format": "zone-battle-level",
+  "version": 1,
+  "id": "level-2",
+  "name": "Окружопа",
+  "description": "Ай-ай!",
+  "order": 2,
+  "requires": [],
+  "field": { "width": 8, "height": 8 },
+  "teams": [
+    { "name": "Красные", "color": "#ee4444" },
+    { "name": "Зелёные", "color": "#44aa44" }
+  ],
+  "grid": [
+    [1,1,1,1,1,1,1,1],
+    [1,1,1,1,1,1,1,1],
+    [1,1,-1,-1,-1,-1,1,1],
+    [1,1,-1,0,0,-1,1,1],
+    [1,1,-1,0,0,-1,1,1],
+    [1,1,-1,-1,-1,-1,1,1],
+    [1,1,1,1,1,1,1,1],
+    [1,1,1,1,1,1,1,1]
+  ],
+  "units": [
+    { "team": 0, "x": 4, "y": 4, "player": true, "boss": true, "hold": false, "hp": 100, "ammo": 0, "kills": 0, "armor": false, "motivation": 1 },
+    { "team": 1, "x": 7, "y": 7, "player": false, "boss": true, "hold": false, "hp": 100, "ammo": 0, "kills": 0, "armor": false, "motivation": 1 },
+    { "team": 1, "x": 7, "y": 1, "player": false, "boss": false, "hold": false, "hp": 100, "ammo": 0, "kills": 0, "armor": false, "motivation": 1 },
+    { "team": 1, "x": 1, "y": 1, "player": false, "boss": false, "hold": false, "hp": 100, "ammo": 0, "kills": 0, "armor": false, "motivation": 1 },
+    { "team": 1, "x": 1, "y": 7, "player": false, "boss": false, "hold": false, "hp": 100, "ammo": 0, "kills": 0, "armor": false, "motivation": 1 }
+  ],
+  "pickups": [
+    { "x": 4.75, "y": 4, "type": "armor" },
+    { "x": 3.5, "y": 3.5, "type": "ammo" },
+    { "x": 4, "y": 3.5, "type": "ammo" },
+    { "x": 4.5, "y": 3.5, "type": "ammo" }
+  ],
+  "settings": {},
+  "goal": { "type": "survive", "percent": 50, "seconds": 60, "timeLimitSec": 0, "starTimesSec": [70, 100]}
+},
+
+{
+  "format": "zone-battle-level",
+  "version": 1,
+  "id": "level-3",
+  "name": "Один в поле воин",
+  "description": "Но будет больно. ",
+  "order": 3,
+  "requires": [],
+  "field": {
+    "width": 5,
+    "height": 5
+  },
+  "teams": [
+    {
+      "name": "Красные",
+      "color": "#ee4444"
+    },
+    {
+      "name": "Зелёные",
+      "color": "#44aa44"
+    },
+    {
+      "name": "Команда 3",
+      "color": "#4444ee"
+    },
+    {
+      "name": "Команда 4",
+      "color": "#eeee44"
+    },
+    {
+      "name": "Команда 5",
+      "color": "#44dddd"
+    },
+    {
+      "name": "Команда 6",
+      "color": "#dd44dd"
+    },
+    {
+      "name": "Команда 7",
+      "color": "#ff8800"
+    },
+    {
+      "name": "Команда 8",
+      "color": "#88aa44"
+    }
+  ],
+  "grid": [
+    [0,0,5,-1,5],
+    [0,0,-1,-1,-1],
+    [1,-1,3,-1,4],
+    [-1,-1,-1,-1,-1],
+    [2,-1,6,-1,7]
+  ],
+  "units": [
+    {
+      "team": 0,
+      "x": 1,
+      "y": 1,
+      "player": true,
+      "boss": true,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 5,
+      "x": 4.5,
+      "y": 0.5,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 5,
+      "x": 2.75,
+      "y": 0.5,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 2,
+      "x": 0.5,
+      "y": 4.5,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 0.75,
+      "y": 2.5,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 3,
+      "x": 2.75,
+      "y": 2.5,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 4,
+      "x": 4.75,
+      "y": 2.5,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 7,
+      "x": 4.75,
+      "y": 4.75,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 6,
+      "x": 2.5,
+      "y": 4.75,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    }
+  ],
+  "pickups": [],
+  "settings": {},
+  "goal": {
+    "type": "eliminate",
+    "percent": 50,
+    "seconds": 60,
+    "timeLimitSec": 0,
+    "starTimesSec": null
+  }
+},
+
+
+{
+  "format": "zone-battle-level",
+  "version": 1,
+  "id": "level-4",
+  "name": "Бух-бабах",
+  "description": "Немного хардкорного веселья с РПГ ",
+  "order": 4,
+  "requires": [],
+  "field": {
+    "width": 2,
+    "height": 10
+  },
+  "teams": [
+    {
+      "name": "Красные",
+      "color": "#ee4444"
+    },
+    {
+      "name": "Зелёные",
+      "color": "#44aa44"
+    }
+  ],
+  "grid": [
+    [1,1],
+    [1,1],
+    [-1,-1],
+    [-1,-1],
+    [-1,-1],
+    [-1,-1],
+    [-1,-1],
+    [-1,-1],
+    [0,0],
+    [0,0]
+  ],
+  "units": [
+    {
+      "team": 0,
+      "x": 1,
+      "y": 9,
+      "player": true,
+      "boss": true,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 1,
+      "y": 1,
+      "player": false,
+      "boss": true,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 0.5,
+      "y": 0.5,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 1.5,
+      "y": 0.5,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    }
+  ],
+  "pickups": [],
+  "settings": {
+    "rocketUnlockKills": 0,
+    "rocketHitsAllies": false
+  },
+  "goal": {
+    "type": "eliminate",
+    "percent": 50,
+    "seconds": 60,
+    "timeLimitSec": 0,
+    "starTimesSec": [
+      60,
+      60
+    ]
+  }
+},
+
+
+
+
+{
+  "format": "zone-battle-level",
+  "version": 1,
+  "id": "level-5",
+  "name": "Стенка на стенку",
+  "description": "Обычный бой во дворе",
+  "order": 5,
+  "requires": [],
+  "field": {
+    "width": 5,
+    "height": 2
+  },
+  "teams": [
+    {
+      "name": "Красные",
+      "color": "#ee4444"
+    },
+    {
+      "name": "Зелёные",
+      "color": "#44aa44"
+    }
+  ],
+  "grid": [
+    [0,0,-1,1,1],
+    [0,0,-1,1,1]
+  ],
+  "units": [
+    {
+      "team": 0,
+      "x": 1,
+      "y": 1,
+      "player": true,
+      "boss": true,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 4,
+      "y": 1,
+      "player": false,
+      "boss": true,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 4.75,
+      "y": 1.5,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 4.75,
+      "y": 0.5,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 4.75,
+      "y": 1,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 0.25,
+      "y": 0.5,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 0.25,
+      "y": 1,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 0.25,
+      "y": 1.5,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 1,
+      "y": 1.5,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 1,
+      "y": 0.5,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 4,
+      "y": 0.5,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 4,
+      "y": 1.5,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    }
+  ],
+  "pickups": [
+    {
+      "x": 1.75,
+      "y": 1,
+      "type": "armor"
+    },
+    {
+      "x": 3.5,
+      "y": 1,
+      "type": "armor"
+    },
+    {
+      "x": 1.75,
+      "y": 0.5,
+      "type": "armor"
+    },
+    {
+      "x": 1.75,
+      "y": 1.5,
+      "type": "armor"
+    },
+    {
+      "x": 3.5,
+      "y": 0.5,
+      "type": "armor"
+    },
+    {
+      "x": 3.5,
+      "y": 1.5,
+      "type": "armor"
+    }
+  ],
+  "settings": {
+    "fireDelayMs": 10,
+    "ammoPerSec": 0,
+    "armorIntervalMs": 10000,
+    "reinforceCheckMs": 300000000
+  },
+  "goal": {
+    "type": "eliminate",
+    "percent": 50,
+    "seconds": 60,
+    "timeLimitSec": 0,
+    "starTimesSec": [
+      70,
+      100
+    ]
+  }
+},
+
+{
+  "format": "zone-battle-level",
+  "version": 1,
+  "id": "level-6",
+  "name": "В клетке",
+  "description": "Бой в тесноте",
+  "order": 6,
+  "requires": [],
+  "field": {
+    "width": 2,
+    "height": 2
+  },
+  "teams": [
+    {
+      "name": "Красные",
+      "color": "#ee4444"
+    },
+    {
+      "name": "Зелёные",
+      "color": "#44aa44"
+    }
+  ],
+  "grid": [
+    [0,0],
+    [0,0]
+  ],
+  "units": [
+    {
+      "team": 0,
+      "x": 0,
+      "y": 0,
+      "player": true,
+      "boss": true,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 2,
+      "y": 2,
+      "player": false,
+      "boss": true,
+      "hold": false,
+      "hp": 1000,
+      "ammo": 0,
+      "kills": 0,
+      "armor": true,
+      "motivation": 1
+    }
+  ],
+  "pickups": [],
+  "settings": {
+    "maxHealth": 1000,
+    "ammoPerSec": 0,
+    "armorIntervalMs": 0,
+    "reinforceFactor": 0,
+    "lastChanceEnabled": false
+  },
+  "goal": {
+    "type": "eliminate",
+    "percent": 50,
+    "seconds": 60,
+    "timeLimitSec": 0,
+    "starTimesSec": [
+      50,
+      50
+    ]
+  }
+},
+
+{
+  "format": "zone-battle-level",
+  "version": 1,
+  "id": "level-7",
+  "name": "Один в поле воин II",
+  "description": "Какие-то сладенькие ребята мешают тебе взять территории!",
+  "order": 7,
+  "requires": [
+    "level-3"
+  ],
+  "field": {
+    "width": 4,
+    "height": 4
+  },
+  "teams": [
+    {
+      "name": "Красные",
+      "color": "#ee4444"
+    },
+    {
+      "name": "Зелёные",
+      "color": "#44aa44"
+    },
+    {
+      "name": "Геи",
+      "color": "#00ffff"
+    }
+  ],
+  "grid": [
+    [0,2,-1,-1],
+    [2,2,-1,-1],
+    [-1,-1,-1,-1],
+    [-1,-1,-1,1]
+  ],
+  "units": [
+    {
+      "team": 1,
+      "x": 3.5,
+      "y": 3.5,
+      "player": false,
+      "boss": true,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 2,
+      "x": 0.5,
+      "y": 1.5,
+      "player": false,
+      "boss": false,
+      "hold": true,
+      "hp": 10,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 2,
+      "x": 1.5,
+      "y": 1.5,
+      "player": false,
+      "boss": false,
+      "hold": true,
+      "hp": 10,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 2,
+      "x": 1.5,
+      "y": 0.5,
+      "player": false,
+      "boss": false,
+      "hold": true,
+      "hp": 10,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 0.5,
+      "y": 0.5,
+      "player": true,
+      "boss": true,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    }
+  ],
+  "pickups": [
+    {
+      "x": 0.5,
+      "y": 0.5,
+      "type": "armor"
+    }
+  ],
+  "settings": {
+    "fireDelayMs": 3000
+  },
+  "goal": {
+    "type": "eliminate",
+    "percent": 50,
+    "seconds": 60,
+    "timeLimitSec": 0,
+    "starTimesSec": [
+      150,
+      150
+    ]
+  }
+},
+
+
+
+{
+  "format": "zone-battle-level",
+  "version": 1,
+  "id": "level-8",
+  "name": "Окружопа II",
+  "description": "Отрезан от основных сил, борись до последнего",
+  "order": 8,
+  "requires": [
+    "level-2"
+  ],
+  "field": {
+    "width": 16,
+    "height": 16
+  },
+  "teams": [
+    {
+      "name": "Красные",
+      "color": "#ee4444"
+    },
+    {
+      "name": "Повстанцы",
+      "color": "#44aa44"
+    }
+  ],
+  "grid": [
+    [1,1,1,-1,0,0,0,0,0,0,0,0,0,0,0,0],
+    [1,1,1,-1,0,0,0,0,0,0,0,0,0,0,0,0],
+    [1,1,1,-1,-1,0,0,0,0,0,0,0,0,0,0,0],
+    [1,1,1,1,-1,0,0,0,0,0,0,0,0,0,0,0],
+    [1,1,1,1,1,-1,-1,-1,-1,-1,0,0,0,0,0,0],
+    [1,1,1,1,1,1,1,1,-1,-1,0,0,0,0,0,0],
+    [1,1,1,1,1,1,1,1,1,-1,0,0,0,0,0,0],
+    [1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0],
+    [1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0],
+    [1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0],
+    [1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0],
+    [1,1,1,1,1,1,1,1,1,1,1,-1,-1,-1,0,0],
+    [0,1,1,1,1,1,1,1,1,1,1,1,1,1,-1,-1],
+    [0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    [0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1],
+    [0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1]
+  ],
+  "units": [
+    {
+      "team": 0,
+      "x": 0.75,
+      "y": 15.5,
+      "player": true,
+      "boss": true,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 6.25,
+      "y": 10.75,
+      "player": false,
+      "boss": true,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 3.5,
+      "y": 8.75,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 1.5,
+      "y": 6,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 8.75,
+      "y": 13,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 11.25,
+      "y": 15,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 0.25,
+      "y": 3.5,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 0.5,
+      "y": 0.5,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 14.75,
+      "y": 15.5,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 0.75,
+      "y": 8.5,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 6.75,
+      "y": 14.5,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 8,
+      "y": 8.25,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 9.75,
+      "y": 10.5,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 3.5,
+      "y": 5.75,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 12.25,
+      "y": 13,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 4,
+      "y": 11.75,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 6.25,
+      "y": 1.25,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 8.75,
+      "y": 1.25,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 10.5,
+      "y": 1.25,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 13,
+      "y": 1.25,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 14.75,
+      "y": 1,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 13.5,
+      "y": 9,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 14.75,
+      "y": 11,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 14.75,
+      "y": 5.5,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 13.75,
+      "y": 3.5,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 1,
+      "y": 14.25,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 0.75
+    },
+    {
+      "team": 0,
+      "x": 2.25,
+      "y": 15.25,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 0.6
+    },
+    {
+      "team": 0,
+      "x": 12,
+      "y": 2.5,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 14.75,
+      "y": 2.75,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 11.75,
+      "y": 1,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 15,
+      "y": 2,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 12.75,
+      "y": 0.75,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 15.25,
+      "y": 0.5,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 13.75,
+      "y": 2.25,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 12.75,
+      "y": 3.75,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 15,
+      "y": 4,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 10.75,
+      "y": 2.5,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 2.25,
+      "y": 7.75,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 0.75,
+      "y": 6.25,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 2.75,
+      "y": 8.75,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 3.25,
+      "y": 9.75,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 4.5,
+      "y": 11,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 5,
+      "y": 12,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 6,
+      "y": 13.5,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 8,
+      "y": 14.5,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 9.5,
+      "y": 15.25,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 10.5,
+      "y": 14,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 6,
+      "y": 8.75,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 7.25,
+      "y": 10,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 8.75,
+      "y": 11.5,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 3.25,
+      "y": 14.75,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 0.25,
+      "y": 14,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 1.75,
+      "y": 15.75,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 2.25,
+      "y": 1.25,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 1.75,
+      "y": 2.75,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 1.25,
+      "y": 1.25,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 2.5,
+      "y": 3.25,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 15,
+      "y": 14.5,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 13.25,
+      "y": 15.5,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 13.25,
+      "y": 14,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 2.75,
+      "y": 13.25,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 0.5,
+      "y": 12.75,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 3,
+      "y": 15.75,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 0.25,
+      "y": 14.75,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 1.75,
+      "y": 15,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 2.75,
+      "y": 14.5,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 1.5,
+      "y": 14.25,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    }
+  ],
+  "pickups": [
+    {
+      "x": 1.75,
+      "y": 13.75,
+      "type": "armor"
+    },
+    {
+      "x": 0.75,
+      "y": 13.25,
+      "type": "armor"
+    },
+    {
+      "x": 3.75,
+      "y": 15.25,
+      "type": "armor"
+    },
+    {
+      "x": 4,
+      "y": 9.75,
+      "type": "armor"
+    },
+    {
+      "x": 2.25,
+      "y": 4.5,
+      "type": "armor"
+    },
+    {
+      "x": 7.5,
+      "y": 11.5,
+      "type": "armor"
+    },
+    {
+      "x": 11.75,
+      "y": 4.5,
+      "type": "armor"
+    },
+    {
+      "x": 12.25,
+      "y": 6.5,
+      "type": "armor"
+    },
+    {
+      "x": 9.5,
+      "y": 3.25,
+      "type": "armor"
+    },
+    {
+      "x": 2,
+      "y": 14.5,
+      "type": "armor"
+    },
+    {
+      "x": 3.25,
+      "y": 15.5,
+      "type": "armor"
+    },
+    {
+      "x": 2.25,
+      "y": 14.25,
+      "type": "armor"
+    },
+    {
+      "x": 0.75,
+      "y": 12.75,
+      "type": "armor"
+    }
+  ],
+  "settings": {},
+  "goal": {
+    "type": "survive",
+    "percent": 50,
+    "seconds": 90,
+    "timeLimitSec": 0,
+    "starTimesSec": [
+      120,
+      150
+    ]
+  }
+},
+
+
+{
+  "format": "zone-battle-level",
+  "version": 1,
+  "id": "level-9",
+  "name": "Бунд блд",
+  "description": "Великий вождь! Они идут за вами!",
+  "order": 9,
+  "requires": [],
+  "field": {
+    "width": 16,
+    "height": 16
+  },
+  "teams": [
+    {
+      "name": "Красные",
+      "color": "#ee4444"
+    },
+    {
+      "name": "Плохие ребятя и тд",
+      "color": "#8c0000"
+    }
+  ],
+  "grid": [
+    [1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+  ],
+  "units": [
+    {
+      "team": 1,
+      "x": 0.25,
+      "y": 0.5,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 0.5,
+      "y": 0.75,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 0.5,
+      "y": 1,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 1.25,
+      "y": 0.25,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 1,
+      "y": 0.75,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 1,
+      "y": 0.5,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 1.75,
+      "y": 0.25,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 0.75,
+      "y": 1.5,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 0.25,
+      "y": 1.5,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 0.5,
+      "y": 2,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 0.5,
+      "y": 0,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 0.25,
+      "y": 0.75,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 1.75,
+      "y": 0,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 0,
+      "y": 1.75,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 0.75,
+      "y": 2,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 0.25,
+      "y": 1,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 1.5,
+      "y": 0.5,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 1,
+      "y": 0.5,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 0.5,
+      "y": 1.25,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 0.5,
+      "y": 1.75,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 1,
+      "y": 1,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 0.75,
+      "y": 1,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 0.25,
+      "y": 0.25,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 1.25,
+      "y": 0,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 1.75,
+      "y": 0.5,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 1.75,
+      "y": 0.75,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 0.75,
+      "y": 5.5,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 4,
+      "y": 3.75,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 6.25,
+      "y": 1.5,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 2,
+      "y": 9.75,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 5,
+      "y": 6.75,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 7.25,
+      "y": 4.75,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 9.5,
+      "y": 1.75,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 3,
+      "y": 14.25,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 7.25,
+      "y": 11.25,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 11.75,
+      "y": 7.75,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 14.75,
+      "y": 4,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 0,
+      "x": 14,
+      "y": 14.25,
+      "player": true,
+      "boss": true,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": true,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 0.25,
+      "y": 0.25,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 0.25,
+      "y": 0.5,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 0.75,
+      "y": 0.25,
+      "player": false,
+      "boss": false,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 0,
+      "armor": false,
+      "motivation": 1
+    },
+    {
+      "team": 1,
+      "x": 0,
+      "y": 0,
+      "player": false,
+      "boss": true,
+      "hold": false,
+      "hp": 100,
+      "ammo": 0,
+      "kills": 15,
+      "armor": true,
+      "motivation": 3
+    }
+  ],
+  "pickups": [],
+  "settings": {
+    "captureSeconds": 9,
+    "ammoPerSec": 3
+  },
+  "goal": {
+    "type": "eliminate",
+    "percent": 50,
+    "seconds": 90,
+    "timeLimitSec": 0,
+    "starTimesSec": [
+      120,
+      150
+    ]
+  }
+},
+
+
+];
+
+/* =====================================================================
+   НАСТРОЙКИ СИМУЛЯЦИИ. Любой ключ можно переопределить в JSON уровня:
+   "settings": { "reloadMs": 3000, "botsShoot": false, ... }
+   ===================================================================== */
+const DEFAULTS = {
+  // поле боя
+  zoom:1.1, captureSeconds:10, borderSlowEnemyMs:1000, borderSlowNeutralMs:500, borderSlowFactor:0.25, fireDelayMs:0,
+  // юниты
+  maxHealth:100, unitRadius:5, playerSpeed:100, botSpeed:80, crouchMs:2000, crouchHitboxReduce:0.35,
+  // стрельба
+  bulletRangeCells:1.25, reloadMs:5000, friendlyFire:false,
+  // пайки, броня, подкрепления
+  ammoPerSec:10, armorIntervalMs:3000, ammoPickRadius:13, reinforceCheckMs:3000, reinforceFactor:0.5,
+  // боты
+  botsEnabled:true, botsShoot:true, botSpreadDeg:7.2, botEngageCells:5, botBonusRadius:120, woundedThreshold:0.5, veteranThreshold:0.15,
+  // мотивация и плен
+  motivationEnabled:true, surrenderBelow:0.3, surrenderCycleMs:2000, surrenderSizeMult:1.25, surrenderJoinMs:15000,
+  surrenderBtnMotivation:0.5, killSurrenderedChance:0.05, killOwnSurrenderedBonus:0.1,
+  // оружие
+  shotgunUnlockKills:2, rocketUnlockKills:5, shotgunRange:0.75, shotgunDmg:0.45,
+  rocketSpeedCells:1, rocketReloadMs:15000, rocketCost:5, rocketShards:12, rocketShardRange:2.5, rocketHitsAllies:true,
+  botShotgunFrac:0.5, botRpgMinEnemies:5, botRpgRangeCells:4, botRpgMinCells:1.5,
+  // командир и последний шанс
+  leadMinKills:2, leadCooldownMs:60000,
+  lastChanceEnabled:true, lastChanceHoldMs:20000, lastChanceRate:2, lastChanceShare:0.25, lastChanceMinEnemies:8,
+  // правила уровня
+  loseOnPlayerDeath:true
+};
+let S = Object.assign({}, DEFAULTS);
+function mkSettings(over){
+  const s = Object.assign({}, DEFAULTS);
+  if(over && typeof over === 'object') for(const k in over){ if(k in DEFAULTS && typeof over[k] === typeof DEFAULTS[k] && (typeof over[k] !== 'number' || isFinite(over[k]))) s[k] = over[k]; }
+  return s;
+}
+
+/* ====== Константы ====== */
+const CELL = 100;
+const FOLLOW_RADIUS = CELL * 1;
+const BULLET_SPEED = CELL * 6;
+const MOT_RADIUS = CELL * 3;           // радиус "событий рядом"
+const ROCKET_HIT_PAD = 5;
+const WEAPON_NAMES = { auto:'Автомат', shotgun:'Дробовик', rpg:'РПГ' };
 const TEAM_COLORS_FULL = ['#e44','#4a4','#44e','#ff8','#ff4','#4ff','#f4f','#8ff'];
-const TEAM_COLORS_LIGHT_FULL = ['#f88','#8f8','#88f','#ffd','#ffb','#bff','#f8f','#cff'];
+const LS_LEVELS = 'zb_levels_v1', LS_PROGRESS = 'zb_progress_v1';
+
+function rng(){ return CELL * S.bulletRangeCells; }
+// угол между соседними дробинами: на половине дальности обычного выстрела расстояние между ними = диаметру юнита
+function shotgunSpread(){ return 2 * Math.asin(Math.min(1, (2 * S.unitRadius) / rng())); }
 
 /* ====== Переменные игры ====== */
 let TEAM_COUNT = 4;
-let N = 6; // default
-let WORLD_W = N * CELL, WORLD_H = N * CELL;
-let TEAM_COLORS = [], TEAM_COLORS_LIGHT = [];
-let cells = [], entities = [], pickups = [], bullets = [];
+let N = 6;                       // только для свободной игры (квадрат)
+let NX = 6, NY = 6;              // размер поля в клетках
+let WORLD_W = NX * CELL, WORLD_H = NY * CELL;
+let TEAM_COLORS = [], TEAM_COLORS_LIGHT = [], TEAM_NAMES = [];
+let cells = [], entities = [], pickups = [], bullets = [], explosions = [];
+let pickupGrid = [];
+let royalZones = [];
 let player = null;
 let gameStarted = false;
+let gameStartTime = 0;
 let ammoAccumulator = 0;
 let armorIntervalId = null;
 let reinforceIntervalId = null;
 let lastFrame = 0;
-let selectedMode = 4; // 4, 8, 'royal'
+let loopToken = 0;
+let selectedMode = 4; // 4, 8, 'royal', 'hundred'
+let currentLevel = null, levelEnded = false, levelTime = 0, levelPlayerTeam = 0;
+let runOpts = { test:false, from:'menu' };
+const LC = { timer:0, active:false, remaining:0, accum:0 };
 
-/* Camera */
-const camera = { x: 0, y: 0, zoom: ZOOM, zoomTarget: ZOOM, followPlayer: true, dragging:false, dragStartWorld:{x:0,y:0}, dragStartCam:{x:0,y:0} };
+const camera = { x: 0, y: 0, zoom: 1.1, zoomTarget: 1.1, followPlayer: true, dragging:false, dragStartWorld:{x:0,y:0}, dragStartCam:{x:0,y:0} };
 
-/* Follow periodic and throttles */
 let followCheckAccum = 0;
 let lastLegendUpdateTime = 0;
 
-/* UI элементы */
+/* UI */
 const canvas = document.getElementById('game'), ctx = canvas.getContext('2d');
 const menu = document.getElementById('menu'), startBtn = document.getElementById('start-btn');
-const mode4Btn = document.getElementById('mode-4'), mode8Btn = document.getElementById('mode-8'), modeRoyalBtn = document.getElementById('mode-royal');
-const minimapWrap = document.getElementById('minimap-wrap'), minimapCanvas = document.getElementById('minimap-canvas'), mmCtx = minimapCanvas.getContext('2d');
+const menuMain = document.getElementById('menu-main'), menuFree = document.getElementById('menu-free'), menuLevels = document.getElementById('menu-levels');
+const mode4Btn = document.getElementById('mode-4'), mode8Btn = document.getElementById('mode-8'), modeRoyalBtn = document.getElementById('mode-royal'), modeHundredBtn = document.getElementById('mode-hundred');
+const minimapCanvas = document.getElementById('minimap-canvas'), mmCtx = minimapCanvas.getContext('2d');
 const mmToggle = document.getElementById('minimap-toggle'), backBtn = document.getElementById('back'), mmStatus = document.getElementById('minimap-status');
 const joyBg = document.getElementById('joy-bg'), joyStick = document.getElementById('joy-stick');
-const fireBtn = document.getElementById('fire'), crouchBtn = document.getElementById('crouch'), leadBtn = document.getElementById('lead');
+const fireBtn = document.getElementById('fire'), crouchBtn = document.getElementById('crouch'), leadBtn = document.getElementById('lead'), surrenderBtn = document.getElementById('surrender'), weaponBtn = document.getElementById('weapon');
 const leadCd = document.getElementById('lead-cd');
-const hud = document.getElementById('hud'), teamLegend = document.getElementById('team-legend');
+const hud = document.getElementById('hud'), teamLegend = document.getElementById('team-legend'), bannerEl = document.getElementById('banner'), goalEl = document.getElementById('goal');
+const resultEl = document.getElementById('result');
+const editorEl = document.getElementById('editor');
 let minimapVisible = false;
 
-/* ====== Меню режимов ====== */
-mode4Btn.addEventListener('click', ()=>{ selectedMode = 4; mode4Btn.style.background='#2a6'; mode8Btn.style.background='#333'; modeRoyalBtn.style.background='#333'; });
-mode8Btn.addEventListener('click', ()=>{ selectedMode = 8; mode8Btn.style.background='#2a6'; mode4Btn.style.background='#333'; modeRoyalBtn.style.background='#333'; });
-modeRoyalBtn.addEventListener('click', ()=>{ selectedMode = 'royal'; modeRoyalBtn.style.background='#2a6'; mode4Btn.style.background='#333'; mode8Btn.style.background='#333'; });
-mode4Btn.style.background='#2a6';
+function isRoyal(){ return !currentLevel && (selectedMode === 'royal' || selectedMode === 'hundred'); }
+function canFire(){ return (Date.now() - gameStartTime) >= S.fireDelayMs; }
+function ci(x){ return clamp(Math.floor(x/CELL), 0, NX-1); }
+function cj(y){ return clamp(Math.floor(y/CELL), 0, NY-1); }
+
+/* ====== Меню ====== */
+function showScreen(name){
+  menuMain.style.display = name === 'main' ? 'block' : 'none';
+  menuFree.style.display = name === 'free' ? 'block' : 'none';
+  menuLevels.style.display = name === 'levels' ? 'block' : 'none';
+  if(name === 'levels') renderLevels();
+}
+document.getElementById('free-btn').addEventListener('click', ()=>showScreen('free'));
+document.getElementById('menu-back').addEventListener('click', ()=>showScreen('main'));
+document.getElementById('levels-btn').addEventListener('click', ()=>showScreen('levels'));
+document.getElementById('levels-back').addEventListener('click', ()=>showScreen('main'));
+const modeBtns = { '4':mode4Btn, '8':mode8Btn, 'royal':modeRoyalBtn, 'hundred':modeHundredBtn };
+function pickMode(m){ selectedMode = m; for(const k in modeBtns) modeBtns[k].style.background = (k === String(m)) ? '#2a6' : '#333'; }
+mode4Btn.addEventListener('click', ()=>pickMode(4));
+mode8Btn.addEventListener('click', ()=>pickMode(8));
+modeRoyalBtn.addEventListener('click', ()=>pickMode('royal'));
+modeHundredBtn.addEventListener('click', ()=>pickMode('hundred'));
+pickMode(4);
 
 /* ====== Canvas resize ====== */
 function resizeCanvas(){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
@@ -191,14 +2813,27 @@ resizeCanvas();
 function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
 function randRange(a,b){ return a + Math.random()*(b-a); }
 function distXY(ax,ay,bx,by){ return Math.hypot(ax-bx, ay-by); }
+function shuffle(a){ for(let k=a.length-1;k>0;k--){ const t=Math.floor(Math.random()*(k+1)); const tmp=a[k]; a[k]=a[t]; a[t]=tmp; } }
+function deep(o){ return JSON.parse(JSON.stringify(o)); }
+function esc(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function fmtSec(s){ s = Math.max(0, Math.round(s)); return Math.floor(s/60) + ':' + String(s%60).padStart(2,'0'); }
 function hexToRgb(hex){ if(hex[0]==='#') hex = hex.slice(1); if(hex.length===3) return { r: parseInt(hex[0]+hex[0],16), g: parseInt(hex[1]+hex[1],16), b: parseInt(hex[2]+hex[2],16) }; return { r: parseInt(hex.slice(0,2),16), g: parseInt(hex.slice(2,4),16), b: parseInt(hex.slice(4,6),16) }; }
 function rgbToStr(r,g,b){ return `rgb(${Math.round(r)},${Math.round(g)},${Math.round(b)})`; }
 function blendColors(a,b,t){ const pa=hexToRgb(a), pb=hexToRgb(b); const r=pa.r*(1-t)+pb.r*t, g=pa.g*(1-t)+pb.g*t, bl=pa.b*(1-t)+pb.b*t; return rgbToStr(r,g,bl); }
-function brightenHex(hex, factor){ const p = hexToRgb(hex); return rgbToStr(p.r*factor, p.g*factor, p.b*factor); }
-function getCellIndexFromXY(x,y){ return { i: clamp(Math.floor(x/CELL), 0, N-1), j: clamp(Math.floor(y/CELL), 0, N-1) }; }
-function playersInCell(i,j){ const res = []; for(const p of entities) if(p && p.hp>0 && Math.floor(p.x/CELL)===i && Math.floor(p.y/CELL)===j) res.push(p); return res; }
+function brightenHex(hex, factor){ if(!hex || hex[0] !== '#') return hex; const p = hexToRgb(hex); return rgbToStr(p.r*factor, p.g*factor, p.b*factor); }
+/* сдающиеся не считаются угрозой/захватчиками */
+function playersInCell(i,j){ const res = []; for(const p of entities) if(p && p.hp>0 && !p.surrendered && ci(p.x)===i && cj(p.y)===j) res.push(p); return res; }
 
-/* ====== Start zones генерация (как было) ====== */
+/* ====== Оружие: доступность ====== */
+function weaponAvail(e, w){
+  if(w === 'auto') return true;
+  if(w === 'shotgun') return (e.kills || 0) >= S.shotgunUnlockKills;
+  if(w === 'rpg') return (e.kills || 0) >= S.rocketUnlockKills;
+  return false;
+}
+function availWeapons(e){ const l = ['auto']; if(weaponAvail(e,'shotgun')) l.push('shotgun'); if(weaponAvail(e,'rpg')) l.push('rpg'); return l; }
+
+/* ====== Стартовые зоны (свободная игра) ====== */
 function computeStartZones(){
   const zones = [];
   if(TEAM_COUNT === 4){
@@ -221,35 +2856,161 @@ function computeStartZones(){
   return zones;
 }
 
-/* ====== Инициализация игры ====== */
-startBtn.addEventListener('click', ()=>{
+/* ====== Создание юнита ====== */
+function spawnEntityObject(x,y,team,isBot,opts){
+  return {
+    id: Math.random().toString(36).slice(2,9),
+    x: clamp(x,2,WORLD_W-2),
+    y: clamp(y,2,WORLD_H-2),
+    vx: 0, vy: 0,
+    team: team,
+    isBot: !!isBot,
+    isBoss: !!(opts && opts.isBoss),
+    baseR: S.unitRadius,
+    moveDir: {x:0,y:0},
+    facing: {x:1,y:0},
+    speed: isBot ? S.botSpeed : S.playerSpeed,
+    ammo: 0,
+    hasArmor: false,
+    reloadUntil: 0,
+    crouchUntil: 0,
+    hp: S.maxHealth,
+    state: 'idle',
+    stateTarget: null,
+    stateTimer: 0,
+    wantedCaptureCell: null,
+    reinforcement: opts && opts.reinforcement ? true : false,
+    isVeteran: false,
+    veteranZone: null,
+    alwaysCrouched: false,
+    kills: 0,
+    bossCooldownUntil: 0,
+    following: null,
+    followStart: 0,
+    followHighlight: false,
+    followOffset: null,
+    borderSlowUntil: 0,
+    holdPos: false,
+    /* мотивация и плен */
+    motivation: 1,
+    surrendered: false,
+    killsSurrendered: Math.random() < S.killSurrenderedChance,
+    surrenderCheckAt: 0,
+    hostileTime: 0,
+    surrTarget: null,
+    surrRetarget: 0,
+    surrenderLeader: null,
+    surrOffsetAngle: 0,
+    /* оружие */
+    weapon: 'auto',
+    rocketReloadUntil: 0,
+    rpgCheckAt: 0
+  };
+}
+
+/* ====== Общий старт/остановка ====== */
+function resetCommon(){
+  if(armorIntervalId) clearInterval(armorIntervalId);
+  if(reinforceIntervalId) clearInterval(reinforceIntervalId);
+  armorIntervalId = null; reinforceIntervalId = null;
+  cells = []; entities = []; pickups = []; bullets = []; explosions = []; pickupGrid = [];
+  ammoAccumulator = 0; followCheckAccum = 0;
+  player = null; playerAlivePrev = true;
+  gameStartTime = Date.now();
+  levelTime = 0; levelEnded = false;
+  LC.timer = 0; LC.active = false; LC.remaining = 0; LC.accum = 0;
+  camera.x = 0; camera.y = 0; camera.zoom = S.zoom; camera.zoomTarget = S.zoom; camera.followPlayer = true; camera.dragging = false;
+  surrenderArmUntil = 0;
+  resultEl.style.display = 'none'; goalEl.style.display = 'none';
+  resizeCanvas();
+}
+function finishInit(){
+  if(S.armorIntervalMs > 0){
+    armorIntervalId = setInterval(()=>{ pickups.push({ x: randRange(12,WORLD_W-12), y: randRange(12,WORLD_H-12), type:'armor', amount:1 }); }, S.armorIntervalMs);
+  }
+  if(S.reinforceFactor > 0){
+    reinforceIntervalId = setInterval(()=>{
+      if(levelEnded) return;
+      for(let t=0;t<TEAM_COUNT;t++){
+        let countZones = 0;
+        for(let i=0;i<NX;i++) for(let j=0;j<NY;j++) if(cells[i][j].owner === t) countZones++;
+        if(countZones <= 0) continue;
+        const chancePercent = countZones * S.reinforceFactor;
+        if(Math.random()*100 < chancePercent){
+          const teamCells=[]; for(let i=0;i<NX;i++) for(let j=0;j<NY;j++) if(cells[i][j].owner === t) teamCells.push({i,j});
+          if(teamCells.length===0) continue;
+          const cell = teamCells[Math.floor(Math.random()*teamCells.length)];
+          const cx = cell.i*CELL + CELL/2, cy = cell.j*CELL + CELL/2;
+          const nx = clamp(cx + randRange(-20,20), 2, WORLD_W-2), ny = clamp(cy + randRange(-20,20), 2, WORLD_H-2);
+          entities.push(spawnEntityObject(nx, ny, t, true, {reinforcement:true}));
+        }
+      }
+    }, S.reinforceCheckMs);
+  }
+  updateLegend(true);
+  gameStarted = true;
+  lastFrame = Date.now();
+  const token = ++loopToken;
+  (function tick(){ if(token !== loopToken || !gameStarted) return; gameLoop(); requestAnimationFrame(tick); })();
+}
+function stopGame(){
+  gameStarted = false; loopToken++;
+  if(armorIntervalId) clearInterval(armorIntervalId);
+  if(reinforceIntervalId) clearInterval(reinforceIntervalId);
+  armorIntervalId = null; reinforceIntervalId = null;
+  resultEl.style.display = 'none'; goalEl.style.display = 'none'; bannerEl.style.display = 'none';
+  weaponBtn.style.display = 'none'; surrenderBtn.style.display = 'none';
+  hud.innerHTML = ''; teamLegend.innerHTML = '';
+  ctx.setTransform(1,0,0,1,0,0); ctx.fillStyle = '#222'; ctx.fillRect(0,0,canvas.width,canvas.height);
+  currentLevel = null; player = null;
+}
+function exitToMenu(screen){
+  stopGame();
+  menu.style.display = 'block';
+  showScreen(screen);
+}
+function exitToEditor(){
+  stopGame();
+  ZBEditor.open(null);
+}
+
+/* ====== Свободная игра ====== */
+startBtn.addEventListener('click', ()=>{ menu.style.display = 'none'; startFree(); });
+function startFree(){
+  currentLevel = null; runOpts = { test:false, from:'menu' };
+  S = mkSettings(null);
   if(selectedMode === 4){ TEAM_COUNT = 4; N = 6; }
   else if(selectedMode === 8){ TEAM_COUNT = 8; N = 10; }
   else if(selectedMode === 'royal'){ N = 15; TEAM_COUNT = N * N; }
-  WORLD_W = N * CELL; WORLD_H = N * CELL;
-  menu.style.display = 'none';
-  initGame();
-});
+  else { N = 29; TEAM_COUNT = 100; }
+  if(isRoyal()) S.fireDelayMs = 3000;   // королевка/сотня: огонь через 3 с
+  NX = N; NY = N; WORLD_W = NX * CELL; WORLD_H = NY * CELL;
+  TEAM_NAMES = [];
+  resetCommon();
 
-function initGame(){
-  if(armorIntervalId) clearInterval(armorIntervalId);
-  if(reinforceIntervalId) clearInterval(reinforceIntervalId);
-  cells = []; entities = []; pickups = []; bullets = [];
-  ammoAccumulator = 0;
-  player = null;
-  camera.zoom = ZOOM; camera.zoomTarget = ZOOM; camera.followPlayer = true;
-  resizeCanvas();
+  for(let i=0;i<NX;i++){ cells[i]=[]; for(let j=0;j<NY;j++) cells[i][j] = { owner:-1, captureTeam:-1, progress:0 }; }
 
-  for(let i=0;i<N;i++){ cells[i]=[]; for(let j=0;j<N;j++) cells[i][j] = { owner:-1, captureTeam:-1, progress:0 }; }
-
-  if(selectedMode === 'royal'){
+  if(isRoyal()){
     TEAM_COLORS = new Array(TEAM_COUNT);
     TEAM_COLORS_LIGHT = new Array(TEAM_COUNT);
-    const cellsList = [];
-    for(let i=0;i<N;i++) for(let j=0;j<N;j++) cellsList.push({i,j});
-    for(let k=cellsList.length-1;k>0;k--){ const t = Math.floor(Math.random()*(k+1)); const tmp = cellsList[k]; cellsList[k]=cellsList[t]; cellsList[t]=tmp; }
+    royalZones = [];
+    if(selectedMode === 'hundred'){
+      /* 100 зон 2×2 равномерной сеткой 10×10: шаг 3 клетки (зона 2 + зазор 1), 29 = 9*3 + 2 */
+      const slots = [];
+      for(let a=0;a<10;a++) for(let b=0;b<10;b++){
+        const i0 = a*3, j0 = b*3;
+        slots.push([{i:i0,j:j0},{i:i0+1,j:j0},{i:i0,j:j0+1},{i:i0+1,j:j0+1}]);
+      }
+      shuffle(slots);
+      royalZones = slots.slice(0, TEAM_COUNT);
+    } else {
+      const list = [];
+      for(let i=0;i<NX;i++) for(let j=0;j<NY;j++) list.push([{i,j}]);
+      shuffle(list);
+      royalZones = list.slice(0, TEAM_COUNT);
+    }
     for(let t=0;t<TEAM_COUNT;t++){
-      const pos = cellsList[t]; cells[pos.i][pos.j].owner = t;
+      for(const c of royalZones[t]) cells[c.i][c.j].owner = t;
       if(t===0){ TEAM_COLORS[t] = '#e44'; TEAM_COLORS_LIGHT[t] = '#f88'; }
       else {
         const h = Math.floor(Math.random()*360), s = 55 + Math.floor(Math.random()*30), l = 45 + Math.floor(Math.random()*10);
@@ -258,117 +3019,320 @@ function initGame(){
       }
     }
   } else {
-    for(let i=0;i<N;i++) for(let j=0;j<N;j++) cells[i][j].owner = -1;
+    const LIGHT = ['#f88','#8f8','#88f','#ffd','#ffb','#bff','#f8f','#cff'];
     TEAM_COLORS = TEAM_COLORS_FULL.slice(0, TEAM_COUNT);
-    TEAM_COLORS_LIGHT = TEAM_COLORS_LIGHT_FULL.slice(0, TEAM_COUNT);
+    TEAM_COLORS_LIGHT = LIGHT.slice(0, TEAM_COUNT);
     const startZones = computeStartZones();
     for(let t=0;t<startZones.length && t<TEAM_COUNT;t++){
       for(const c of startZones[t]) if(cells[c.i] && cells[c.i][c.j]) cells[c.i][c.j].owner = t;
     }
   }
 
-  function spawnEntityObject(x,y,team,isBot,opts){
-    return {
-      id: Math.random().toString(36).slice(2,9),
-      x: clamp(x,2,WORLD_W-2),
-      y: clamp(y,2,WORLD_H-2),
-      vx: 0, vy: 0,
-      team: team,
-      isBot: !!isBot,
-      isBoss: !!(opts && opts.isBoss),
-      baseR: 5,
-      moveDir: {x:0,y:0},
-      facing: {x:1,y:0},
-      speed: isBot ? BOT_BASE_SPEED : PLAYER_BASE_SPEED,
-      ammo: 0,
-      hasArmor: false,
-      reloadUntil: 0,
-      crouchUntil: 0,
-      hp: MAX_HEALTH,
-      state: 'idle',
-      stateTarget: null,
-      stateTimer: 0,
-      wantedCaptureCell: null,
-      reinforcement: opts && opts.reinforcement ? true : false,
-      isVeteran: false,
-      veteranZone: null,
-      alwaysCrouched: false,
-      kills: 0,
-      bossCooldownUntil: 0,
-      following: null,
-      followStart: 0,
-      followHighlight: false,
-      followOffset: null,
-      borderSlowUntil: 0
-    };
+  const zonesForSpawn = isRoyal() ? royalZones : computeStartZones();
+  for(let t=0;t<TEAM_COUNT;t++){
+    const zone = zonesForSpawn[t] || [{i:0,j:0}];
+    let sx=0, sy=0, cnt=0;
+    for(const c of zone){ sx += c.i*CELL + CELL/2; sy += c.j*CELL + CELL/2; cnt++; }
+    const cx = sx/cnt, cy = sy/cnt;
+    const ent = spawnEntityObject(cx + randRange(-12,12), cy + randRange(-12,12), t, t!==0, {isBoss:true});
+    entities.push(ent);
+    if(t===0) player = ent;
   }
-
-  if(selectedMode === 'royal'){
-    for(let t=0;t<TEAM_COUNT;t++){
-      let placed = false;
-      for(let i=0;i<N && !placed;i++) for(let j=0;j<N && !placed;j++){
-        if(cells[i][j].owner === t){
-          const cx = i*CELL + CELL/2 + randRange(-12,12), cy = j*CELL + CELL/2 + randRange(-12,12);
-          const ent = spawnEntityObject(cx, cy, t, true, {isBoss:true});
-          entities.push(ent);
-          placed = true;
-          if(t===0){
-            const playerEnt = spawnEntityObject(cx + randRange(-8,8), cy + randRange(-8,8), 0, false, {isBoss:true});
-            player = playerEnt;
-            player.isBoss = true;
-            entities.push(playerEnt);
-            const idx = entities.indexOf(ent);
-            if(idx>=0) entities.splice(idx,1);
-          }
-        }
-      }
-    }
-  } else {
-    const startZones = computeStartZones();
-    for(let t=0;t<TEAM_COUNT;t++){
-      const zone = startZones[t] || [{i:0,j:0}];
-      let sx=0, sy=0, cnt=0;
-      for(const c of zone){ sx += c.i*CELL + CELL/2; sy += c.j*CELL + CELL/2; cnt++; }
-      const cx = sx/cnt, cy = sy/cnt;
-      const ent = spawnEntityObject(cx + randRange(-12,12), cy + randRange(-12,12), t, t!==0, {isBoss:true});
-      entities.push(ent);
-      if(t===0) player = ent;
-    }
-  }
-
-  armorIntervalId = setInterval(()=>{ pickups.push({ x: randRange(12,WORLD_W-12), y: randRange(12,WORLD_H-12), type:'armor', amount:1 }); }, ARMOR_SPAWN_INTERVAL_MS);
-
-  reinforceIntervalId = setInterval(()=>{
-    for(let t=0;t<TEAM_COUNT;t++){
-      let countZones = 0;
-      for(let i=0;i<N;i++) for(let j=0;j<N;j++) if(cells[i][j].owner === t) countZones++;
-      if(countZones <= 0) continue;
-      const chancePercent = countZones * REINFORCE_HALF_FACTOR;
-      if(Math.random()*100 < chancePercent){
-        const teamCells=[]; for(let i=0;i<N;i++) for(let j=0;j<N;j++) if(cells[i][j].owner === t) teamCells.push({i,j});
-        if(teamCells.length===0) continue;
-        const cell = teamCells[Math.floor(Math.random()*teamCells.length)];
-        const cx = cell.i*CELL + CELL/2, cy = cell.j*CELL + CELL/2;
-        const nx = clamp(cx + randRange(-20,20), 2, WORLD_W-2), ny = clamp(cy + randRange(-20,20), 2, WORLD_H-2);
-        entities.push(spawnEntityObject(nx, ny, t, true, {reinforcement:true}));
-      }
-    }
-  }, REINFORCE_CHECK_MS);
-
-  updateLegend(true);
-  gameStarted = true;
-  lastFrame = Date.now();
-  requestAnimationFrame(gameLoop);
+  levelPlayerTeam = 0;
+  finishInit();
 }
 
-/* ====== Legend + throttling ====== */
+/* =====================================================================
+   УРОВНИ: JSON, библиотека, прогресс
+   ===================================================================== */
+function normalizeLevel(o){
+  try{
+    if(!o || typeof o !== 'object') return { error:'не объект JSON' };
+    const id = String(o.id == null ? '' : o.id).trim(); if(!id) return { error:'нет id' };
+    const f = o.field || {}; const W = Math.floor(+f.width), H = Math.floor(+f.height);
+    if(!(W>=2 && W<=60 && H>=2 && H<=60)) return { error:'размер поля должен быть 2..60' };
+    let teams = Array.isArray(o.teams) ? o.teams.slice(0,16) : [];
+    if(teams.length < 2) return { error:'нужно минимум 2 команды' };
+    teams = teams.map((t,k)=>({ name:String((t && t.name) || ('Команда '+(k+1))).slice(0,24), color:(t && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(t.color)) ? t.color : TEAM_COLORS_FULL[k%8] }));
+    const grid = [];
+    for(let j=0;j<H;j++){ const row=[]; for(let i=0;i<W;i++){ let v = (o.grid && o.grid[j]) ? Math.floor(+o.grid[j][i]) : -1; if(!(v>=0 && v<teams.length)) v=-1; row.push(v); } grid.push(row); }
+    const units = []; let players = 0;
+    for(const u of (Array.isArray(o.units) ? o.units : [])){
+      if(!u) continue;
+      const team = Math.floor(+u.team); if(!(team>=0 && team<teams.length)) continue;
+      let isP = !!u.player; if(isP){ if(players>0) isP=false; else players++; }
+      units.push({ team, x:clamp(+u.x||0,0,W), y:clamp(+u.y||0,0,H), player:isP, boss:!!u.boss, hold:!!u.hold,
+        hp:clamp(+u.hp||DEFAULTS.maxHealth,1,1000), ammo:clamp(Math.floor(+u.ammo||0),0,9), kills:clamp(Math.floor(+u.kills||0),0,99),
+        armor:!!u.armor, motivation:(u.motivation!=null && isFinite(+u.motivation)) ? clamp(+u.motivation,0,3) : 1 });
+    }
+    if(players === 0) return { error:'нет юнита игрока (player:true)' };
+    const pk = [];
+    for(const p of (Array.isArray(o.pickups) ? o.pickups : [])){ if(p && (p.type==='ammo' || p.type==='armor')) pk.push({ x:clamp(+p.x||0,0,W), y:clamp(+p.y||0,0,H), type:p.type }); }
+    const settings = {};
+    if(o.settings && typeof o.settings === 'object') for(const k in o.settings){ if(k in DEFAULTS && typeof o.settings[k] === typeof DEFAULTS[k] && (typeof o.settings[k] !== 'number' || isFinite(o.settings[k]))) settings[k] = o.settings[k]; }
+    const g = o.goal || {};
+    const type = ['eliminate','capture','survive'].includes(g.type) ? g.type : 'eliminate';
+    const goal = { type, percent:clamp(+g.percent||50,1,100), seconds:clamp(+g.seconds||60,1,36000), timeLimitSec:clamp(+g.timeLimitSec||0,0,36000),
+      starTimesSec:(Array.isArray(g.starTimesSec) && g.starTimesSec.length>=2) ? [+g.starTimesSec[0]||0, +g.starTimesSec[1]||0] : null };
+    return { level:{ format:'zone-battle-level', version:1, id, name:String(o.name||id).slice(0,60), description:String(o.description||'').slice(0,300),
+      order:(o.order!=null && isFinite(+o.order)) ? +o.order : 1000, requires:Array.isArray(o.requires) ? o.requires.map(String) : [],
+      field:{width:W,height:H}, teams, grid, units, pickups:pk, settings, goal } };
+  }catch(e){ return { error:'ошибка разбора: '+e.message }; }
+}
+
+/* хранилище (localStorage может быть недоступен — тогда работаем в памяти) */
+function lsGet(k, def){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; }catch(e){ return def; } }
+function lsSet(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+let customLevels = lsGet(LS_LEVELS, []);
+let progressMap = lsGet(LS_PROGRESS, {});
+function saveProgress(){ lsSet(LS_PROGRESS, progressMap); }
+function defaultProgress(){ return { unlocked:false, completed:false, attempts:0, wins:0, bestTimeSec:null, stars:0 }; }
+function getProgress(id){ if(!progressMap[id]) progressMap[id] = defaultProgress(); return progressMap[id]; }
+function sanitizeProgress(p){
+  const d = defaultProgress(); if(!p || typeof p !== 'object') return d;
+  d.unlocked = !!p.unlocked; d.completed = !!p.completed; d.attempts = Math.max(0, Math.floor(+p.attempts||0)); d.wins = Math.max(0, Math.floor(+p.wins||0));
+  d.bestTimeSec = (p.bestTimeSec != null && isFinite(+p.bestTimeSec)) ? +p.bestTimeSec : null; d.stars = clamp(Math.floor(+p.stars||0),0,3);
+  return d;
+}
+function mergeProgress(a,b){
+  return { unlocked:a.unlocked||b.unlocked, completed:a.completed||b.completed, attempts:Math.max(a.attempts,b.attempts), wins:Math.max(a.wins,b.wins),
+    bestTimeSec:(a.bestTimeSec==null)?b.bestTimeSec:(b.bestTimeSec==null?a.bestTimeSec:Math.min(a.bestTimeSec,b.bestTimeSec)), stars:Math.max(a.stars,b.stars) };
+}
+
+/* системные уровни (из массива BUILTIN_LEVELS) и пользовательские */
+const builtinNormalized = [];
+for(const o of BUILTIN_LEVELS){ const r = normalizeLevel(o); if(r.level) builtinNormalized.push(r.level); else console.warn('Системный уровень пропущен:', r.error, o && o.id); }
+const builtinIds = new Set(builtinNormalized.map(l=>l.id));
+function isBuiltinId(id){ return builtinIds.has(id); }
+function freeUserId(id){
+  const used = new Set([...builtinIds, ...customLevels.map(x=>x && x.id)]);
+  let n = id + '-my', k = 1; while(used.has(n)) n = id + '-my' + (++k); return n;
+}
+function allLevels(){
+  const map = new Map();
+  for(const l of builtinNormalized) map.set(l.id, l);
+  for(const o of customLevels){ if(!o || builtinIds.has(o.id)) continue; const r = normalizeLevel(o); if(r.level) map.set(r.level.id, r.level); }
+  return Array.from(map.values()).sort((a,b)=> (a.order-b.order) || a.name.localeCompare(b.name));
+}
+function isUnlocked(lv){
+  const p = getProgress(lv.id);
+  if(p.unlocked) return true;
+  if(!lv.requires || !lv.requires.length) return true;
+  const ids = new Set(allLevels().map(x=>x.id));
+  return lv.requires.every(id => !ids.has(id) || getProgress(id).completed);
+}
+function goalText(lv){
+  const g = lv.goal; let t = '';
+  if(g.type === 'eliminate') t = 'Уничтожить всех врагов';
+  else if(g.type === 'capture') t = 'Захватить ' + g.percent + '% клеток';
+  else t = 'Продержаться ' + fmtSec(g.seconds);
+  if(g.timeLimitSec > 0 && g.type !== 'survive') t += ' (лимит ' + fmtSec(g.timeLimitSec) + ')';
+  return t;
+}
+function exportLevelObj(lv){ return Object.assign({}, lv, { progress:getProgress(lv.id) }); }
+function fmtLevelJSON(o){
+  const grid = o.grid.map(r=>'    [' + r.join(',') + ']').join(',\n');
+  const copy = Object.assign({}, o, { grid:'__GRID__' });
+  return JSON.stringify(copy, null, 2).replace('"__GRID__"', '[\n' + grid + '\n  ]');
+}
+function download(name, text){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], {type:'application/json'}));
+  a.download = name; document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+function addCustomLevel(level, prog){
+  customLevels = customLevels.filter(x => !x || x.id !== level.id);
+  customLevels.push(level); lsSet(LS_LEVELS, customLevels);
+  if(prog) progressMap[level.id] = mergeProgress(getProgress(level.id), sanitizeProgress(prog));
+  saveProgress();
+}
+/* импорт одного объекта: системным уровням только сливаем прогресс */
+function importLevelObj(o){
+  const r = normalizeLevel(o);
+  if(r.error) return { error:r.error };
+  if(isBuiltinId(r.level.id)){
+    if(o.progress){ progressMap[r.level.id] = mergeProgress(getProgress(r.level.id), sanitizeProgress(o.progress)); saveProgress(); }
+    return { progressOnly:true };
+  }
+  addCustomLevel(r.level, o.progress);
+  return { ok:true };
+}
+function extractLevels(j){ return Array.isArray(j) ? j : (j && Array.isArray(j.levels) ? j.levels : [j]); }
+
+/* интерфейс списка уровней */
+const lvMsg = document.getElementById('lv-msg'), lvFile = document.getElementById('lv-file'), lvJson = document.getElementById('lv-json');
+document.getElementById('lv-import').addEventListener('click', ()=>lvFile.click());
+document.getElementById('lv-editor').addEventListener('click', ()=>ZBEditor.open(null));
+document.getElementById('lv-export').addEventListener('click', ()=>{
+  const pack = { format:'zone-battle-levels', version:1, levels:allLevels().map(exportLevelObj) };
+  download('zone-battle-levels.json', JSON.stringify(pack));
+});
+document.getElementById('lv-reset').addEventListener('click', ()=>{
+  if(!confirm('Сбросить весь прогресс по уровням?')) return;
+  progressMap = {}; saveProgress(); lvMsg.textContent = 'Прогресс сброшен.'; renderLevels();
+});
+lvFile.addEventListener('change', async ()=>{
+  let ok = 0, prog = 0, bad = 0; const errs = [];
+  for(const f of Array.from(lvFile.files)){
+    try{
+      const j = JSON.parse(await f.text());
+      for(const o of extractLevels(j)){
+        const r = importLevelObj(o);
+        if(r.error){ bad++; errs.push(f.name + ': ' + r.error); } else if(r.progressOnly) prog++; else ok++;
+      }
+    }catch(e){ bad++; errs.push(f.name + ': ' + e.message); }
+  }
+  lvFile.value = '';
+  lvMsg.textContent = 'Импортировано: ' + ok + (prog ? ', прогресс системных уровней: ' + prog : '') + (bad ? ', ошибок: ' + bad + '\n' + errs.join('\n') : '');
+  renderLevels();
+});
+/* вставка JSON: запуск без сохранения / сохранение в "мои уровни" */
+function parsePasted(){
+  const txt = lvJson.value.trim();
+  if(!txt){ lvMsg.textContent = 'Поле пустое.'; return null; }
+  try{ return extractLevels(JSON.parse(txt)); }catch(e){ lvMsg.textContent = 'Ошибка JSON: ' + e.message; return null; }
+}
+document.getElementById('lv-run').addEventListener('click', ()=>{
+  const arr = parsePasted(); if(!arr) return;
+  let lastErr = '';
+  for(const o of arr){
+    const r = normalizeLevel(o);
+    if(r.level){ lvMsg.textContent = ''; menu.style.display = 'none'; startLevel(r.level, { test:true, from:'menu' }); return; }
+    lastErr = r.error;
+  }
+  lvMsg.textContent = 'Не удалось запустить: ' + lastErr;
+});
+document.getElementById('lv-savejson').addEventListener('click', ()=>{
+  const arr = parsePasted(); if(!arr) return;
+  let ok = 0, prog = 0, bad = 0; const errs = [];
+  for(const o of arr){
+    const r = importLevelObj(o);
+    if(r.error){ bad++; errs.push(r.error); } else if(r.progressOnly){ prog++; errs.push('id совпадает с системным уровнем — не сохранён (открой ✎ у системного, чтобы сделать копию)'); } else ok++;
+  }
+  lvMsg.textContent = 'Сохранено: ' + ok + (bad || prog ? '\n' + errs.join('\n') : '');
+  renderLevels();
+});
+document.getElementById('lv-clearjson').addEventListener('click', ()=>{ lvJson.value = ''; lvMsg.textContent = ''; });
+
+function renderLevels(){
+  const list = document.getElementById('lv-list'); list.innerHTML = '';
+  const lvls = allLevels();
+  lvls.forEach((lv, idx)=>{
+    const p = getProgress(lv.id), unlocked = isUnlocked(lv), builtin = isBuiltinId(lv.id);
+    const stars = p.completed ? '★'.repeat(p.stars||1) + '☆'.repeat(3-(p.stars||1)) : '';
+    const d = document.createElement('div'); d.className = 'lv-card' + (unlocked ? '' : ' locked');
+    d.innerHTML = `<div class="lv-top"><span><b>${idx+1}. ${esc(lv.name)}</b>${builtin ? '' : '<span class="tag">мой</span>'}</span><span>${unlocked ? (p.completed ? '✓ '+stars : '▶') : '🔒'}</span></div>` +
+      (lv.description ? `<div class="lv-desc">${esc(lv.description)}</div>` : '') +
+      `<div class="lv-meta">${esc(goalText(lv))} · ${lv.field.width}×${lv.field.height}${p.bestTimeSec!=null ? ' · рекорд '+fmtSec(p.bestTimeSec) : ''}${p.attempts ? ' · попыток '+p.attempts : ''}</div>`;
+    const act = document.createElement('div'); act.className = 'lv-act';
+    const mk = (label, title, fn)=>{ const b = document.createElement('button'); b.textContent = label; b.title = title; b.addEventListener('click', ev=>{ ev.stopPropagation(); fn(); }); act.appendChild(b); };
+    mk('⬇', 'Скачать JSON', ()=>download(lv.id + '.json', fmtLevelJSON(exportLevelObj(lv))));
+    mk('✎', builtin ? 'Открыть копию в редакторе' : 'Редактировать', ()=>{
+      if(builtin){ const c = deep(lv); c.id = freeUserId(lv.id); c.name = (lv.name + ' (копия)').slice(0,60); ZBEditor.open(c); }
+      else ZBEditor.open(deep(lv));
+    });
+    if(!builtin) mk('🗑', 'Удалить', ()=>{
+      if(!confirm('Удалить уровень «' + lv.name + '»?')) return;
+      customLevels = customLevels.filter(x => x && x.id !== lv.id); lsSet(LS_LEVELS, customLevels);
+      delete progressMap[lv.id]; saveProgress(); renderLevels();
+    });
+    d.appendChild(act);
+    d.addEventListener('click', ()=>{ if(unlocked){ menu.style.display = 'none'; startLevel(lv, { test:false, from:'menu' }); } });
+    list.appendChild(d);
+  });
+  if(!lvls.length) list.innerHTML = '<div class="lv-desc">Уровней нет. Импортируй JSON или создай в редакторе.</div>';
+}
+
+/* запуск уровня */
+function startLevel(lv, opts){
+  runOpts = opts ? { test:!!opts.test, from:opts.from || 'menu' } : { test:false, from:'menu' };
+  currentLevel = lv;
+  S = mkSettings(lv.settings);
+  NX = lv.field.width; NY = lv.field.height; N = Math.max(NX,NY);
+  WORLD_W = NX * CELL; WORLD_H = NY * CELL;
+  TEAM_COUNT = lv.teams.length;
+  TEAM_NAMES = lv.teams.map(t=>t.name);
+  TEAM_COLORS = lv.teams.map(t=>t.color);
+  TEAM_COLORS_LIGHT = lv.teams.map(t=>blendColors(t.color,'#ffffff',0.45));
+  resetCommon();
+  for(let i=0;i<NX;i++){ cells[i]=[]; for(let j=0;j<NY;j++) cells[i][j] = { owner:lv.grid[j][i], captureTeam:-1, progress:0 }; }
+  for(const u of lv.units){
+    const e = spawnEntityObject(u.x*CELL, u.y*CELL, u.team, !u.player, { isBoss: !!(u.boss || u.player) });
+    e.hp = Math.min(u.hp, S.maxHealth); e.ammo = u.ammo; e.kills = u.kills; e.hasArmor = u.armor; e.motivation = u.motivation; e.holdPos = !!u.hold;
+    entities.push(e);
+    if(u.player){ player = e; levelPlayerTeam = u.team; }
+  }
+  for(const p of lv.pickups) pickups.push({ x:p.x*CELL, y:p.y*CELL, type:p.type, amount:1 });
+  finishInit();
+}
+
+/* проверка цели и завершение */
+function checkLevel(dt){
+  if(!currentLevel || levelEnded) return;
+  levelTime += dt;
+  const g = currentLevel.goal, pt = levelPlayerTeam;
+  let enemies = 0, mine = 0;
+  for(const e of entities){ if(!e || e.hp<=0 || e.surrendered) continue; if(e.team === pt) mine++; else enemies++; }
+  let owned = 0;
+  for(let i=0;i<NX;i++) for(let j=0;j<NY;j++) if(cells[i][j].owner === pt) owned++;
+  const pct = owned / (NX*NY) * 100;
+  let txt = '', win = false;
+  if(g.type === 'eliminate'){ win = enemies === 0; txt = 'Врагов: ' + enemies; }
+  else if(g.type === 'capture'){ win = pct >= g.percent; txt = 'Территория: ' + Math.floor(pct) + '% / ' + g.percent + '%'; }
+  else { const left = Math.max(0, g.seconds*1000 - levelTime); win = left <= 0; txt = 'Выжить: ' + fmtSec(left/1000); }
+  if(g.timeLimitSec > 0 && g.type !== 'survive') txt += ' | Время: ' + fmtSec(Math.max(0, g.timeLimitSec*1000 - levelTime)/1000);
+  goalEl.textContent = txt; goalEl.style.display = 'block';
+  if(win){ endLevel(true, 'Цель выполнена!'); return; }
+  if(player.surrendered) endLevel(false, 'Ты сдался в плен.');
+  else if(S.loseOnPlayerDeath && player.hp <= 0) endLevel(false, 'Ты погиб.');
+  else if(mine === 0) endLevel(false, 'Твоя команда уничтожена.');
+  else if(g.type !== 'survive' && g.timeLimitSec > 0 && levelTime >= g.timeLimitSec*1000) endLevel(false, 'Время вышло.');
+}
+function endLevel(win, reason){
+  if(levelEnded) return; levelEnded = true;
+  const lv = currentLevel, opts = runOpts;
+  let stars = 0; const t = Math.round(levelTime/1000);
+  if(win){
+    const st = lv.goal.starTimesSec;
+    stars = st ? (t <= st[0] ? 3 : (t <= st[1] ? 2 : 1)) : 1;
+  }
+  if(!opts.test){
+    const p = getProgress(lv.id);
+    p.attempts++;
+    if(win){
+      p.wins++; p.completed = true;
+      if(p.bestTimeSec == null || t < p.bestTimeSec) p.bestTimeSec = t;
+      p.stars = Math.max(p.stars, stars);
+    }
+    saveProgress();
+  }
+  document.getElementById('res-title').textContent = win ? 'Победа!' : 'Поражение';
+  document.getElementById('res-text').innerHTML = esc(reason) + '<br>Время: ' + fmtSec(t) +
+    (win ? '<br><span style="font-size:22px;color:#fc4">' + '★'.repeat(stars) + '☆'.repeat(3-stars) + '</span>' : '') +
+    (opts.test ? '<br><span style="font-size:11px;color:#999">тестовый запуск — прогресс не сохраняется</span>' : '');
+  const btns = document.getElementById('res-btns'); btns.innerHTML = '';
+  const add = (label, fn, dark)=>{ const b = document.createElement('button'); b.className = 'start-btn'; b.textContent = label; if(dark){ b.style.background='#333'; b.style.color='#fff'; } b.addEventListener('click', fn); btns.appendChild(b); };
+  if(!opts.test){
+    const list = allLevels(), idx = list.findIndex(x=>x.id===lv.id), next = list[idx+1];
+    if(win && next && isUnlocked(next)) add('Следующий уровень', ()=>startLevel(next, {test:false, from:'menu'}));
+  }
+  add('Заново', ()=>startLevel(lv, opts), win);
+  if(opts.from === 'editor') add('В редактор', ()=>exitToEditor(), true);
+  else add('К уровням', ()=>exitToMenu('levels'), true);
+  resultEl.style.display = 'block';
+}
+
+/* ====== Legend ====== */
 function updateLegend(force){
   const now = Date.now();
-  if(!force && (now - lastLegendUpdateTime < (selectedMode === 'royal' ? 450 : 80))) return;
+  const topMode = isRoyal() || TEAM_COUNT > 8;
+  if(!force && (now - lastLegendUpdateTime < (topMode ? 450 : 80))) return;
   lastLegendUpdateTime = now;
+  const tname = (t, short)=> TEAM_NAMES[t] ? esc(TEAM_NAMES[t].slice(0,10)) : (short ? 'T'+(t+1) : 'Team '+(t+1));
 
   teamLegend.innerHTML = '';
-  if(selectedMode === 'royal'){
+  if(topMode){
     const teamStats = new Array(TEAM_COUNT).fill(0);
     for(const p of entities) if(p && p.hp>0) teamStats[p.team] = (teamStats[p.team]||0) + 1;
     const arr = teamStats.map((cnt,team)=>({team,cnt}));
@@ -387,7 +3351,7 @@ function updateLegend(force){
     for(const it of top){
       const t = it.team;
       const div = document.createElement('div'); div.className='legend-item';
-      const name = (t=== (player?player.team:-1)) ? `You (${t+1})` : `T${t+1}`;
+      const name = (t=== (player?player.team:-1)) ? `You (${t+1})` : tname(t,true);
       div.innerHTML = `<div style="display:flex;align-items:center;gap:6px;"><div style="width:10px;height:10px;border-radius:50%;background:${TEAM_COLORS[t] || '#999'}"></div><div style="font-size:12px">${name}</div></div><div style="min-width:18px;text-align:right;font-size:12px">${it.cnt}</div>`;
       teamLegend.appendChild(div);
     }
@@ -398,7 +3362,7 @@ function updateLegend(force){
     for(let t=0;t<TEAM_COUNT;t++){
       const count = entities.filter(p => p && p.hp>0 && p.team===t).length;
       const div = document.createElement('div'); div.className='legend-item';
-      div.innerHTML = `<div style="display:flex;align-items:center;gap:8px;"><div style="width:10px;height:10px;border-radius:50%;background:${TEAM_COLORS[t] || '#999'}"></div><div style="font-size:12px">Team ${t+1}</div></div><div style="min-width:18px;text-align:right;font-size:12px">${count}</div>`;
+      div.innerHTML = `<div style="display:flex;align-items:center;gap:8px;"><div style="width:10px;height:10px;border-radius:50%;background:${TEAM_COLORS[t] || '#999'}"></div><div style="font-size:12px">${tname(t,false)}</div></div><div style="min-width:18px;text-align:right;font-size:12px">${count}</div>`;
       teamLegend.appendChild(div);
     }
     const scoreDiv = document.createElement('div'); scoreDiv.id = 'player-score';
@@ -431,27 +3395,89 @@ function handleJoyMove(clientX, clientY){
 
 /* Fire / crouch */
 function playerShoot(){
-  if(!player) return;
+  if(!gameStarted || levelEnded) return;
+  if(!player || player.hp <= 0 || player.surrendered) return;
+  if(!canFire()) return;
   const now = Date.now();
-  if(now < player.reloadUntil) return;
+  if(!weaponAvail(player, player.weapon)) player.weapon = 'auto';
   const mag = Math.hypot(player.facing.x||0, player.facing.y||0);
   const ang = mag < 0.05 ? 0 : Math.atan2(player.facing.y, player.facing.x);
-  const dist = clamp(BULLET_RANGE * randRange(0.9,1.1), 10, BULLET_RANGE);
-  createBullet(player.x, player.y, ang, dist, player);
-  player.reloadUntil = now + RELOAD_MS;
+  const w = player.weapon;
+
+  if(w === 'rpg'){
+    if(now < player.rocketReloadUntil || player.ammo < S.rocketCost) return;
+    fireRocket(player, ang);
+    player.ammo -= S.rocketCost;
+    player.rocketReloadUntil = now + S.rocketReloadMs;
+    return;
+  }
+  if(now < player.reloadUntil) return; // перезарядка автомата и дробовика — общая
+  if(w === 'shotgun'){
+    const R = rng() * S.shotgunRange;
+    fireShotgun(player, ang, clamp(R * randRange(0.9,1.1), 10, R));
+  } else {
+    const dist = clamp(rng() * randRange(0.9,1.1), 10, rng());
+    createBullet(player.x, player.y, ang, dist, player);
+  }
+  player.reloadUntil = now + S.reloadMs;
 }
-function playerCrouch(){ if(player) player.crouchUntil = Date.now() + CROUCH_DURATION_MS; }
+function playerCrouch(){ if(player) player.crouchUntil = Date.now() + S.crouchMs; }
 
 fireBtn.addEventListener('touchstart', function(e){ if(e.cancelable) e.preventDefault(); playerShoot(); }, touchOpts);
 fireBtn.addEventListener('click', function(e){ e.preventDefault(); playerShoot(); });
 crouchBtn.addEventListener('touchstart', function(e){ if(e.cancelable) e.preventDefault(); playerCrouch(); }, touchOpts);
 crouchBtn.addEventListener('click', function(e){ e.preventDefault(); playerCrouch(); });
 
-/* Lead button (За мной) + visual cooldown */
-function canPlayerLead(){
-  return player && player.isBoss && (player.kills >= 2) && Date.now() >= (player.bossCooldownUntil || 0);
+/* Переключатель оружия */
+function cycleWeapon(){
+  if(!player || player.hp <= 0 || player.surrendered) return;
+  const list = availWeapons(player);
+  if(list.length < 2) return;
+  const i = list.indexOf(player.weapon);
+  player.weapon = list[(i + 1) % list.length];
 }
-leadBtn.addEventListener('click', function(e){ e.preventDefault(); if(!canPlayerLead()) return; bossActivate(player); player.bossCooldownUntil = Date.now() + 60000; updateLeadCd(); });
+weaponBtn.addEventListener('touchstart', function(e){ if(e.cancelable) e.preventDefault(); cycleWeapon(); }, touchOpts);
+weaponBtn.addEventListener('click', function(e){ e.preventDefault(); cycleWeapon(); });
+function updateWeaponBtn(){
+  if(!player || player.hp <= 0){ weaponBtn.style.display = 'none'; return; }
+  weaponBtn.style.display = 'flex';
+  if(!weaponAvail(player, player.weapon)) player.weapon = 'auto';
+  const now = Date.now(), w = player.weapon;
+  let extra = '';
+  if(w === 'rpg'){
+    if(now < player.rocketReloadUntil) extra = ' ' + Math.ceil((player.rocketReloadUntil - now)/1000) + 'с';
+    else if(player.ammo < S.rocketCost) extra = ' ' + Math.floor(player.ammo) + '/' + S.rocketCost;
+  } else if(now < player.reloadUntil) extra = ' ' + Math.ceil((player.reloadUntil - now)/1000) + 'с';
+  const arrow = availWeapons(player).length > 1 ? ' ▸' : '';
+  weaponBtn.textContent = WEAPON_NAMES[w] + arrow + extra;
+  weaponBtn.style.opacity = player.surrendered ? '0.35' : '1';
+}
+
+/* Сдаться: только при мотивации ниже порога; два касания подряд (первое — "Точно?") */
+let surrenderArmUntil = 0;
+function playerSurrenderTap(){
+  if(!gameStarted || levelEnded) return;
+  if(!player || player.hp <= 0 || player.surrendered) return;
+  if(player.motivation >= S.surrenderBtnMotivation) return;
+  const now = Date.now();
+  if(now < surrenderArmUntil){ surrenderArmUntil = 0; doSurrender(player); return; }
+  surrenderArmUntil = now + 2000;
+}
+surrenderBtn.addEventListener('touchstart', function(e){ if(e.cancelable) e.preventDefault(); playerSurrenderTap(); }, touchOpts);
+surrenderBtn.addEventListener('click', function(e){ e.preventDefault(); playerSurrenderTap(); });
+function updateSurrenderBtn(){
+  const surr = !!(player && player.surrendered);
+  const show = !!(player && player.hp > 0 && !surr && player.motivation < S.surrenderBtnMotivation);
+  surrenderBtn.style.display = show ? 'flex' : 'none';
+  if(show) surrenderBtn.textContent = (Date.now() < surrenderArmUntil) ? 'Точно?' : 'СДАТЬСЯ';
+  fireBtn.style.opacity = surr ? '0.35' : '1';
+}
+
+/* Lead button */
+function canPlayerLead(){
+  return player && player.isBoss && !player.surrendered && (player.kills >= S.leadMinKills) && Date.now() >= (player.bossCooldownUntil || 0);
+}
+leadBtn.addEventListener('click', function(e){ e.preventDefault(); if(!gameStarted || levelEnded || !canPlayerLead()) return; bossActivate(player); player.bossCooldownUntil = Date.now() + S.leadCooldownMs; updateLeadCd(); });
 function updateLeadButton(){
   if(canPlayerLead()) { leadBtn.disabled = false; leadBtn.style.opacity = '1'; } else { leadBtn.disabled = true; leadBtn.style.opacity = '0.75'; }
 }
@@ -459,10 +3485,8 @@ function updateLeadCd(){
   if(!player){ leadCd.style.background = 'transparent'; return; }
   const cd = Math.max(0, (player.bossCooldownUntil || 0) - Date.now());
   if(cd <= 0){ leadCd.style.background = 'transparent'; return; }
-  const total = 60000;
-  const pct = clamp(cd / total, 0, 1);
-  const filled = 360 * pct;
-  leadCd.style.background = `conic-gradient(rgba(255,255,255,0.16) ${filled}deg, transparent 0deg)`;
+  const pct = clamp(cd / S.leadCooldownMs, 0, 1);
+  leadCd.style.background = `conic-gradient(rgba(255,255,255,0.16) ${360*pct}deg, transparent 0deg)`;
   leadCd.style.borderRadius = '10px';
 }
 
@@ -473,24 +3497,150 @@ mmToggle.addEventListener('click', ()=>{
   mmToggle.textContent = minimapVisible ? 'Свернуть' : 'Развернуть';
   mmStatus.textContent = minimapVisible ? 'on' : 'off';
 });
-backBtn.addEventListener('click', ()=> location.reload());
+backBtn.addEventListener('click', ()=>{
+  if(!gameStarted){ showScreen('main'); return; }
+  if(runOpts.from === 'editor') exitToEditor();
+  else exitToMenu(currentLevel ? 'levels' : 'main');
+});
 
-/* ====== Bullets creation & damage ====== */
-function createBullet(x,y,angle,dist,owner){
-  const speed = CELL * 6;
-  bullets.push({ x,y, vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed, traveled:0, max: dist, owner, alive:true });
+/* ====== Снаряды: создание ====== */
+function createBullet(x,y,angle,dist,owner,opts){
+  opts = opts || {};
+  const speed = opts.speed || BULLET_SPEED;
+  bullets.push({
+    x, y, vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed,
+    traveled: 0, max: dist, owner, alive: true,
+    type: opts.type || 'bullet',
+    dmg: opts.dmg || 1,
+    size: opts.size || 3,
+    hitAll: !!opts.hitAll
+  });
 }
-function calcDamage(target){
+function fireShotgun(owner, ang, dist){
+  const sp = shotgunSpread();
+  for(const off of [-sp, 0, sp]){
+    createBullet(owner.x, owner.y, ang + off, dist, owner, { dmg: S.shotgunDmg, size: 2 });
+  }
+}
+function fireRocket(owner, ang){
+  createBullet(owner.x, owner.y, ang, Infinity, owner, { type:'rocket', speed: CELL * S.rocketSpeedCells, size: 6 });
+}
+function calcDamage(target, mult){
   let pct = 1 + Math.random()*199;
   if(target.hasArmor) pct = Math.min(pct,120);
-  return (pct/100) * MAX_HEALTH;
+  return (pct/100) * S.maxHealth * (mult || 1);
+}
+
+/* ====== Мотивация / плен ======
+   Значения с "%" — доля от текущей мотивации (умножение).
+   Значения с запятой (+0,2 / +0,25 / +0,3 / +0,1) — прибавка. */
+function addMot(e, v){
+  if(!S.motivationEnabled || !e || e.hp <= 0 || e.surrendered) return;
+  e.motivation = Math.min(3, e.motivation + v);
+}
+function mulMot(e, f){
+  if(!S.motivationEnabled || !e || e.hp <= 0 || e.surrendered) return;
+  e.motivation = Math.min(3, e.motivation * Math.max(0, f));
+}
+/* событие: убит юнит v (killer — тот, кто стрелял). Свидетели — в радиусе 3 клеток */
+function onUnitKilled(v, killer){
+  const kt = killer ? killer.team : -2;
+  // убили своего сдающегося: бонус всей команде
+  if(v.surrendered && killer && kt === v.team){
+    for(const w of entities){
+      if(w && w !== v && w.hp > 0 && !w.surrendered && w.team === v.team) addMot(w, S.killOwnSurrenderedBonus);
+    }
+    return;
+  }
+  for(const w of entities){
+    if(!w || w === v || w.hp <= 0 || w.surrendered) continue;
+    if(distXY(w.x,w.y,v.x,v.y) > MOT_RADIUS) continue;
+    if(w.team === v.team) mulMot(w, v.surrendered ? 0.70 : 0.80);        // убили своего: -20% / -30%
+    else if(w.team === kt) addMot(w, v.surrendered ? 0.30 : 0.25);         // наши убили врага: +0,25 / +0,3
+  }
+}
+/* событие: клетка перешла к другой команде */
+function onCellCaptured(i,j,team,prev){
+  if(prev === team) return;
+  const cx = i*CELL + CELL/2, cy = j*CELL + CELL/2;
+  for(const w of entities){
+    if(!w || w.hp <= 0 || w.surrendered) continue;
+    if(distXY(w.x,w.y,cx,cy) > MOT_RADIUS) continue;
+    if(w.team === team) addMot(w, 0.20);        // захват союзниками: +0,2
+    else if(w.team === prev) mulMot(w, 0.85);   // потеря клетки: -15%
+  }
+}
+/* сдача: командир тянет за собой всех, кто шёл "За мной" */
+function doSurrender(e, leaderId, silent){
+  if(!e || e.hp <= 0 || e.surrendered) return;
+  const followers = silent ? [] : entities.filter(f => f && f.hp>0 && !f.surrendered && f.id !== e.id && f.following === e.id);
+  e.surrendered = true;
+  e.following = null; e.followHighlight = false; e.followOffset = null;
+  e.isVeteran = false; e.veteranZone = null; e.alwaysCrouched = false;
+  e.hostileTime = 0; e.surrTarget = null; e.surrRetarget = 0;
+  e.surrenderLeader = leaderId || null;
+  e.surrOffsetAngle = Math.random() * Math.PI * 2;
+  e.state = 'surrender'; e.stateTarget = null; e.wantedCaptureCell = null;
+  if(e === player) e.kills = 0; // индивидуальный счёт сгорает
+  for(const f of followers) doSurrender(f, e.id, true);
+  if(!silent){
+    for(const w of entities){
+      if(!w || w === e || w.hp <= 0 || w.surrendered) continue;
+      if(distXY(w.x,w.y,e.x,e.y) > MOT_RADIUS) continue;
+      mulMot(w, w.team === e.team ? 0.85 : 1.20);   // сдался свой: -15%, сдался враг: +20%
+    }
+  }
+  if(e === player) updateLegend(true);
+}
+function defect(e, newTeam){
+  const fs = entities.filter(f => f && f.hp>0 && f.surrendered && f.surrenderLeader === e.id);
+  e.team = newTeam; e.surrendered = false; e.motivation = 1; e.hostileTime = 0;
+  e.surrTarget = null; e.surrenderCheckAt = 0; e.state = 'idle'; e.stateTimer = 0; e.surrenderLeader = null;
+  for(const f of fs){ f.surrenderLeader = null; defect(f, newTeam); } // люди командира переходят вместе с ним
+  if(e === player) updateLegend(true);
+}
+/* автосдача ботов: motivation < порога -> каждые 2 с шанс (1-мот)/(число союзников в радиусе, включая себя) */
+function checkSurrender(e, now){
+  if(!S.motivationEnabled) return;
+  if(e.motivation >= S.surrenderBelow){ e.surrenderCheckAt = 0; return; }
+  if(!e.surrenderCheckAt){ e.surrenderCheckAt = now + S.surrenderCycleMs; return; }
+  if(now < e.surrenderCheckAt) return;
+  let allies = 1;
+  for(const a of entities){ if(a && a !== e && a.hp > 0 && !a.surrendered && a.team === e.team && distXY(a.x,a.y,e.x,e.y) <= MOT_RADIUS) allies++; }
+  e.surrenderCheckAt = now + S.surrenderCycleMs;
+  if(Math.random() < (1 - e.motivation) / allies){ doSurrender(e); return; }
+  e.motivation += 0.1;
+}
+/* куда бежит сдающийся: вглубь территории ближайшего противника */
+function findSurrenderTarget(e){
+  let best = null, bd = 1e12;
+  for(let i=0;i<NX;i++) for(let j=0;j<NY;j++){
+    const o = cells[i][j].owner; if(o === -1 || o === e.team) continue;
+    const d = distXY(e.x,e.y,i*CELL+CELL/2,j*CELL+CELL/2);
+    if(d < bd){ bd = d; best = {i,j,o}; }
+  }
+  if(best){
+    let dp = best, bs = -1e9;
+    for(let di=-2; di<=2; di++) for(let dj=-2; dj<=2; dj++){
+      const ni = best.i+di, nj = best.j+dj; if(ni<0||nj<0||ni>=NX||nj>=NY) continue;
+      if(cells[ni][nj].owner !== best.o) continue;
+      let s = 0;
+      for(const o of [[1,0],[-1,0],[0,1],[0,-1]]){ const ai=ni+o[0], aj=nj+o[1]; if(ai>=0&&aj>=0&&ai<NX&&aj<NY&&cells[ai][aj].owner===best.o) s++; }
+      s = s*10 - (Math.abs(di)+Math.abs(dj));
+      if(s > bs){ bs = s; dp = {i:ni,j:nj}; }
+    }
+    return { x: dp.i*CELL + CELL/2, y: dp.j*CELL + CELL/2 };
+  }
+  let bu = null; bd = 1e12;
+  for(const p of entities){ if(!p || p.hp<=0 || p.team===e.team || p.surrendered) continue; const d = distXY(e.x,e.y,p.x,p.y); if(d<bd){ bd=d; bu=p; } }
+  return bu ? { x: bu.x, y: bu.y } : null;
 }
 
 /* ====== AI helpers ====== */
 function cellBordersEnemy(team,i,j){
   for(const ofs of [{di:1,dj:0},{di:-1,dj:0},{di:0,dj:1},{di:0,dj:-1}]){
     const ni = i+ofs.di, nj = j+ofs.dj;
-    if(ni<0||nj<0||ni>=N||nj>=N) continue;
+    if(ni<0||nj<0||ni>=NX||nj>=NY) continue;
     const owner = (cells[ni] && cells[ni][nj]) ? cells[ni][nj].owner : -1;
     if(owner !== -1 && owner !== team) return true;
   }
@@ -498,16 +3648,17 @@ function cellBordersEnemy(team,i,j){
 }
 function getRadius(e){
   if(!e) return 5;
-  if(e.alwaysCrouched) return e.baseR * (1 - CROUCH_HITBOX_REDUCE);
-  if(Date.now() < e.crouchUntil) return e.baseR * (1 - CROUCH_HITBOX_REDUCE);
-  return e.baseR;
+  let r = e.baseR;
+  if(e.alwaysCrouched || Date.now() < e.crouchUntil) r = e.baseR * (1 - S.crouchHitboxReduce);
+  if(e.surrendered) r *= S.surrenderSizeMult;
+  return r;
 }
 
-/* ====== Bot AI (включая follow) ====== */
+/* ====== Bot AI ====== */
 function botDecide(e){
-  if(!e || e.hp <= 0) return;
+  if(!e || e.hp <= 0 || e.surrendered) return;
 
-  const royalFactor = selectedMode === 'royal' ? 1.6 : 1;
+  const royalFactor = isRoyal() ? 1.6 : 1;
 
   if(e.following){
     const boss = entities.find(ent => ent && ent.id === e.following);
@@ -525,29 +3676,32 @@ function botDecide(e){
     }
   }
 
-  if(e.hp < MAX_HEALTH * WOUNDED_THRESHOLD){
+  if(e.holdPos){ e.state = 'idle'; e.stateTarget = null; e.stateTimer = 500; return; } // "держит позицию"
+
+  if(e.hp < S.maxHealth * S.woundedThreshold){
     let nearest=null, bestD=1e9;
-    for(const p of pickups){ if(!p || p.type!=='ammo') continue; const pi=clamp(Math.floor(p.x/CELL),0,N-1), pj=clamp(Math.floor(p.y/CELL),0,N-1); if(!(cells[pi]&&cells[pi][pj])) continue; if(cells[pi][pj].owner !== e.team) continue; if(cellBordersEnemy(e.team,pi,pj)) continue; const enemies = playersInCell(pi,pj).filter(x=>x.team!==e.team && x.hp>0).length; if(enemies>0) continue; const d=distXY(e.x,e.y,p.x,p.y); if(d<bestD){bestD=d;nearest=p;} }
+    for(const p of pickups){ if(!p || p.type!=='ammo') continue; const pi=ci(p.x), pj=cj(p.y); if(!(cells[pi]&&cells[pi][pj])) continue; if(cells[pi][pj].owner !== e.team) continue; if(cellBordersEnemy(e.team,pi,pj)) continue; const enemies = playersInCell(pi,pj).filter(x=>x.team!==e.team && x.hp>0).length; if(enemies>0) continue; const d=distXY(e.x,e.y,p.x,p.y); if(d<bestD){bestD=d;nearest=p;} }
     if(nearest){ e.state='seekBonus'; e.stateTarget={x:nearest.x,y:nearest.y,bonus:nearest}; e.stateTimer=400*royalFactor+Math.random()*800; return; }
     const ownedSafe=[];
-    for(let i=0;i<N;i++) for(let j=0;j<N;j++){ if(cells[i][j].owner===e.team && !cellBordersEnemy(e.team,i,j)){ const enem = playersInCell(i,j).filter(x=>x.team !== e.team && x.hp>0).length; if(enem===0) ownedSafe.push({i,j}); } }
+    for(let i=0;i<NX;i++) for(let j=0;j<NY;j++){ if(cells[i][j].owner===e.team && !cellBordersEnemy(e.team,i,j)){ const enem = playersInCell(i,j).filter(x=>x.team !== e.team && x.hp>0).length; if(enem===0) ownedSafe.push({i,j}); } }
     if(ownedSafe.length>0){ const c=ownedSafe[Math.floor(Math.random()*ownedSafe.length)]; e.state='patrol'; e.stateTarget={x:c.i*CELL + randRange(12,CELL-12), y:c.j*CELL + randRange(12,CELL-12)}; e.stateTimer = (600 + Math.random()*1200)*royalFactor; return; }
-    const owned=[]; for(let i=0;i<N;i++) for(let j=0;j<N;j++) if(cells[i][j].owner===e.team) owned.push({i,j});
+    const owned=[]; for(let i=0;i<NX;i++) for(let j=0;j<NY;j++) if(cells[i][j].owner===e.team) owned.push({i,j});
     if(owned.length>0){ const c=owned[Math.floor(Math.random()*owned.length)]; e.state='patrol'; e.stateTarget={x:c.i*CELL + randRange(12,CELL-12), y:c.j*CELL + randRange(12,CELL-12)}; e.stateTimer=(600+Math.random()*1200)*royalFactor; return; }
     e.state='idle'; e.stateTimer=500*royalFactor; return;
   }
 
   let nearestBonus=null, bestDBonus=1e9;
-  for(const b of pickups){ if(!b || (b.type!=='ammo' && b.type!=='armor')) continue; const ci=clamp(Math.floor(b.x/CELL),0,N-1), cj=clamp(Math.floor(b.y/CELL),0,N-1); if(!(cells[ci]&&cells[ci][cj]&&cells[ci][cj].owner===e.team)) continue; if(b.type==='armor' && e.hasArmor) continue; const d=distXY(e.x,e.y,b.x,b.y); if(d<=BOT_BONUS_SEARCH_RADIUS && d<bestDBonus){ nearestBonus=b; bestDBonus=d; } }
+  for(const b of pickups){ if(!b || (b.type!=='ammo' && b.type!=='armor')) continue; const bi=ci(b.x), bj=cj(b.y); if(!(cells[bi]&&cells[bi][bj]&&cells[bi][bj].owner===e.team)) continue; if(b.type==='armor' && e.hasArmor) continue; const d=distXY(e.x,e.y,b.x,b.y); if(d<=S.botBonusRadius && d<bestDBonus){ nearestBonus=b; bestDBonus=d; } }
   if(nearestBonus){ e.state='seekBonus'; e.stateTarget={x:nearestBonus.x,y:nearestBonus.y,bonus:nearestBonus}; e.stateTimer=(400+Math.random()*800)*royalFactor; return; }
 
-  const myI = clamp(Math.floor(e.x/CELL),0,N-1), myJ = clamp(Math.floor(e.y/CELL),0,N-1);
+  const myI = ci(e.x), myJ = cj(e.y);
   let candidate=null, bestScore=1e12;
   for(let di=-2; di<=2; di++) for(let dj=-2; dj<=2; dj++){
-    const ni = myI+di, nj = myJ+dj; if(ni<0||nj<0||ni>=N||nj>=N) continue;
+    const ni = myI+di, nj = myJ+dj; if(ni<0||nj<0||ni>=NX||nj>=NY) continue;
     const c = cells[ni][nj]; if(!c || c.owner !== -1) continue;
     let ammoCount = 0;
-    for(const p of pickups){ const pi = clamp(Math.floor(p.x/CELL),0,N-1), pj = clamp(Math.floor(p.y/CELL),0,N-1); if(pi===ni && pj===nj && p.type==='ammo') ammoCount++; }
+    const arr = pickupGrid[ni*NY+nj];
+    if(arr) for(const p of arr) if(p.type==='ammo') ammoCount++;
     const enemyCount = playersInCell(ni,nj).filter(p=>p.team !== e.team).length;
     const cx = ni*CELL + CELL/2, cy = nj*CELL + CELL/2;
     const d = distXY(e.x,e.y,cx,cy);
@@ -557,7 +3711,7 @@ function botDecide(e){
   if(candidate){
     let bordersEnemy=false, adjEnemy=null, adjEnemyHasAlive=false;
     for(const ofs of [{di:1,dj:0},{di:-1,dj:0},{di:0,dj:1},{di:0,dj:-1}]){
-      const ai=candidate.i+ofs.di, aj=candidate.j+ofs.dj; if(ai<0||aj<0||ai>=N||aj>=N) continue;
+      const ai=candidate.i+ofs.di, aj=candidate.j+ofs.dj; if(ai<0||aj<0||ai>=NX||aj>=NY) continue;
       if(cells[ai][aj].owner !== -1 && cells[ai][aj].owner !== e.team){ bordersEnemy=true; adjEnemy={i:ai,j:aj}; if(playersInCell(ai,aj).filter(x=>x.hp>0).length>0) adjEnemyHasAlive=true; }
     }
     if(!bordersEnemy){ e.state='moveTo'; e.stateTarget={cell:{i:candidate.i,j:candidate.j}, x:candidate.cx, y:candidate.cy}; e.wantedCaptureCell={i:candidate.i,j:candidate.j}; e.stateTimer=(400+Math.random()*1200)*royalFactor; return; }
@@ -573,11 +3727,11 @@ function botDecide(e){
   }
 
   const myOwned=[];
-  for(let i=0;i<N;i++) for(let j=0;j<N;j++) if(cells[i][j].owner===e.team) myOwned.push({i,j});
+  for(let i=0;i<NX;i++) for(let j=0;j<NY;j++) if(cells[i][j].owner===e.team) myOwned.push({i,j});
   let adjacentEnemyCandidates = [];
   for(const c of myOwned){
     for(const ofs of [{di:1,dj:0},{di:-1,dj:0},{di:0,dj:1},{di:0,dj:-1}]){
-      const ni=c.i+ofs.di, nj=c.j+ofs.dj; if(ni<0||nj<0||ni>=N||nj>=N) continue;
+      const ni=c.i+ofs.di, nj=c.j+ofs.dj; if(ni<0||nj<0||ni>=NX||nj>=NY) continue;
       if(cells[ni][nj].owner !== -1 && cells[ni][nj].owner !== e.team) adjacentEnemyCandidates.push({i:ni,j:nj});
     }
   }
@@ -600,17 +3754,80 @@ function botDecide(e){
   e.state='patrol'; e.stateTarget={x:randRange(12,WORLD_W-12), y:randRange(12,WORLD_H-12)}; e.stateTimer=(800+Math.random()*1200)*royalFactor; return;
 }
 
-/* ====== Entity update (movement smoothing, follow natural, border slow) ====== */
+/* ====== Бот: РПГ по клетке с 5+ врагами ====== */
+function botTryRocket(e, now){
+  if(now < e.rpgCheckAt) return;
+  e.rpgCheckAt = now + 1000 + Math.random()*500;
+  if(!weaponAvail(e,'rpg') || e.ammo < S.rocketCost || now < e.rocketReloadUntil) return;
+  const counts = new Map();
+  for(const p of entities){
+    if(!p || p.hp<=0 || p.surrendered || p.team === e.team) continue;
+    if(distXY(e.x,e.y,p.x,p.y) > CELL * S.botRpgRangeCells) continue;
+    const k = ci(p.x)*NY + cj(p.y);
+    let v = counts.get(k); if(!v){ v = {n:0,sx:0,sy:0}; counts.set(k,v); }
+    v.n++; v.sx += p.x; v.sy += p.y;
+  }
+  let best = null;
+  for(const v of counts.values()){
+    if(v.n < S.botRpgMinEnemies) continue;
+    const cx = v.sx / v.n, cy = v.sy / v.n;
+    if(distXY(e.x,e.y,cx,cy) < CELL * S.botRpgMinCells) continue;
+    if(!best || v.n > best.n) best = { n:v.n, cx, cy };
+  }
+  if(!best) return;
+  const ang = Math.atan2(best.cy - e.y, best.cx - e.x);
+  e.facing.x = Math.cos(ang); e.facing.y = Math.sin(ang);
+  fireRocket(e, ang);
+  e.ammo -= S.rocketCost;
+  e.rocketReloadUntil = now + S.rocketReloadMs;
+}
+
+/* ====== Pickup grid (быстрый поиск пайков рядом) ====== */
+function buildPickupGrid(){
+  pickupGrid = new Array(NX*NY);
+  for(const p of pickups){
+    if(!p || p._remove) continue;
+    const k = ci(p.x)*NY + cj(p.y);
+    (pickupGrid[k] || (pickupGrid[k] = [])).push(p);
+  }
+}
+
+/* ====== Entity update ====== */
 function updateEntity(e, dt){
   if(!e || e.hp <= 0) return;
+  const nowT = Date.now();
 
-  if(e.isBot){ e.stateTimer -= dt; if(e.stateTimer <= 0) botDecide(e); }
+  if(e.isBot && !e.surrendered){
+    if(S.botsEnabled){ e.stateTimer -= dt; if(e.stateTimer <= 0) botDecide(e); }
+    checkSurrender(e, nowT);
+  }
 
   let desiredVx = 0, desiredVy = 0;
 
   if(!e.isBot){
     const md = e.moveDir; const mag = Math.hypot(md.x,md.y);
     if(mag > 0.01){ desiredVx = (md.x/mag)*e.speed; desiredVy = (md.y/mag)*e.speed; e.facing.x = md.x/(mag||1); e.facing.y = md.y/(mag||1); }
+  } else if(e.surrendered){
+    // люди командира идут за ним; иначе — вглубь территории ближайшего противника
+    let L = null;
+    if(e.surrenderLeader){
+      L = entities.find(x => x && x.id === e.surrenderLeader);
+      if(!L || L.hp <= 0 || !L.surrendered){ e.surrenderLeader = null; L = null; }
+    }
+    let tx = null, ty = null;
+    if(L){
+      tx = L.x + Math.cos(e.surrOffsetAngle) * 14;
+      ty = L.y + Math.sin(e.surrOffsetAngle) * 14;
+    } else {
+      if(!e.surrTarget || nowT >= e.surrRetarget){ e.surrTarget = findSurrenderTarget(e); e.surrRetarget = nowT + 1000; }
+      if(e.surrTarget){ tx = e.surrTarget.x; ty = e.surrTarget.y; }
+    }
+    if(tx !== null){
+      const dx = tx - e.x, dy = ty - e.y, d = Math.hypot(dx,dy) || 1;
+      const sp = d > 6 ? e.speed : 0;
+      desiredVx = (dx/d)*sp; desiredVy = (dy/d)*sp;
+      if(d > 6){ e.facing.x = dx/d; e.facing.y = dy/d; }
+    }
   } else {
     if(e.following){
       const boss = entities.find(ent => ent && ent.id === e.following);
@@ -633,7 +3850,7 @@ function updateEntity(e, dt){
         if(d > 4) target = { x: cx + randRange(-6,6), y: cy + randRange(-6,6) };
       } else if(e.state === 'seekBonus' && e.stateTarget) target = { x: e.stateTarget.x, y: e.stateTarget.y };
       else if((e.state === 'moveTo' || e.state === 'patrol' || e.state === 'follow') && e.stateTarget) target = { x: e.stateTarget.x, y: e.stateTarget.y };
-      else if(e.state === 'hold'){ e.crouchUntil = Date.now() + CROUCH_DURATION_MS; target = null; }
+      else if(e.state === 'hold'){ e.crouchUntil = Date.now() + S.crouchMs; target = null; }
 
       if(target){
         const dx = target.x - e.x, dy = target.y - e.y, d = Math.hypot(dx,dy) || 1;
@@ -650,32 +3867,25 @@ function updateEntity(e, dt){
   e.vx += (desiredVx - (e.vx||0)) * accelFactor;
   e.vy += (desiredVy - (e.vy||0)) * accelFactor;
 
-  // ----- border crossing detection BEFORE movement so slow applies immediately -----
-  const prevX = e.x, prevY = e.y;
-  const prevCi = clamp(Math.floor(prevX/CELL),0,N-1), prevCj = clamp(Math.floor(prevY/CELL),0,N-1);
-  const tentativeX = e.x + e.vx * (dt/1000);
-  const tentativeY = e.y + e.vy * (dt/1000);
-  const trgCi = clamp(Math.floor(tentativeX/CELL),0,N-1), trgCj = clamp(Math.floor(tentativeY/CELL),0,N-1);
-  if((prevCi !== trgCi || prevCj !== trgCj) && prevCi>=0 && prevCj>=0 && trgCi>=0 && trgCj>=0){
-    const ownerPrev = (cells[prevCi] && cells[prevCi][prevCj]) ? cells[prevCi][prevCj].owner : -1;
-    const ownerTrg = (cells[trgCi] && cells[trgCi][trgCj]) ? cells[trgCi][trgCj].owner : -1;
-    // enemy <-> enemy -> 1s; someone <-> neutral -> 0.5s; neutral<->neutral -> 0
+  // border crossing slow
+  const prevCi = ci(e.x), prevCj = cj(e.y);
+  const trgCi = ci(e.x + e.vx * (dt/1000)), trgCj = cj(e.y + e.vy * (dt/1000));
+  if(prevCi !== trgCi || prevCj !== trgCj){
+    const ownerPrev = cells[prevCi][prevCj].owner;
+    const ownerTrg = cells[trgCi][trgCj].owner;
     if(ownerPrev !== ownerTrg){
       if(ownerPrev !== -1 && ownerTrg !== -1 && ownerPrev !== ownerTrg){
-        e.borderSlowUntil = Date.now() + BORDER_SLOW_ENEMY_MS;
+        e.borderSlowUntil = Date.now() + S.borderSlowEnemyMs;
       } else if((ownerPrev === -1 && ownerTrg !== -1) || (ownerPrev !== -1 && ownerTrg === -1)){
-        e.borderSlowUntil = Date.now() + BORDER_SLOW_NEUTRAL_MS;
+        e.borderSlowUntil = Date.now() + S.borderSlowNeutralMs;
       }
     }
   }
-  // ----- end border detection -----
 
-  // apply movement modifiers (crouch, veteran, border slow)
   let moveFactor = 1;
-  if(e.alwaysCrouched) moveFactor *= (1 - CROUCH_HITBOX_REDUCE);
-  else if(Date.now() < e.crouchUntil) moveFactor *= (1 - CROUCH_HITBOX_REDUCE);
-
-  if(Date.now() < e.borderSlowUntil) moveFactor *= 0.25; // замедление при пересечении границы
+  if(e.alwaysCrouched) moveFactor *= (1 - S.crouchHitboxReduce);
+  else if(Date.now() < e.crouchUntil) moveFactor *= (1 - S.crouchHitboxReduce);
+  if(Date.now() < e.borderSlowUntil) moveFactor *= S.borderSlowFactor;
 
   e.x += e.vx * (dt/1000) * moveFactor;
   e.y += e.vy * (dt/1000) * moveFactor;
@@ -690,110 +3900,184 @@ function updateEntity(e, dt){
     e.x = clamp(e.x, 2, WORLD_W-2); e.y = clamp(e.y, 2, WORLD_H-2);
   }
 
-  // pickups collection only on owned cells (как было)
-  for(const p of pickups){
-    if(!p || p._remove) continue;
-    const pi = clamp(Math.floor(p.x/CELL),0,N-1), pj = clamp(Math.floor(p.y/CELL),0,N-1);
-    const owner = (cells[pi] && cells[pi][pj]) ? cells[pi][pj].owner : -1;
-    if(owner !== e.team) continue;
-    const d = distXY(e.x,e.y,p.x,p.y);
-    if(d <= AMMO_PICK_RADIUS){
-      if(p.type === 'ammo' && p.amount > 0){ e.ammo += p.amount; p.amount = 0; p._remove = true; }
-      else if(p.type === 'armor' && p.amount > 0){ if(!e.hasArmor){ e.hasArmor = true; p.amount = 0; p._remove = true; } }
-      if(e.ammo >= 10){
-        const ang = Math.random()*Math.PI*2; const nx = clamp(e.x + Math.cos(ang)*20, 2, WORLD_W-2), ny = clamp(e.y + Math.sin(ang)*20, 2, WORLD_H-2);
-        entities.push({
-          id: Math.random().toString(36).slice(2,9), x:nx, y:ny, vx:0, vy:0, team:e.team, isBot:true, baseR:5, moveDir:{x:0,y:0}, facing:{x:1,y:0},
-          speed: BOT_BASE_SPEED, ammo:0, hasArmor:false, reloadUntil:0, crouchUntil:0, hp:MAX_HEALTH, state:'idle', stateTarget:null, stateTimer:0, wantedCaptureCell:null, reinforcement:false, isVeteran:false, veteranZone:null, alwaysCrouched:false, kills:0, bossCooldownUntil:0, following:null, followStart:0, followHighlight:false, followOffset:null, borderSlowUntil:0
-        });
-        e.ammo = 0;
+  // сдавшийся: N секунд на вражеской земле -> принимает её флаг (люди командира переходят вместе с ним)
+  if(e.surrendered){
+    if(!e.surrenderLeader){
+      const ow = cells[ci(e.x)][cj(e.y)].owner;
+      if(ow !== -1 && ow !== e.team){
+        e.hostileTime += dt;
+        if(e.hostileTime >= S.surrenderJoinMs) defect(e, ow);
       }
     }
+    return; // сдающиеся не собирают пайки и не стреляют
   }
 
-  // bots shooting
-  if(e.isBot){
-    let nearest=null, bestD=1e9;
-    for(const p of entities){
-      if(!p || p.team === e.team || p.hp <= 0) continue;
-      const d = distXY(e.x,e.y,p.x,p.y);
-      if(d < bestD && d <= BOT_ENGAGE_RANGE){ bestD=d; nearest=p; }
-    }
-    if(nearest){
-      const dx = nearest.x - e.x, dy = nearest.y - e.y, mag = Math.hypot(dx,dy);
-      if(mag > 0.001){ e.facing.x = dx/mag; e.facing.y = dy/mag; }
-      const desiredDist = clamp(mag * randRange(0.9,1.1), 10, BULLET_RANGE);
-      if(Date.now() >= e.reloadUntil){
-        const spreadRad = (BOT_SPREAD_DEGREES_BASE * BOT_SPREAD_MULT) * Math.PI/180;
-        const spread = randRange(-spreadRad, spreadRad);
-        const ang = Math.atan2(nearest.y - e.y, nearest.x - e.x) + spread;
-        createBullet(e.x, e.y, ang, desiredDist, e);
-        e.reloadUntil = Date.now() + RELOAD_MS;
-        if(e.state === 'hold') e.crouchUntil = Date.now() + CROUCH_DURATION_MS;
-      }
-    }
-  }
-}
-
-/* ====== Captures ====== */
-function updateCaptures(dt){
-  for(let i=0;i<N;i++) for(let j=0;j<N;j++){
-    const c = cells[i][j];
-    const counts = new Array(TEAM_COUNT).fill(0);
-    for(const p of entities) if(p && p.hp>0){ const pi = clamp(Math.floor(p.x/CELL),0,N-1), pj = clamp(Math.floor(p.y/CELL),0,N-1); if(pi===i && pj===j) counts[p.team] = (counts[p.team]||0) + 1; }
-    const total = counts.reduce((a,b)=>a+b,0);
-    const teamsPresent = counts.map((v,idx)=> v>0 ? idx : -1).filter(x=>x!==-1);
-    if(total > 0 && teamsPresent.length === 1){
-      const teamIdx = teamsPresent[0]; const allies = counts[teamIdx];
-      c.captureTeam = teamIdx;
-      c.progress += allies * (dt/1000) / CAPTURE_SECONDS_SINGLE;
-      if(c.progress >= 1){ c.progress = 0; c.owner = teamIdx; c.captureTeam = -1; for(const p of entities) if(p && p.isBot && p.team===teamIdx && p.state==='capturing'){ p.state='idle'; p.stateTimer=400; } }
-    }
-  }
-}
-
-/* ====== Bullets update & damage handling ====== */
-function updateBullets(dt){
-  for(const b of bullets){
-    if(!b.alive) continue;
-    const step = (dt/1000);
-    b.x += b.vx * step; b.y += b.vy * step;
-    b.traveled += Math.hypot(b.vx*step, b.vy*step);
-    for(const p of entities){
-      if(!p || p.hp <= 0) continue;
-      if(p.team === b.owner.team) continue;
-      const r = getRadius(p);
-      const d = distXY(p.x,p.y,b.x,b.y);
-      if(d <= r + 2){
-        const dmg = calcDamage(p);
-        p.hp -= dmg;
-        if(p.hp <= 0){
-          if(b.owner && typeof b.owner.kills === 'number') b.owner.kills = (b.owner.kills || 0) + 1;
-          if(b.owner === player) updateLegend(true);
-          if(b.owner && b.owner.isBoss && b.owner.isBot && b.owner.kills >= 2 && Date.now() >= (b.owner.bossCooldownUntil || 0)){
-            bossActivate(b.owner);
-            b.owner.bossCooldownUntil = Date.now() + 60000;
-          }
-        } else {
-          if(p.following && Math.random() < 0.5){ p.following = null; p.followHighlight = false; p.followOffset = null; }
-          if(p.isBot && !p.isVeteran && p.hp > 0 && p.hp < MAX_HEALTH * VETERAN_THRESHOLD){
-            const ci = clamp(Math.floor(p.x/CELL),0,N-1), cj = clamp(Math.floor(p.y/CELL),0,N-1);
-            let lockZone = null;
-            if(cells[ci] && cells[ci][cj] && cells[ci][cj].owner === p.team) lockZone = {i:ci,j:cj};
-            else {
-              let best=null, bestD=1e9;
-              for(let ii=0; ii<N; ii++) for(let jj=0; jj<N; jj++){
-                if(cells[ii] && cells[ii][jj] && cells[ii][jj].owner === p.team){
-                  const cx = ii*CELL + CELL/2, cy = jj*CELL + CELL/2; const dist = distXY(p.x,p.y,cx,cy);
-                  if(dist < bestD){ bestD = dist; best = {i:ii,j:jj}; }
-                }
-              }
-              lockZone = best || {i:ci,j:cj};
-            }
-            p.isVeteran = true; p.veteranZone = lockZone; p.alwaysCrouched = true; p.state='patrol'; p.stateTarget = { x: lockZone.i*CELL + randRange(12,CELL-12), y: lockZone.j*CELL + randRange(12,CELL-12) };
-            if(p.following){ p.following = null; p.followHighlight = false; p.followOffset = null; }
+  // сбор пайков/брони (только на своей клетке), через сетку
+  {
+    const cI = ci(e.x), cJ = cj(e.y);
+    for(let di=-1; di<=1; di++) for(let dj=-1; dj<=1; dj++){
+      const ni = cI+di, nj = cJ+dj; if(ni<0||nj<0||ni>=NX||nj>=NY) continue;
+      const arr = pickupGrid[ni*NY+nj]; if(!arr) continue;
+      for(const p of arr){
+        if(!p || p._remove) continue;
+        const owner = cells[ni][nj].owner;
+        if(owner !== e.team) continue;
+        const d = distXY(e.x,e.y,p.x,p.y);
+        if(d <= S.ammoPickRadius){
+          if(p.type === 'ammo' && p.amount > 0){ e.ammo += p.amount; p.amount = 0; p._remove = true; }
+          else if(p.type === 'armor' && p.amount > 0){ if(!e.hasArmor){ e.hasArmor = true; p.amount = 0; p._remove = true; } }
+          if(e.ammo >= 10){
+            const ang = Math.random()*Math.PI*2;
+            entities.push(spawnEntityObject(e.x + Math.cos(ang)*20, e.y + Math.sin(ang)*20, e.team, true, {}));
+            e.ammo = 0;
           }
         }
+      }
+    }
+  }
+
+  // стрельба ботов
+  if(e.isBot && S.botsShoot && canFire()){
+    botTryRocket(e, nowT);
+
+    let nearest=null, bestD=1e9, nearestSurr=null, bestS=1e9;
+    const engage = CELL * S.botEngageCells;
+    for(const p of entities){
+      if(!p || p === e || p.hp <= 0) continue;
+      if(p.team === e.team && !p.surrendered) continue; // своих боевых не трогаем, сдающихся своих — можно
+      const d = distXY(e.x,e.y,p.x,p.y);
+      if(d > engage) continue;
+      if(p.surrendered){ if(d < bestS){ bestS=d; nearestSurr=p; } }
+      else if(d < bestD){ bestD=d; nearest=p; }
+    }
+    // сдающийся (чужой или свой) — цель только если нет боевого врага, есть флаг и мотивация не выше 1
+    let target = nearest;
+    if(!target && nearestSurr && e.killsSurrendered && e.motivation <= 1) target = nearestSurr;
+    if(target){
+      const dx = target.x - e.x, dy = target.y - e.y, mag = Math.hypot(dx,dy);
+      if(mag > 0.001){ e.facing.x = dx/mag; e.facing.y = dy/mag; }
+      if(Date.now() >= e.reloadUntil){
+        const spreadRad = S.botSpreadDeg * Math.PI/180;
+        const spread = randRange(-spreadRad, spreadRad);
+        const ang = Math.atan2(target.y - e.y, target.x - e.x) + spread;
+        const useShotgun = mag < rng() * S.botShotgunFrac && weaponAvail(e,'shotgun');
+        if(useShotgun){
+          const R = rng() * S.shotgunRange;
+          fireShotgun(e, ang, clamp(mag * randRange(0.9,1.1), 10, R));
+        } else {
+          createBullet(e.x, e.y, ang, clamp(mag * randRange(0.9,1.1), 10, rng()), e);
+        }
+        e.reloadUntil = Date.now() + S.reloadMs;
+        if(e.state === 'hold') e.crouchUntil = Date.now() + S.crouchMs;
+      }
+    }
+  }
+}
+
+/* ====== Captures (один проход по юнитам вместо клетки×юниты) ====== */
+function updateCaptures(dt){
+  const map = new Map();
+  for(const p of entities){
+    if(!p || p.hp<=0 || p.surrendered) continue;
+    const k = ci(p.x)*NY + cj(p.y);
+    let m = map.get(k); if(!m){ m = {}; map.set(k,m); }
+    m[p.team] = (m[p.team]||0) + 1;
+  }
+  for(const [k,m] of map){
+    const teams = Object.keys(m);
+    if(teams.length !== 1) continue;
+    const i = Math.floor(k/NY), j = k % NY, c = cells[i][j];
+    const teamIdx = +teams[0], allies = m[teamIdx];
+    c.captureTeam = teamIdx;
+    c.progress += allies * (dt/1000) / S.captureSeconds;
+    if(c.progress >= 1){
+      const prev = c.owner;
+      c.progress = 0; c.owner = teamIdx; c.captureTeam = -1;
+      for(const p of entities) if(p && p.isBot && p.team===teamIdx && p.state==='capturing'){ p.state='idle'; p.stateTimer=400; }
+      onCellCaptured(i,j,teamIdx,prev);
+    }
+  }
+}
+
+/* ====== Урон, взрыв РПГ, обновление снарядов ====== */
+function applyDamage(p, dmg, owner){
+  p.hp -= dmg;
+  if(p.hp <= 0){
+    onUnitKilled(p, owner);
+    // киллы считаются только за врагов (за своих, в т.ч. сдающихся, счёт не растёт)
+    if(owner && typeof owner.kills === 'number' && owner.team !== p.team) owner.kills = (owner.kills || 0) + 1;
+    if(owner === player) updateLegend(true);
+    if(owner && owner.isBoss && owner.isBot && owner.kills >= S.leadMinKills && Date.now() >= (owner.bossCooldownUntil || 0)){
+      bossActivate(owner);
+      owner.bossCooldownUntil = Date.now() + S.leadCooldownMs;
+    }
+  } else {
+    mulMot(p, 1 - dmg / S.maxHealth); // ранение: мотивация × (1 − доля потерянного HP)
+    if(p.following && Math.random() < 0.5){ p.following = null; p.followHighlight = false; p.followOffset = null; }
+    if(p.isBot && !p.isVeteran && !p.surrendered && p.hp > 0 && p.hp < S.maxHealth * S.veteranThreshold){
+      const pI = ci(p.x), pJ = cj(p.y);
+      let lockZone = null;
+      if(cells[pI][pJ].owner === p.team) lockZone = {i:pI,j:pJ};
+      else {
+        let best=null, bestD=1e9;
+        for(let ii=0; ii<NX; ii++) for(let jj=0; jj<NY; jj++){
+          if(cells[ii][jj].owner === p.team){
+            const cx = ii*CELL + CELL/2, cy = jj*CELL + CELL/2; const dist = distXY(p.x,p.y,cx,cy);
+            if(dist < bestD){ bestD = dist; best = {i:ii,j:jj}; }
+          }
+        }
+        lockZone = best || {i:pI,j:pJ};
+      }
+      p.isVeteran = true; p.veteranZone = lockZone; p.alwaysCrouched = true; p.state='patrol'; p.stateTarget = { x: lockZone.i*CELL + randRange(12,CELL-12), y: lockZone.j*CELL + randRange(12,CELL-12) };
+      if(p.following){ p.following = null; p.followHighlight = false; p.followOffset = null; }
+    }
+  }
+}
+/* взрыв РПГ: прямое попадание убивает гарантированно; осколки ровно по кругу стартуют из точки взрыва
+   (убитого юнита они уже не учитывают), бьют всех, даже своих */
+function explodeRocket(b, hit){
+  let ex, ey;
+  if(hit){
+    ex = hit.x; ey = hit.y;
+    applyDamage(hit, hit.hp, b.owner);
+  } else {
+    ex = clamp(b.x, 1, WORLD_W - 1); ey = clamp(b.y, 1, WORLD_H - 1);
+  }
+  const n = Math.max(1, Math.floor(S.rocketShards));
+  for(let k=0;k<n;k++){
+    const a = k * 2 * Math.PI / n;
+    createBullet(ex, ey, a, rng() * S.rocketShardRange, b.owner, { hitAll:true });
+  }
+  explosions.push({ x:ex, y:ey, t:Date.now() });
+}
+function updateBullets(dt){
+  const step = dt/1000;
+  for(const b of bullets){
+    if(!b.alive) continue;
+    b.x += b.vx * step; b.y += b.vy * step;
+    b.traveled += Math.hypot(b.vx*step, b.vy*step);
+
+    if(b.type === 'rocket'){
+      let hit = null;
+      for(const p of entities){
+        if(!p || p.hp <= 0 || p === b.owner) continue;
+        if(!S.rocketHitsAllies && p.team === b.owner.team && !p.surrendered) continue;
+        if(distXY(p.x,p.y,b.x,b.y) <= getRadius(p) + ROCKET_HIT_PAD){ hit = p; break; }
+      }
+      if(hit || b.x < 0 || b.y < 0 || b.x > WORLD_W || b.y > WORLD_H){
+        b.alive = false;
+        explodeRocket(b, hit);
+      }
+      continue;
+    }
+
+    for(const p of entities){
+      if(!p || p.hp <= 0) continue;
+      if(!b.hitAll && !S.friendlyFire && p.team === b.owner.team && !p.surrendered) continue;
+      if(p === b.owner && !b.hitAll) continue;
+      const r = getRadius(p);
+      if(distXY(p.x,p.y,b.x,b.y) <= r + b.size * 0.667){
+        applyDamage(p, calcDamage(p, b.dmg), b.owner);
         b.alive = false;
         break;
       }
@@ -804,12 +4088,12 @@ function updateBullets(dt){
   bullets = bullets.filter(b => b.alive);
 }
 
-/* ====== Boss: активация сопровождения (логика выбора и радиус) ====== */
+/* ====== Boss follow ====== */
 function bossActivate(boss){
   if(!boss || boss.hp <= 0) return;
   const kills = Math.max(0, Math.floor(boss.kills || 0));
   if(kills <= 0) return;
-  const candidates = entities.filter(e => e && e.hp>0 && e.team === boss.team && e.id !== boss.id && e.isBot && !e.isVeteran && !e.following);
+  const candidates = entities.filter(e => e && e.hp>0 && e.team === boss.team && e.id !== boss.id && e.isBot && !e.isVeteran && !e.following && !e.surrendered);
   candidates.sort((a,b)=> distXY(a.x,a.y,boss.x,boss.y) - distXY(b.x,b.y,boss.x,boss.y));
   const pick = candidates.slice(0, kills);
   for(const f of pick){
@@ -823,44 +4107,77 @@ function bossActivate(boss){
     f.vx = (dx/d) * Math.min(f.speed, Math.max(20, d*2));
     f.vy = (dy/d) * Math.min(f.speed, Math.max(20, d*2));
   }
-  boss.bossCooldownUntil = Date.now() + 60000;
+  boss.bossCooldownUntil = Date.now() + S.leadCooldownMs;
+}
+
+/* ====== Последний шанс ====== */
+function lastChanceTick(dt){
+  if(!player || !S.lastChanceEnabled) return;
+  const my = player.team;
+  const alive = {}; let teamsAlive = 0;
+  for(const e of entities){
+    if(!e || e.hp<=0 || e.surrendered) continue;
+    if(!alive[e.team]){ alive[e.team] = []; teamsAlive++; }
+    alive[e.team].push(e);
+  }
+  const mine = alive[my] || [];
+  let enemyN = 0;
+  for(const t in alive) if(+t !== my) enemyN = alive[t].length;
+
+  if(LC.active){
+    if(mine.length === 0 || teamsAlive < 2){ LC.active = false; return; }
+    const who = (player.hp > 0 && player.team === my && !player.surrendered) ? player : mine[0];
+    LC.accum += dt;
+    const per = 1000 / S.lastChanceRate;
+    let n = Math.floor(LC.accum / per);
+    if(n > 0){
+      LC.accum -= n * per;
+      n = Math.min(n, LC.remaining);
+      const cI = ci(who.x), cJ = cj(who.y);
+      for(let k=0;k<n;k++){
+        entities.push(spawnEntityObject(cI*CELL + randRange(10,CELL-10), cJ*CELL + randRange(10,CELL-10), my, true, {reinforcement:true}));
+      }
+      LC.remaining -= n;
+      if(LC.remaining <= 0) LC.active = false;
+    }
+    return;
+  }
+  const cond = teamsAlive === 2 && mine.length === 1 && enemyN > S.lastChanceMinEnemies;
+  if(cond){
+    LC.timer += dt;
+    if(LC.timer >= S.lastChanceHoldMs){
+      LC.active = true; LC.timer = 0; LC.accum = 0;
+      LC.remaining = Math.max(1, Math.round(enemyN * S.lastChanceShare));
+    }
+  } else LC.timer = 0;
 }
 
 /* ====== Cleanup ====== */
 function cleanup(){
   for(let i=entities.length-1;i>=0;i--){
     const e = entities[i];
-    if(e && e.hp <= 0){
-      entities.splice(i,1);
-    }
+    if(e && e.hp <= 0){ entities.splice(i,1); }
   }
   pickups = pickups.filter(p => !p._remove);
 }
 
 /* ====== Ammo spawn tick ====== */
-function spawnAmmoBatch(){ for(let k=0;k<AMMO_SPAWN_PER_SEC_TOTAL;k++) pickups.push({ x: randRange(12,WORLD_W-12), y: randRange(12,WORLD_H-12), type:'ammo', amount:1 }); }
+function spawnAmmoBatch(){
+  if(S.ammoPerSec <= 0) return;
+  const n = Math.floor(S.ammoPerSec) + (Math.random() < (S.ammoPerSec % 1) ? 1 : 0);
+  for(let k=0;k<n;k++) pickups.push({ x: randRange(12,WORLD_W-12), y: randRange(12,WORLD_H-12), type:'ammo', amount:1 });
+}
 function pickupsTick(dt){ ammoAccumulator += dt; while(ammoAccumulator >= 1000){ spawnAmmoBatch(); ammoAccumulator -= 1000; } }
 
 /* ====== Camera helpers ====== */
 function screenToWorld(screenX, screenY){
-  return {
-    x: (screenX - canvas.width/2)/camera.zoom + camera.x,
-    y: (screenY - canvas.height/2)/camera.zoom + camera.y
-  };
-}
-function worldToScreen(worldX, worldY){
-  return {
-    x: (worldX - camera.x) * camera.zoom + canvas.width/2,
-    y: (worldY - camera.y) * camera.zoom + canvas.height/2
-  };
+  return { x: (screenX - canvas.width/2)/camera.zoom + camera.x, y: (screenY - canvas.height/2)/camera.zoom + camera.y };
 }
 
-/* ====== Pointer handlers для панинга камеры ====== */
-let pointerDown = false;
+/* ====== Pointer pan ====== */
 canvas.addEventListener('pointerdown', (ev)=>{
   const allowDrag = (!player || player.hp <= 0) || !camera.followPlayer;
   if(!allowDrag) return;
-  pointerDown = true;
   try{ canvas.setPointerCapture && canvas.setPointerCapture(ev.pointerId); } catch(e){}
   const world = screenToWorld(ev.clientX, ev.clientY);
   camera.dragging = true;
@@ -875,13 +4192,12 @@ canvas.addEventListener('pointermove', (ev)=>{
   camera.y = camera.dragStartCam.y - dy;
 });
 canvas.addEventListener('pointerup', (ev)=>{
-  pointerDown = false;
   camera.dragging = false;
   try{ canvas.releasePointerCapture && canvas.releasePointerCapture(ev.pointerId); } catch(e){}
 });
-canvas.addEventListener('pointercancel', (ev)=>{ pointerDown=false; camera.dragging=false; });
+canvas.addEventListener('pointercancel', ()=>{ camera.dragging=false; });
 
-/* ====== Follow-check (1% chance to stop each second) ====== */
+/* ====== Follow-check ====== */
 function followPeriodicCheck(){
   for(const e of entities){
     if(e && e.following){
@@ -893,44 +4209,48 @@ function followPeriodicCheck(){
 /* ====== Main loop ====== */
 let playerAlivePrev = true;
 function gameLoop(){
-  if(!gameStarted) return;
-  const now = Date.now(); const dt = Math.max(1, now - lastFrame); lastFrame = now;
+  const now = Date.now(); const dt = Math.min(250, Math.max(1, now - lastFrame)); lastFrame = now;
 
-  pickupsTick(dt);
-  for(const e of entities.slice()) updateEntity(e, dt);
-  updateCaptures(dt);
-  updateBullets(dt);
+  if(!levelEnded){
+    pickupsTick(dt);
+    buildPickupGrid();
+    for(const e of entities.slice()) updateEntity(e, dt);
+    updateCaptures(dt);
+    updateBullets(dt);
 
-  followCheckAccum += dt;
-  if(followCheckAccum >= 1000){
-    followCheckAccum -= 1000;
-    followPeriodicCheck();
+    followCheckAccum += dt;
+    if(followCheckAccum >= 1000){
+      followCheckAccum -= 1000;
+      followPeriodicCheck();
+    }
+
+    cleanup();
+    lastChanceTick(dt);
+    checkLevel(dt);
   }
-
-  cleanup();
 
   if(player){
     if(player.hp <= 0 && playerAlivePrev){
       playerAlivePrev = false;
-      camera.zoomTarget = ZOOM / 1.5;
+      camera.zoomTarget = S.zoom / 1.5;
       camera.followPlayer = false;
     } else if(player.hp > 0){
       playerAlivePrev = true;
-      camera.zoomTarget = ZOOM;
+      camera.zoomTarget = S.zoom;
       camera.followPlayer = true;
     }
   }
 
   updateLeadButton();
   updateLeadCd();
+  updateSurrenderBtn();
+  updateWeaponBtn();
 
   draw();
   updateLegend();
-
-  requestAnimationFrame(gameLoop);
 }
 
-/* ====== Drawing (camera support) ====== */
+/* ====== Drawing ====== */
 function draw(){
   ctx.save();
   ctx.setTransform(1,0,0,1,0,0);
@@ -953,13 +4273,17 @@ function draw(){
 
   ctx.setTransform(camera.zoom, 0, 0, camera.zoom, canvas.width/2 - camera.x*camera.zoom, canvas.height/2 - camera.y*camera.zoom);
 
-  if(selectedMode === 'royal'){
+  const vhw = canvas.width/(2*camera.zoom) + 20, vhh = canvas.height/(2*camera.zoom) + 20;
+  const vx0 = camera.x - vhw, vx1 = camera.x + vhw, vy0 = camera.y - vhh, vy1 = camera.y + vhh;
+
+  if(isRoyal()){
     ctx.fillStyle = '#555';
     ctx.fillRect(0,0,WORLD_W,WORLD_H);
-    for(let i=0;i<N;i++){
-      for(let j=0;j<N;j++){
-        const c = cells[i][j];
+    for(let i=0;i<NX;i++){
+      for(let j=0;j<NY;j++){
         const gx = i*CELL, gy = j*CELL;
+        if(gx > vx1 || gx+CELL < vx0 || gy > vy1 || gy+CELL < vy0) continue;
+        const c = cells[i][j];
         const owner = c.owner;
         if(owner !== -1 && owner >= 0 && owner < TEAM_COLORS.length) ctx.fillStyle = TEAM_COLORS[owner];
         else ctx.fillStyle = '#555';
@@ -971,10 +4295,11 @@ function draw(){
       }
     }
   } else {
-    for(let i=0;i<N;i++){
-      for(let j=0;j<N;j++){
+    for(let i=0;i<NX;i++){
+      for(let j=0;j<NY;j++){
         const c = cells[i][j];
         const gx = i*CELL, gy = j*CELL;
+        if(gx > vx1 || gx+CELL < vx0 || gy > vy1 || gy+CELL < vy0) continue;
         let base = '#bdbdbd';
         if(c.owner !== -1 && c.owner >=0 && c.owner < TEAM_COLORS.length) base = TEAM_COLORS[c.owner];
         if(c.captureTeam !== -1 && c.progress > 0) ctx.fillStyle = blendColors(base, TEAM_COLORS[c.captureTeam], c.progress);
@@ -986,7 +4311,10 @@ function draw(){
     }
   }
 
-  for(const p of pickups){ if(!p) continue; ctx.beginPath(); ctx.arc(p.x,p.y,8,0,Math.PI*2); ctx.fillStyle = (p.type==='ammo'?'#ff0':'#0ff'); ctx.fill(); ctx.lineWidth=2; ctx.strokeStyle='#333'; ctx.stroke(); }
+  for(const p of pickups){
+    if(!p || p.x < vx0 || p.x > vx1 || p.y < vy0 || p.y > vy1) continue;
+    ctx.beginPath(); ctx.arc(p.x,p.y,8,0,Math.PI*2); ctx.fillStyle = (p.type==='ammo'?'#ff0':'#0ff'); ctx.fill(); ctx.lineWidth=2; ctx.strokeStyle='#333'; ctx.stroke();
+  }
 
   for(const e of entities){
     if(!e) continue;
@@ -996,22 +4324,43 @@ function draw(){
     const rad = getRadius(e);
     ctx.beginPath(); ctx.arc(e.x, e.y, rad, 0, Math.PI*2); ctx.fillStyle = color; ctx.fill();
 
-    const ang = Math.atan2(e.facing.y || 0.0001, e.facing.x || 1);
-    ctx.beginPath(); ctx.moveTo(e.x,e.y); ctx.arc(e.x,e.y,rad,ang-0.35,ang+0.35); ctx.closePath(); ctx.fillStyle='black'; ctx.fill();
-
-    if(e.hasArmor){ ctx.beginPath(); ctx.arc(e.x,e.y,3,0,Math.PI*2); ctx.fillStyle='#000'; ctx.fill(); }
+    if(e.surrendered){
+      ctx.font = Math.round(rad*2.1) + 'px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#fff'; ctx.fillText('🕊️', e.x, e.y + 0.5);
+    } else {
+      const ang = Math.atan2(e.facing.y || 0.0001, e.facing.x || 1);
+      ctx.beginPath(); ctx.moveTo(e.x,e.y); ctx.arc(e.x,e.y,rad,ang-0.35,ang+0.35); ctx.closePath(); ctx.fillStyle='black'; ctx.fill();
+      if(e.hasArmor){ ctx.beginPath(); ctx.arc(e.x,e.y,3,0,Math.PI*2); ctx.fillStyle='#000'; ctx.fill(); }
+    }
 
     ctx.fillStyle='#000'; ctx.fillRect(e.x-12,e.y-16,24,4);
     if(e.followHighlight){ ctx.fillStyle='#fff'; }
     else { ctx.fillStyle='#0f0'; }
-    ctx.fillRect(e.x-12,e.y-16, clamp(e.hp/MAX_HEALTH,0,1)*24, 4);
+    ctx.fillRect(e.x-12,e.y-16, clamp(e.hp/S.maxHealth,0,1)*24, 4);
     ctx.strokeStyle='#333'; ctx.strokeRect(e.x-12,e.y-16,24,4);
 
     if(e.isVeteran){ ctx.lineWidth=2; ctx.strokeStyle='#222'; ctx.beginPath(); ctx.arc(e.x,e.y,rad+5,0,Math.PI*2); ctx.stroke(); }
     if(!e.isBot){ ctx.strokeStyle='#fff'; ctx.lineWidth=1.2; ctx.beginPath(); ctx.arc(e.x,e.y,rad+4,0,Math.PI*2); ctx.stroke(); }
   }
 
-  for(const b of bullets){ ctx.beginPath(); ctx.arc(b.x,b.y,3,0,Math.PI*2); ctx.fillStyle='#111'; ctx.fill(); }
+  for(const b of bullets){
+    ctx.beginPath();
+    if(b.type === 'rocket'){
+      ctx.arc(b.x,b.y,b.size,0,Math.PI*2); ctx.fillStyle='#f70'; ctx.fill(); ctx.lineWidth=1.5; ctx.strokeStyle='#421'; ctx.stroke();
+    } else {
+      ctx.arc(b.x,b.y,b.size,0,Math.PI*2); ctx.fillStyle='#111'; ctx.fill();
+    }
+  }
+
+  // вспышки взрывов РПГ
+  const tNow = Date.now();
+  explosions = explosions.filter(x => tNow - x.t < 450);
+  for(const x of explosions){
+    const k = (tNow - x.t) / 450;
+    ctx.globalAlpha = 1 - k;
+    ctx.beginPath(); ctx.arc(x.x, x.y, 8 + k*40, 0, Math.PI*2); ctx.fillStyle = '#fa3'; ctx.fill();
+    ctx.globalAlpha = 1;
+  }
 
   ctx.restore();
 
@@ -1024,30 +4373,285 @@ function drawMinimap(){
   if(!minimapVisible) return;
   const w = minimapCanvas.width, h = minimapCanvas.height;
   mmCtx.clearRect(0,0,w,h);
-  const cellW = w / N, cellH = h / N;
-  for(let i=0;i<N;i++) for(let j=0;j<N;j++){
+  const cellW = w / NX, cellH = h / NY;
+  for(let i=0;i<NX;i++) for(let j=0;j<NY;j++){
     const c = cells[i][j];
     mmCtx.fillStyle = (c.owner === -1) ? '#555' : (TEAM_COLORS[c.owner] || '#999');
     mmCtx.fillRect(i*cellW, j*cellH, cellW, cellH);
   }
-  mmCtx.strokeStyle = '#222';
   let ents = entities.filter(e=>e && e.hp>0);
   if(ents.length > 300) ents = ents.slice(0,300);
   for(const e of ents){ const sx = (e.x / WORLD_W) * w, sy = (e.y / WORLD_H) * h; mmCtx.beginPath(); mmCtx.arc(sx, sy, 2, 0, Math.PI*2); mmCtx.fillStyle = TEAM_COLORS[e.team] || '#000'; mmCtx.fill(); }
 }
 
-/* ====== HUD ====== */
+/* ====== HUD (мотивация нигде не показывается) ====== */
 function drawHUD(){
   if(!player) return;
-  hud.innerHTML = `Team: <span style="color:${(player.team !== undefined && TEAM_COLORS[player.team]) ? TEAM_COLORS[player.team] : '#f44'};font-weight:700"> ${ (player.team !== undefined) ? (player.team+1) : '?' } </span> &nbsp;|&nbsp; HP: ${Math.max(0,Math.round(player.hp))} &nbsp;|&nbsp; Ammo: ${Math.floor(player.ammo)} &nbsp;|&nbsp; Armor: ${player.hasArmor ? 'YES' : 'NO'} &nbsp;|&nbsp; Cell: ${Math.floor((player.x||0)/CELL)},${Math.floor((player.y||0)/CELL)}`;
+  const tn = TEAM_NAMES[player.team] ? esc(TEAM_NAMES[player.team]) : (player.team + 1);
+  hud.innerHTML = `Team: <span style="color:${(player.team !== undefined && TEAM_COLORS[player.team]) ? TEAM_COLORS[player.team] : '#f44'};font-weight:700"> ${tn} </span> &nbsp;|&nbsp; HP: ${Math.max(0,Math.round(player.hp))} &nbsp;|&nbsp; Пайки: ${Math.floor(player.ammo)} &nbsp;|&nbsp; Armor: ${player.hasArmor ? 'YES' : 'NO'} &nbsp;|&nbsp; Cell: ${ci(player.x)},${cj(player.y)}`;
+  let msg = '';
+  const left = S.fireDelayMs - (Date.now() - gameStartTime);
+  if(left > 0) msg = `Огонь через ${Math.ceil(left/1000)}`;
+  else if(LC.active) msg = `Подмога идёт: осталось ${LC.remaining}`;
+  else if(LC.timer > 0) msg = `Последний шанс: держись ${Math.ceil((S.lastChanceHoldMs - LC.timer)/1000)} c`;
+  bannerEl.textContent = msg;
+  bannerEl.style.display = msg ? 'block' : 'none';
 }
 
-/* ====== Expose debug ====== */
-window.GAME = { get cells(){ return cells; }, get entities(){ return entities; }, get pickups(){ return pickups; }, get bullets(){ return bullets; }, spawnAmmoBatch, spawnArmorOnce: ()=> pickups.push({ x: randRange(12,WORLD_W-12), y: randRange(12,WORLD_H-12), type:'armor', amount:1 }), bossActivate };
+/* ====== Debug ====== */
+window.GAME = { get cells(){ return cells; }, get entities(){ return entities; }, get pickups(){ return pickups; }, get bullets(){ return bullets; }, get S(){ return S; }, doSurrender, bossActivate };
 
-/* ====== beforeunload cleanup ====== */
-window.addEventListener('beforeunload', ()=>{ if(armorIntervalId) clearInterval(armorIntervalId); if(reinforceIntervalId) clearInterval(reinforceIntervalId); });
+/* =====================================================================
+   РЕДАКТОР УРОВНЕЙ (изолирован в IIFE, использует функции игры)
+   ===================================================================== */
+const ZBEditor = (function(){
+  const root = document.getElementById('editor');
+  const $ = id => root.querySelector('#'+id);
 
+  /* Схема настроек симуляции (ключи как в DEFAULTS) */
+  const SCHEMA = [
+   ['Поле боя','zoom','Масштаб камеры',1.1,0.05],
+   ['Поле боя','captureSeconds','Секунд на захват клетки одним юнитом',10,1],
+   ['Поле боя','borderSlowEnemyMs','Замедление на границе двух врагов, мс',1000,100],
+   ['Поле боя','borderSlowNeutralMs','Замедление на границе с нейтралкой, мс',500,100],
+   ['Поле боя','borderSlowFactor','Скорость при замедлении (доля)',0.25,0.05],
+   ['Поле боя','fireDelayMs','Запрет огня после старта, мс',0,500],
+   ['Юниты','maxHealth','Максимум HP',100,10],
+   ['Юниты','unitRadius','Радиус юнита',5,1],
+   ['Юниты','playerSpeed','Скорость игрока',100,5],
+   ['Юниты','botSpeed','Скорость ботов',80,5],
+   ['Юниты','crouchMs','Длительность приседа, мс',2000,100],
+   ['Юниты','crouchHitboxReduce','Уменьшение хитбокса в приседе (доля)',0.35,0.05],
+   ['Стрельба','bulletRangeCells','Дальность выстрела, клеток',1.25,0.05],
+   ['Стрельба','reloadMs','Перезарядка автомата/дробовика, мс',5000,250],
+   ['Стрельба','friendlyFire','Обычные пули бьют своих',false],
+   ['Пайки и подкрепления','ammoPerSec','Пайков в секунду (0 = выкл)',10,1],
+   ['Пайки и подкрепления','armorIntervalMs','Спавн брони раз в, мс (0 = выкл)',3000,500],
+   ['Пайки и подкрепления','ammoPickRadius','Радиус подбора',13,1],
+   ['Пайки и подкрепления','reinforceCheckMs','Проверка подкреплений раз в, мс',3000,500],
+   ['Пайки и подкрепления','reinforceFactor','Шанс подкрепления, % за каждую клетку (0 = выкл)',0.5,0.1],
+   ['Боты','botsEnabled','ИИ ботов включён (иначе стоят)',true],
+   ['Боты','botsShoot','Боты стреляют',true],
+   ['Боты','botSpreadDeg','Разброс ботов, градусы',7.2,0.5],
+   ['Боты','botEngageCells','Дальность обнаружения врага, клеток',5,0.5],
+   ['Боты','botBonusRadius','Радиус поиска бонусов',120,10],
+   ['Боты','woundedThreshold','Порог "ранен" (доля HP)',0.5,0.05],
+   ['Боты','veteranThreshold','Порог "ветеран" (доля HP)',0.15,0.05],
+   ['Мотивация и плен','motivationEnabled','Мотивация включена',true],
+   ['Мотивация и плен','surrenderBelow','Мотивация, ниже которой бот может сдаться',0.3,0.05],
+   ['Мотивация и плен','surrenderCycleMs','Цикл проверки сдачи, мс',2000,250],
+   ['Мотивация и плен','surrenderSizeMult','Размер сдавшегося (множитель)',1.25,0.05],
+   ['Мотивация и плен','surrenderJoinMs','Время на вражеской земле до перехода, мс',15000,1000],
+   ['Мотивация и плен','surrenderBtnMotivation','Кнопка "Сдаться" видна ниже мотивации',0.5,0.05],
+   ['Мотивация и плен','killSurrenderedChance','Шанс флага "убивает сдающихся"',0.05,0.05],
+   ['Мотивация и плен','killOwnSurrenderedBonus','Бонус команде за убийство своего сдающегося',0.1,0.05],
+   ['Оружие','shotgunUnlockKills','Киллов для дробовика',2,1],
+   ['Оружие','rocketUnlockKills','Киллов для РПГ',5,1],
+   ['Оружие','shotgunRange','Дальность дробовика (доля от обычной)',0.75,0.05],
+   ['Оружие','shotgunDmg','Урон дробины (доля от обычного)',0.45,0.05],
+   ['Оружие','rocketSpeedCells','Скорость ракеты, клеток/с',1,0.25],
+   ['Оружие','rocketReloadMs','Перезарядка РПГ, мс',15000,1000],
+   ['Оружие','rocketCost','Цена выстрела РПГ, пайков',5,1],
+   ['Оружие','rocketShards','Осколков при взрыве',12,1],
+   ['Оружие','rocketShardRange','Дальность осколков (множитель)',2.5,0.25],
+   ['Оружие','rocketHitsAllies','Ракета взрывается и о своих',true],
+   ['Оружие','botShotgunFrac','Бот берёт дробовик ближе (доля дальности)',0.5,0.05],
+   ['Оружие','botRpgMinEnemies','Бот стреляет РПГ, если в клетке врагов не меньше',5,1],
+   ['Оружие','botRpgRangeCells','Дальность РПГ у бота, клеток',4,0.5],
+   ['Оружие','botRpgMinCells','Минимальная дистанция РПГ у бота, клеток',1.5,0.5],
+   ['Командир и последний шанс','leadMinKills','Киллов для «За мной»',2,1],
+   ['Командир и последний шанс','leadCooldownMs','Перезарядка «За мной», мс',60000,5000],
+   ['Командир и последний шанс','lastChanceEnabled','Последний шанс включён',true],
+   ['Командир и последний шанс','lastChanceHoldMs','Продержаться до подмоги, мс',20000,1000],
+   ['Командир и последний шанс','lastChanceRate','Юнитов подмоги в секунду',2,1],
+   ['Командир и последний шанс','lastChanceShare','Доля от числа врагов',0.25,0.05],
+   ['Командир и последний шанс','lastChanceMinEnemies','Врагов должно быть больше',8,1],
+   ['Правила уровня','loseOnPlayerDeath','Поражение при гибели игрока',true]
+  ];
+  const DEF = {}; for(const s of SCHEMA) DEF[s[1]] = s[3];
+  const PALETTE = ['#ee4444','#44aa44','#4444ee','#eeee44','#44dddd','#dd44dd','#ff8800','#88aa44','#aa55ff','#999999','#ffaa88','#88ccff','#cc8844','#44cc88','#cc4488','#4488cc'];
+
+  let L = null, tool = 'cell', curTeam = 0, cs = 40, sel = -1, down = false, drag = false;
+  const cv = $('cv'), cx = cv.getContext('2d');
+  const status = t => { $('status').textContent = t || ''; };
+
+  function newLevel(){
+    const g = Array.from({length:8},()=>Array(8).fill(-1));
+    for(let j=0;j<2;j++) for(let i=0;i<2;i++){ g[j][i]=0; g[j+6][i+6]=1; }
+    return { format:'zone-battle-level', version:1, id:'level-'+Date.now().toString(36), name:'Новый уровень', description:'', order:100, requires:[],
+      field:{width:8,height:8}, teams:[{name:'Красные',color:PALETTE[0]},{name:'Зелёные',color:PALETTE[1]}], grid:g,
+      units:[{team:0,x:1,y:1,player:true,boss:true,hold:false,hp:100,ammo:0,kills:0,armor:false,motivation:1},{team:1,x:6.5,y:6.5,player:false,boss:true,hold:false,hp:100,ammo:0,kills:0,armor:false,motivation:1}],
+      pickups:[], settings:{}, goal:{type:'eliminate',percent:50,seconds:60,timeLimitSec:0,starTimesSec:null} };
+  }
+
+  /* нормализация (мягкая: без игрока тоже допускается) */
+  function norm(o){
+    if(!o || typeof o !== 'object') throw new Error('не объект JSON');
+    const W = Math.floor(+(o.field&&o.field.width)), H = Math.floor(+(o.field&&o.field.height));
+    if(!(W>=2&&W<=60&&H>=2&&H<=60)) throw new Error('размер поля 2..60');
+    let teams = Array.isArray(o.teams) ? o.teams.slice(0,16) : [];
+    if(teams.length<2) throw new Error('нужно минимум 2 команды');
+    const fixColor = (c,k)=>{ if(typeof c==='string'){ if(/^#[0-9a-f]{6}$/i.test(c)) return c; if(/^#[0-9a-f]{3}$/i.test(c)) return '#'+c[1]+c[1]+c[2]+c[2]+c[3]+c[3]; } return PALETTE[k%16]; };
+    teams = teams.map((t,k)=>({name:String((t&&t.name)||('Команда '+(k+1))).slice(0,24), color:fixColor(t&&t.color,k)}));
+    const grid=[]; for(let j=0;j<H;j++){ const r=[]; for(let i=0;i<W;i++){ let v=(o.grid&&o.grid[j])?Math.floor(+o.grid[j][i]):-1; if(!(v>=0&&v<teams.length)) v=-1; r.push(v);} grid.push(r); }
+    const units=[]; let pl=0;
+    for(const u of (Array.isArray(o.units)?o.units:[])){ if(!u) continue; const team=Math.floor(+u.team); if(!(team>=0&&team<teams.length)) continue; let p=!!u.player; if(p){ if(pl) p=false; else pl++; }
+      units.push({team,x:clamp(+u.x||0,0,W),y:clamp(+u.y||0,0,H),player:p,boss:!!u.boss,hold:!!u.hold,hp:clamp(+u.hp||100,1,1000),ammo:clamp(Math.floor(+u.ammo||0),0,9),kills:clamp(Math.floor(+u.kills||0),0,99),armor:!!u.armor,motivation:(u.motivation!=null&&isFinite(+u.motivation))?clamp(+u.motivation,0,3):1}); }
+    const pickups=[]; for(const p of (Array.isArray(o.pickups)?o.pickups:[])) if(p&&(p.type==='ammo'||p.type==='armor')) pickups.push({x:clamp(+p.x||0,0,W),y:clamp(+p.y||0,0,H),type:p.type});
+    const settings={}; if(o.settings&&typeof o.settings==='object') for(const k in o.settings) if(k in DEF&&typeof o.settings[k]===typeof DEF[k]&&o.settings[k]!==DEF[k]) settings[k]=o.settings[k];
+    const g=o.goal||{}; const goal={type:['eliminate','capture','survive'].includes(g.type)?g.type:'eliminate',percent:clamp(+g.percent||50,1,100),seconds:clamp(+g.seconds||60,1,36000),timeLimitSec:clamp(+g.timeLimitSec||0,0,36000),starTimesSec:(Array.isArray(g.starTimesSec)&&g.starTimesSec.length>=2)?[+g.starTimesSec[0]||0,+g.starTimesSec[1]||0]:null};
+    return { format:'zone-battle-level', version:1, id:String(o.id||('level-'+Date.now().toString(36))).trim(), name:String(o.name||'Без названия').slice(0,60), description:String(o.description||'').slice(0,300),
+      order:(o.order!=null&&isFinite(+o.order))?+o.order:1000, requires:Array.isArray(o.requires)?o.requires.map(String):[], field:{width:W,height:H}, teams, grid, units, pickups, settings, goal };
+  }
+
+  function fmt(o){ return fmtLevelJSON(o); }
+  function persist(){ try{ localStorage.setItem('zb_editor_draft', JSON.stringify(L)); }catch(e){} }
+  function problems(){
+    const p=[]; if(!L.units.some(u=>u.player)) p.push('нет юнита игрока (инструмент «Игрок»)');
+    if(!L.id.trim()) p.push('пустой id');
+    const pl = L.units.find(x=>x.player);
+    if(L.goal.type==='eliminate' && !L.units.some(u=>pl && u.team!==pl.team)) p.push('нет вражеских юнитов для цели «уничтожить всех»');
+    return p;
+  }
+
+  /* ===== Рисование ===== */
+  function draw(){
+    const W=L.field.width,H=L.field.height; cv.width=W*cs; cv.height=H*cs;
+    for(let j=0;j<H;j++) for(let i=0;i<W;i++){ const o=L.grid[j][i]; cx.fillStyle=o>=0?L.teams[o].color:'#b8b8b8'; cx.fillRect(i*cs,j*cs,cs,cs); }
+    cx.strokeStyle='rgba(0,0,0,.45)'; cx.lineWidth=1; for(let i=0;i<=W;i++){ cx.beginPath(); cx.moveTo(i*cs+.5,0); cx.lineTo(i*cs+.5,H*cs); cx.stroke(); } for(let j=0;j<=H;j++){ cx.beginPath(); cx.moveTo(0,j*cs+.5); cx.lineTo(W*cs,j*cs+.5); cx.stroke(); }
+    for(const p of L.pickups){ cx.beginPath(); cx.arc(p.x*cs,p.y*cs,Math.max(4,cs*.12),0,7); cx.fillStyle=p.type==='ammo'?'#ff0':'#0ff'; cx.fill(); cx.strokeStyle='#222'; cx.lineWidth=2; cx.stroke(); }
+    const r=Math.max(6,cs*.2);
+    L.units.forEach((u,k)=>{ cx.beginPath(); cx.arc(u.x*cs,u.y*cs,r,0,7); cx.fillStyle=L.teams[u.team].color; cx.fill(); cx.lineWidth=2; cx.strokeStyle='#000'; cx.stroke();
+      if(u.player){ cx.beginPath(); cx.arc(u.x*cs,u.y*cs,r+4,0,7); cx.strokeStyle='#fff'; cx.lineWidth=2; cx.stroke(); }
+      if(k===sel){ cx.beginPath(); cx.arc(u.x*cs,u.y*cs,r+8,0,7); cx.strokeStyle='#fc0'; cx.setLineDash([4,3]); cx.lineWidth=2; cx.stroke(); cx.setLineDash([]); }
+      cx.fillStyle='#000'; cx.font='bold '+Math.max(9,r)+'px sans-serif'; cx.textAlign='center'; cx.textBaseline='middle';
+      cx.fillText((u.player?'★':'')+(u.boss?'B':'')+(u.hold?'H':''),u.x*cs,u.y*cs); });
+  }
+
+  /* ===== Интерфейс ===== */
+  const TOOLS=[['pan','✋ Прокрутка'],['cell','🖌 Клетка'],['unit','🪖 Юнит'],['player','⭐ Игрок'],['ammo','🟡 Пайки'],['armor','🛡 Броня'],['erase','🧽 Ластик']];
+  function fixToolsTop(){ $('tools').style.top = $('ed-header').offsetHeight + 'px'; }
+  function renderTools(){ $('tools').innerHTML=''; for(const [k,t] of TOOLS){ const b=document.createElement('button'); b.textContent=t; if(k===tool) b.className='on'; b.onclick=()=>{ tool=k; cv.style.touchAction=(k==='pan')?'auto':'none'; renderTools(); }; $('tools').appendChild(b); } fixToolsTop(); }
+  window.addEventListener('resize', fixToolsTop);
+  function renderChips(){ const c=$('chips'); c.innerHTML=''; const mk=(t,name,color)=>{ const b=document.createElement('button'); b.className='chip'+(curTeam===t?' on':''); b.style.background=color; b.textContent=name; b.onclick=()=>{ curTeam=t; renderChips(); }; c.appendChild(b); };
+    mk(-1,'∅ нейтр.','#666'); L.teams.forEach((t,k)=>mk(k,(k+1)+'. '+t.name,t.color)); }
+  function renderTeams(){ const d=$('teams'); d.innerHTML=''; L.teams.forEach((t,k)=>{ const r=document.createElement('div'); r.className='tr';
+    r.innerHTML='<span>'+(k+1)+'</span><input type="color" value="'+t.color+'"><input type="text" value="'+t.name.replace(/"/g,'&quot;')+'" maxlength="24"><button class="danger">✕</button>';
+    const [,col,nm,del]=r.children; col.oninput=()=>{ t.color=col.value; renderChips(); draw(); persist(); }; nm.oninput=()=>{ t.name=nm.value; renderChips(); persist(); };
+    del.onclick=()=>removeTeam(k); d.appendChild(r); }); }
+  function removeTeam(k){ if(L.teams.length<=2){ status('Нужно минимум 2 команды'); return; }
+    L.teams.splice(k,1); for(const r of L.grid) for(let i=0;i<r.length;i++){ if(r[i]===k) r[i]=-1; else if(r[i]>k) r[i]--; }
+    L.units=L.units.filter(u=>u.team!==k); for(const u of L.units) if(u.team>k) u.team--; if(curTeam>=L.teams.length) curTeam=L.teams.length-1; sel=-1; renderAll(); persist(); }
+  $('t-add').onclick=()=>{ if(L.teams.length>=16){ status('Максимум 16 команд'); return; } const k=L.teams.length; L.teams.push({name:'Команда '+(k+1),color:PALETTE[k%16]}); renderAll(); persist(); };
+
+  function renderMeta(){ $('m-id').value=L.id; $('m-name').value=L.name; $('m-desc').value=L.description; $('m-order').value=L.order; $('m-req').value=L.requires.join(', ');
+    $('g-type').value=L.goal.type; $('g-percent').value=L.goal.percent; $('g-seconds').value=L.goal.seconds; $('g-limit').value=L.goal.timeLimitSec;
+    $('g-s3').value=L.goal.starTimesSec?L.goal.starTimesSec[0]:''; $('g-s2').value=L.goal.starTimesSec?L.goal.starTimesSec[1]:''; $('f-w').value=L.field.width; $('f-h').value=L.field.height; }
+  function readMeta(){ L.id=$('m-id').value.trim(); L.name=$('m-name').value; L.description=$('m-desc').value; L.order=+$('m-order').value||0;
+    L.requires=$('m-req').value.split(',').map(s=>s.trim()).filter(Boolean);
+    L.goal.type=$('g-type').value; L.goal.percent=clamp(+$('g-percent').value||50,1,100); L.goal.seconds=Math.max(1,+$('g-seconds').value||60); L.goal.timeLimitSec=Math.max(0,+$('g-limit').value||0);
+    const a=$('g-s3').value, b=$('g-s2').value; L.goal.starTimesSec=(a!==''&&b!=='')?[+a,+b]:null; persist(); }
+  for(const id of ['m-id','m-name','m-desc','m-order','m-req','g-type','g-percent','g-seconds','g-limit','g-s3','g-s2']) $(id).addEventListener('input',readMeta);
+
+  $('f-apply').onclick=()=>{ const W=clamp(Math.floor(+$('f-w').value)||8,2,60), H=clamp(Math.floor(+$('f-h').value)||8,2,60);
+    const g=[]; for(let j=0;j<H;j++){ const r=[]; for(let i=0;i<W;i++) r.push((L.grid[j]&&L.grid[j][i]!=null)?L.grid[j][i]:-1); g.push(r); }
+    L.grid=g; L.field={width:W,height:H}; for(const u of L.units){ u.x=clamp(u.x,0,W); u.y=clamp(u.y,0,H); } L.pickups=L.pickups.filter(p=>p.x<=W&&p.y<=H); renderAll(); persist(); };
+
+  /* настройки симуляции */
+  function renderSettings(){ const box=$('settings'); box.innerHTML=''; let grp='';
+    for(const [g,key,label,def,step] of SCHEMA){ if(g!==grp){ grp=g; const h=document.createElement('div'); h.className='grp'; h.textContent=g; box.appendChild(h); }
+      const row=document.createElement('div'); const mod=(key in L.settings); row.className='set'+(mod?' mod':'');
+      const sp=document.createElement('span'); sp.innerHTML=label+'<small>'+key+' · по умолчанию '+def+'</small>'; row.appendChild(sp);
+      const inp=document.createElement('input'); const val=mod?L.settings[key]:def;
+      if(typeof def==='boolean'){ inp.type='checkbox'; inp.checked=!!val; inp.onchange=()=>setSet(key,inp.checked,def,row); }
+      else { inp.type='number'; inp.step=step; inp.value=val; inp.onchange=()=>{ const v=parseFloat(inp.value); if(isFinite(v)) setSet(key,v,def,row); }; }
+      row.appendChild(inp); box.appendChild(row); } }
+  function setSet(k,v,def,row){ if(v===def){ delete L.settings[k]; row.classList.remove('mod'); } else { L.settings[k]=v; row.classList.add('mod'); } persist(); }
+  $('s-reset').onclick=()=>{ L.settings={}; renderSettings(); persist(); };
+
+  /* панель юнита */
+  function renderUnit(){ const b=$('unit-box'); if(sel<0||!L.units[sel]){ b.textContent='Выбери юнита инструментом «Юнит».'; return; } const u=L.units[sel];
+    b.innerHTML='<div class="row"><label>Команда <select id="u-team"></select></label></div>'+
+     '<div class="row"><label><input type="checkbox" id="u-boss"> Командир (boss)</label><label><input type="checkbox" id="u-hold"> Держит позицию</label><label><input type="checkbox" id="u-armor"> Броня</label></div>'+
+     '<div class="row"><label>HP <input type="number" id="u-hp" min="1"></label><label>Пайки <input type="number" id="u-ammo" min="0" max="9"></label><label>Киллы <input type="number" id="u-kills" min="0"></label><label>Мотивация <input type="number" id="u-mot" step="0.1" min="0" max="3"></label></div>'+
+     '<div class="row"><label>x <input type="number" id="u-x" step="0.25"></label><label>y <input type="number" id="u-y" step="0.25"></label></div>'+
+     '<div class="row"><button id="u-player">'+(u.player?'★ это игрок':'Сделать игроком')+'</button><button class="danger" id="u-del">Удалить</button></div>';
+    const t=$('u-team'); L.teams.forEach((tm,k)=>{ const o=document.createElement('option'); o.value=k; o.textContent=(k+1)+'. '+tm.name; t.appendChild(o); });
+    t.value=u.team; $('u-boss').checked=u.boss; $('u-hold').checked=u.hold; $('u-armor').checked=u.armor; $('u-hp').value=u.hp; $('u-ammo').value=u.ammo; $('u-kills').value=u.kills; $('u-mot').value=u.motivation; $('u-x').value=u.x; $('u-y').value=u.y;
+    const ch=()=>{ u.team=+t.value; u.boss=$('u-boss').checked; u.hold=$('u-hold').checked; u.armor=$('u-armor').checked; u.hp=clamp(+$('u-hp').value||100,1,1000); u.ammo=clamp(Math.floor(+$('u-ammo').value)||0,0,9); u.kills=clamp(Math.floor(+$('u-kills').value)||0,0,99); u.motivation=clamp(+$('u-mot').value,0,3)||0; u.x=clamp(+$('u-x').value||0,0,L.field.width); u.y=clamp(+$('u-y').value||0,0,L.field.height); draw(); persist(); };
+    for(const id of ['u-team','u-boss','u-hold','u-armor','u-hp','u-ammo','u-kills','u-mot','u-x','u-y']) $(id).onchange=ch;
+    $('u-player').onclick=()=>{ for(const x of L.units) x.player=false; u.player=true; u.boss=true; renderUnit(); draw(); persist(); };
+    $('u-del').onclick=()=>{ L.units.splice(sel,1); sel=-1; renderUnit(); draw(); persist(); }; }
+
+  /* ===== Ввод на поле ===== */
+  const snap=v=>Math.round(v*4)/4;
+  function pos(e){ const r=cv.getBoundingClientRect(); return {x:(e.clientX-r.left)/cs,y:(e.clientY-r.top)/cs}; }
+  function nearU(p,d){ let b=-1,bd=d; L.units.forEach((u,k)=>{ const x=Math.hypot(u.x-p.x,u.y-p.y); if(x<bd){ bd=x; b=k; } }); return b; }
+  function act(e,first){ const p=pos(e), W=L.field.width, H=L.field.height, px=clamp(snap(p.x),0,W), py=clamp(snap(p.y),0,H);
+    if(tool==='cell'){ const i=Math.floor(p.x), j=Math.floor(p.y); if(i>=0&&j>=0&&i<W&&j<H) L.grid[j][i]=curTeam; }
+    else if(tool==='unit'){
+      if(first){ const k=nearU(p,0.45); if(k>=0){ sel=k; } else { L.units.push({team:curTeam>=0?curTeam:0,x:px,y:py,player:false,boss:false,hold:false,hp:100,ammo:0,kills:0,armor:false,motivation:1}); sel=L.units.length-1; } drag=true; renderUnit(); }
+      else if(drag&&sel>=0){ L.units[sel].x=px; L.units[sel].y=py; } }
+    else if(tool==='player'){ let k=L.units.findIndex(u=>u.player); if(k<0){ L.units.push({team:curTeam>=0?curTeam:0,x:px,y:py,player:true,boss:true,hold:false,hp:100,ammo:0,kills:0,armor:false,motivation:1}); k=L.units.length-1; }
+      else { L.units[k].x=px; L.units[k].y=py; if(first&&curTeam>=0) L.units[k].team=curTeam; } sel=k; if(first) renderUnit(); }
+    else if(tool==='ammo'||tool==='armor'){ if(first) L.pickups.push({x:px,y:py,type:tool}); }
+    else if(tool==='erase'){ const k=nearU(p,0.45); if(k>=0){ L.units.splice(k,1); if(sel===k) sel=-1; else if(sel>k) sel--; renderUnit(); }
+      else { let bi=-1,bd=0.45; L.pickups.forEach((q,i)=>{ const d=Math.hypot(q.x-p.x,q.y-p.y); if(d<bd){ bd=d; bi=i; } }); if(bi>=0) L.pickups.splice(bi,1); } }
+    draw(); }
+  cv.addEventListener('pointerdown',e=>{ if(tool==='pan') return; e.preventDefault(); try{ cv.setPointerCapture(e.pointerId); }catch(_){} down=true; act(e,true); });
+  cv.addEventListener('pointermove',e=>{ if(down) act(e,false); });
+  const up=()=>{ if(down){ down=false; drag=false; persist(); } };
+  cv.addEventListener('pointerup',up); cv.addEventListener('pointercancel',up);
+  $('zoom').oninput=()=>{ cs=+$('zoom').value; draw(); };
+
+  /* ===== Массовые действия ===== */
+  $('a-fill').onclick=()=>{ for(const r of L.grid) r.fill(curTeam); draw(); persist(); };
+  $('a-clear').onclick=()=>{ for(const r of L.grid) r.fill(-1); draw(); persist(); };
+  $('a-bots').onclick=()=>{ if(curTeam<0){ status('Выбери команду (не нейтральную)'); return; } const n=clamp(Math.floor(+$('a-n').value)||1,1,200); const W=L.field.width,H=L.field.height; const zone=[];
+    if($('a-zone').checked) for(let j=0;j<H;j++) for(let i=0;i<W;i++) if(L.grid[j][i]===curTeam) zone.push([i,j]);
+    for(let k=0;k<n;k++){ let x,y; if(zone.length){ const c=zone[Math.floor(Math.random()*zone.length)]; x=c[0]+.15+Math.random()*.7; y=c[1]+.15+Math.random()*.7; } else { x=Math.random()*W; y=Math.random()*H; }
+      L.units.push({team:curTeam,x:snap(x),y:snap(y),player:false,boss:false,hold:false,hp:100,ammo:0,kills:0,armor:false,motivation:1}); } draw(); persist(); };
+  $('a-pk').onclick=()=>{ const n=clamp(Math.floor(+$('a-pn').value)||1,1,500), t=$('a-pt').value; for(let k=0;k<n;k++) L.pickups.push({x:snap(Math.random()*L.field.width),y:snap(Math.random()*L.field.height),type:t}); draw(); persist(); };
+  $('a-delu').onclick=()=>{ if(confirm('Удалить всех юнитов (включая игрока)?')){ L.units=[]; sel=-1; renderUnit(); draw(); persist(); } };
+  $('a-delp').onclick=()=>{ L.pickups=[]; draw(); persist(); };
+
+  /* ===== JSON / файлы ===== */
+  $('j-refresh').onclick=()=>{ $('json').value=fmt(L); };
+  $('j-apply').onclick=()=>{ try{ L=norm(JSON.parse($('json').value)); sel=-1; if(curTeam>=L.teams.length) curTeam=0; renderAll(); persist(); status('JSON применён'); }catch(e){ status('Ошибка JSON: '+e.message); } };
+  $('json-panel').addEventListener('toggle',()=>{ if($('json-panel').open) $('json').value=fmt(L); });
+  $('b-save').onclick=()=>{ const p=problems(); if(p.length) status('Внимание: '+p.join('; ')); else status('Скачано'); download((L.id||'level')+'.json',fmt(L)); };
+  $('b-copy').onclick=async()=>{ const t=fmt(L); try{ await navigator.clipboard.writeText(t); status('Скопировано'); }catch(e){ $('json').value=t; $('json-panel').open=true; $('json').select(); status('Скопируй вручную из панели JSON'); } };
+  $('b-load').onclick=()=>$('file').click();
+  $('file').onchange=async()=>{ const f=$('file').files[0]; if(!f) return; try{ let j=JSON.parse(await f.text()); j=extractLevels(j)[0]; L=norm(j); sel=-1; curTeam=0; renderAll(); persist(); status('Загружено: '+L.name); }catch(e){ status('Ошибка: '+e.message); } $('file').value=''; };
+  $('b-new').onclick=()=>{ if(confirm('Создать новый уровень? Несохранённое пропадёт.')){ L=newLevel(); sel=-1; curTeam=0; renderAll(); persist(); } };
+
+  /* тест-запуск (прогресс не пишется) */
+  $('b-test').onclick=()=>{
+    const r=normalizeLevel(deep(L)); if(r.error){ status('Нельзя запустить: '+r.error); return; }
+    persist(); root.style.display='none'; startLevel(r.level,{test:true,from:'editor'}); };
+  /* сохранение в пользовательские уровни (localStorage) */
+  $('b-mine').onclick=()=>{
+    const r=normalizeLevel(deep(L)); if(r.error){ status('Нельзя сохранить: '+r.error); return; }
+    let msg='';
+    if(isBuiltinId(r.level.id)){ r.level.id=freeUserId(r.level.id); L.id=r.level.id; renderMeta(); msg=' (id совпадал с системным — переименован)'; }
+    addCustomLevel(r.level,null); persist(); status('Сохранено в «Мои уровни»: '+r.level.name+' ['+r.level.id+']'+msg); };
+  $('b-close').onclick=()=>{ persist(); root.style.display='none'; menu.style.display='block'; showScreen('levels'); };
+
+  function renderAll(){ renderTools(); renderChips(); renderTeams(); renderMeta(); renderSettings(); renderUnit(); draw(); }
+
+  /* ===== Старт ===== */
+  try{ const d=localStorage.getItem('zb_editor_draft'); L=d?norm(JSON.parse(d)):newLevel(); }catch(e){ L=newLevel(); }
+  cs=+$('zoom').value; cv.style.touchAction='none';
+
+  return {
+    open(level){
+      if(level){ try{ L=norm(deep(level)); sel=-1; curTeam=0; }catch(e){ L=newLevel(); } }
+      menu.style.display='none'; root.style.display='block';
+      renderAll(); status(level ? 'Открыт: '+L.name : ''); persist();
+      root.scrollTop = 0;
+    }
+  };
+})();
 </script>
 </body>
 </html>
