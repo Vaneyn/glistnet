@@ -4653,5 +4653,481 @@ const ZBEditor = (function(){
   };
 })();
 </script>
+
+
+
+<script>
+/* =====================================================================
+   ДРУГ ПО СЕТИ (хост + друг). Вставить целиком ПОСЛЕ основного блока скрипта игры, перед закрывающим body.
+   Связь: публичный MQTT-брокер по WebSocket, без своего сервера и библиотек.
+   Хост считает всю игру. Друг шлёт ввод и получает картинку (снапшоты 10 раз/с).
+   ===================================================================== */
+(function(){
+var BROKERS=[["EMQX","wss://broker.emqx.io:8084/mqtt"],["HiveMQ","wss://broker.hivemq.com:8884/mqtt"],["Mosquitto","wss://test.mosquitto.org:8081"],["Eclipse","wss://mqtt.eclipseprojects.io/mqtt"]];
+
+/* ---------- мини-MQTT 3.1.1 ---------- */
+function u8(s){var u=unescape(encodeURIComponent(s)),a=new Uint8Array(u.length);for(var i=0;i<u.length;i++)a[i]=u.charCodeAt(i);return a;}
+function un8(a){var s="";for(var i=0;i<a.length;i++)s+=String.fromCharCode(a[i]);try{return decodeURIComponent(escape(s));}catch(e){return s;}}
+function cat(l){var n=0,i;for(i=0;i<l.length;i++)n+=l[i].length;var o=new Uint8Array(n),p=0;for(i=0;i<l.length;i++){o.set(l[i],p);p+=l[i].length;}return o;}
+function ms(s){var b=u8(s);return cat([new Uint8Array([b.length>>8,b.length&255]),b]);}
+function pk(b0,body){var len=body.length,rl=[],d;do{d=len%128;len=Math.floor(len/128);if(len>0)d|=128;rl.push(d);}while(len>0);return cat([new Uint8Array([b0].concat(rl)),body]);}
+function Mqtt(url,onOpen,onMsg,onFail){
+  var ws,buf=new Uint8Array(0),ok=false,dead=false,pingT=null,timer=null;
+  var m={
+    sub:function(ts){var p=[new Uint8Array([0,1])];ts.forEach(function(t){p.push(ms(t));p.push(new Uint8Array([0]));});m.raw(pk(0x82,cat(p)));},
+    pub:function(t,s){m.raw(pk(0x30,cat([ms(t),u8(s)])));},
+    raw:function(b){if(ws&&ws.readyState===1)ws.send(b);},
+    close:function(){dead=true;clearTimeout(timer);clearInterval(pingT);try{ws.close();}catch(e){}}
+  };
+  function fail(){if(dead)return;dead=true;clearTimeout(timer);clearInterval(pingT);try{ws.close();}catch(e){}onFail(ok);}
+  try{ws=new WebSocket(url,"mqtt");}catch(e){setTimeout(fail,0);return m;}
+  ws.binaryType="arraybuffer";
+  timer=setTimeout(function(){if(!ok)fail();},7000);
+  ws.onopen=function(){m.raw(pk(0x10,cat([ms("MQTT"),new Uint8Array([4,2,0,60]),ms("zb"+Math.random().toString(36).slice(2,12))])));};
+  ws.onerror=fail;ws.onclose=fail;
+  ws.onmessage=function(e){
+    if(dead)return;
+    buf=cat([buf,new Uint8Array(e.data)]);
+    while(buf.length>=2){
+      var i=1,mul=1,rl=0,x;
+      do{if(i>=buf.length)return;x=buf[i++];rl+=(x&127)*mul;mul*=128;}while(x&128);
+      if(buf.length<i+rl)return;
+      var type=buf[0]>>4,fl=buf[0]&15,body=buf.subarray(i,i+rl);
+      buf=buf.subarray(i+rl);
+      if(type===2){if(body[1]===0){ok=true;clearTimeout(timer);pingT=setInterval(function(){m.raw(new Uint8Array([0xC0,0]));},30000);onOpen();}else fail();}
+      else if(type===3){var tl=(body[0]<<8)|body[1],off=2+tl;if((fl>>1)&3)off+=2;onMsg(un8(body.subarray(2,2+tl)),un8(body.subarray(off)));}
+    }
+  };
+  return m;
+}
+
+/* ---------- состояние ---------- */
+var M={role:"none",code:"",name:"",gid:"",T:"",mq:null,gen:0,timers:[],joinT:null,friend:null,unit:null,unitWasBoss:false,ally:false,snapN:0,
+  ackd:false,hostSeen:false,lastHost:0,hostName:"",gAlly:false,assigned:false,ents:{},dummy:null,last:0,inSent:0,inKey:"",broker:""};
+function $(id){return document.getElementById(id);}
+function r1(v){return Math.round(v*10)/10;}
+function r2(v){return Math.round(v*100)/100;}
+function code4(){var a="ABCDEFGHJKLMNPQRSTUVWXYZ23456789",s="";for(var i=0;i<4;i++)s+=a.charAt(Math.floor(Math.random()*a.length));return s;}
+function pubG(o,noTo){if(!M.mq)return;if(!noTo&&o.to===undefined&&M.friend)o.to=M.friend.id;M.mq.pub(M.T+"/g",JSON.stringify(o));}
+function pubH(o){if(!M.mq)return;o.from=M.gid;M.mq.pub(M.T+"/h",JSON.stringify(o));}
+
+/* ---------- интерфейс ---------- */
+var css=document.createElement("style");
+css.textContent="#mp-wait{position:absolute;left:0;top:0;right:0;bottom:0;z-index:300;background:rgba(0,0,0,.9);display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px}"+
+"#mp-wait h2{margin:0 0 8px 0}#mp-wait div{color:#bcd;font-size:14px;margin-bottom:16px}"+
+"#mp-note{position:absolute;left:50%;transform:translateX(-50%);top:118px;z-index:71;font-size:13px;font-weight:700;color:#fff;background:rgba(0,0,0,.5);padding:5px 12px;border-radius:8px;display:none;pointer-events:none;white-space:nowrap}"+
+"#menu-mp input[type=text]{width:100%;box-sizing:border-box;padding:9px;border-radius:6px;border:1px solid #555;background:#111;color:#fff;font-size:15px;margin:4px 0}"+
+"#menu-mp .sm{font-size:13px;color:#ccc}";
+document.head.appendChild(css);
+
+var mpBtn=document.createElement("button");mpBtn.className="start-btn";mpBtn.style.background="#36a";mpBtn.style.color="#fff";
+var fb=$("free-btn");fb.parentNode.insertBefore(mpBtn,fb.nextSibling);
+
+var panel=document.createElement("div");panel.id="menu-mp";panel.style.display="none";
+panel.innerHTML='<h2>Подключить друга</h2>'+
+'<div class="sm">Твоё имя (его увидит друг):</div><input type="text" id="mp-name" maxlength="14" placeholder="Имя">'+
+'<div style="margin-top:10px">Код комнаты: <b id="mp-code" style="font-size:24px;letter-spacing:4px"></b></div>'+
+'<label style="display:block;margin:10px 0 2px 0"><input type="checkbox" id="mp-ally"> Друг союзник</label>'+
+'<div class="sm">С галочкой: друг управляет первым появившимся ботом твоей команды (он тоже босс). Без галочки: он босс противника.</div>'+
+'<div id="mp-st" style="font-size:13px;color:#9d9;margin-top:8px;min-height:34px;white-space:pre-wrap"></div>'+
+'<details style="margin-top:8px"><summary style="cursor:pointer;color:#9cf;font-size:13px">Я друг: войти по коду</summary>'+
+'<input type="text" id="mp-jc" maxlength="8" placeholder="Код хоста"><button class="small-btn" id="mp-join" style="background:#2a6">Войти</button>'+
+'<div id="mp-msg" class="sm" style="min-height:16px;white-space:pre-wrap"></div></details>'+
+'<button class="start-btn" id="mp-off" style="background:#633;color:#fff">Отключить</button>'+
+'<button class="start-btn" id="mp-back" style="background:#333;color:#fff;margin-top:8px">← В меню</button>';
+menu.appendChild(panel);
+
+var wait=document.createElement("div");wait.id="mp-wait";
+wait.innerHTML='<h2 id="mp-wt">Ожидаем начала игры</h2><div id="mp-ws"></div><button class="start-btn" id="mp-wleave" style="width:220px;background:#633;color:#fff">Выйти из комнаты</button>';
+document.body.appendChild(wait);
+var note=document.createElement("div");note.id="mp-note";document.body.appendChild(note);
+
+function setSt(t){$("mp-st").textContent=t||"";}
+function setMsg(t){$("mp-msg").textContent=t||"";}
+function readName(){var n=($("mp-name").value||"").trim().slice(0,14)||"Игрок";try{localStorage.setItem("zb_mp_name",n);}catch(e){}return n;}
+try{$("mp-name").value=localStorage.getItem("zb_mp_name")||"";}catch(e){}
+function refreshBtn(){
+  mpBtn.textContent=M.role==="host"?(M.friend?"👥 Друг: "+M.friend.name+" ✓":"👥 Ждём друга · "+M.code):(M.role==="guest"?"👥 Ты в комнате друга":"👥 Подключить друга");
+}
+function refreshPanel(){
+  $("mp-code").textContent=M.role==="host"?M.code:"—";
+  $("mp-ally").checked=M.ally;
+  $("mp-off").style.display=M.role==="none"?"none":"block";
+}
+function showWait(t,sub){
+  $("mp-wt").textContent=t||"Ожидаем начала игры";
+  $("mp-ws").textContent=sub!==undefined?sub:("Хост: "+M.hostName+" · ты "+(M.gAlly?"союзник (ведёшь бота команды хоста)":"босс противника"));
+  wait.style.display="flex";
+}
+var _showScreen=showScreen;
+window.showScreen=function(n){_showScreen(n);panel.style.display="none";};
+function openPanel(){_showScreen("mp");panel.style.display="block";refreshPanel();}
+mpBtn.onclick=function(){if(M.role==="none")hostStart();openPanel();};
+$("mp-back").onclick=function(){showScreen("main");};
+$("mp-off").onclick=function(){leaveAll();showScreen("main");};
+$("mp-ally").onchange=function(){M.ally=this.checked;if(M.friend)pubG({t:"cfg",ally:M.ally});};
+$("mp-join").onclick=function(){var c=($("mp-jc").value||"").toUpperCase().replace(/[^A-Z0-9]/g,"");if(!c){setMsg("Введи код хоста");return;}guestJoin(c);};
+$("mp-wleave").onclick=function(){leaveAll();};
+refreshBtn();
+
+/* ---------- подключение к брокеру с перебором ---------- */
+function openBroker(idx,ok,fail){
+  var b=BROKERS[idx],gen=M.gen;M.broker=b[0];
+  M.mq=Mqtt(b[1],function(){if(gen===M.gen)ok(idx);},function(t,s){if(gen!==M.gen)return;if(M.role==="host")onHostMsg(s);else onGuestMsg(s);},
+    function(wasOpen){if(gen!==M.gen)return;if(wasOpen){lost();}else if(idx+1<BROKERS.length)openBroker(idx+1,ok,fail);else fail();});
+}
+function lost(){
+  M.mq=null;
+  if(M.role==="host")setSt("Связь потеряна. Нажми «Отключить» и подключись заново.");
+  else guestGone("Связь с сервером потеряна");
+}
+
+/* ---------- ХОСТ ---------- */
+function hostStart(){
+  leaveAll();
+  M.name=readName();M.role="host";M.code=code4();M.T="vanein-zb-v1/"+M.code;M.gid=Math.random().toString(36).slice(2,8);M.gen++;
+  setSt("Подключаюсь…");refreshBtn();refreshPanel();
+  openBroker(0,function(){
+    M.mq.sub([M.T+"/h"]);
+    setSt("Ожидаем друга…\nСервер: "+M.broker+". Скажи другу код.");
+    M.timers.push(setInterval(hostTick,2000));hostTick();
+    M.timers.push(setInterval(snapTick,100));
+  },function(){setSt("Ни один сервер не отвечает (блок/VPN?)");M.role="none";refreshBtn();refreshPanel();});
+}
+function hostTick(){
+  if(M.friend&&Date.now()-M.friend.seen>10000)dropFriend();
+  pubG({t:"hb",busy:!!M.friend},true);
+}
+function onHostMsg(s){
+  var m;try{m=JSON.parse(s);}catch(e){return;}
+  if(m.t==="join"){
+    if(!M.friend||M.friend.id===m.from){
+      var isNew=!M.friend;
+      M.friend={id:m.from,name:String(m.name||"Друг").slice(0,14),seen:Date.now()};
+      pubG({t:"ack",name:M.name,ally:M.ally});
+      if(isNew)onFriendJoined();
+    }else pubG({t:"full",to:m.from},true);
+    return;
+  }
+  if(!M.friend||m.from!==M.friend.id)return;
+  M.friend.seen=Date.now();
+  var u=M.unit;
+  if(m.t==="in"){if(u&&u.hp>0){u.moveDir={x:+m.x||0,y:+m.y||0};if(m.fx||m.fy){u.facing.x=+m.fx;u.facing.y=+m.fy;}}}
+  else if(m.t==="act")friendAct(u,m);
+  else if(m.t==="bye")dropFriend();
+}
+function onFriendJoined(){
+  setSt("Друг подключился: "+M.friend.name);refreshBtn();
+  if(gameStarted&&!levelEnded)hostAfterStart();
+  else{menu.style.display="block";showScreen("main");}
+}
+function dropFriend(){
+  revertUnit();M.friend=null;refreshBtn();
+  setSt("Друг отключился. Ожидаем друга…\nКод: "+M.code);
+}
+function revertUnit(){
+  var u=M.unit;
+  if(u&&u.hp>0){u.isBot=true;u.speed=S.botSpeed;u.isBoss=M.unitWasBoss;u.state="idle";u.stateTimer=0;u.moveDir={x:0,y:0};}
+  M.unit=null;
+}
+/* выбор юнита друга */
+function pickAndAssign(){
+  if(M.role!=="host"||!M.friend||M.unit||!gameStarted||levelEnded)return;
+  var pt=levelPlayerTeam,c=null,i,e;
+  for(i=0;i<entities.length&&!c;i++){
+    e=entities[i];
+    if(!e||e.hp<=0||e.surrendered||!e.isBot||e===player)continue;
+    if(M.ally?e.team===pt:(e.team!==pt&&e.isBoss))c=e;
+  }
+  if(!c&&!M.ally){for(i=0;i<entities.length&&!c;i++){e=entities[i];if(e&&e.hp>0&&!e.surrendered&&e.isBot&&e!==player&&e.team!==pt)c=e;}}
+  if(!c)return;
+  M.unitWasBoss=!!c.isBoss;
+  c.isBot=false;c.isBoss=true;c.speed=S.playerSpeed;c.moveDir={x:0,y:0};c.holdPos=false;
+  c.following=null;c.followHighlight=false;c.followOffset=null;c.isVeteran=false;c.veteranZone=null;c.alwaysCrouched=false;c.state="idle";
+  M.unit=c;
+}
+/* стрельба юнита друга (копия playerShoot) */
+function unitShoot(u){
+  if(!canFire())return;
+  var now=Date.now();
+  if(!weaponAvail(u,u.weapon))u.weapon="auto";
+  var mag=Math.hypot(u.facing.x||0,u.facing.y||0),ang=mag<0.05?0:Math.atan2(u.facing.y,u.facing.x),w=u.weapon;
+  if(w==="rpg"){
+    if(now<u.rocketReloadUntil||u.ammo<S.rocketCost)return;
+    fireRocket(u,ang);u.ammo-=S.rocketCost;u.rocketReloadUntil=now+S.rocketReloadMs;return;
+  }
+  if(now<u.reloadUntil)return;
+  if(w==="shotgun"){var R=rng()*S.shotgunRange;fireShotgun(u,ang,clamp(R*randRange(0.9,1.1),10,R));}
+  else createBullet(u.x,u.y,ang,clamp(rng()*randRange(0.9,1.1),10,rng()),u);
+  u.reloadUntil=now+S.reloadMs;
+}
+function friendAct(u,m){
+  if(!u||u.hp<=0||!gameStarted||levelEnded)return;
+  if(m.a==="surr"){if(!u.surrendered&&u.motivation<S.surrenderBtnMotivation)doSurrender(u);return;}
+  if(u.surrendered)return;
+  if(m.a==="fire")unitShoot(u);
+  else if(m.a==="crouch")u.crouchUntil=Date.now()+S.crouchMs;
+  else if(m.a==="w"){if(weaponAvail(u,m.w))u.weapon=m.w;}
+  else if(m.a==="lead"){
+    if(u.isBoss&&u.kills>=S.leadMinKills&&Date.now()>=(u.bossCooldownUntil||0)){_bossAct(u);u.bossCooldownUntil=Date.now()+S.leadCooldownMs;}
+  }
+}
+/* старт игры у хоста: отправляем настройки другу */
+function hostAfterStart(){
+  if(M.role!=="host"||!M.friend)return;
+  M.unit=null;M.snapN=0;
+  pickAndAssign();
+  var sd={},k;for(k in DEFAULTS)if(S[k]!==DEFAULTS[k])sd[k]=S[k];
+  pubG({t:"start",cfg:{lv:!!currentLevel,sm:selectedMode,N:N,NX:NX,NY:NY,tc:TEAM_COUNT,tn:TEAM_NAMES,col:TEAM_COLORS,coll:TEAM_COLORS_LIGHT,s:sd,
+    gt:currentLevel?currentLevel.goal.type:"",ht:levelPlayerTeam,ft:M.unit?M.unit.team:levelPlayerTeam,ally:M.ally}});
+  sendSnap(true);
+}
+function snapTick(){if(M.role==="host"&&M.friend&&gameStarted)sendSnap(false);}
+function sendSnap(full){
+  var now=Date.now(),e,i,j,rows=[],bl=[],ex=[],cp=[],o=null,me=null,u=M.unit;
+  for(i=0;i<entities.length;i++){
+    e=entities[i];if(!e||e.hp<=0)continue;
+    var f=(e.isBot?1:0)|(e.isBoss?2:0)|(e.hasArmor?4:0)|(e.isVeteran?8:0)|(e.reinforcement?16:0)|(e.surrendered?32:0)|(e.followHighlight?64:0)|((e.alwaysCrouched||now<e.crouchUntil)?128:0);
+    rows.push([e.id,r1(e.x),r1(e.y),e.team,f,Math.round(Math.atan2(e.facing.y||0,e.facing.x||1)*10)/10,Math.round(e.hp)]);
+  }
+  for(i=0;i<bullets.length&&i<250;i++){var b=bullets[i];bl.push([r1(b.x),r1(b.y),Math.round(b.vx),Math.round(b.vy),b.type==="rocket"?1:0,b.size]);}
+  for(i=0;i<explosions.length;i++)ex.push([Math.round(explosions[i].x),Math.round(explosions[i].y),now-explosions[i].t]);
+  for(i=0;i<NX;i++)for(j=0;j<NY;j++){var c=cells[i][j];if(c.captureTeam!==-1&&c.progress>0)cp.push([i*NY+j,c.captureTeam,Math.round(c.progress*100)]);}
+  if(u&&u.hp>0){
+    me=u.id;
+    o={a:Math.floor(u.ammo),k:u.kills,m:r2(u.motivation),rl:Math.max(0,u.reloadUntil-now),rr:Math.max(0,u.rocketReloadUntil-now),bc:Math.max(0,(u.bossCooldownUntil||0)-now)};
+  }
+  var m={t:"s",e:rows,b:bl,x:ex,cp:cp,me:me,o:o,g:(goalEl.style.display==="block"?goalEl.textContent:"")};
+  if(full||M.snapN%3===0){
+    var k="";for(i=0;i<NX;i++)for(j=0;j<NY;j++)k+=String.fromCharCode(cells[i][j].owner+40);
+    m.k=k;
+    var pkl=[];for(i=0;i<pickups.length&&i<400;i++){var p=pickups[i];if(p&&!p._remove)pkl.push([Math.round(p.x),Math.round(p.y),p.type==="armor"?1:0]);}
+    m.pk=pkl;
+  }
+  M.snapN++;
+  pubG(m);
+}
+
+/* ---------- ДРУГ (гость) ---------- */
+function guestJoin(code){
+  leaveAll();
+  M.name=readName();M.role="guest";M.code=code;M.T="vanein-zb-v1/"+code;M.gid=Math.random().toString(36).slice(2,8);M.gen++;M.ackd=false;M.hostSeen=false;
+  setMsg("Подключаюсь…");refreshBtn();refreshPanel();
+  tryGuest(0);
+}
+function tryGuest(i0){
+  var gen=M.gen;
+  openBroker(i0,function(i){
+    M.mq.sub([M.T+"/g"]);M.hostSeen=false;setMsg("Ищу хост на "+M.broker+"…");
+    M.timers.push(setTimeout(function(){
+      if(gen!==M.gen||M.hostSeen||M.ackd)return;
+      if(M.mq){M.mq.close();M.mq=null;}
+      if(i+1<BROKERS.length)tryGuest(i+1);
+      else{setMsg("Хост с таким кодом не найден.");M.role="none";refreshBtn();refreshPanel();}
+    },5000));
+  },function(){setMsg("Ни один сервер не отвечает (блок/VPN?)");M.role="none";refreshBtn();refreshPanel();});
+}
+function sendJoin(){pubH({t:"join",name:M.name});}
+function onGuestMsg(s){
+  var m;try{m=JSON.parse(s);}catch(e){return;}
+  if(m.to&&m.to!==M.gid)return;
+  if(m.t==="hb"){
+    M.hostSeen=true;M.lastHost=Date.now();
+    if(!M.ackd&&!M.joinT){setMsg("Хост найден, подключаюсь…");sendJoin();M.joinT=setInterval(sendJoin,1000);M.timers.push(M.joinT);}
+    return;
+  }
+  if(m.t==="full"){setMsg("В этой комнате уже есть друг.");leaveAll();return;}
+  if(m.t==="ack"){
+    if(M.ackd)return;
+    M.ackd=true;M.hostName=String(m.name||"Хост");M.gAlly=!!m.ally;M.lastHost=Date.now();
+    clearInterval(M.joinT);
+    menu.style.display="none";showWait();refreshBtn();
+    M.timers.push(setInterval(guestTimer,80));
+    return;
+  }
+  if(!M.ackd)return;
+  M.lastHost=Date.now();
+  if(m.t==="s"){if(gameStarted&&M.role==="guest"&&M.dummy)applySnap(m);}
+  else if(m.t==="start")guestStart(m.cfg);
+  else if(m.t==="stop")guestLeaveGame();
+  else if(m.t==="end")guestEnd(m);
+  else if(m.t==="cfg"){M.gAlly=!!m.ally;if(wait.style.display==="flex")showWait($("mp-wt").textContent);}
+  else if(m.t==="hostbye")guestGone("Хост отключился");
+}
+var lastPing=0;
+function guestTimer(){
+  var now=Date.now();
+  if(M.ackd&&now-M.lastHost>12000){guestGone("Связь с хостом потеряна");return;}
+  var md=(player&&player.moveDir)||{x:0,y:0},f=(player&&player.facing)||{x:1,y:0};
+  var key=r2(md.x)+","+r2(md.y)+","+r2(f.x)+","+r2(f.y);
+  if(key!==M.inKey||now-M.inSent>1000){M.inKey=key;M.inSent=now;pubH({t:"in",x:r2(md.x),y:r2(md.y),fx:r2(f.x),fy:r2(f.y)});}
+}
+function guestGone(txt){
+  if(gameStarted)stopGame();
+  note.style.display="none";
+  showWait(txt,"Можно выйти из комнаты и войти снова.");
+}
+function guestLeaveGame(){
+  if(gameStarted)stopGame();
+  note.style.display="none";resultEl.style.display="none";
+  showWait();
+}
+function guestStart(cfg){
+  if(gameStarted)stopGame();
+  wait.style.display="none";menu.style.display="none";
+  currentLevel=cfg.lv?{id:"mp",name:"mp",goal:{type:cfg.gt||"eliminate"}}:null;
+  runOpts={test:false,from:"menu"};
+  selectedMode=cfg.sm;
+  S=mkSettings(cfg.s);S.armorIntervalMs=0;S.reinforceFactor=0;S.botsEnabled=false;S.motivationEnabled=false;
+  NX=cfg.NX;NY=cfg.NY;N=cfg.N;WORLD_W=NX*CELL;WORLD_H=NY*CELL;
+  TEAM_COUNT=cfg.tc;TEAM_NAMES=cfg.tn||[];TEAM_COLORS=cfg.col;TEAM_COLORS_LIGHT=cfg.coll;
+  resetCommon();
+  for(var i=0;i<NX;i++){cells[i]=[];for(var j=0;j<NY;j++)cells[i][j]={owner:-1,captureTeam:-1,progress:0};}
+  M.gAlly=!!cfg.ally;M.ents={};M.assigned=false;M.last=0;
+  M.dummy={id:"dummy",hp:0,team:cfg.ft,kills:0,ammo:0,motivation:1,moveDir:{x:0,y:0},facing:{x:1,y:0},weapon:"auto",reloadUntil:0,rocketReloadUntil:0,bossCooldownUntil:0,isBoss:false,surrendered:false,hasArmor:false,isBot:false,x:0,y:0};
+  player=M.dummy;levelPlayerTeam=cfg.ht;
+  finishInit();
+  camera.x=WORLD_W/2;camera.y=WORLD_H/2;
+}
+function applySnap(m){
+  var now=Date.now(),seen={},i,j,r,e,f;
+  for(i=0;i<m.e.length;i++){
+    r=m.e[i];e=M.ents[r[0]];
+    if(!e){e=M.ents[r[0]]=spawnEntityObject(r[1],r[2],r[3],true,{});e.id=r[0];e.x=r[1];e.y=r[2];}
+    seen[r[0]]=1;e.tx=r[1];e.ty=r[2];e.team=r[3];f=r[4];
+    e.isBot=!!(f&1);e.isBoss=!!(f&2);e.hasArmor=!!(f&4);e.isVeteran=!!(f&8);e.reinforcement=!!(f&16);e.surrendered=!!(f&32);e.followHighlight=!!(f&64);e.alwaysCrouched=!!(f&128);
+    e.crouchUntil=0;e.hp=r[6];
+    if(e!==player){e.facing.x=Math.cos(r[5]);e.facing.y=Math.sin(r[5]);}
+  }
+  for(var id in M.ents)if(!seen[id])delete M.ents[id];
+  entities=Object.keys(M.ents).map(function(k){return M.ents[k];});
+  if(m.me&&M.ents[m.me]){
+    var u=M.ents[m.me],o=m.o||{};
+    if(player!==u)player=u;
+    M.assigned=true;
+    u.ammo=o.a||0;u.kills=o.k||0;u.motivation=(o.m!=null?o.m:1);
+    u.reloadUntil=now+(o.rl||0);u.rocketReloadUntil=now+(o.rr||0);u.bossCooldownUntil=now+(o.bc||0);
+  }else if(M.assigned&&player&&player!==M.dummy)player.hp=0;
+  var bl=[];for(i=0;i<m.b.length;i++){r=m.b[i];bl.push({x:r[0],y:r[1],vx:r[2],vy:r[3],type:r[4]?"rocket":"bullet",size:r[5],alive:true});}
+  bullets=bl;
+  var ex=[];for(i=0;i<m.x.length;i++){r=m.x[i];ex.push({x:r[0],y:r[1],t:now-r[2]});}
+  explosions=ex;
+  if(m.k){for(i=0;i<NX;i++)for(j=0;j<NY;j++)cells[i][j].owner=m.k.charCodeAt(i*NY+j)-40;}
+  for(i=0;i<NX;i++)for(j=0;j<NY;j++){cells[i][j].captureTeam=-1;cells[i][j].progress=0;}
+  for(i=0;i<m.cp.length;i++){r=m.cp[i];var ii=Math.floor(r[0]/NY),jj=r[0]%NY;if(cells[ii]&&cells[ii][jj]){cells[ii][jj].captureTeam=r[1];cells[ii][jj].progress=r[2]/100;}}
+  if(m.pk)pickups=m.pk.map(function(q){return {x:q[0],y:q[1],type:q[2]?"armor":"ammo",amount:1};});
+  if(m.g){goalEl.textContent=m.g;goalEl.style.display="block";}else goalEl.style.display="none";
+}
+function guestFrame(){
+  var now=Date.now(),dt=Math.min(250,Math.max(1,now-(M.last||now))),i,e,b;
+  M.last=now;lastFrame=now;
+  for(i=0;i<entities.length;i++){e=entities[i];if(e.tx!=null){e.x+=(e.tx-e.x)*0.4;e.y+=(e.ty-e.y)*0.4;}}
+  for(i=0;i<bullets.length;i++){b=bullets[i];b.x+=b.vx*dt/1000;b.y+=b.vy*dt/1000;}
+  if(player){
+    if(player.hp<=0&&playerAlivePrev){playerAlivePrev=false;camera.zoomTarget=S.zoom/1.5;camera.followPlayer=false;}
+    else if(player.hp>0){playerAlivePrev=true;camera.zoomTarget=S.zoom;camera.followPlayer=true;}
+  }
+  var t="";
+  if(!player||player.hp<=0)t=M.assigned?"Твой юнит погиб — наблюдай":(M.gAlly?"Ждём появления союзного бота…":"Ждём юнита…");
+  note.textContent=t;note.style.display=t?"block":"none";
+  updateLeadButton();updateLeadCd();updateSurrenderBtn();updateWeaponBtn();
+  draw();updateLegend();
+}
+function guestEnd(m){
+  levelEnded=true;
+  var w=M.gAlly?!!m.win:!m.win;
+  $("res-title").textContent=w?"Победа!":"Поражение";
+  $("res-text").textContent=(m.win?"Команда хоста победила":"Команда хоста проиграла")+". Время: "+fmtSec(m.time||0);
+  var bt=$("res-btns");bt.innerHTML="";
+  var b=document.createElement("button");b.className="start-btn";b.textContent="Выйти в ожидание";b.onclick=guestLeaveGame;bt.appendChild(b);
+  resultEl.style.display="block";
+}
+
+/* ---------- выход ---------- */
+function leaveAll(){
+  var was=M.role;
+  if(M.mq){
+    if(was==="host"&&M.friend)pubG({t:"hostbye"});
+    if(was==="guest"&&M.ackd)pubH({t:"bye"});
+  }
+  M.gen++;M.timers.forEach(function(t){clearInterval(t);});M.timers=[];M.joinT=null;
+  if(M.mq){try{M.mq.close();}catch(e){}M.mq=null;}
+  revertUnit();M.friend=null;M.ackd=false;M.role="none";
+  wait.style.display="none";note.style.display="none";
+  if(was==="guest"){
+    if(gameStarted)stopGame();
+    resultEl.style.display="none";menu.style.display="block";showScreen("main");
+  }
+  refreshBtn();refreshPanel();
+}
+
+/* ---------- подмена функций игры ---------- */
+var _playerShoot=playerShoot,_cycle=cycleWeapon,_crouch=playerCrouch,_bossAct=bossActivate,_doSurr=doSurrender,
+    _stop=stopGame,_end=endLevel,_sl=startLevel,_sf=startFree,_loop=gameLoop,_draw=draw;
+window.playerShoot=function(){
+  if(M.role==="guest"){if(gameStarted&&!levelEnded&&player&&player.hp>0&&!player.surrendered)pubH({t:"act",a:"fire"});return;}
+  _playerShoot();
+};
+window.playerCrouch=function(){
+  if(M.role==="guest"){if(player&&player.hp>0)pubH({t:"act",a:"crouch"});return;}
+  _crouch();
+};
+window.cycleWeapon=function(){
+  _cycle();
+  if(M.role==="guest"&&player&&player.hp>0)pubH({t:"act",a:"w",w:player.weapon});
+};
+window.bossActivate=function(b){
+  if(M.role==="guest"){pubH({t:"act",a:"lead"});return;}
+  _bossAct(b);
+};
+window.doSurrender=function(e,l,s){
+  if(M.role==="guest"){if(e===player)pubH({t:"act",a:"surr"});return;}
+  _doSurr(e,l,s);
+};
+window.stopGame=function(){
+  if(M.role==="host"&&M.friend)pubG({t:"stop"});
+  if(M.role==="host")revertUnit();
+  _stop();
+};
+window.endLevel=function(win,reason){
+  var was=levelEnded;
+  _end(win,reason);
+  if(!was&&M.role==="host"&&M.friend)pubG({t:"end",win:!!win,time:Math.round(levelTime/1000)});
+};
+window.startLevel=function(lv,opts){_sl(lv,opts);hostAfterStart();};
+window.startFree=function(){_sf();hostAfterStart();};
+window.gameLoop=function(){
+  if(M.role==="guest"){guestFrame();return;}
+  _loop();
+  if(M.role==="host"&&M.friend)pickAndAssign();
+};
+window.draw=function(){
+  _draw();
+  var list=[];
+  if(M.role==="host"&&M.friend&&M.unit&&M.unit.hp>0)list.push([M.unit,M.friend.name]);
+  if(M.role==="guest"&&player&&player!==M.dummy&&player.hp>0)list.push([player,M.name]);
+  if(!list.length)return;
+  ctx.save();
+  ctx.setTransform(camera.zoom,0,0,camera.zoom,canvas.width/2-camera.x*camera.zoom,canvas.height/2-camera.y*camera.zoom);
+  ctx.font="bold 11px system-ui,Arial";ctx.textAlign="center";ctx.textBaseline="top";ctx.lineWidth=3;ctx.strokeStyle="rgba(0,0,0,.8)";ctx.fillStyle="#fff";
+  for(var i=0;i<list.length;i++){var e=list[i][0],y=e.y+getRadius(e)+3;ctx.strokeText(list[i][1],e.x,y);ctx.fillText(list[i][1],e.x,y);}
+  ctx.restore();
+};
+
+/* кнопка «Назад» в игре: у друга — выход в ожидание */
+var oldBack=$("back"),nb=oldBack.cloneNode(true);
+oldBack.parentNode.replaceChild(nb,oldBack);
+nb.addEventListener("click",function(){
+  if(M.role==="guest"){guestLeaveGame();return;}
+  if(!gameStarted){showScreen("main");return;}
+  if(runOpts.from==="editor")exitToEditor();else exitToMenu(currentLevel?"levels":"main");
+});
+})();
+</script>
+
+
+
+  
+  
 </body>
 </html>
