@@ -1,43 +1,122 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-	<title>Вычислительная мощность процессора</title>
-	<style>
-		body {
-			background-color: grey;
-			color: black;
-		}
-	</style>
-	<p> Менее 10000 это слабо. В районе 15000 нормально для телефонов с 3 ГБ ОЗУ. 30000 и более это уже шайтан машина</p>
-	<script>
-		function measureCPUPower() {
-			document.getElementById("measure-btn").style.display = "none"; // Скрываем кнопку сразу после нажатия
-			var startTime = performance.now();
-			var result = 0;
-			for (var i = 0; i < 10000000; i++) {
-				result += Math.random();
-			}
-			var endTime = performance.now();
-			var elapsedTime = endTime - startTime;
-			var operationsPerSecond = Math.floor(10000000 / elapsedTime);
-			document.getElementById("result").innerHTML = "Операций в секунду: " + operationsPerSecond;
-		}
-		
-	</script>
-		<script>
-		function runTool(toolName) {
-			var url = toolName + ".html";
-			window.open(url, "_blank");
-		}
-	</script>
-	</script>
-  <button onclick="runTool('glist')">НАЗАД</button>
-</script>
-</body>
-</html>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Тест вычислительной мощности</title>
+<style>
+  html, body {
+    margin: 0; padding: 0;
+    background: grey; color: black;
+    font-family: sans-serif;
+    text-align: center;
+    overflow-x: hidden;
+  }
+  #menu, #cpu-screen { padding: 20px; }
+  #result {
+    font-family: monospace;
+    font-size: 22px;
+    margin: 6px 0;
+  }
+  #bar {
+    display: flex;
+    gap: 1px;
+    width: calc(100% - 20px);
+    margin: 8px 10px;
+    height: 24px;
+    background: #444;
+    box-sizing: border-box;
+  }
+  #bar > div {
+    flex: 1 1 0;
+    min-width: 0;
+    background: #bbb;
+  }
+  #bar > div.on {
+    background: #000;
+  }
+  .note { font-size: 13px; margin: 8px; }
+  button { margin: 8px; padding: 10px 18px; font-size: 15px; cursor: pointer; }
+</style>
 </head>
 <body>
-	<button id="measure-btn" onclick="measureCPUPower()">Измерить вычислительную мощность процессора</button>
-	<div id="result"></div>
+
+<div id="menu">
+  <h2>Что тестируем?</h2>
+  <button onclick="startTest('cpu')">Тест CPU</button>
+  <button onclick="startTest('gpu')">Тест GPU</button>
+</div>
+
+<div id="cpu-screen" style="display:none;">
+  <p class="note">Менее 10000 это слабо. В районе 15000 нормально для телефонов с 3 ГБ ОЗУ. 30000 и более это уже шайтан машина</p>
+  <div id="result">Среднее: 0</div>
+  <div id="bar"></div>
+  <button onclick="goBack()">НАЗАД</button>
+</div>
+
+<script>
+  const BAR_LEN = 100;
+  const MAX_PTS = 100000;
+  const N = 10000000;
+  const INTERVAL = 150;
+
+  let running = false;
+  let sum = 0;
+  let count = 0;
+
+  function buildBar() {
+    const bar = document.getElementById('bar');
+    bar.innerHTML = '';
+    for (let i = 0; i < BAR_LEN; i++) {
+      bar.appendChild(document.createElement('div'));
+    }
+  }
+
+  function renderBar(points) {
+    let filled = Math.floor(points / (MAX_PTS / BAR_LEN));
+    if (filled < 0) filled = 0;
+    if (filled > BAR_LEN) filled = BAR_LEN;
+    const cells = document.getElementById('bar').children;
+    for (let i = 0; i < BAR_LEN; i++) {
+      cells[i].className = i < filled ? 'on' : '';
+    }
+  }
+
+  function startTest(type) {
+    if (type === 'gpu') { window.open('testgpu.html', '_blank'); return; }
+    document.getElementById('menu').style.display = 'none';
+    document.getElementById('cpu-screen').style.display = 'block';
+    buildBar();
+    sum = 0;
+    count = 0;
+    document.getElementById('result').textContent = 'Среднее: 0';
+    renderBar(0);
+    running = true;
+    cycle();
+  }
+
+  function goBack() {
+    running = false;
+    window.location.href = 'glist.html';
+  }
+
+  function cycle() {
+    if (!running) return;
+    const start = performance.now();
+    let r = 0;
+    for (let i = 0; i < N; i++) r += Math.random();
+    const elapsed = performance.now() - start;
+    const points = Math.floor(N / elapsed);
+
+    sum += points;
+    count++;
+    const avg = Math.round(sum / count);
+
+    document.getElementById('result').textContent = 'Среднее: ' + avg;
+    renderBar(avg);
+
+    setTimeout(cycle, INTERVAL);
+  }
+</script>
 </body>
 </html>
