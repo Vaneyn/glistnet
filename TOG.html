@@ -10,6 +10,7 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font:16px system-ui,-apple-system,Segoe UI,Roboto,sans-serif;touch-action:none}
 button,input,textarea{font:inherit}
+textarea,input{-webkit-user-select:text;user-select:text}
 button{color:var(--text);background:linear-gradient(#35261a,#251a10);border:1px solid #6b4c25;border-radius:8px;padding:13px 16px;font-weight:700;cursor:pointer;touch-action:manipulation;box-shadow:inset 0 1px 0 rgba(255,220,150,.12),0 2px 0 #0b0703}
 button:active{transform:translateY(1px);background:linear-gradient(#2a1d11,#3a2a1a)}
 button:focus-visible,textarea:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
@@ -109,6 +110,7 @@ textarea{width:100%;min-height:210px;resize:vertical;background:#0f0a05;color:#f
     <p id="customError" class="error hidden"></p>
     <div class="stack">
       <button id="customPlay" class="primary">Запустить уровень</button>
+      <button id="customCopy">Копировать текст</button>
       <button id="customBack" class="back">Назад</button>
     </div>
   </div>
@@ -152,10 +154,11 @@ textarea{width:100%;min-height:210px;resize:vertical;background:#0f0a05;color:#f
       <label class="lbl" for="edJson">JSON уровня</label>
       <textarea id="edJson" spellcheck="false" style="min-height:140px" placeholder='{"name":"...","map":[...],"shooters":[...]}'></textarea>
       <div class="stack" style="margin-top:10px">
+        <button id="edCopy" class="primary">Копировать JSON</button>
         <button id="edExport">Экспорт в поле</button>
         <button id="edLoad">Загрузить из поля</button>
         <button id="edToCustom">Отправить в «Свой уровень»</button>
-        <button id="edSheetClose" class="primary">Закрыть</button>
+        <button id="edSheetClose" class="back">Закрыть</button>
       </div>
     </div>
   </div>
@@ -806,6 +809,28 @@ $('resultHome').addEventListener('click',goHome);
 $('nextBtn').addEventListener('click',startNext);
 
 
+/* ---------- буфер обмена ---------- */
+// execCommand работает в WebView без HTTPS, а navigator.clipboard — запасной вариант.
+function copyField(ta){
+  const text=ta.value;
+  return new Promise(res=>{
+    let ok=false;
+    try{ta.focus();ta.select();ta.setSelectionRange(0,text.length);ok=document.execCommand('copy')}catch(e){ok=false}
+    try{ta.blur()}catch(e){}
+    if(ok){res(true);return}
+    if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(text).then(()=>res(true),()=>res(false));
+    else res(false);
+  });
+}
+function copyWithToast(ta){
+  if(!ta.value){showToast('Копировать нечего',1400);return Promise.resolve(false)}
+  return copyField(ta).then(ok=>{
+    showToast(ok?'Скопировано':'Не удалось скопировать — выдели текст вручную',ok?1200:2400);
+    return ok;
+  });
+}
+$('customCopy').addEventListener('click',()=>copyWithToast($('customData')));
+
 /* ======================= РЕДАКТОР УРОВНЕЙ ======================= */
 const ED_KEY='glist-tomb-editor-v1';
 const ED_TILE=24;          // логический размер клетки в редакторе, масштабируется зумом
@@ -1145,6 +1170,10 @@ $('edCheck').addEventListener('click',()=>{
   if(r.err)edMsg(r.err,true);
   else if(r.none)edMsg('Уровень не проходится (пули не учитываются).',true);
   else edMsg('Проходится за '+r.moves+' ход(ов): '+(r.moves<=40?r.path:'путь слишком длинный для показа')+'. Пули не учитываются.',false);
+});
+$('edCopy').addEventListener('click',()=>{
+  $('edJson').value=edToText(edBuild());
+  copyWithToast($('edJson')).then(ok=>edMsg(ok?'JSON скопирован в буфер обмена.':'Автокопирование не сработало: JSON лежит в поле, выдели его долгим тапом.',!ok));
 });
 $('edExport').addEventListener('click',()=>{
   $('edJson').value=edToText(edBuild());
