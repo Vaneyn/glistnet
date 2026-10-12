@@ -1,0 +1,1180 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#120c07">
+<title>Tomb of the Glist</title>
+<style>
+:root{color-scheme:dark;--bg:#120c07;--panel:#1d140b;--line:#5b4226;--text:#f3e3bf;--muted:#b8a074;--gold:#e8bd57;--turq:#3ec9b0;--red:#c4452d}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font:16px system-ui,-apple-system,Segoe UI,Roboto,sans-serif;touch-action:none}
+button,input,textarea{font:inherit}
+button{color:var(--text);background:linear-gradient(#35261a,#251a10);border:1px solid #6b4c25;border-radius:8px;padding:13px 16px;font-weight:700;cursor:pointer;touch-action:manipulation;box-shadow:inset 0 1px 0 rgba(255,220,150,.12),0 2px 0 #0b0703}
+button:active{transform:translateY(1px);background:linear-gradient(#2a1d11,#3a2a1a)}
+button:focus-visible,textarea:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+#game{position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:100%;display:block;touch-action:none}
+.screen{position:fixed;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;padding:20px;background:radial-gradient(ellipse at 50% 15%,#3b2916 0%,#120c07 68%);z-index:5;overflow:auto;touch-action:pan-y}
+.hidden{display:none!important}
+.panel{width:100%;max-width:440px;max-height:100%;overflow:auto;background:rgba(24,16,9,.97);border:1px solid #6b4c25;border-radius:14px;padding:24px;box-shadow:inset 0 0 0 4px #1d140b,inset 0 0 0 5px #4a3319,0 24px 90px rgba(0,0,0,.75)}
+h1,h2{font-family:Georgia,"Times New Roman",serif;color:#f3d98a;text-shadow:0 2px 0 #0b0703,0 0 22px rgba(232,189,87,.25)}
+h1{font-size:30px;font-size:clamp(29px,8vw,44px);line-height:1.02;margin:0 0 8px;letter-spacing:1px;user-select:none;-webkit-user-select:none}
+h1 .accent{color:var(--turq);text-shadow:0 2px 0 #0b0703,0 0 22px rgba(62,201,176,.3)}
+h2{font-size:24px;margin:0 0 14px}
+.rule{height:6px;margin:0 0 16px;opacity:.75;background:repeating-linear-gradient(90deg,#6b4c25 0,#6b4c25 10px,transparent 10px,transparent 14px)}
+.sub{color:var(--muted);margin:0 0 22px;line-height:1.45}
+.stack{display:grid;grid-gap:10px;gap:10px}
+.primary{background:linear-gradient(#f0c966,#c08a30);color:#24160a;border:1px solid #f7dc8f;box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 2px 0 #0b0703}
+.primary:active{background:linear-gradient(#c08a30,#e0b04a)}
+.back{background:#1a1109}
+.level-list{display:grid;grid-gap:8px;gap:8px;margin:14px 0}
+.level-btn{display:flex;justify-content:space-between;align-items:center;text-align:left;gap:12px}
+.level-btn small{display:block;color:var(--muted);font-weight:500;margin-top:3px}
+.level-btn:disabled{opacity:.4;cursor:not-allowed}
+textarea{width:100%;min-height:210px;resize:vertical;background:#0f0a05;color:#f3e3bf;border:1px solid #5b4226;border-radius:8px;padding:12px;font:13px/1.45 ui-monospace,SFMono-Regular,Consolas,monospace;touch-action:pan-y}
+.hint{color:var(--muted);font-size:13px;line-height:1.45;margin:10px 0 16px}
+.hint code{color:var(--gold);word-break:break-all}
+.error{color:#ff9a80;font-size:13px;line-height:1.4;margin:0 0 12px}
+#hud{position:fixed;z-index:2;top:12px;top:max(12px,env(safe-area-inset-top));left:12px;right:12px;display:flex;justify-content:space-between;align-items:center;gap:8px;pointer-events:none}
+#hud button{pointer-events:auto;padding:9px 12px;border-radius:8px;background:rgba(18,12,7,.88)}
+#levelName{font-family:Georgia,"Times New Roman",serif;font-size:14px;font-weight:700;letter-spacing:.3px;color:var(--gold);background:rgba(18,12,7,.88);border:1px solid #5b4226;border-radius:8px;padding:9px 12px;max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#toast{position:fixed;z-index:9;left:50%;top:50%;transform:translate(-50%,-50%);font-family:Georgia,"Times New Roman",serif;font-size:24px;font-size:clamp(20px,6vw,34px);font-weight:700;text-align:center;color:var(--gold);text-shadow:0 4px 25px #000;background:rgba(18,12,7,.95);border:1px solid #6b4c25;border-radius:12px;padding:16px 22px;pointer-events:none;max-width:88%}
+
+/* ---- редактор уровней ---- */
+#editorMenu{position:fixed;top:0;left:0;right:0;bottom:0;z-index:5;background:#120c07;display:flex;flex-direction:column;touch-action:none}
+.ed-top{display:flex;align-items:center;gap:8px;padding:8px 10px;padding-top:8px;padding-top:max(8px,env(safe-area-inset-top));background:#1d140b;border-bottom:1px solid #5b4226}
+.ed-top button{padding:9px 12px}
+.ed-title{flex:1;font-family:Georgia,"Times New Roman",serif;font-weight:700;color:var(--gold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ed-palette{display:flex;gap:8px;padding:8px 10px;overflow-x:auto;-webkit-overflow-scrolling:touch;touch-action:pan-x;background:#17100a;border-bottom:1px solid #3a2815}
+.ed-tile{flex:0 0 auto;min-width:48px;height:48px;padding:3px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11px;line-height:1.1}
+.ed-tile.active{border-color:var(--gold);box-shadow:0 0 0 2px rgba(232,189,87,.45)}
+#edViewport{flex:1;position:relative;overflow:hidden;touch-action:none;background:#0d0804}
+#edCanvas{position:absolute;top:0;left:0;transform-origin:0 0;will-change:transform;display:block}
+.ed-bottom{display:flex;align-items:center;gap:6px;padding:6px 10px;padding-bottom:6px;padding-bottom:max(6px,env(safe-area-inset-bottom));background:#1d140b;border-top:1px solid #5b4226}
+.ed-bottom button{padding:7px 12px}
+#edStatus{flex:1;font-size:12px;color:var(--muted);line-height:1.3}
+.ed-sheet{position:absolute;top:0;left:0;right:0;bottom:0;z-index:6;background:rgba(18,12,7,.98);overflow:auto;padding:16px;touch-action:pan-y}
+.ed-sheet .panel{margin:0 auto;max-height:none;overflow:visible}
+.lbl{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
+.input{width:100%;background:#0f0a05;color:var(--text);border:1px solid #5b4226;border-radius:8px;padding:10px 12px}
+.row2{display:flex;gap:10px}
+.row2>div{flex:1}
+.grid2{display:grid;grid-template-columns:1fr 1fr;grid-gap:8px;gap:8px;margin-top:12px}
+@media(min-width:700px){.panel{padding:30px}}
+</style>
+</head>
+<body>
+<canvas id="game" aria-label="Игровое поле"></canvas>
+
+<div id="hud" class="hidden">
+  <button id="hudMenu" aria-label="В меню">☰</button>
+  <div id="levelName">Уровень</div>
+  <button id="restart" aria-label="Заново">↻</button>
+</div>
+<div id="toast" class="hidden"></div>
+
+<section id="mainMenu" class="screen">
+  <div class="panel">
+    <h1 id="title">TOMB OF<br><span class="accent">THE GLIST</span></h1>
+    <div class="rule"></div>
+    <p class="sub">Скользи по лабиринту. Стены остановят тебя. Циркулярные пилы и огненные шары — нет.</p>
+    <div class="stack">
+      <button id="playBtn" class="primary">Играть</button>
+      <button id="levelsBtn">Уровни</button>
+      <button id="customBtn">Свой уровень</button>
+      <button id="editorBtn">Редактор уровней</button>
+      <button id="exitBtn" class="back">Назад на G-list</button>
+    </div>
+  </div>
+</section>
+
+<section id="levelsMenu" class="screen hidden">
+  <div class="panel">
+    <h2>Уровни</h2>
+    <div class="rule"></div>
+    <p class="sub">Открыты пройденные уровни и первый ещё не пройденный.</p>
+    <div id="levelList" class="level-list"></div>
+    <button id="levelsBack" class="back" style="width:100%">Назад</button>
+  </div>
+</section>
+
+<section id="customMenu" class="screen hidden">
+  <div class="panel">
+    <h2>Свой уровень</h2>
+    <div class="rule"></div>
+    <p class="sub">Вставь JSON-массив или объект уровня. Координаты — в клетках, отсчёт с нуля.</p>
+    <textarea id="customData" spellcheck="false"></textarea>
+    <p class="hint">Формат: <code>{"name":"Мой уровень","map":["########","#P...E#","########"],"shooters":[{"x":4,"y":1,"dir":"left"}]}</code><br>
+      Символы карты: <b>#</b> стена, <b>.</b> пусто, <b>P</b> игрок, <b>E</b> выход, <b>S</b> циркулярная пила. Стрелялки задаются отдельно (или прямо в карте символами <b>^ &gt; v &lt;</b>), являются твёрдыми блоками и могут стоять прямо в стене. Необязательно: <b>period</b> (мс между выстрелами, по умолчанию 2000) и <b>delay</b> (задержка первого выстрела, мс).</p>
+    <p id="customError" class="error hidden"></p>
+    <div class="stack">
+      <button id="customPlay" class="primary">Запустить уровень</button>
+      <button id="customBack" class="back">Назад</button>
+    </div>
+  </div>
+</section>
+
+<section id="editorMenu" class="hidden">
+  <div class="ed-top">
+    <button id="edBack" class="back" aria-label="Назад">←</button>
+    <div class="ed-title">Редактор уровней</div>
+    <button id="edPlay" class="primary">▶ Тест</button>
+    <button id="edSettings">Меню</button>
+  </div>
+  <div class="ed-palette" id="edPalette"></div>
+  <div id="edViewport"><canvas id="edCanvas"></canvas></div>
+  <div class="ed-bottom">
+    <div id="edStatus"></div>
+    <button id="edZoomOut" aria-label="Отдалить">−</button>
+    <button id="edZoomIn" aria-label="Приблизить">+</button>
+    <button id="edFitBtn">Вписать</button>
+  </div>
+  <div id="edSheet" class="ed-sheet hidden">
+    <div class="panel">
+      <h2>Редактор: меню</h2><div class="rule"></div>
+      <p class="hint" style="margin-top:0">Тап или проведение — рисовать. Два пальца — масштаб и перемещение, а инструмент «Рука» двигает карту одним пальцем. Уровень сохраняется на устройстве автоматически.</p>
+      <label class="lbl" for="edName">Название уровня</label>
+      <input id="edName" class="input" placeholder="Мой уровень" maxlength="60">
+      <div class="row2">
+        <div><label class="lbl" for="edCols">Колонки</label><input id="edCols" class="input" type="number" min="5" max="120" value="11"></div>
+        <div><label class="lbl" for="edRows">Строки</label><input id="edRows" class="input" type="number" min="5" max="80" value="8"></div>
+      </div>
+      <div class="grid2">
+        <button id="edNewBtn">Новый (рамка)</button>
+        <button id="edClearBtn">Пусто</button>
+        <button id="edFillBtn">Всё стеной</button>
+        <button id="edRandomBtn">Случайно</button>
+        <button id="edMirrorX">Зеркало ↔</button>
+        <button id="edMirrorY">Зеркало ↕</button>
+      </div>
+      <button id="edCheck" style="width:100%;margin-top:8px">Проверить проходимость</button>
+      <p id="edMsg" class="hint"></p>
+      <label class="lbl" for="edJson">JSON уровня</label>
+      <textarea id="edJson" spellcheck="false" style="min-height:140px" placeholder='{"name":"...","map":[...],"shooters":[...]}'></textarea>
+      <div class="stack" style="margin-top:10px">
+        <button id="edExport">Экспорт в поле</button>
+        <button id="edLoad">Загрузить из поля</button>
+        <button id="edToCustom">Отправить в «Свой уровень»</button>
+        <button id="edSheetClose" class="primary">Закрыть</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="pauseMenu" class="screen hidden">
+  <div class="panel">
+    <h2>Пауза</h2><div class="rule"></div><p class="sub" id="pauseText">Уровень приостановлен.</p>
+    <div class="stack">
+      <button id="resumeBtn" class="primary">Продолжить</button>
+      <button id="pauseRestart">Начать заново</button>
+      <button id="pauseLevels">Выбрать уровень</button>
+      <button id="pauseHome" class="back">Главное меню</button>
+    </div>
+  </div>
+</section>
+
+<section id="resultMenu" class="screen hidden">
+  <div class="panel">
+    <h2 id="resultTitle">Уровень пройден!</h2><div class="rule"></div>
+    <p class="sub" id="resultText"></p>
+    <div class="stack">
+      <button id="nextBtn" class="primary">Следующий уровень</button>
+      <button id="retryBtn">Попробовать снова</button>
+      <button id="resultHome" class="back">Главное меню</button>
+    </div>
+  </div>
+</section>
+
+<script>
+(() => {
+'use strict';
+const canvas = document.getElementById('game');
+let ctx = canvas.getContext('2d', {alpha:false});
+const $ = id => document.getElementById(id);
+const SCREENS = ['mainMenu','levelsMenu','customMenu','editorMenu','pauseMenu','resultMenu'];
+const DEATH_LINES = ['Ой','Бл..','Всё фигня, давай по-новой','Ты сдох','Ха-ха','Не надоело?','Попробуй снова ВХАХАХАХ'];
+const STORAGE_KEY = 'glist-tomb-completed-v1';
+
+const SHOT_PERIOD = 2000;   // мс между выстрелами по умолчанию
+const TELEGRAPH = 500;      // мс, за которые стрелялка начинает светиться перед выстрелом
+const BULLET_SPEED = 16;    // клеток в секунду
+const SWIPE_MIN = 10;       // минимальная длина свайпа, px
+const DEATH_DELAY = 520;    // пауза перед экраном смерти, мс
+const WIN_DELAY = 380;      // пауза перед экраном победы, мс
+
+// «Древняя» палитра: песчаник, бронза, золото, бирюза.
+const C = {
+  bg:'#120c07',
+  floorMortar:'#2a1d10', floorA:'#3b2a18', floorB:'#40301d',
+  wallMortar:'#3a2815', wallFace:'#8a6a3f', wallTop:'#b58c52', wallBottom:'#6a4e2c', glyph:'#5b4226',
+  gold:'#e8bd57', goldLight:'#ffe7a1', turq:'#3fd9c0', turqDark:'#0f5f52',
+  saw:'#bf9650', sawLight:'#d9b36a', sawDark:'#4a3118', sawHole:'#1b1209', stain:'rgba(110,28,18,.6)'
+};
+
+/*
+  Карты хранятся в массиве Games. Можно добавлять уровни в конец.
+  map: # стена, . пол, P старт, E выход, S циркулярная пила.
+  shooters: x/y координаты, направление dir (up/down/left/right),
+  необязательно period и delay (мс). Стрелялка — твёрдый блок, её можно ставить и в стену.
+*/
+const Games = [
+  {name:'Первый шаг',map:[
+    '##########',
+    '#P.......#',
+    '###.####.#',
+    '#...#....#',
+    '#.S.#.##.#',
+    '#...#....#',
+    '#.####.#E#',
+    '#........#',
+    '##########'
+  ],shooters:[]},
+  {name:'Глаза в темноте',map:[
+    '############',
+    '#P.........#',
+    '#.######...#',
+    '#......#...#',
+    '####S.#...##',
+    '#....##....#',
+    '#.##....S..#',
+    '#......##.E#',
+    '############'
+  ],shooters:[{x:8,y:3,dir:'right'},{x:8,y:7,dir:'right'}]},
+  {name:'Бег по краю',map:[
+    '##############',
+    '#P...........#',
+    '#.##########.#',
+    '#............#',
+    '####.######..#',
+    '#....#....S..#',
+    '#.####.####..#',
+    '#............#',
+    '#.##########.#',
+    '#...........E#',
+    '##############'
+  ],shooters:[{x:5,y:3,dir:'right'},{x:10,y:7,dir:'left'}]},
+  {name:'Длинный коридор',map:[
+    '##################',
+    '#P...............#',
+    '################.#',
+    '#................#',
+    '#.################',
+    '#................#',
+    '################.#',
+    '#...............E#',
+    '##################'
+  ],shooters:[{x:17,y:3,dir:'left'},{x:0,y:5,dir:'right'}]},
+  {name:'Зал пил',map:[
+    '#############',
+    '#......#..S.#',
+    '#.....#....##',
+    '##..........#',
+    '#..S.P..#...#',
+    '#........####',
+    '#.#........##',
+    '#.E..S..#.#.#',
+    '#############'
+  ],shooters:[]},
+  {name:'Гробница Глист',map:[
+    '###############',
+    '#.......S.#...#',
+    '#S..#.#.SP...S#',
+    '#.....#.......#',
+    '#........#....#',
+    '#..........E###',
+    '#....#...#..#.#',
+    '###.##..##.#.##',
+    '###############'
+  ],shooters:[{x:14,y:3,dir:'left'},{x:0,y:4,dir:'right'}]}
+];
+
+const DIRS = {up:{x:0,y:-1},down:{x:0,y:1},left:{x:-1,y:0},right:{x:1,y:0}};
+const KEYS = {ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',w:'up',s:'down',a:'left',d:'right',W:'up',S:'down',A:'left',D:'right'};
+
+const SHOOT_DIR = {'^':'up','>':'right','v':'down','<':'left'};
+
+let W=0,H=0,dpr=1,tile=40,rows=0,cols=0;
+let grid=[],solid=new Uint8Array(0),shooters=[],bullets=[],effects=[];
+let player=makePlayer({x:1,y:1});
+let currentIndex=0,currentLevel=null,currentSrc=null,isCustom=false;
+let paused=false,ended=false,dead=false,pauseStart=0;
+let completed=loadCompleted();
+let lastFrame=0,raf=0,toastTimer=0,resultTimer=0,levelsFrom='main';
+let vignette=null,cursed=false,fromEditor=false;
+let pointerActive=false,pointerId=null,segX=0,segY=0,lastSwipeDir=null,queuedDir=null;
+
+function makePlayer(p){
+  return{x:p.x,y:p.y,px:p.x,py:p.y,ppx:p.x,ppy:p.y,moving:false,fromX:p.x,fromY:p.y,toX:p.x,toY:p.y,moveStart:0,moveDuration:100};
+}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+function loadCompleted(){
+  try{return JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]').filter(Number.isInteger)}
+  catch(e){return []}
+}
+function saveCompleted(){
+  try{localStorage.setItem(STORAGE_KEY,JSON.stringify(Array.from(new Set(completed)).sort((a,b)=>a-b)))}
+  catch(e){}
+}
+function showScreen(id){
+  for(const s of SCREENS)$(s).classList.toggle('hidden',s!==id);
+  $('hud').classList.add('hidden');
+}
+function hideScreens(){
+  for(const s of SCREENS)$(s).classList.add('hidden');
+  $('hud').classList.remove('hidden');
+}
+function showToast(text,ms){
+  const el=$('toast');el.textContent=text;el.classList.remove('hidden');
+  clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.add('hidden'),ms||1200);
+}
+
+/* ---------- размеры и камера ---------- */
+function fit(){
+  dpr=Math.min(window.devicePixelRatio||1,2);
+  W=window.innerWidth;H=window.innerHeight;
+  canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);
+  canvas.style.width=W+'px';canvas.style.height=H+'px';
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  // Виньетка создаётся один раз на размер экрана, а не каждый кадр.
+  vignette=ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*.32,W/2,H/2,Math.max(W,H)*.78);
+  vignette.addColorStop(0,'rgba(8,4,0,0)');vignette.addColorStop(1,'rgba(8,4,0,.7)');
+  if(currentLevel){computeTile();draw(performance.now())}
+  if(ed.ready&&!$('editorMenu').classList.contains('hidden'))edFit();
+}
+window.addEventListener('resize',fit);
+function computeTile(){
+  // Маленькие карты вписываются в экран, большие идут с фиксированным размером клетки и камерой.
+  let t=Math.floor(Math.min((W-20)/cols,(H-30)/rows));
+  t=Math.max(18,Math.min(56,t));
+  if(cols*t<W-12)t=Math.min(64,Math.floor((W-12)/cols));
+  tile=Math.max(16,t);
+}
+function camera(){
+  const worldW=cols*tile,worldH=rows*tile;
+  const tx=player.px*tile+tile/2,ty=player.py*tile+tile/2;
+  return{x:worldW<=W?-(W-worldW)/2:clamp(tx-W/2,0,worldW-W),
+         y:worldH<=H?-(H-worldH)/2:clamp(ty-H/2,0,worldH-H)};
+}
+
+/* ---------- уровни ---------- */
+function parseLevel(src){
+  if(!src||typeof src!=='object')throw Error('Уровень должен быть объектом JSON.');
+  let map=src.map;
+  if(!Array.isArray(map)||!map.length||!map.every(r=>typeof r==='string'&&r.length))throw Error('Поле map должно быть массивом непустых строк.');
+  const width=Math.max.apply(null,map.map(r=>r.length));
+  if(width<3||map.length<3)throw Error('Карта должна быть не меньше 3×3.');
+  map=map.map(r=>r.padEnd(width,'#'));
+  const allowed='#.PES^>v<';
+  let start=null,exit=null;const inline=[];
+  const parsed=map.map((line,y)=>line.split('').map((ch,x)=>{
+    if(allowed.indexOf(ch)<0)throw Error('Неизвестный символ «'+ch+'» в клетке '+x+','+y+'.');
+    if(SHOOT_DIR[ch]){inline.push({x:x,y:y,dir:SHOOT_DIR[ch]});return '.'}
+    if(ch==='P'){if(start)throw Error('На карте должен быть только один P.');start={x:x,y:y};return '.'}
+    if(ch==='E'){if(exit)throw Error('На карте должен быть только один E.');exit={x:x,y:y};return 'E'}
+    return ch;
+  }));
+  if(!start)throw Error('Добавь игрока символом P.');
+  if(!exit)throw Error('Добавь выход символом E.');
+  const list=Array.isArray(src.shooters)?src.shooters.map((s,i)=>{
+    const n=i+1;
+    if(!s||typeof s!=='object')throw Error('Стрелялка №'+n+' задана неверно.');
+    const x=Number(s.x),y=Number(s.y),dir=String(s.dir||'left').toLowerCase();
+    if(!Number.isInteger(x)||!Number.isInteger(y)||x<0||y<0||x>=width||y>=parsed.length)throw Error('Неверные координаты стрелялки №'+n+'.');
+    if(!DIRS[dir])throw Error('Неверное направление стрелялки №'+n+'.');
+    // Стрелялку можно вмонтировать в стену, но не на пилу, выход или старт.
+    if(parsed[y][x]==='S'||parsed[y][x]==='E'||(x===start.x&&y===start.y))throw Error('Стрелялка №'+n+' стоит на пиле, выходе или старте.');
+    return{x:x,y:y,dir:dir,period:clamp(Number(s.period)||SHOT_PERIOD,500,10000),delay:clamp(Number(s.delay)||0,0,10000)};
+  }):[];
+  inline.forEach(s=>list.push({x:s.x,y:s.y,dir:s.dir,period:SHOT_PERIOD,delay:0}));
+  if(new Set(list.map(s=>s.x+','+s.y)).size!==list.length)throw Error('Две стрелялки не могут занимать одну клетку.');
+  return{name:String(src.name||'Свой уровень'),map:parsed,start:start,shooters:list,width:width,height:parsed.length};
+}
+function prepareLevel(src,index,custom,fromEd){
+  const lvl=parseLevel(src); // при ошибке состояние игры не трогаем
+  currentSrc=src;currentLevel=lvl;currentIndex=index;isCustom=custom;fromEditor=!!fromEd;
+  grid=lvl.map;rows=lvl.height;cols=lvl.width;
+  solid=new Uint8Array(rows*cols);
+  for(let y=0;y<rows;y++)for(let x=0;x<cols;x++)if(grid[y][x]==='#')solid[y*cols+x]=1;
+  const now=performance.now();
+  shooters=lvl.shooters.map(s=>{
+    solid[s.y*cols+s.x]=1;
+    return{x:s.x,y:s.y,dir:DIRS[s.dir],period:s.period,nextShot:now+s.delay+s.period};
+  });
+  bullets=[];effects=[];queuedDir=null;
+  pointerActive=false;pointerId=null;lastSwipeDir=null;
+  clearTimeout(resultTimer);
+  player=makePlayer(lvl.start);
+  ended=false;dead=false;paused=false;
+  $('levelName').textContent=lvl.name;
+  $('pauseHome').textContent=$('resultHome').textContent=fromEditor?'Назад в редактор':'Главное меню';
+  computeTile();hideScreens();startLoop();
+}
+
+/* ---------- движение ---------- */
+function canEnter(x,y){
+  if(x<0||y<0||x>=cols||y>=rows)return false;
+  return !solid[y*cols+x];
+}
+function startMove(dir,now){
+  if(ended||paused||player.moving||!dir)return false;
+  let x=player.x,y=player.y,steps=0;
+  while(canEnter(x+dir.x,y+dir.y)){
+    x+=dir.x;y+=dir.y;steps++;
+    // Пила и выход останавливают скольжение: исход решается при приземлении.
+    if(grid[y][x]==='S'||grid[y][x]==='E')break;
+  }
+  if(!steps)return false;
+  player.moving=true;player.fromX=player.x;player.fromY=player.y;player.toX=x;player.toY=y;
+  player.moveStart=now===undefined?performance.now():now;
+  // Длинные пробежки чуть дольше коротких, но всё равно очень быстрые.
+  player.moveDuration=Math.min(380,80+steps*22);
+  return true;
+}
+function inputDir(name){
+  if(!currentLevel||paused||ended||!DIRS[name])return;
+  queuedDir=name;
+  flushQueue(performance.now());
+}
+function flushQueue(now){
+  if(!queuedDir||player.moving||paused||ended)return;
+  const d=DIRS[queuedDir];queuedDir=null;
+  startMove(d,now);
+}
+function ease(t){return 1-Math.pow(1-t,3)}
+function landed(){
+  const ch=grid[player.y][player.x];
+  if(ch==='S')die();
+  else if(ch==='E')win();
+}
+
+/* ---------- смерть, победа, эффекты ---------- */
+function burst(x,y,colors,n){
+  for(let i=0;i<n;i++){
+    const a=Math.random()*Math.PI*2,sp=tile*(1.2+Math.random()*4.5);
+    effects.push({x:x,y:y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:0,max:.45+Math.random()*.35,s:tile*(.05+Math.random()*.06),c:colors[i%colors.length]});
+  }
+}
+function updateEffects(dt){
+  let w=0;
+  for(let i=0;i<effects.length;i++){
+    const p=effects[i];
+    p.life+=dt;if(p.life>=p.max)continue;
+    p.x+=p.vx*dt;p.y+=p.vy*dt;
+    const k=Math.max(0,1-2.6*dt);p.vx*=k;p.vy*=k;
+    effects[w++]=p;
+  }
+  effects.length=w;
+}
+function scheduleResult(ms){
+  clearTimeout(resultTimer);
+  resultTimer=setTimeout(()=>{if(ended&&currentLevel)showScreen('resultMenu')},ms);
+}
+function die(){
+  if(ended)return;
+  ended=true;dead=true;bullets=[];queuedDir=null;
+  burst((player.px+.5)*tile,(player.py+.5)*tile,[C.turq,'#e9fff9',C.gold,'#c4452d'],26);
+  $('resultTitle').textContent=DEATH_LINES[Math.floor(Math.random()*DEATH_LINES.length)];
+  $('resultText').textContent='Попробуем ещё раз?';
+  $('nextBtn').classList.add('hidden');$('retryBtn').textContent='Заново';
+  scheduleResult(DEATH_DELAY);
+}
+function win(){
+  if(ended)return;
+  ended=true;bullets=[];queuedDir=null;
+  if(!isCustom&&currentIndex>=0){if(!completed.includes(currentIndex))completed.push(currentIndex);saveCompleted()}
+  burst((player.px+.5)*tile,(player.py+.5)*tile,[C.gold,C.goldLight,C.turq],18);
+  $('resultTitle').textContent='Уровень пройден!';
+  $('resultText').textContent='«'+currentLevel.name+'» — готово.';
+  $('nextBtn').classList.toggle('hidden',isCustom||currentIndex>=Games.length-1);
+  $('retryBtn').textContent='Сыграть ещё раз';
+  scheduleResult(WIN_DELAY);
+}
+
+/* ---------- стрелялки и снаряды ---------- */
+function shoot(now){
+  for(const s of shooters){
+    if(now<s.nextShot)continue;
+    s.nextShot+=s.period;
+    if(s.nextShot<=now)s.nextShot=now+s.period;
+    const cx=(s.x+.5)*tile,cy=(s.y+.5)*tile;
+    bullets.push({x:cx+s.dir.x*tile*.45,y:cy+s.dir.y*tile*.45,vx:s.dir.x*tile*BULLET_SPEED,vy:s.dir.y*tile*BULLET_SPEED,r:tile*.12,life:0,ox:s.x,oy:s.y});
+  }
+}
+function updateBullets(dt){
+  // Игрок тоже движется за кадр, поэтому проверяем столкновение по отрезкам обоих:
+  // и снаряд, и игрок интерполируются между началом и концом кадра.
+  const pax=(player.ppx+.5)*tile,pay=(player.ppy+.5)*tile,pbx=(player.px+.5)*tile,pby=(player.py+.5)*tile,pr=tile*.3;
+  const pDist=Math.hypot(pbx-pax,pby-pay);
+  let w=0;
+  for(let i=0;i<bullets.length;i++){
+    const b=bullets[i],oldX=b.x,oldY=b.y;
+    b.x+=b.vx*dt;b.y+=b.vy*dt;b.life+=dt;
+    const steps=Math.max(1,Math.ceil((Math.hypot(b.x-oldX,b.y-oldY)+pDist)/(tile*.1)));
+    let alive=b.life<6,hit=false;
+    // Проверка по шагам: быстрый снаряд не проскакивает ни игрока, ни стену.
+    for(let k=1;k<=steps&&alive;k++){
+      const f=k/steps,x=oldX+(b.x-oldX)*f,y=oldY+(b.y-oldY)*f;
+      const qx=pax+(pbx-pax)*f,qy=pay+(pby-pay)*f;
+      const cx=Math.floor(x/tile),cy=Math.floor(y/tile);
+      if(cx<0||cy<0||cx>=cols||cy>=rows){alive=false;break}
+      if(solid[cy*cols+cx]&&!(cx===b.ox&&cy===b.oy)){alive=false;break}
+      if(Math.hypot(x-qx,y-qy)<pr+b.r){hit=true;break}
+    }
+    if(hit){die();return}
+    if(alive)bullets[w++]=b;
+  }
+  bullets.length=w;
+}
+
+/* ---------- главный цикл ---------- */
+function startLoop(){
+  cancelAnimationFrame(raf);
+  lastFrame=performance.now();
+  raf=requestAnimationFrame(loop);
+}
+function loop(now){
+  raf=0;
+  if(!currentLevel)return;
+  const dt=Math.min(.05,Math.max(0,(now-lastFrame)/1000));lastFrame=now;
+  if(!paused){
+    if(!ended){
+      player.ppx=player.px;player.ppy=player.py;
+      if(player.moving){
+        const t=clamp((now-player.moveStart)/player.moveDuration,0,1),e=ease(t);
+        player.px=player.fromX+(player.toX-player.fromX)*e;
+        player.py=player.fromY+(player.toY-player.fromY)*e;
+        if(t>=1){
+          player.moving=false;player.x=player.toX;player.y=player.toY;player.px=player.x;player.py=player.y;
+          landed();
+        }
+      }
+      if(!ended){flushQueue(now);shoot(now);updateBullets(dt)}
+    }
+    updateEffects(dt);
+  }
+  draw(now);
+  // Когда игра на паузе или закончилась и частицы улеглись — цикл засыпает и не греет телефон.
+  if(!paused&&(!ended||effects.length))raf=requestAnimationFrame(loop);
+}
+
+/* ---------- отрисовка ---------- */
+function rr(c,x,y,w,h,r){
+  r=Math.max(0,Math.min(r,w/2,h/2));
+  c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();
+}
+function circle(x,y,r){ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2)}
+function drawGlyph(rx,ry,kind){
+  const t=tile,cx=rx+t/2,cy=ry+t/2;
+  ctx.strokeStyle=C.glyph;ctx.fillStyle=C.glyph;ctx.lineWidth=Math.max(1,t*.05);ctx.lineCap='round';ctx.lineJoin='round';
+  ctx.beginPath();
+  if(kind===0){ // глаз
+    ctx.moveTo(cx-t*.22,cy);ctx.quadraticCurveTo(cx,cy-t*.2,cx+t*.22,cy);ctx.quadraticCurveTo(cx,cy+t*.2,cx-t*.22,cy);
+    ctx.stroke();circle(cx,cy,t*.06);ctx.fill();
+  }else if(kind===1){ // анх
+    ctx.arc(cx,cy-t*.14,t*.09,0,Math.PI*2);
+    ctx.moveTo(cx,cy-t*.05);ctx.lineTo(cx,cy+t*.25);
+    ctx.moveTo(cx-t*.14,cy+t*.03);ctx.lineTo(cx+t*.14,cy+t*.03);
+    ctx.stroke();
+  }else if(kind===2){ // вода
+    for(let r=0;r<2;r++){
+      const yy=cy-t*.1+r*t*.2;
+      ctx.moveTo(cx-t*.24,yy);
+      for(let i=1;i<=4;i++)ctx.lineTo(cx-t*.24+i*t*.12,yy+(i%2?-t*.07:0));
+    }
+    ctx.stroke();
+  }else{ // солнечный диск
+    ctx.arc(cx,cy+t*.04,t*.1,0,Math.PI*2);
+    ctx.moveTo(cx+t*.2,cy+t*.04);ctx.arc(cx,cy+t*.04,t*.2,0,Math.PI,true);
+    ctx.stroke();
+  }
+}
+function drawSaw(x,y,now){
+  const t=tile,cx=(x+.5)*t,cy=(y+.5)*t,R=t*.44,r1=R*.74;
+  // углубление-паз и старое пятно
+  ctx.fillStyle=C.sawHole;ctx.fillRect(x*t+1,y*t+1,t-2,t-2);
+  ctx.fillStyle=C.stain;circle(cx+t*.04,cy+t*.07,R*.98);ctx.fill();
+  const ang=now*(cursed?.027:.009)*(((x+y)&1)?1:-1);
+  ctx.save();ctx.translate(cx,cy);ctx.rotate(ang);
+  const N=12,step=Math.PI*2/N;
+  ctx.beginPath();ctx.moveTo(r1,0);
+  for(let i=0;i<N;i++){
+    const a=i*step;
+    ctx.lineTo(Math.cos(a+step*.62)*R,Math.sin(a+step*.62)*R);
+    ctx.lineTo(Math.cos(a+step)*r1,Math.sin(a+step)*r1);
+  }
+  ctx.closePath();
+  ctx.fillStyle=C.saw;ctx.fill();
+  ctx.lineWidth=Math.max(1,t*.035);ctx.strokeStyle=C.sawDark;ctx.stroke();
+  circle(0,0,r1*.9);ctx.fillStyle=C.sawLight;ctx.fill();
+  circle(0,0,r1*.62);ctx.strokeStyle='#8a6a3f';ctx.lineWidth=Math.max(1,t*.03);ctx.stroke();
+  ctx.fillStyle=C.sawHole;
+  for(let i=0;i<3;i++){const a=i*Math.PI*2/3;circle(Math.cos(a)*r1*.45,Math.sin(a)*r1*.45,r1*.15);ctx.fill()}
+  circle(0,0,r1*.2);ctx.fillStyle='#6d4a1f';ctx.fill();ctx.strokeStyle=C.gold;ctx.stroke();
+  ctx.restore();
+  // неподвижный блик поверх вращающегося диска
+  ctx.strokeStyle='rgba(255,240,200,.35)';ctx.lineWidth=Math.max(1,t*.04);
+  ctx.beginPath();ctx.arc(cx,cy,R*.88,Math.PI*1.12,Math.PI*1.38);ctx.stroke();
+}
+function drawExit(rx,ry,now){
+  const t=tile,cx=rx+t/2,cy=ry+t/2,pulse=.5+.5*Math.sin(now/220);
+  ctx.fillStyle='#1b1209';ctx.fillRect(rx+3,ry+3,t-6,t-6);
+  ctx.strokeStyle='rgba(232,189,87,'+(.55+.4*pulse)+')';ctx.lineWidth=Math.max(2,t*.06);
+  circle(cx,cy,t*(.24+.04*pulse));ctx.stroke();
+  ctx.strokeStyle=C.turq;ctx.lineWidth=Math.max(1,t*.035);circle(cx,cy,t*.15);ctx.stroke();
+  ctx.fillStyle=C.goldLight;circle(cx,cy,t*.07);ctx.fill();
+}
+function drawShooter(s,now){
+  const t=tile,x=s.x*t,y=s.y*t,cx=x+t/2,cy=y+t/2,dx=s.dir.x,dy=s.dir.y;
+  // каменный блок; выглядит одинаково и в стене, и на полу
+  ctx.fillStyle='#2a1d10';ctx.fillRect(x+1,y+1,t-2,t-2);
+  ctx.fillStyle='#5a4630';rr(ctx,x+t*.07,y+t*.07,t*.86,t*.86,t*.1);ctx.fill();
+  ctx.strokeStyle='#c9a15a';ctx.lineWidth=Math.max(1,t*.04);rr(ctx,x+t*.12,y+t*.12,t*.76,t*.76,t*.07);ctx.stroke();
+  for(let i=-1;i<=1;i+=2){
+    const ex=cx-dx*t*.1+(-dy)*t*.15*i,ey=cy-dy*t*.1+dx*t*.15*i;
+    ctx.fillStyle='#ffd46b';circle(ex,ey,t*.075);ctx.fill();
+    ctx.fillStyle='#0d0804';circle(ex+dx*t*.018,ey+dy*t*.018,t*.033);ctx.fill();
+  }
+  const mx=cx+dx*t*.23,my=cy+dy*t*.23;
+  ctx.fillStyle='#0d0804';circle(mx,my,t*.115);ctx.fill();
+  // перед выстрелом пасть разгорается — игрок успевает среагировать
+  const charge=clamp(1-(s.nextShot-now)/TELEGRAPH,0,1);
+  if(charge>0){ctx.fillStyle='rgba(255,150,40,'+(.25+.65*charge)+')';circle(mx,my,t*(.07+.07*charge));ctx.fill()}
+  ctx.strokeStyle=C.gold;ctx.lineWidth=Math.max(1,t*.025);circle(mx,my,t*.115);ctx.stroke();
+}
+function drawBullet(b,now){
+  const fl=1+.12*Math.sin(now/45+b.x*.05),R=b.r*3.3*fl;
+  const g=ctx.createRadialGradient(b.x,b.y,0,b.x,b.y,R);
+  g.addColorStop(0,'#fff6d6');g.addColorStop(.22,'#ffd27a');g.addColorStop(.55,'rgba(255,140,40,.8)');g.addColorStop(1,'rgba(255,90,20,0)');
+  ctx.fillStyle=g;circle(b.x,b.y,R);ctx.fill();
+  ctx.fillStyle='#fffbe8';circle(b.x,b.y,b.r*.65);ctx.fill();
+}
+function drawPlayer(gx,gy){
+  const pcx=(gx+.5)*tile,pcy=(gy+.5)*tile,size=tile*.62;
+  const g=ctx.createRadialGradient(pcx,pcy,size*.2,pcx,pcy,size*1.1);
+  g.addColorStop(0,'rgba(63,217,192,.42)');g.addColorStop(1,'rgba(63,217,192,0)');
+  ctx.fillStyle=g;circle(pcx,pcy,size*1.1);ctx.fill();
+  ctx.fillStyle=C.turq;rr(ctx,pcx-size/2,pcy-size/2,size,size,tile*.12);ctx.fill();
+  ctx.strokeStyle=C.turqDark;ctx.lineWidth=Math.max(1.5,tile*.04);ctx.stroke();
+  ctx.fillStyle='#e9fff9';rr(ctx,pcx-size*.29,pcy-size*.29,size*.25,size*.25,tile*.04);ctx.fill();
+}
+function drawCell(x,y,ch,now){
+  const t=tile,rx=x*t,ry=y*t,edge=Math.max(2,t*.1);
+    if(ch==='#'){
+      ctx.fillStyle=C.wallMortar;ctx.fillRect(rx,ry,t,t);
+      ctx.fillStyle=C.wallFace;ctx.fillRect(rx+1,ry+1,t-2,t-2);
+      ctx.fillStyle=C.wallTop;ctx.fillRect(rx+1,ry+1,t-2,edge);
+      ctx.fillStyle=C.wallBottom;ctx.fillRect(rx+1,ry+t-1-edge,t-2,edge);
+      if(t>=22){
+        const h=((x*73856093)^(y*19349663))>>>0;
+        if(h%4===0)drawGlyph(rx,ry,(h>>>3)%4);
+      }
+    }else{
+      ctx.fillStyle=C.floorMortar;ctx.fillRect(rx,ry,t,t);
+      ctx.fillStyle=((x+y)&1)?C.floorB:C.floorA;ctx.fillRect(rx+1,ry+1,t-2,t-2);
+      if(ch==='S')drawSaw(x,y,now);
+      else if(ch==='E')drawExit(rx,ry,now);
+    }
+}
+function draw(now){
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.fillStyle=C.bg;ctx.fillRect(0,0,W,H);
+  if(!currentLevel)return;
+  const cam=camera(),camX=Math.round(cam.x),camY=Math.round(cam.y);
+  // Рисуем только клетки, попавшие в кадр: большие пользовательские карты не тормозят.
+  const x0=Math.max(0,Math.floor(camX/tile)),x1=Math.min(cols-1,Math.floor((camX+W)/tile));
+  const y0=Math.max(0,Math.floor(camY/tile)),y1=Math.min(rows-1,Math.floor((camY+H)/tile));
+  ctx.save();ctx.translate(-camX,-camY);
+  for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++)drawCell(x,y,grid[y][x],now);
+  for(const s of shooters)drawShooter(s,now);
+  for(const b of bullets)drawBullet(b,now);
+  if(!dead)drawPlayer(player.px,player.py);
+  for(const p of effects){
+    ctx.globalAlpha=1-p.life/p.max;ctx.fillStyle=p.c;
+    ctx.fillRect(p.x-p.s/2,p.y-p.s/2,p.s,p.s);
+  }
+  ctx.globalAlpha=1;
+  ctx.restore();
+  ctx.fillStyle=vignette;ctx.fillRect(0,0,W,H);
+}
+
+/* ---------- меню ---------- */
+function accessible(index){return index===0||completed.includes(index)||completed.includes(index-1)}
+function escapeHTML(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function refreshLevels(){
+  const box=$('levelList');box.innerHTML='';
+  Games.forEach((g,i)=>{
+    const b=document.createElement('button');b.className='level-btn';b.disabled=!accessible(i);
+    const state=completed.includes(i)?'✓ Пройден':(accessible(i)?'Доступен':'Закрыт');
+    b.innerHTML='<span>'+String(i+1).padStart(2,'0')+' · '+escapeHTML(g.name)+'<small>'+state+'</small></span><span>'+(b.disabled?'🔒':completed.includes(i)?'✓':'›')+'</span>';
+    b.addEventListener('click',()=>{if(accessible(i))prepareLevel(Games[i],i,false)});
+    box.appendChild(b);
+  });
+}
+function openLevels(from){levelsFrom=from;refreshLevels();showScreen('levelsMenu')}
+function goHome(){
+  cancelAnimationFrame(raf);clearTimeout(resultTimer);
+  currentLevel=null;paused=false;ended=false;dead=false;bullets=[];effects=[];queuedDir=null;
+  const back=fromEditor;fromEditor=false;
+  if(back)openEditor();else showScreen('mainMenu');
+}
+function pauseGame(){
+  if(!currentLevel||ended||paused)return;
+  paused=true;pauseStart=performance.now();cancelAnimationFrame(raf);raf=0;
+  $('pauseText').textContent='«'+currentLevel.name+'»';showScreen('pauseMenu');
+}
+function resumeGame(){
+  if(!paused)return;
+  // Время паузы вычитаем из таймеров, чтобы выстрелы и бег не «перематывались».
+  const d=performance.now()-pauseStart;
+  player.moveStart+=d;for(const s of shooters)s.nextShot+=d;
+  paused=false;hideScreens();startLoop();
+}
+function restart(){if(currentLevel)prepareLevel(currentSrc,currentIndex,isCustom,fromEditor)}
+function startNext(){if(isCustom||currentIndex<0||currentIndex>=Games.length-1)return;prepareLevel(Games[currentIndex+1],currentIndex+1,false)}
+
+/* ---------- ввод ---------- */
+function trackSwipe(x,y){
+  const dx=x-segX,dy=y-segY;
+  if(Math.max(Math.abs(dx),Math.abs(dy))<SWIPE_MIN)return;
+  const dir=Math.abs(dx)>Math.abs(dy)?(dx>0?'right':'left'):(dy>0?'down':'up');
+  // Начало сегмента сдвигаем всегда: поворот во время долгого свайпа считается от последнего отрезка.
+  segX=x;segY=y;
+  if(dir!==lastSwipeDir){lastSwipeDir=dir;inputDir(dir)}
+}
+document.addEventListener('pointerdown',e=>{
+  if(!currentLevel||paused||ended)return;
+  if(e.target&&e.target.closest&&e.target.closest('button,textarea,input'))return;
+  pointerActive=true;pointerId=e.pointerId;segX=e.clientX;segY=e.clientY;lastSwipeDir=null;
+},{passive:true});
+document.addEventListener('pointermove',e=>{
+  if(pointerActive&&e.pointerId===pointerId)trackSwipe(e.clientX,e.clientY);
+},{passive:true});
+document.addEventListener('pointerup',e=>{
+  if(e.pointerId!==pointerId)return;
+  if(pointerActive)trackSwipe(e.clientX,e.clientY);
+  pointerActive=false;pointerId=null;
+},{passive:true});
+document.addEventListener('pointercancel',()=>{pointerActive=false;pointerId=null},{passive:true});
+document.addEventListener('contextmenu',e=>e.preventDefault());
+document.addEventListener('keydown',e=>{
+  if(e.target&&/^(TEXTAREA|INPUT)$/.test(e.target.tagName))return;
+  if(e.key==='Escape'){
+    if(paused&&!$('pauseMenu').classList.contains('hidden'))resumeGame();else pauseGame();
+    return;
+  }
+  const d=KEYS[e.key];
+  if(d){e.preventDefault();inputDir(d)}
+});
+// Свернули приложение или переключили вкладку — игра сама встаёт на паузу.
+document.addEventListener('visibilitychange',()=>{if(document.hidden)pauseGame()});
+
+/* ---------- кнопки ---------- */
+$('playBtn').addEventListener('click',()=>{
+  let i=0;while(i<Games.length&&completed.includes(i))i++;
+  const k=Math.min(i,Games.length-1);prepareLevel(Games[k],k,false);
+});
+$('levelsBtn').addEventListener('click',()=>openLevels('main'));
+$('customBtn').addEventListener('click',()=>{
+  $('customError').classList.add('hidden');
+  $('customData').value=JSON.stringify({name:'Мой уровень',map:['########','#P.....#','#.##S..#','#......#','####..E#','########'],shooters:[{x:7,y:2,dir:'left'}]},null,2);
+  showScreen('customMenu');
+});
+$('editorBtn').addEventListener('click',openEditor);
+$('exitBtn').addEventListener('click',()=>{window.location.href='glist.html'});
+$('levelsBack').addEventListener('click',()=>showScreen(levelsFrom==='pause'?'pauseMenu':'mainMenu'));
+$('customBack').addEventListener('click',()=>showScreen('mainMenu'));
+$('customPlay').addEventListener('click',()=>{
+  const err=$('customError');err.classList.add('hidden');
+  try{
+    const data=JSON.parse($('customData').value);
+    const level=Array.isArray(data)?data[0]:data;
+    if(!level)throw Error('Массив уровней пуст.');
+    prepareLevel(level,-1,true);
+  }catch(e){
+    // alert в WebView может молча не работать, поэтому ошибка показывается прямо в меню
+    err.textContent='Не удалось запустить уровень: '+e.message;err.classList.remove('hidden');
+  }
+});
+$('hudMenu').addEventListener('click',pauseGame);
+$('restart').addEventListener('click',restart);
+$('resumeBtn').addEventListener('click',resumeGame);
+$('pauseRestart').addEventListener('click',restart);
+$('pauseLevels').addEventListener('click',()=>openLevels('pause'));
+$('pauseHome').addEventListener('click',goHome);
+$('retryBtn').addEventListener('click',restart);
+$('resultHome').addEventListener('click',goHome);
+$('nextBtn').addEventListener('click',startNext);
+
+
+/* ======================= РЕДАКТОР УРОВНЕЙ ======================= */
+const ED_KEY='glist-tomb-editor-v1';
+const ED_TILE=24;          // логический размер клетки в редакторе, масштабируется зумом
+const ED_MIN=.1,ED_MAX=6;
+const TILESET=[
+  {k:'.',label:'Пусто'},{k:'#',label:'Стена'},{k:'P',label:'Игрок (один)'},{k:'E',label:'Выход (один)'},{k:'S',label:'Циркулярная пила'},
+  {k:'^',label:'Стрелялка вверх'},{k:'>',label:'Стрелялка вправо'},{k:'v',label:'Стрелялка вниз'},{k:'<',label:'Стрелялка влево'}
+];
+const DIR_SHOOT={up:'^',right:'>',down:'v',left:'<'};
+const ed={ready:false,cols:11,rows:8,grid:[],extra:{},tool:'#',prevTool:'#',scale:1,panX:0,panY:0,q:1,
+  lastCell:null,drawing:false,drawPtr:null,pinch:null,saveTimer:0,statusTimer:0};
+const edPointers=new Map();
+const edCanvas=$('edCanvas'),edCtx=edCanvas.getContext('2d'),edVp=$('edViewport');
+
+// Редактор рисует теми же функциями, что и игра: на время вызова подменяем контекст и размер клетки.
+function withCtx(c,t,fn){const oc=ctx,ot=tile;ctx=c;tile=t;try{fn()}finally{ctx=oc;tile=ot}}
+function paintCellGlyph(x,y,ch){
+  const dn=SHOOT_DIR[ch];
+  drawCell(x,y,(ch==='P'||dn)?'.':ch,0);
+  if(ch==='P')drawPlayer(x,y);
+  else if(dn)drawShooter({x:x,y:y,dir:DIRS[dn],nextShot:Infinity},0);
+}
+function edDrawCell(x,y){withCtx(edCtx,ED_TILE,()=>paintCellGlyph(x,y,ed.grid[y][x]))}
+function edRenderAll(){
+  edCtx.setTransform(ed.q,0,0,ed.q,0,0);
+  for(let y=0;y<ed.rows;y++)for(let x=0;x<ed.cols;x++)edDrawCell(x,y);
+}
+function edMakeGrid(c,r,ch){
+  const g=[];for(let y=0;y<r;y++){g.push([]);for(let x=0;x<c;x++)g[y].push(ch||'.')}
+  return g;
+}
+function edSizeCanvas(){
+  const w=ed.cols*ED_TILE,h=ed.rows*ED_TILE;
+  // Потолок по пикселям: огромная карта не должна съесть память телефона.
+  ed.q=Math.max(.5,Math.min(2,window.devicePixelRatio||1,Math.sqrt(8e6/(w*h))));
+  edCanvas.style.width=w+'px';edCanvas.style.height=h+'px';
+  edCanvas.width=Math.round(w*ed.q);edCanvas.height=Math.round(h*ed.q);
+  edCtx.setTransform(ed.q,0,0,ed.q,0,0);
+}
+function edApply(){edCanvas.style.transform='translate('+ed.panX+'px,'+ed.panY+'px) scale('+ed.scale+')'}
+function edFit(){
+  const r=edVp.getBoundingClientRect();
+  if(r.width<10||r.height<10)return;
+  const s=clamp(Math.min((r.width-16)/(ed.cols*ED_TILE),(r.height-16)/(ed.rows*ED_TILE)),ED_MIN,3);
+  ed.scale=s;ed.panX=(r.width-ed.cols*ED_TILE*s)/2;ed.panY=(r.height-ed.rows*ED_TILE*s)/2;edApply();
+}
+function edZoomAt(cx,cy,factor){
+  const r=edVp.getBoundingClientRect(),ns=clamp(ed.scale*factor,ED_MIN,ED_MAX);
+  const wx=(cx-r.left-ed.panX)/ed.scale,wy=(cy-r.top-ed.panY)/ed.scale;
+  ed.scale=ns;ed.panX=cx-r.left-wx*ns;ed.panY=cy-r.top-wy*ns;edApply();
+}
+function edSyncInputs(){$('edCols').value=ed.cols;$('edRows').value=ed.rows}
+function edMsg(text,isErr){const el=$('edMsg');el.className=isErr?'error':'hint';el.textContent=text}
+
+/* --- палитра --- */
+function edSetTool(k){
+  ed.tool=k;
+  const kids=$('edPalette').children;
+  for(let i=0;i<kids.length;i++)kids[i].classList.toggle('active',kids[i].dataset.k===k);
+}
+function edBuildPalette(){
+  const box=$('edPalette');box.innerHTML='';
+  TILESET.forEach(t=>{
+    const b=document.createElement('button');b.className='ed-tile';b.title=t.label;b.dataset.k=t.k;b.setAttribute('aria-label',t.label);
+    const c=document.createElement('canvas');c.width=80;c.height=80;c.style.width='38px';c.style.height='38px';
+    const cx=c.getContext('2d');cx.setTransform(2,0,0,2,0,0);
+    withCtx(cx,40,()=>paintCellGlyph(0,0,t.k));
+    b.appendChild(c);b.addEventListener('click',()=>edSetTool(t.k));box.appendChild(b);
+  });
+  [['ERASE','Ластик'],['PAN','Рука']].forEach(a=>{
+    const b=document.createElement('button');b.className='ed-tile';b.dataset.k=a[0];b.textContent=a[1];
+    b.addEventListener('click',()=>edSetTool(a[0]));box.appendChild(b);
+  });
+}
+
+/* --- рисование --- */
+function edCellAt(clientX,clientY){
+  const r=edVp.getBoundingClientRect();
+  const x=Math.floor((clientX-r.left-ed.panX)/ed.scale/ED_TILE),y=Math.floor((clientY-r.top-ed.panY)/ed.scale/ED_TILE);
+  if(x<0||y<0||x>=ed.cols||y>=ed.rows)return null;
+  return{x:x,y:y};
+}
+function edSet(x,y,ch){
+  const g=ed.grid;
+  if(g[y][x]===ch)return;
+  const dirty=[[x,y]];
+  if(ch==='P'||ch==='E'){ // игрок и выход — в единственном экземпляре
+    for(let yy=0;yy<ed.rows;yy++)for(let xx=0;xx<ed.cols;xx++)if(g[yy][xx]===ch){g[yy][xx]='.';dirty.push([xx,yy])}
+  }
+  g[y][x]=ch;
+  if(!SHOOT_DIR[ch])delete ed.extra[x+','+y];
+  for(const d of dirty)edDrawCell(d[0],d[1]);
+}
+function edLine(x0,y0,x1,y1,fn){
+  const dx=Math.abs(x1-x0),dy=Math.abs(y1-y0),sx=x0<x1?1:-1,sy=y0<y1?1:-1;let err=dx-dy;
+  for(;;){
+    fn(x0,y0);
+    if(x0===x1&&y0===y1)break;
+    const e2=2*err;
+    if(e2>-dy){err-=dy;x0+=sx}
+    if(e2<dx){err+=dx;y0+=sy}
+  }
+}
+function edPaint(c){
+  if(ed.tool==='PAN')return;
+  const ch=ed.tool==='ERASE'?'.':ed.tool;
+  if(ed.lastCell&&ed.lastCell.x===c.x&&ed.lastCell.y===c.y)return;
+  // Быстрый свайп пропускает клетки, поэтому соединяем соседние точки линией.
+  if(ch==='P'||ch==='E'||!ed.lastCell)edSet(c.x,c.y,ch);
+  else edLine(ed.lastCell.x,ed.lastCell.y,c.x,c.y,(x,y)=>edSet(x,y,ch));
+  ed.lastCell=c;
+  edStatusSoon();edSaveSoon();
+}
+function edStartPinch(){
+  const p=Array.from(edPointers.values()),r=edVp.getBoundingClientRect();
+  const mx=(p[0].x+p[1].x)/2,my=(p[0].y+p[1].y)/2;
+  ed.pinch={d0:Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y)||1,s0:ed.scale,wx:(mx-r.left-ed.panX)/ed.scale,wy:(my-r.top-ed.panY)/ed.scale};
+}
+function edUpdatePinch(){
+  const p=Array.from(edPointers.values());if(p.length<2||!ed.pinch)return;
+  const r=edVp.getBoundingClientRect(),mx=(p[0].x+p[1].x)/2,my=(p[0].y+p[1].y)/2;
+  const d=Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y),ns=clamp(ed.pinch.s0*d/ed.pinch.d0,ED_MIN,ED_MAX);
+  ed.scale=ns;ed.panX=mx-r.left-ed.pinch.wx*ns;ed.panY=my-r.top-ed.pinch.wy*ns;edApply();
+}
+edVp.addEventListener('pointerdown',e=>{
+  try{edVp.setPointerCapture(e.pointerId)}catch(err){}
+  edPointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(edPointers.size>=2){edStartPinch();ed.drawing=false;ed.drawPtr=null;ed.lastCell=null;return}
+  if(ed.tool==='PAN')return;
+  const c=edCellAt(e.clientX,e.clientY);
+  if(c){ed.drawing=true;ed.drawPtr=e.pointerId;ed.lastCell=null;edPaint(c)}
+});
+edVp.addEventListener('pointermove',e=>{
+  const prev=edPointers.get(e.pointerId);
+  if(!prev)return;
+  edPointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(ed.pinch&&edPointers.size>=2){edUpdatePinch();return}
+  if(ed.drawing&&e.pointerId===ed.drawPtr){
+    const c=edCellAt(e.clientX,e.clientY);
+    if(c)edPaint(c);else ed.lastCell=null;
+    return;
+  }
+  if(ed.tool==='PAN'&&edPointers.size===1){ed.panX+=e.clientX-prev.x;ed.panY+=e.clientY-prev.y;edApply()}
+});
+function edPointerEnd(e){
+  try{edVp.releasePointerCapture(e.pointerId)}catch(err){}
+  edPointers.delete(e.pointerId);
+  if(ed.pinch&&edPointers.size<2)ed.pinch=null;
+  if(e.pointerId===ed.drawPtr){ed.drawing=false;ed.drawPtr=null;ed.lastCell=null}
+}
+edVp.addEventListener('pointerup',edPointerEnd);
+edVp.addEventListener('pointercancel',edPointerEnd);
+edVp.addEventListener('wheel',e=>{
+  e.preventDefault();
+  if(e.ctrlKey||e.metaKey)edZoomAt(e.clientX,e.clientY,Math.exp(-e.deltaY*.0018));
+  else{ed.panX-=e.deltaX;ed.panY-=e.deltaY;edApply()}
+},{passive:false});
+document.addEventListener('keydown',e=>{
+  if($('editorMenu').classList.contains('hidden'))return;
+  if(e.target&&/^(TEXTAREA|INPUT)$/.test(e.target.tagName))return;
+  if(e.code==='Space'){e.preventDefault();if(ed.tool!=='ERASE'){ed.prevTool=ed.tool;edSetTool('ERASE')}}
+  else if(e.key>='1'&&e.key<='9'){const t=TILESET[Number(e.key)-1];if(t)edSetTool(t.k)}
+});
+document.addEventListener('keyup',e=>{
+  if(e.code==='Space'&&!$('editorMenu').classList.contains('hidden')&&ed.tool==='ERASE')edSetTool(ed.prevTool);
+});
+
+/* --- статус, сохранение --- */
+function edStatusSoon(){clearTimeout(ed.statusTimer);ed.statusTimer=setTimeout(edStatus,120)}
+function edStatus(){
+  let p=null,e=null,sh=0,sw=0;
+  for(let y=0;y<ed.rows;y++)for(let x=0;x<ed.cols;x++){
+    const ch=ed.grid[y][x];
+    if(ch==='P')p=x+','+y;else if(ch==='E')e=x+','+y;else if(ch==='S')sw++;else if(SHOOT_DIR[ch])sh++;
+  }
+  $('edStatus').textContent='Игрок: '+(p||'нет')+' • Выход: '+(e||'нет')+' • '+ed.cols+'×'+ed.rows+' • пил: '+sw+' • стрелялок: '+sh;
+}
+function edSaveSoon(){clearTimeout(ed.saveTimer);ed.saveTimer=setTimeout(edSave,500)}
+function edSave(){try{localStorage.setItem(ED_KEY,JSON.stringify(edBuild()))}catch(e){}}
+
+/* --- экспорт / импорт --- */
+function edBuild(){
+  const map=[],shooters=[];
+  for(let y=0;y<ed.rows;y++){
+    let row='';
+    for(let x=0;x<ed.cols;x++){
+      const ch=ed.grid[y][x],dn=SHOOT_DIR[ch];
+      if(dn){
+        row+='.';
+        const s={x:x,y:y,dir:dn},ex=ed.extra[x+','+y];
+        if(ex){if(ex.period)s.period=ex.period;if(ex.delay)s.delay=ex.delay}
+        shooters.push(s);
+      }else row+=ch;
+    }
+    map.push(row);
+  }
+  return{name:($('edName').value||'').trim()||'Мой уровень',map:map,shooters:shooters};
+}
+function edToText(o){
+  return '{\n "name": '+JSON.stringify(o.name)+',\n "map": [\n  '+o.map.map(r=>JSON.stringify(r)).join(',\n  ')+'\n ],\n "shooters": '+JSON.stringify(o.shooters)+'\n}';
+}
+function edImport(obj){
+  if(!obj||typeof obj!=='object')throw Error('Нужен объект уровня.');
+  const m=obj.map;
+  if(!Array.isArray(m)||!m.length||!m.every(r=>typeof r==='string'))throw Error('Нужно поле map — массив строк.');
+  const nc=clamp(Math.max.apply(null,m.map(r=>r.length)),3,120),nr=clamp(m.length,3,80);
+  const g=edMakeGrid(nc,nr);
+  let hasP=false,hasE=false;
+  for(let y=0;y<nr;y++)for(let x=0;x<nc;x++){
+    let ch=(m[y]||'')[x]||'#';
+    if('#.PES^>v<'.indexOf(ch)<0)ch='.';
+    if(ch==='P'){if(hasP)ch='.';else hasP=true}
+    if(ch==='E'){if(hasE)ch='.';else hasE=true}
+    g[y][x]=ch;
+  }
+  const extra={};
+  if(Array.isArray(obj.shooters))for(const s of obj.shooters){
+    if(!s)continue;
+    const x=Number(s.x),y=Number(s.y),dir=String(s.dir||'left').toLowerCase();
+    if(!Number.isInteger(x)||!Number.isInteger(y)||x<0||y<0||x>=nc||y>=nr||!DIR_SHOOT[dir])continue;
+    if(g[y][x]==='P'||g[y][x]==='E'||g[y][x]==='S')continue;
+    g[y][x]=DIR_SHOOT[dir];
+    const period=Number(s.period),delay=Number(s.delay);
+    if(period>0||delay>0)extra[x+','+y]={period:period>0?period:0,delay:delay>0?delay:0};
+  }
+  ed.cols=nc;ed.rows=nr;ed.grid=g;ed.extra=extra;
+  $('edName').value=obj.name?String(obj.name):'';
+  edSyncInputs();edSizeCanvas();edRenderAll();edFit();edStatusSoon();edSaveSoon();
+}
+
+/* --- операции над полем --- */
+function edBorder(ch){
+  const g=edMakeGrid(ed.cols,ed.rows,ch||'.');
+  for(let y=0;y<ed.rows;y++)for(let x=0;x<ed.cols;x++)if(x===0||y===0||x===ed.cols-1||y===ed.rows-1)g[y][x]='#';
+  return g;
+}
+function edReplace(g,extra){
+  ed.grid=g;ed.extra=extra||{};
+  edRenderAll();edStatusSoon();edSaveSoon();
+}
+function edNewLevel(){
+  const g=edBorder('.');g[1][1]='P';g[ed.rows-2][ed.cols-2]='E';
+  edReplace(g);
+}
+function edResize(nc,nr){
+  nc=clamp(Math.floor(nc)||ed.cols,5,120);nr=clamp(Math.floor(nr)||ed.rows,5,80);
+  const g=edMakeGrid(nc,nr);
+  for(let y=0;y<Math.min(nr,ed.rows);y++)for(let x=0;x<Math.min(nc,ed.cols);x++)g[y][x]=ed.grid[y][x];
+  const extra={};
+  for(const k in ed.extra){const p=k.split(',');if(Number(p[0])<nc&&Number(p[1])<nr)extra[k]=ed.extra[k]}
+  ed.cols=nc;ed.rows=nr;edSyncInputs();edSizeCanvas();edReplace(g,extra);edFit();
+}
+function edMirror(horizontal){
+  const R=ed.rows,N=ed.cols,g=edMakeGrid(N,R),extra={};
+  const sw=horizontal?{'<':'>','>':'<'}:{'^':'v','v':'^'};
+  for(let y=0;y<R;y++)for(let x=0;x<N;x++){
+    const nx=horizontal?N-1-x:x,ny=horizontal?y:R-1-y,ch=ed.grid[y][x];
+    g[ny][nx]=sw[ch]||ch;
+    if(ed.extra[x+','+y])extra[nx+','+ny]=ed.extra[x+','+y];
+  }
+  edReplace(g,extra);
+}
+function edRandom(){
+  const g=edBorder('.');
+  for(let y=1;y<ed.rows-1;y++)for(let x=1;x<ed.cols-1;x++){
+    const r=Math.random();
+    g[y][x]=r<.2?'#':r<.23?'S':'.';
+  }
+  g[1][1]='P';g[ed.rows-2][ed.cols-2]='E';
+  edReplace(g);
+  edMsg('Случайная карта. Решаемость не гарантируется — нажми «Проверить проходимость».',false);
+}
+// Поиск в ширину по тем же правилам скольжения, что и в игре (пули не учитываются).
+function edSolve(){
+  const g=ed.grid,R=ed.rows,N=ed.cols;
+  let sx=-1,sy=-1,hasE=false;
+  for(let y=0;y<R;y++)for(let x=0;x<N;x++){if(g[y][x]==='P'){sx=x;sy=y}if(g[y][x]==='E')hasE=true}
+  if(sx<0)return{err:'Нет игрока (P).'};
+  if(!hasE)return{err:'Нет выхода (E).'};
+  const solidAt=(x,y)=>x<0||y<0||x>=N||y>=R||g[y][x]==='#'||!!SHOOT_DIR[g[y][x]];
+  const moves=[[0,-1,'↑'],[0,1,'↓'],[-1,0,'←'],[1,0,'→']];
+  const seen={},q=[{x:sx,y:sy,p:''}];seen[sx+','+sy]=true;
+  for(let i=0;i<q.length;i++){
+    const c=q[i];
+    for(const m of moves){
+      let x=c.x,y=c.y,n=0,dead=false,win=false;
+      while(!solidAt(x+m[0],y+m[1])){
+        x+=m[0];y+=m[1];n++;
+        const t=g[y][x];
+        if(t==='S'){dead=true;break}
+        if(t==='E'){win=true;break}
+      }
+      if(!n||dead)continue;
+      if(win)return{moves:c.p.length+1,path:c.p+m[2]};
+      const k=x+','+y;
+      if(!seen[k]){seen[k]=true;q.push({x:x,y:y,p:c.p+m[2]})}
+    }
+  }
+  return{none:true};
+}
+
+/* --- вход и выход --- */
+function edInit(){
+  ed.ready=true;edBuildPalette();edSetTool('#');
+  let loaded=false;
+  try{const raw=localStorage.getItem(ED_KEY);if(raw){edImport(JSON.parse(raw));loaded=true}}catch(e){loaded=false}
+  if(!loaded){edSyncInputs();edSizeCanvas();edNewLevel()}
+}
+function openEditor(){
+  showScreen('editorMenu');
+  $('edSheet').classList.add('hidden');
+  if(!ed.ready)edInit();
+  requestAnimationFrame(edFit);
+}
+$('edBack').addEventListener('click',()=>{edSave();showScreen('mainMenu')});
+$('edSettings').addEventListener('click',()=>$('edSheet').classList.remove('hidden'));
+$('edSheetClose').addEventListener('click',()=>{edSave();$('edSheet').classList.add('hidden')});
+$('edFitBtn').addEventListener('click',edFit);
+$('edZoomIn').addEventListener('click',()=>{const r=edVp.getBoundingClientRect();edZoomAt(r.left+r.width/2,r.top+r.height/2,1.35)});
+$('edZoomOut').addEventListener('click',()=>{const r=edVp.getBoundingClientRect();edZoomAt(r.left+r.width/2,r.top+r.height/2,1/1.35)});
+$('edPlay').addEventListener('click',()=>{
+  edSave();
+  try{prepareLevel(edBuild(),-1,true,true)}
+  catch(e){showToast(e.message,2400)}
+});
+$('edName').addEventListener('change',edSaveSoon);
+$('edCols').addEventListener('change',()=>edResize(parseInt($('edCols').value,10),ed.rows));
+$('edRows').addEventListener('change',()=>edResize(ed.cols,parseInt($('edRows').value,10)));
+$('edNewBtn').addEventListener('click',()=>{edNewLevel();edMsg('Новая карта с рамкой, игроком и выходом.',false)});
+$('edClearBtn').addEventListener('click',()=>{edReplace(edMakeGrid(ed.cols,ed.rows,'.'));edMsg('Поле очищено.',false)});
+$('edFillBtn').addEventListener('click',()=>{edReplace(edMakeGrid(ed.cols,ed.rows,'#'));edMsg('Всё залито стеной.',false)});
+$('edRandomBtn').addEventListener('click',edRandom);
+$('edMirrorX').addEventListener('click',()=>edMirror(true));
+$('edMirrorY').addEventListener('click',()=>edMirror(false));
+$('edCheck').addEventListener('click',()=>{
+  const r=edSolve();
+  if(r.err)edMsg(r.err,true);
+  else if(r.none)edMsg('Уровень не проходится (пули не учитываются).',true);
+  else edMsg('Проходится за '+r.moves+' ход(ов): '+(r.moves<=40?r.path:'путь слишком длинный для показа')+'. Пули не учитываются.',false);
+});
+$('edExport').addEventListener('click',()=>{
+  $('edJson').value=edToText(edBuild());
+  edMsg('JSON лежит в поле ниже. Скопируй его или отправь в «Свой уровень».',false);
+});
+$('edLoad').addEventListener('click',()=>{
+  try{
+    const data=JSON.parse($('edJson').value);
+    edImport(Array.isArray(data)?data[0]:data);
+    edMsg('Уровень загружен в редактор.',false);
+  }catch(e){edMsg('Не удалось загрузить: '+e.message,true)}
+});
+$('edToCustom').addEventListener('click',()=>{
+  $('customData').value=edToText(edBuild());
+  $('customError').classList.add('hidden');
+  edSave();showScreen('customMenu');
+});
+
+// Пасхалка: 7 быстрых тапов по заголовку будят проклятие фараона.
+let eggTaps=0,eggTimer=0;
+$('title').addEventListener('click',()=>{
+  eggTaps++;clearTimeout(eggTimer);eggTimer=setTimeout(()=>{eggTaps=0},2500);
+  if(eggTaps>=7){
+    eggTaps=0;cursed=!cursed;
+    showToast(cursed?'Проклятие фараона пробудилось. Пилы крутятся втрое злее.':'Проклятие снято. Пока что.',2400);
+  }
+});
+
+fit();refreshLevels();
+})();
+</script>
+</body>
+</html>
