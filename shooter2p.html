@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>2-Player 3D Shooter</title>
+  <style>
+    html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#000 }
+    canvas { display:block; touch-action:none }
+    #forwardBtn,#shootBtn,#grenadeBtn {
+      position:absolute; width:60px; height:60px;
+      border-radius:50%; background:rgba(255,255,255,0.3);
+      font-size:24px; line-height:60px; text-align:center;
+      touch-action:none; user-select:none;
+    }
+    #forwardBtn { bottom:20px; left:20px; }
+    #shootBtn   { bottom:100px; left:20px; }
+    #grenadeBtn { bottom:60px; right:20px; }
+
+    #crosshair {
+      position:absolute; top:50%; left:50%;
+      width:20px; height:20px; margin:-10px 0 0 -10px;
+      pointer-events:none;
+    }
+    #crosshair:before,#crosshair:after {
+      content:""; position:absolute; background:white;
+    }
+    #crosshair:before { left:9px; top:0; width:2px; height:20px; }
+    #crosshair:after  { top:9px; left:0; width:20px; height:2px; }
+
+    #hitFlash {
+      position:absolute; top:0; left:0; width:100%; height:100%;
+      background:rgba(255,0,0,0.5); opacity:0; pointer-events:none;
+      transition:opacity .3s;
+    }
+    #ui {
+      position:absolute; top:0px; right:10px;
+      color:#fff; font-family:sans-serif;
+      background:rgba(0,0,0,0.5); padding:10px; border-radius:4px;
+    }
+    #ui button { display:block; margin-bottom:8px; padding:4px 8px }
+    #ui div { margin:2px 0 }
+    #moveBar { width:150px; vertical-align:middle }
+  </style>
+</head>
+<body>
+  <canvas id="c"></canvas>
+  <div id="forwardBtn">⬆️</div>
+  <div id="shootBtn">🔥</div>
+  <div id="grenadeBtn">💣</div>
+  <div id="crosshair"></div>
+  <div id="hitFlash"></div>
+  <div id="ui">
+    <button id="endTurnBtn">Завершить ход</button>
+    <div>FPS: <span id="fps">0</span></div>
+    <div id="turnInfo">Игрок 1 ходит</div>
+    <div>Патронов: <span id="ammoInfo">0</span></div>
+    <div>Гранат: <span id="grenadeInfo">0</span></div>
+    <div>Здоровье: <span id="healthInfo">100</span></div>
+    <div>Ходьба: <progress id="moveBar" max="5" value="0"></progress></div>
+  </div>
+
+  <script src="newthreejs.txt"></script>
+  <script>
+    // --- КОНСТАНТЫ ---
+    const WALK_HEIGHT=1.6, SPEED=0.05, SENS=0.05;
+    const BULLET_SPEED=0.3, BULLET_OFFSET=0.6;
+    const GRENADE_SPEED=0.975, GRENADE_GRAVITY=0.01;
+    const GROUND_LEVEL=0.3, ROLL_FRICTION=0.6;
+    const PLAYER_RADIUS=0.5;
+    const MAX_BULLETS=30, MAX_GRENADES=10;
+    const FLOOR_SIZE=200, FLOOR_HALF=FLOOR_SIZE/2;
+    const BASE_OB=40, OB_COUNT=Math.round(BASE_OB*1.25);
+    const OBST_HITS=25;
+
+    // --- СЦЕНА, КАМЕРА, РЕНДЕРЕР ---
+    const canvas=document.getElementById('c');
+    const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
+    renderer.setSize(window.innerWidth,window.innerHeight);
+    const scene=new THREE.Scene();
+    const camera=new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.1,2000);
+
+    // --- СВЕТ ---
+    scene.add(new THREE.HemisphereLight(0xffffff,0x444444,0.6));
+    const dirLight=new THREE.DirectionalLight(0xffffff,0.6);
+    dirLight.position.set(5,10,7.5);
+    scene.add(dirLight);
+
+    // --- ПОЛ (🌼) ---
+    const texCan=document.createElement('canvas');
+    texCan.width=texCan.height=512;
+    const ctx=texCan.getContext('2d');
+    ctx.fillStyle='#4a7c3a'; ctx.fillRect(0,0,512,512);
+    ctx.font='32px serif';
+    for(let x=0;x<512;x+=64)for(let y=0;y<512;y+=64)ctx.fillText('🌼',x+16,y+48);
+    const grassTex=new THREE.CanvasTexture(texCan);
+    grassTex.wrapS=grassTex.wrapT=THREE.RepeatWrapping;
+    grassTex.repeat.set(FLOOR_SIZE/10,FLOOR_SIZE/10);
+    const floor=new THREE.Mesh(
+      new THREE.PlaneGeometry(FLOOR_SIZE,FLOOR_SIZE),
+      new THREE.MeshStandardMaterial({map:grassTex})
+    );
+    floor.rotation.x=-Math.PI/2;
+    scene.add(floor);
+
+    // --- УКРЫТИЯ ---
+    const obstacles=[];
+    for(let i=0;i<OB_COUNT;i++){
+      let sx,sz,sy,pos;
+      do {
+        sx=1+Math.random()*4;
+        sz=1+Math.random()*4;
+        sy=WALK_HEIGHT*(0.5+Math.random()*1.5);
+        pos=new THREE.Vector3(
+          (Math.random()-0.5)*FLOOR_SIZE,
+          sy/2,
+          (Math.random()-0.5)*FLOOR_SIZE
+        );
+      } while(Math.abs(pos.x)<PLAYER_RADIUS*2 && Math.abs(pos.z)<PLAYER_RADIUS*2);
+      const m=new THREE.Mesh(
+        new THREE.BoxGeometry(sx,sy,sz),
+        new THREE.MeshStandardMaterial({color:0x228822})
+      );
+      m.position.copy(pos);
+      m.userData={halfX:sx/2, halfZ:sz/2, height:sy, hits:0};
+      scene.add(m);
+      obstacles.push(m);
+    }
+
+    // --- ИГРОКИ ---
+    const players=[
+      {pos:new THREE.Vector3(-50,WALK_HEIGHT,0), health:100, bullets:0, grenades:0, yaw:0, pitch:0, name:'Игрок 1'},
+      {pos:new THREE.Vector3(),              health:100, bullets:0, grenades:0, yaw:0, pitch:0, name:'Игрок 2'}
+    ];
+    // спавн второго
+    do {
+      const ang=Math.random()*Math.PI*2;
+      const dist=100+Math.random()*100;
+      players[1].pos.set(
+        players[0].pos.x+Math.cos(ang)*dist,
+        WALK_HEIGHT,
+        players[0].pos.z+Math.sin(ang)*dist
+      );
+    } while(Math.abs(players[1].pos.x)>FLOOR_HALF-PLAYER_RADIUS ||
+            Math.abs(players[1].pos.z)>FLOOR_HALF-PLAYER_RADIUS);
+
+    // меши игроков (белые)
+    const playerMeshes=[];
+    const pGeo=new THREE.BoxGeometry(1,WALK_HEIGHT,1);
+    const whiteMat=new THREE.MeshStandardMaterial({color:0xffffff});
+    for(let i=0;i<2;i++){
+      const pm=new THREE.Mesh(pGeo, whiteMat);
+      pm.position.copy(players[i].pos).setY(WALK_HEIGHT/2);
+      scene.add(pm);
+      playerMeshes.push(pm);
+    }
+
+    // --- ПУЛИ И ГРАНАТЫ ---
+    const bulletsArr=[], grenadesArr=[];
+    const bulletGeo=new THREE.SphereGeometry(0.05,8,8);
+    const bulletMat=new THREE.MeshBasicMaterial({color:0xffff00});
+
+    function shootBullet(dir, shooter){
+      dir.x += (Math.random()-0.5)*0.02;
+      dir.y += (Math.random()-0.5)*0.01;
+      dir.z += (Math.random()-0.5)*0.02;
+      dir.normalize();
+      const m=new THREE.Mesh(bulletGeo, bulletMat);
+      m.position.copy(camera.position).add(dir.clone().multiplyScalar(BULLET_OFFSET));
+      bulletsArr.push({mesh:m, vel:dir.multiplyScalar(BULLET_SPEED), shooter});
+      scene.add(m);
+    }
+
+    function shootGrenade(){
+      const dir=new THREE.Vector3(); camera.getWorldDirection(dir);
+      const m=new THREE.Mesh(
+        new THREE.SphereGeometry(GROUND_LEVEL,12,12),
+        new THREE.MeshStandardMaterial({color:0x888888})
+      );
+      m.position.copy(camera.position);
+      const vel=dir.multiplyScalar(GRENADE_SPEED);
+      grenadesArr.push({mesh:m, vel, spawn:performance.now(), shooter:curP});
+      scene.add(m);
+    }
+
+    function createEmoji(e,s){
+      const c=document.createElement('canvas');
+      c.width=c.height=s;
+      const cx=c.getContext('2d');
+      cx.font=`${s}px serif`;
+      cx.textAlign='center'; cx.textBaseline='middle';
+      cx.fillText(e,s/2,s/2);
+      return c;
+    }
+    function showExplosion(pos){
+      const cvs=createEmoji('💥',128);
+      const tex=new THREE.CanvasTexture(cvs);
+      const spr=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,depthTest:false}));
+      spr.position.copy(pos); spr.scale.set(4,4,1);
+      scene.add(spr);
+      setTimeout(()=>{ scene.remove(spr); tex.dispose(); },300);
+    }
+    function explodeGrenade(pos, shooter){
+      showExplosion(pos);
+      const cnt = 220 + Math.floor(Math.random()*81);
+      for(let i=0;i<cnt;i++){
+        const dir=new THREE.Vector3(
+          Math.random()*2-1,
+          Math.random()*2-1,
+          Math.random()*2-1
+        ).normalize();
+        const m=new THREE.Mesh(bulletGeo, bulletMat);
+        m.position.copy(pos);
+        bulletsArr.push({mesh:m, vel:dir.multiplyScalar(0.5), shooter});
+        scene.add(m);
+      }
+    }
+
+    // --- UI ---
+    const fpsEl=document.getElementById('fps'),
+          turnEl=document.getElementById('turnInfo'),
+          ammoEl=document.getElementById('ammoInfo'),
+          grEl=document.getElementById('grenadeInfo'),
+          hpEl=document.getElementById('healthInfo'),
+          mbEl=document.getElementById('moveBar'),
+          endBtn=document.getElementById('endTurnBtn'),
+          hitFlash=document.getElementById('hitFlash');
+
+    let curP=0, otherP=1;
+    let moveTime=0, lastTime=performance.now(), gameOver=false;
+    let yaw=0,pitch=0,moving=false,isLooking=false,lsx=0,lsy=0;
+
+    function updateUI(){
+      turnEl.textContent = players[curP].name+' ходит';
+      ammoEl.textContent = players[curP].bullets;
+      grEl.textContent   = players[curP].grenades;
+      hpEl.textContent   = players[curP].health;
+      mbEl.value = Math.min(moveTime,5);
+    }
+
+    function startTurn(){
+      camera.position.copy(players[curP].pos);
+      yaw = players[curP].yaw; pitch = players[curP].pitch;
+      players[curP].bullets = Math.min(MAX_BULLETS, players[curP].bullets+5);
+      players[curP].grenades= Math.min(MAX_GRENADES, players[curP].grenades+1);
+      moveTime=0; lastTime=performance.now();
+      playerMeshes[curP].visible = false;
+      playerMeshes[otherP].visible = true;
+      updateUI();
+    }
+    function endTurn(){
+      players[curP].pos.copy(camera.position);
+      players[curP].yaw = yaw; players[curP].pitch = pitch;
+      [curP,otherP]=[otherP,curP];
+      startTurn();
+    }
+    endBtn.addEventListener('click', endTurn);
+
+    // --- Ввод ---
+    canvas.addEventListener('pointerdown',e=>{ isLooking=true; lsx=e.clientX; lsy=e.clientY; });
+    canvas.addEventListener('pointermove',e=>{
+      if(!isLooking)return;
+      yaw   -= (e.clientX-lsx)*SENS;
+      pitch -= (e.clientY-lsy)*SENS;
+      pitch = Math.max(-Math.PI/2,Math.min(Math.PI/2,pitch));
+      lsx=e.clientX; lsy=e.clientY;
+    });
+    ['pointerup','pointerleave','contextmenu'].forEach(evt=>
+      canvas.addEventListener(evt,e=>{ if(evt!=='contextmenu')isLooking=false; e.preventDefault(); })
+    );
+    document.getElementById('forwardBtn').addEventListener('pointerdown',()=>{ if(moveTime<5)moving=true });
+    document.getElementById('forwardBtn').addEventListener('pointerup',()=>{ moving=false });
+    document.getElementById('shootBtn').addEventListener('pointerdown',e=>{
+      e.preventDefault();
+      const p=players[curP];
+      if(p.bullets>0){ p.bullets--; updateUI(); const dir=new THREE.Vector3(); camera.getWorldDirection(dir); shootBullet(dir,curP); }
+    });
+    document.getElementById('grenadeBtn').addEventListener('pointerdown',e=>{
+      e.preventDefault();
+      const p=players[curP];
+      if(p.grenades>0){ p.grenades--; updateUI(); shootGrenade(); }
+    });
+
+    function updateMovement(dt){
+      if(!moving||moveTime>=5) return;
+      const dir=new THREE.Vector3(0,0,-1).applyEuler(camera.rotation);
+      dir.y=0; dir.normalize();
+      const prop=camera.position.clone().addScaledVector(dir,SPEED);
+      let col=false;
+      for(const obs of obstacles){
+        if(Math.abs(prop.x-obs.position.x)<obs.userData.halfX+PLAYER_RADIUS &&
+           Math.abs(prop.z-obs.position.z)<obs.userData.halfZ+PLAYER_RADIUS){
+          col=true; break;
+        }
+      }
+      if(!col) camera.position.copy(prop);
+      moveTime+=dt;
+    }
+
+    // старт
+    startTurn();
+
+    // --- Анимация и физика ---
+    function animate(time){
+      if(gameOver) return;
+      requestAnimationFrame(animate);
+      const dt=(time-lastTime)/1000; lastTime=time;
+      fpsEl.textContent=(1/dt).toFixed(1);
+
+      camera.rotation.order='YXZ';
+      camera.rotation.y=yaw; camera.rotation.x=pitch;
+      updateMovement(dt);
+
+      playerMeshes[0].position.copy(players[0].pos).setY(WALK_HEIGHT/2);
+      playerMeshes[1].position.copy(players[1].pos).setY(WALK_HEIGHT/2);
+
+      // ГРАНАТЫ
+      for(let i=grenadesArr.length-1;i>=0;i--){
+        const g=grenadesArr[i];
+        g.vel.y-=GRENADE_GRAVITY;
+        g.mesh.position.add(g.vel);
+        // отскок от укрытий
+        for(const obs of obstacles){
+          const dx=g.mesh.position.x-obs.position.x;
+          const dz=g.mesh.position.z-obs.position.z;
+          if(Math.abs(dx)<obs.userData.halfX+GROUND_LEVEL &&
+             Math.abs(g.mesh.position.y-obs.position.y)<obs.userData.height/2+GROUND_LEVEL &&
+             Math.abs(dz)<obs.userData.halfZ+GROUND_LEVEL){
+            if(Math.abs(dx)>Math.abs(dz)) g.vel.x=-g.vel.x*0.5;
+            else                         g.vel.z=-g.vel.z*0.5;
+          }
+        }
+        if(g.mesh.position.y<=GROUND_LEVEL){
+          g.mesh.position.y=GROUND_LEVEL;
+          g.vel.y=0; g.vel.x*=ROLL_FRICTION; g.vel.z*=ROLL_FRICTION;
+        }
+        if(time-g.spawn>4000){
+          explodeGrenade(g.mesh.position,g.shooter);
+          scene.remove(g.mesh);
+          grenadesArr.splice(i,1);
+        }
+      }
+
+      // ПУЛИ
+      for(let i=bulletsArr.length-1;i>=0;i--){
+        const b=bulletsArr[i];
+        b.mesh.position.add(b.vel);
+
+        // столкновение с укрытиями — используем реальный Box3
+        let hitObs=false;
+        for(let j=0;j<obstacles.length;j++){
+          const obs=obstacles[j];
+          const box=new THREE.Box3(
+            new THREE.Vector3(
+              obs.position.x-obs.userData.halfX,
+              obs.position.y-obs.userData.height/2,
+              obs.position.z-obs.userData.halfZ
+            ),
+            new THREE.Vector3(
+              obs.position.x+obs.userData.halfX,
+              obs.position.y+obs.userData.height/2,
+              obs.position.z+obs.userData.halfZ
+            )
+          );
+          if(box.containsPoint(b.mesh.position)){
+            obs.userData.hits++;
+            obs.material.color.multiplyScalar(0.8); // более заметное затемнение
+            scene.remove(b.mesh);
+            bulletsArr.splice(i,1);
+            if(obs.userData.hits>=OBST_HITS){
+              scene.remove(obs);
+              obstacles.splice(j,1);
+            }
+            hitObs=true;
+            break;
+          }
+        }
+        if(hitObs) continue;
+
+        // попадание в игрока
+        for(let pi=0;pi<2;pi++){
+          const ppos=players[pi].pos;
+          const box=new THREE.Box3(
+            new THREE.Vector3(ppos.x-PLAYER_RADIUS,0,ppos.z-PLAYER_RADIUS),
+            new THREE.Vector3(ppos.x+PLAYER_RADIUS,WALK_HEIGHT,ppos.z+PLAYER_RADIUS)
+          );
+          if(box.containsPoint(b.mesh.position)){
+            const y=b.mesh.position.y;
+            const thresh=WALK_HEIGHT*4/5;
+            const dmg=y>thresh?90:10;
+            players[pi].health=Math.max(0,players[pi].health-dmg);
+            scene.remove(b.mesh);
+            bulletsArr.splice(i,1);
+            hitFlash.style.opacity='0.5';
+            setTimeout(()=>hitFlash.style.opacity='0',500);
+            updateUI();
+            if(players[pi].health<=0 && !gameOver){
+              gameOver=true;
+              alert(players[(pi+1)%2].name+' Победил');
+            }
+            break;
+          }
+        }
+        if(bulletsArr[i] && b.mesh.position.length()>200){
+          scene.remove(b.mesh);
+          bulletsArr.splice(i,1);
+        }
+      }
+
+      updateUI();
+      renderer.render(scene,camera);
+    }
+    animate(performance.now());
+
+    window.addEventListener('resize',()=>{
+      renderer.setSize(window.innerWidth,window.innerHeight);
+      camera.aspect=window.innerWidth/window.innerHeight;
+      camera.updateProjectionMatrix();
+    });
+  </script>
+</body>
+</html>

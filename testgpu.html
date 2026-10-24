@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<title>Стандарт — тест мощности GPU</title>
+<style>
+  :root{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;}
+  body{margin:0;display:flex;flex-direction:column;align-items:center;gap:10px;padding:10px;background:#0f0f10;color:#eee;min-height:100vh;box-sizing:border-box;}
+  .topbar{width:100%;max-width:720px;display:flex;gap:8px;align-items:center;justify-content:space-between;}
+  .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+  label{font-size:14px;color:#ddd;}
+  input[type=number]{width:84px;padding:6px;border-radius:6px;border:1px solid #333;background:#0b0b0c;color:#fff}
+  select{padding:6px;border-radius:6px;border:1px solid #333;background:#0b0b0c;color:#fff}
+  button{padding:8px 10px;border-radius:8px;border:0;background:#2a8f2a;color:#fff;font-weight:600}
+  .btn-secondary{background:#444;color:#fff}
+  #resultBox{display:inline-block;padding:6px 10px;border-radius:8px;background:#111;border:1px solid #333}
+  .canvasWrap{background:#000;padding:8px;border-radius:10px;max-width:100%;box-shadow:0 6px 20px rgba(0,0,0,0.6);}
+  canvas{display:block;width:100%;height:auto;border-radius:6px;background:transparent;image-rendering:pixelated;}
+  .status{width:100%;max-width:720px;display:flex;justify-content:space-between;gap:12px;font-size:14px;color:#cfc;}
+  .small{font-size:12px;color:#aaa}
+  .footer{width:100%;max-width:720px;display:flex;justify-content:flex-start;gap:8px;align-items:center;}
+  a.back{color:#fff;background:#333;padding:8px 12px;border-radius:8px;text-decoration:none}
+  .canvasContainer{width:100%;max-width:625px;}
+  .controls-row{display:flex;gap:8px;align-items:center;}
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="controls">
+      <label>Изменить стандарт
+        <input id="standardInput" type="number" min="4" max="200" value="25"/>
+      </label>
+      <label>Тип рендера
+        <select id="renderType">
+          <option value="light">Лёгкий (по умолчанию)</option>
+          <option value="modern">Современный</option>
+        </select>
+      </label>
+      <div id="resultBox">Результат: <span id="cubeCount">0</span></div>
+    </div>
+
+    <div style="text-align:right">
+      <div class="small">FPS: <span id="fpsDisplay">0</span></div>
+      <div class="small">Режим: <span id="modeDisplay">Добавление: 25/с</span></div>
+    </div>
+  </div>
+
+  <div class="controls-row" style="width:100%;max-width:720px;justify-content:flex-start;">
+    <button id="startBtn">Старт</button>
+    <button id="stopBtn" class="btn-secondary">Стоп</button>
+    <button id="clearBtn" class="btn-secondary">Очистить</button>
+    <div class="small" style="margin-left:8px;color:#bbb">Здесь будет подсказка</div>
+  </div>
+
+  <div class="canvasWrap">
+    <div class="canvasContainer">
+      <div id="threeRoot"></div>
+    </div>
+  </div>
+
+  <div class="status">
+    <div>Порог FPS (STANDARD): <strong id="fpsThreshold">25</strong></div>
+    <div class="small">Кубы появляются в одной точке и вращаются в случайных направлениях.</div>
+  </div>
+
+  <div class="footer">
+    <a class="back" href="glist.html">← Назад</a>
+  </div>
+
+<!-- Подключаем three.js -->
+<script src="newthreejs.txt"></script>
+
+<script>
+/*
+  Изменения:
+   - удалено поле ввода доли (occupy)
+   - occupyFraction вычисляется как STANDARD^2 / 1000 и применяется при расчёте камеры
+   - значение ограничено [0.05, 0.9] чтобы не выхлестывать за границы экрана
+*/
+
+(() => {
+  // параметры
+  let STANDARD = 25;
+  let canvasSize = STANDARD * STANDARD;
+  let rotationDegPerSec = STANDARD;
+  let fpsThreshold = STANDARD;
+  let fastAddRate = STANDARD;
+  const consecutiveNeededToResume = 25;
+
+  // occupyFraction теперь вычисляется динамически: STANDARD^2 / 1000
+  function computeOccupyFractionFromStandard(s) {
+    const raw = (s * s) / 1000; // пользовательское требование
+    // ограничим чтобы не выйти за экран: min 0.05, max 0.9
+    return Math.min(Math.max(raw, 0.05), 0.9);
+  }
+
+  // three.js объекты
+  let scene, camera, renderer, cubeMaterialLight, cubeGeometry;
+  let cubes = [];
+  let dynamicRefEnv = null;
+
+  // логика анимации/добавления
+  let lastTime = performance.now();
+  let consecutiveGoodFrames = 0;
+  let wasBelowThreshold = false;
+  let addingMode = 'fast';
+  let addEnabled = true;
+  let addAccumulator = 0;
+
+  // управление старт/стоп
+  let rafId = null;
+  let running = true; // стартуем запущенным
+
+  // UI элементы
+  const standardInput = document.getElementById('standardInput');
+  const renderTypeSel = document.getElementById('renderType');
+  const cubeCountElem = document.getElementById('cubeCount');
+  const fpsDisplay = document.getElementById('fpsDisplay');
+  const modeDisplay = document.getElementById('modeDisplay');
+  const fpsThresholdElem = document.getElementById('fpsThreshold');
+  const root = document.getElementById('threeRoot');
+
+  const startBtn = document.getElementById('startBtn');
+  const stopBtn = document.getElementById('stopBtn');
+  const clearBtn = document.getElementById('clearBtn');
+
+  // --- Инициализация three ---
+  function initThree() {
+    if (renderer) {
+      try { renderer.forceContextLoss(); } catch(e){}
+      root.innerHTML = '';
+      renderer = null;
+    }
+
+    scene = new THREE.Scene();
+
+    camera = new THREE.PerspectiveCamera(50, 1, 0.1, 10000);
+
+    recreateGeometry();
+    cubeMaterialLight = new THREE.MeshBasicMaterial({color:0x2ecc40});
+
+    renderer = new THREE.WebGLRenderer({antialias:true, alpha:true});
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.domElement.style.width = '100%';
+    renderer.domElement.style.height = 'auto';
+    renderer.setSize(canvasSize, canvasSize, false);
+    root.appendChild(renderer.domElement);
+
+    setRenderType(renderTypeSel.value);
+
+    updateCameraForStandard();
+
+    window.addEventListener('resize', onWindowResize, {passive:true});
+    onWindowResize();
+  }
+
+  function recreateGeometry(){
+    if (cubeGeometry) {
+      try { cubeGeometry.dispose(); } catch(e){}
+    }
+    // размер куба — равен STANDARD (по прежнему). Визуально "занимает" долю экрана через позицию камеры.
+    cubeGeometry = new THREE.BoxGeometry(STANDARD, STANDARD, STANDARD);
+  }
+
+  // вычисление расстояния камеры по формуле чтобы bounding-sphere куба занимал occupyFraction высоты экрана
+  function computeCameraDistanceForObject(objectSize /* world units */, occupyFraction) {
+    const fovRad = (camera.fov * Math.PI) / 180;
+    const f = Math.min(Math.max(occupyFraction, 0.01), 0.99);
+    const numerator = objectSize / 2;
+    const denomAngle = (fovRad * f) / 2;
+    const tanv = Math.tan(Math.max(denomAngle, 1e-6));
+    const d = numerator / tanv;
+    return d;
+  }
+
+  function updateCameraForStandard() {
+    // вычисляем occupyFraction из STANDARD
+    const occupyFraction = computeOccupyFractionFromStandard(STANDARD);
+    // bounding sphere диаметр для куба со стороной STANDARD
+    const objectDiameter = STANDARD * Math.sqrt(3);
+    let d = computeCameraDistanceForObject(objectDiameter, occupyFraction);
+    d *= 1.05; // небольшой запас
+    // ставим камеру по Z (фронтально)
+    camera.position.set(0, 0, d);
+    camera.lookAt(0, 0, 0);
+    camera.updateProjectionMatrix();
+  }
+
+  // --- Render type: light / modern ---
+  function setRenderType(type) {
+    for (let i = scene.children.length - 1; i >= 0; i--) {
+      const o = scene.children[i];
+      if (o.userData && (o.userData._isGround || o.userData._isEnv || o.userData._keep)) {
+        scene.remove(o);
+      }
+    }
+
+    if (type === 'light') {
+      try { renderer.shadowMap.enabled = false; } catch(e){}
+      scene.background = null;
+      cubes.forEach(c => {
+        if (c.material && c.material !== cubeMaterialLight) {
+          try { c.material.dispose(); } catch(e){}
+        }
+        c.material = cubeMaterialLight;
+        c.castShadow = false;
+        c.receiveShadow = false;
+      });
+      dynamicRefEnv = null;
+    } else {
+      try { renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; } catch(e){}
+      const amb = new THREE.AmbientLight(0xffffff, 0.35);
+      amb.userData._keep = true;
+      scene.add(amb);
+
+      const dir = new THREE.DirectionalLight(0xffffff, 0.9);
+      dir.position.set(-STANDARD*6, STANDARD*12, STANDARD*6);
+      dir.castShadow = true;
+      dir.userData._keep = true;
+      try {
+        dir.shadow.mapSize.width = 1024;
+        dir.shadow.mapSize.height = 1024;
+        const s = STANDARD*20;
+        if (dir.shadow && dir.shadow.camera) {
+          dir.shadow.camera.left = -s; dir.shadow.camera.right = s;
+          dir.shadow.camera.top = s; dir.shadow.camera.bottom = -s;
+        }
+      } catch(e){}
+      scene.add(dir);
+
+      const groundMat = new THREE.MeshStandardMaterial({color:0x111111, roughness:0.3, metalness:0.2});
+      const ground = new THREE.Mesh(new THREE.PlaneGeometry(STANDARD*200, STANDARD*200), groundMat);
+      ground.rotation.x = -Math.PI/2;
+      ground.position.y = -STANDARD/2 - 0.1;
+      ground.receiveShadow = true;
+      ground.userData._isGround = true;
+      scene.add(ground);
+
+      try {
+        dynamicRefEnv = new THREE.CubeCamera(0.1, 1000, 128);
+        dynamicRefEnv.userData._isEnv = true;
+        scene.add(dynamicRefEnv);
+      } catch(e){ dynamicRefEnv = null; }
+
+      cubes.forEach(c => {
+        if (c.material) { try { c.material.dispose(); } catch(e){} }
+        const mat = new THREE.MeshStandardMaterial({color:0x2ecc40, roughness:0.4, metalness:0.25});
+        if (dynamicRefEnv && dynamicRefEnv.renderTarget && dynamicRefEnv.renderTarget.texture) {
+          mat.envMap = dynamicRefEnv.renderTarget.texture;
+        }
+        c.material = mat;
+        c.castShadow = true;
+        c.receiveShadow = true;
+      });
+    }
+  }
+
+  // --- Спавн куба ---
+  function spawnCube() {
+    let mat;
+    if (renderTypeSel.value === 'light') {
+      mat = cubeMaterialLight;
+    } else {
+      mat = new THREE.MeshStandardMaterial({color:0x2ecc40, roughness:0.4, metalness:0.25});
+      if (dynamicRefEnv && dynamicRefEnv.renderTarget && dynamicRefEnv.renderTarget.texture) {
+        mat.envMap = dynamicRefEnv.renderTarget.texture;
+      }
+    }
+    const mesh = new THREE.Mesh(cubeGeometry, mat);
+    mesh.position.set(0, 0, 0);
+    mesh.userData._isCube = true;
+    mesh.userData.rotAxis = new THREE.Vector3(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5).normalize();
+    mesh.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, Math.random()*Math.PI);
+    if (renderTypeSel.value === 'modern') { mesh.castShadow = true; mesh.receiveShadow = true; }
+    else { mesh.castShadow = false; mesh.receiveShadow = false; }
+    scene.add(mesh);
+    cubes.push(mesh);
+    updateUI();
+    return mesh;
+  }
+
+  function clearCubes(){
+    for (let i = cubes.length - 1; i >= 0; i--) {
+      const c = cubes[i];
+      try { if (c.material && c.material !== cubeMaterialLight) c.material.dispose(); } catch(e){}
+      scene.remove(c);
+    }
+    cubes = [];
+    updateUI();
+  }
+
+  // --- Логика FPS и добавления ---
+  let smoothedFPS = 60;
+  const fpsSmoothing = 0.15;
+
+  function updateLogic(deltaSec) {
+    const instFPS = 1 / Math.max(deltaSec, 1e-6);
+    smoothedFPS = smoothedFPS * (1 - fpsSmoothing) + instFPS * fpsSmoothing;
+    fpsDisplay.textContent = Math.round(smoothedFPS);
+
+    if (smoothedFPS <= fpsThreshold - 0.0001) {
+      wasBelowThreshold = true;
+      consecutiveGoodFrames = 0;
+      addEnabled = false;
+      modeDisplay.textContent = `Остановлено — FPS < ${fpsThreshold}`;
+      return;
+    } else {
+      if (wasBelowThreshold) {
+        consecutiveGoodFrames++;
+        modeDisplay.textContent = `Восстановление: ${consecutiveGoodFrames}/${consecutiveNeededToResume}`;
+        if (consecutiveGoodFrames >= consecutiveNeededToResume) {
+          addEnabled = true;
+          addingMode = 'onePerFrame';
+          wasBelowThreshold = false;
+          consecutiveGoodFrames = 0;
+          modeDisplay.textContent = `Возобновлено: добавление по 1 кубу/кадр`;
+        }
+      } else {
+        addEnabled = true;
+        addingMode = 'fast';
+        modeDisplay.textContent = `Добавление: ${fastAddRate}/с`;
+      }
+    }
+  }
+
+  // --- Анимация / старт стоп ---
+  function animate(now) {
+    if (!running) { rafId = null; return; }
+    rafId = requestAnimationFrame(animate);
+    const timeNow = performance.now();
+    const deltaMs = timeNow - lastTime;
+    lastTime = timeNow;
+    const delta = deltaMs / 1000;
+
+    updateLogic(delta);
+
+    if (addEnabled) {
+      if (addingMode === 'fast') {
+        const toAdd = fastAddRate * delta;
+        addAccumulator += toAdd;
+        while (addAccumulator >= 1) {
+          spawnCube();
+          addAccumulator -= 1;
+        }
+      } else if (addingMode === 'onePerFrame') {
+        if (smoothedFPS >= fpsThreshold - 0.0001) spawnCube();
+      }
+    }
+
+    const rotRadPerSec = THREE.MathUtils.degToRad(rotationDegPerSec);
+    for (let i = 0; i < cubes.length; i++) {
+      const c = cubes[i];
+      const axis = c.userData.rotAxis;
+      const angle = rotRadPerSec * delta;
+      const q = new THREE.Quaternion();
+      q.setFromAxisAngle(axis, angle);
+      c.quaternion.premultiply(q);
+    }
+
+    if (dynamicRefEnv && dynamicRefEnv.renderTarget && dynamicRefEnv.update) {
+      try { dynamicRefEnv.update(renderer, scene); } catch(e){}
+    }
+
+    renderer.render(scene, camera);
+  }
+
+  function startAnimation(){
+    if (running) return;
+    running = true;
+    lastTime = performance.now();
+    rafId = requestAnimationFrame(animate);
+  }
+  function stopAnimation(){
+    if (!running) return;
+    running = false;
+    if (rafId) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
+    }
+  }
+
+  // --- UI обработчики ---
+  function updateUI(){
+    cubeCountElem.textContent = cubes.length;
+    fpsThresholdElem.textContent = Math.round(fpsThreshold);
+  }
+
+  standardInput.addEventListener('change', () => {
+    const val = Number(standardInput.value) || 25;
+    const newVal = Math.max(4, Math.min(200, Math.floor(val)));
+    standardInput.value = newVal;
+    STANDARD = newVal;
+    canvasSize = STANDARD * STANDARD;
+    rotationDegPerSec = STANDARD;
+    fpsThreshold = STANDARD;
+    fastAddRate = STANDARD;
+
+    // пересоздаём геометрию (куб всё ещё имеет размер STANDARD)
+    recreateGeometry();
+    // пересчитываем позицию камеры с новой occupyFraction = STANDARD^2/1000
+    updateCameraForStandard();
+    if (renderer) {
+      renderer.setSize(canvasSize, canvasSize, false);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    }
+    clearCubes();
+    wasBelowThreshold = false;
+    consecutiveGoodFrames = 0;
+    addEnabled = true;
+    addingMode = 'fast';
+    addAccumulator = 0;
+    updateUI();
+    setRenderType(renderTypeSel.value);
+  });
+
+  renderTypeSel.addEventListener('change', () => {
+    setRenderType(renderTypeSel.value);
+    updateCameraForStandard();
+  });
+
+  startBtn.addEventListener('click', () => startAnimation());
+  stopBtn.addEventListener('click', () => stopAnimation());
+  clearBtn.addEventListener('click', () => { clearCubes(); });
+
+  function onWindowResize(){
+    const maxW = Math.min(window.innerWidth - 20, 625);
+    if (renderer && renderer.domElement) {
+      renderer.domElement.style.width = maxW + 'px';
+      renderer.domElement.style.height = maxW + 'px';
+    }
+  }
+
+  // --- старт ---
+  function start() {
+    initThree();
+    fpsThresholdElem.textContent = fpsThreshold;
+    updateUI();
+    lastTime = performance.now();
+    running = true;
+    rafId = requestAnimationFrame(animate);
+  }
+
+  start();
+
+  // expose helpers
+  window.GPU_TEST = {
+    spawnCube, clearCubes, getCubes: ()=>cubes,
+    setStandard: v=>{ standardInput.value=v; standardInput.dispatchEvent(new Event('change')); },
+    start: startAnimation, stop: stopAnimation
+  };
+})();
+</script>
+</body>
+</html>

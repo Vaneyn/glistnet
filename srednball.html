@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Подсчет среднего балла</title>
+    <style>
+        body {
+            background-color: #ffffff;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .input-display {
+            font-size: 36px;
+            margin-bottom: 10px;
+        }
+
+        .result-display {
+            font-size: 48px;
+            margin-top: 20px;
+        }
+
+        .button-table {
+            margin-top: 20px;
+            border-collapse: collapse;
+        }
+
+        .button-cell {
+            padding: 5px;
+        }
+
+        .button {
+            display: block;
+            width: 60px;
+            height: 60px;
+            background-color: #f3d2f2;
+            border: 1px solid #cdc;
+            border-radius: 3px;
+            font-size: 24px;
+            line-height: 50px;
+            text-align: center;
+            cursor: pointer;
+        }
+
+        .clear-button {
+            margin-top: 20px;
+            width: 200px;
+            background-color: #d2a2f2;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 24px;
+            line-height: 50px;
+            text-align: center;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body style="background-image: url(fon1.jpg); background-size: cover;">
+
+    <div class="container">
+    <h1>Подсчет среднего балла</h1>
+        <div class="input-display" id="inputDisplay"></div>
+        <div class="result-display" id="resultDisplay"></div>
+        <p></p>
+        <table class="button-table">
+            <tr>
+                <td class="button-cell"><button class="button" onclick="addNumber(1)">1</button></td>
+                <td class="button-cell"><button class="button" onclick="addNumber(2)">2</button></td>
+                <td class="button-cell"><button class="button" onclick="addNumber(3)">3</button></td>
+                <td class="button-cell"><button class="button" onclick="addNumber(4)">4</button></td>
+                <td class="button-cell"><button class="button" onclick="addNumber(5)">5</button></td>
+            </tr>
+            <tr>
+                <td class="button-cell"><button class="button" onclick="addNumber(6)">6</button></td>
+                <td class="button-cell"><button class="button" onclick="addNumber(7)">7</button></td>
+                <td class="button-cell"><button class="button" onclick="addNumber(8)">8</button></td>
+                <td class="button-cell"><button class="button" onclick="addNumber(9)">9</button></td>
+                <td class="button-cell"><button class="button" onclick="addNumber(10)">10</button></td>
+            </tr>
+            <tr>
+                <td class="button-cell" colspan="5"><button class="button" onclick="removeNumber()">←</button></td>
+            </tr>
+        </table>
+
+        <button class="clear-button" onclick="clearZapis()">Очистить</button>
+        <button onclick="runTool('glist')" style="position: fixed; top: 0%; left: 0; width: 100%; height: 10%; background-color: black; border: none; color: white; font-size: 24px; cursor: pointer;">НАЗАД</button>
+    </div>
+
+    <script>
+        let numbers = [];
+
+        function addNumber(number) {
+            numbers.push(number);
+            updateDisplay();
+        }
+
+        function removeNumber() {
+            numbers.pop();
+            updateDisplay();
+        }
+
+        function clearZapis() {
+            numbers = [];
+            updateDisplay();
+        }
+
+        function calculateAverage() {
+            const sum = numbers.reduce((a, b) => a + b, 0);
+            return (sum / numbers.length).toFixed(2);
+        }
+
+        function updateDisplay() {
+            const inputDisplay = document.getElementById('inputDisplay');
+            const resultDisplay = document.getElementById('resultDisplay');
+
+            if (numbers.length === 0) {
+                inputDisplay.textContent = '';
+                resultDisplay.textContent = '';
+            } else {
+                inputDisplay.textContent = numbers.join(' ');
+                resultDisplay.textContent = calculateAverage();
+            }
+        }
+
+        function runTool(toolName) {
+            var url = toolName + ".html";
+            window.open(url, "_blank");
+        }
+    </script>
+</body>
+</html>

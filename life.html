@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Симулятор жизни</title>
+    <style>
+        body {
+            background-color: #f5f5f5;
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+        }
+
+        h1 {
+            color: #333333;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            cursor: pointer;
+            margin: 5px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        #situation {
+            background-color: #eeeeee;
+            padding: 20px;
+            margin: 20px;
+        }
+
+        #stats {
+            background-color: #cccccc;
+            padding: 10px;
+            margin: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Симулятор жизни</h1>
+    <div id="stats"></div>
+    <button id="continueBtn">Продолжить</button>
+    <div id="situation"></div>
+    <div id="options">
+        <button id="option1"></button>
+        <button id="option2"></button>
+        <button id="option3"></button>
+    </div>
+
+    <script>
+        let health = Math.floor(Math.random() * (95 - 30 + 1)) + 30;
+        let strength = Math.floor(Math.random() * (99 - 15 + 1)) + 15;
+        let intelligence = Math.floor(Math.random() * (60 - 30 + 1)) + 30;
+        let mentalHealth = Math.floor(Math.random() * (95 - 70 + 1)) + 70;
+        let inPrison = 0;
+        let married = 0;
+        let hallucinations = 0;
+        let atWar = 0;
+        let lowQualityOfLife = 0;
+        let errors = 1;
+
+        function updateSituation() {
+            document.getElementById('situation').innerHTML = `
+                <p>Здоровье: ${health}%</p>
+                <p>Сила: ${strength}%</p>
+                <p>Ум: ${intelligence}%</p>
+                <p>Психика: ${mentalHealth}%</p>
+            `;
+        }
+
+        function showOptions(options) {
+            document.getElementById('option1').textContent = options[0].text;
+            document.getElementById('option2').textContent = options[1].text;
+            document.getElementById('option3').textContent = options[2].text;
+
+            document.getElementById('option1').onclick = options[0].action;
+            document.getElementById('option2').onclick = options[1].action;
+            document.getElementById('option3').onclick = options[2].action;
+        }
+
+        function updateFactors() {
+            hallucinations = (mentalHealth <= 20) ? 1 : 0;
+        }
+
+        function gameOver() {
+            if (health <= 0) {
+                alert("Игра окончена. Ваше здоровье стало равно 0.");
+                location.reload();
+            }
+        }
+
+        function randomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        function updateStats() {
+            document.getElementById('stats').innerHTML = `
+                <p>Здоровье: ${health}%</p>
+                <p>Сила: ${strength}%</p>
+                <p>Ум: ${intelligence}%</p>
+                <p>Психика: ${mentalHealth}%</p>
+            `;
+        }
+
+        function continueGame() {
+      
+               updateFactors();
+            gameOver();
+            updateSituation();
+            updateStats();
+
+            const randomSituation = randomInt(1, 3);
+            let situationText, options;
+            let chance;
+
+            if (randomSituation === 1) {
+                situationText = "Вы идёте домой. Неожиданно началась гроза. Что делать?";
+                options = [{
+                        text: "Бежать домой что есть сил 💪",
+                        action: () => {
+                            chance = randomInt(1, 100);
+                            if (chance > strength) {
+                                health -= 7;
+                                intelligence -= 1;
+                                alert("Вы так бежали, что подскользнулись в какашки и упали головой об землю... Шишкой не обойдется.");
+                            } else {
+                                strength += 1;
+                                alert("Вы устроили себе грозовую пробежку и успешно добрались до дома.");
+                            }
+                            continueGame();
+                        }
+                    },
+                    {
+                        text: "Найти укрытие 🧠",
+                        action: () => {
+                            chance = randomInt(1, 100);
+                            if (chance > mentalHealth) {
+                                health -= 4;
+                                intelligence -= 1;
+                                alert("Пожалуй вам не хватило ума спрятаться дома. А залезть на дерево, чтобы вас не задела гроза...");
+                            } else {
+                                mentalHealth += 15;
+                                alert("Да, мусорный бак- хорошее укрытие. Вот только запах...");
+                            }
+                            continueGame();
+                        }
+                    },
+                    {
+                        text: "\"Это салют наверное...\" (Шанс летального исхода 2 процента)",
+                        action: () => {
+                            chance = randomInt(1, 100);
+                            if (chance <= 2) {
+                                health = 0;
+                                alert("Не молния? Очень даже молния. За пренебрежение правилами безопасности вас ударило молнией и вы умерли, так ничего и не почувствовав.");
+                            } else {
+                                alert("Как бы там не было, вы живы и здоровы: сегодня вы фартовый.");
+                            }
+                            continueGame();
+                        }
+                    }
+                ];
+            } else if (randomSituation === 2) {
+                situationText = "Вам стало плохо. Вероятно, вы немного отравились. Что делать?";
+                options = [{
+                        text: "Два пальца в рот (удача 70%)",
+                        action: () => {
+                            chance = randomInt(1, 100);
+                            if (chance <= 70) {
+                                alert("Два пальца во рту всегда выручали. И сейчас вам тоже стало полегче.");
+                            } else {
+                                health -= 10;
+                                alert("Два пальца в рот обычно является хорошей идеей. Но сейчас это не помогло и вас госпитализировали с острым отравлением.");
+                            }
+                            continueGame();
+                        }
+                    },
+                    {
+                        text: "\"Не о чём беспокоится\"🦠(здоровье)",
+                        action: () => {
+                               chance = randomInt(1, 100);
+                            if (chance < health) {
+                            health += 3;
+                            alert("Действительно, это лёгкое недомогание прошло бесследно. В ваше здоровье стало лишь крепче.");
+                                 } else {
+                                health -= 10;
+                                alert("Ваше здоровье не является приоритетом, ведь вы обычный кусок мяса. А теперь вы лежите в больнице и размышляете о смысле жизни и вспоминаете тот страшный понос...");
+                            }
+                            continueGame();
+                        }
+                    },
+                    {
+                        text: "Блевануть в окно (удача 70%)",
+                        action: () => {
+                            chance = randomInt(1, 100);
+                            if (chance <= 70) {
+                                mentalHealth += 15;
+                                alert("Вот так номер! Вы попали своей отрыжкой прямо на голову своему соседу 😁. Уже от этого вам стало гораздо легче.");
+                            } else {
+                                mentalHealth -= 15;
+                                health -= 3;
+                                alert("И зачем? Неужели унитаз уже не удовлетворяет вашим изысканным требованиям? Да? Именно поэтому вы можете машину начальника. Так держать.");
+                            }
+                            continueGame();
+                        }
+                    }
+                ];
+         } else if (randomSituation === 3) {
+         if (atWar === 0){
+           situationText =" Ветер холодный подул с моря";
+             chance = randomInt(1, 100);
+               options = [{
+                
+   text: "Новые жизни заменяют страрые",
+        action: () => {continueGame()}},
+ 
+    {text: "Новые жизни заменяют страрые",
+         action: () => {continueGame()}},
+        
+    {text: "Новые жизни заменяют страрые",
+         action: () => {continueGame()}}]
+          
+  continueGame();
+            
+        } else{
+  situationText = "Начальник просит вас выйти на работу в выходной день. Оборзел человек, видишь? Что делать?";
+  options = [{
+    text: "Объяснить, что отдых - это святое! 🧠",
+    action: () => {
+       chance = randomInt(1, 100);
+      if (chance <= intelligence) {
+        strength += 2;
+        alert("\"Так и так, ну отдых всё равно нужен, начальник! Я же не раб, ну... А работу я и так сделаю, но в понедельник, хорошо?\" - Начальник понимающе кивает и вы отходите от кабинета.");
+      } else {
+        mentalHealth -= 20;
+        health -= 5;
+        alert("\"Так или иначе, но отдыхать нужно, ведь иначе я загнусь, начальник!\" - Ничего, разогнёшься, куда денешься. Пшел вон, пёс! Премии не будет, забудь..\" - Вот и поговорили...");
+      }
+      continueGame();
+    }
+  },
+  {
+    text: "Отказать 💪",
+    action: () => {
+       chance = randomInt(1, 100);
+      if (chance <= strength) {
+        strength += 4;
+        alert("- Чего?! Ещё и в выходной?! Начальнику некуда деваться, ему страшновато находится с вами в одном помещении и он вас поспешно отпускает, чтобы вы не успели почувствовать запах из его штанов...");
+      } else {
+        mentalHealth -= 15;
+        health -= 10;
+        alert("Начальник остался непреклонен. А у вас теперь шикарный фингал. Ибо н@х@й на начальника быковать :)");
+      }
+      continueGame();
+    }
+  },
+  {
+    text: "Согласиться (психологическое здоровье)",
+    action: () => {
+       chance = randomInt(1, 100);
+      if (chance <= mentalHealth) {
+        strength -= 3;
+        mentalHealth += 10;
+        alert("\"Работа делает нас сильнее\" - думаешь ты и с готовностью идёшь на работу в свой выходной день. Устал, но зато премия повышенная... Можно и отметить.");
+      } else {
+        mentalHealth -= 10;
+        health -= 10;
+        alert("И зачем вот ты согласился? Получилось ожидаемо: ты устал в край. Тяжко, печально...");
+      }
+      continueGame();
+      
+    }
+  }
+  
+
+  ];
+   }  else if (randomSituation === 4) {
+                situationText = "Вы вызвали лифт, но он не едет. Что за?!";
+                options = [{
+                        text: "Ждать и ждать, пока не появится",
+                        action: () => {
+                            chance = randomInt(1, 100);
+                            if (chance <= 50) {
+                                alert("Вы ждали, пока лифт не появился. Оказалось, что кто-то что-то грузил и это заняло некоторое время.");
+                            } else {
+                                health -= 1;
+                                MentalHealth -=5;
+                                alert("Вы ждали очень долго. Вы потеряли много времени.");
+                            }
+                            continueGame();
+                        }
+                    },
+                    {
+                        text: " Сходить и найти причину поломки",
+                        action: () => {
+                               chance = randomInt(1, 100);
+                            if (chance < 35) {
+                            health += 1;
+                            strenght +-2;
+                            alert(" Оказалось, что на несколько этажей выше кто-то решил остроумно пошутить и скотчем приклеить кнопку открытия дверей. Спасибо, вам как раз на этот этаж нужно было... Зато ваша физическая форма не хуже, а только лучше..!");
+                                 } else {
+                                health -= 10;
+                                alert("Мда, вы не разбираетесь в лифтах и поэтому, получив удар током от электрошитка, решили пойти пешком.");
+                            }
+                            continueGame();
+                        }
+                    },
+                    {
+                        text: "Почесать яйцо, раз уж ждать придётся",
+                        action: () => {
+                            chance = randomInt(1, 100);
+                            if (chance <= 20) {
+                                mentalHealth += 2;
+                                alert("Как я должен комментировать этот поступок? Мы все делаем постыдные вещи, когда никто не видит. Но можно не такие же!");
+                            } else {
+                                mentalHealth -= 4;
+                                
+                                alert("Хых! Вы засовываете руку в штаны и только начинаете чесать яйцо, как понимаете, что на вас смотрит кто-то. Из лифта, который уже любезно приехал и отворил дверки...");
+                            }
+                            continueGame();
+                        }
+                    }
+                ];
+}
+}
+
+
+
+
+
+
+
+            document.getElementById('situation').textContent = situationText;
+            showOptions(options);
+        }
+
+        document.getElementById('continueBtn').addEventListener('click', continueGame);
+        continueGame();
+    </script>
+</body>
+
+</html>

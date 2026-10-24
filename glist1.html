@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html>
+<head>
+ <title>G-List Tools</title>
+</head>
+<style>
+    body {
+        color: black;
+        background-color: grey;
+        font-family: Arial, sans-serif; /* Основной шрифт */
+    }
+    h1, h2 {
+        font-family: Georgia, serif; /* Шрифт для заголовков */
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 1); /* Тень для заголовков */
+    }
+  
+    button {
+        font-size: 23px; /* Размер шрифта */
+        color: white;
+       background-color: black;
+    }
+    button:hover {
+        background-color: #444; /* Темнее при наведении */
+        cursor: pointer; /* Изменяем курсор на указатель */
+    }
+</style>
+
+<body>
+
+
+
+ <h1 id="main">GList Tools</h1>
+ <button onclick="runTool('tool1')">Генератор случайных чисел</button>
+	
+
+ <button onclick="runTool('tool5')">biper</button>
+ <button onclick="runTool('tool6')">Параболист</button>
+
+<button onclick="runTool('tool8')">Калькан</button>
+<button onclick="runTool('tool9')">?</button>
+<button onclick="runTool('tool10')">Частотушки</button>
+<button onclick="runTool('mp3player')">Плеер</button>
+<button onclick="runTool('tool12')">Мощность устройства</button>
+<button onclick="runTool('gazeta')">Газета / Новости</button>
+<p></p>
+
+
+
+<button onclick="runTool('paint')">Пейнт</button>
+
+<button onclick="runTool('notes')">Заметки</button>
+
+
+<button onclick="runTool('1fire')">Шифратор</button>
+<button onclick="runTool('symbol')">Символист</button>
+<button onclick="runTool('arhiv')">Архив инструментов 🗄</button>
+<button onclick="runTool('birga')">Конвертер валют 💰</button>
+<button onclick="runTool('date')">СкоВОста</button>
+<button onclick="runTool('karta')">Карта</button>
+<button onclick="runTool('howtolive')">ЧС - ресурсы</button>
+
+
+<p></p>
+
+<button onclick="runTool('download2')">Мои приложения в OS</button>
+
+<button onclick="runTool('tool7')">OS</button>
+<button onclick="runTool('gp')">GlistPlay</button>
+
+<p></p>
+
+
+<button onclick="runTool('srednball')">Подсчет среднего балла </button>
+<button onclick="runTool('ebota')">Сборник развлечений  🧩</button>
+
+<button onclick="runTool('gamebar')">Сборник игр 🎮</button>
+<button onclick="runTool('ass4')">ИИ ассистент (интернет)</button>
+<button onclick="runTool('neser1')">МайоNES</button>
+
+
+
+
+
+
+
+
+ <p>Меню старого типа</p>
+<script>
+//Пасхалка с заголовком
+// Генерируем случайное число от 1 до 100
+const chance = Math.random() * 100;
+
+// Проверяем, если число меньше 1, меняем заголовок
+if (chance < 1) {
+    document.getElementById('main').innerText = 'Глист';
+}
+</script>
+
+
+<script>
+// Функция для создания случайного числа в заданном диапазоне
+function getRandomNumber(min, max) {
+    return Math.random() * (max - min) + min;
+}
+
+
+
+</script>
+
+<script>
+setTimeout(function() {
+    // Генерируем случайное число от 0 до 99
+    var chance = Math.floor(Math.random() * 25);
+
+    // Если шанс +
+    if (chance === 1) {
+        // Создаем элемент для изображения
+        var img = document.createElement('img');
+        img.src = getRandomImage(); // Получаем случайное изображение
+        img.style.width = '256px';
+        img.style.height = '256px';
+        img.style.position = 'fixed';
+        img.style.top = '0';
+        img.style.left = '0';
+        img.style.zIndex = '9999';
+
+        // Добавляем изображение в тело документа
+        document.body.appendChild(img);
+
+        // Создаем аудио элемент
+        var audio = new Audio('ha.mp3');
+        audio.play(); // Воспроизводим звук
+
+        // Когда звук закончится, скрываем изображение
+        audio.onended = function() {
+            document.body.removeChild(img);
+        };
+    }
+}, 500);
+
+function getRandomImage() {
+    // Массив доступных изображений
+    var images = ['a.jpg', 'b.jpg', 'c.jpg', 'd.jpg', 'e.jpg', 'hdd.jpg'];
+    // Генерируем случайный индекс из массива
+    var randomIndex = Math.floor(Math.random() * images.length);
+    // Возвращаем случайное изображение из массива
+    return images[randomIndex];
+}
+
+</script>
+
+
+
+</body>
+<p id="output"></p>
+<script>
+    let outputElement = document.getElementById("output");
+    console.log(outputElement.textContent);
+</script>
+
+
+
+
+
+
+ <script>
+  function runTool(toolName) {
+   var url = toolName + ".html";
+   window.open(url, "_blank");
+  }
+ </script>
+<script>
+// Создаем боковое меню
+function createSideMenu() {
+  // Создаем контейнер для бокового меню
+  var sideMenu = document.createElement('div');
+  sideMenu.id = 'sideMenu';
+  sideMenu.style.width = '200px';
+  sideMenu.style.height = '100%';
+  sideMenu.style.position = 'fixed';
+  sideMenu.style.top = '0';
+  sideMenu.style.left = '-200px';
+  sideMenu.style.backgroundColor = 'white';
+  sideMenu.style.transition = 'left 0.3s ease-in';
+
+  // Создаем список элементов меню
+  var menuItems = [
+    { name: 'gazeta', label: 'Новости' },
+    { name: 'terminal', label: 'Терминал' },
+    { name: 'dostig', label: 'Достижения' },
+    { name: 'saver', label: 'Экспорт / Импорт данных' },
+  { name: 'tool9', label: 'Помощь (Памагити)' },
+{ name: 'settings', label: 'Настройки' }
+  ];
+
+  // Добавляем кнопки меню в контейнер
+  for (var i = 0; i < menuItems.length; i++) {
+    var menuItem = document.createElement('button');
+    menuItem.style.display = 'block';
+    menuItem.style.width = '100%';
+    menuItem.style.padding = '10px';
+    menuItem.textContent = menuItems[i].label;
+    menuItem.setAttribute('onclick', 'runTool("' + menuItems[i].name + '")');
+    sideMenu.appendChild(menuItem);
+  }
+
+  // Добавляем боковое меню в тело документа
+  document.body.appendChild(sideMenu);
+
+  // Обработчик клика для открытия/закрытия бокового меню
+  document.addEventListener('click', function(event) {
+    var target = event.target;
+    if (target.id === 'menuButton') {
+      sideMenu.style.left = (sideMenu.style.left === '-200px') ? '0' : '-200px';
+    }
+  });
+}
+
+// Создаем кнопку для открытия/закрытия бокового меню
+function createMenuButton() {
+  var menuButton = document.createElement('button');
+  menuButton.id = 'menuButton';
+  menuButton.textContent = 'Menu';
+  menuButton.style.position = 'fixed';
+  menuButton.style.top = '10px';
+  menuButton.style.left = '250px';
+  document.body.appendChild(menuButton);
+}
+
+
+// Вызываем функции для создания бокового меню и кнопки
+createSideMenu();
+createMenuButton();
+
+</script>
+
+
+</body>
+</html>

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Пример формы с проверкой кода</title>
+	<style>
+		.hidden {
+			display: none;
+		}
+	</style>
+</head>
+<body>
+	<form>
+		<label for="code">Введите код:</label>
+		<input type="text" id="code" name="code">
+		<button type="button" onclick="checkCode()">Подтвердить</button>
+	</form>
+
+	<div id="hiddenButtons" class="hidden">
+		<button>Скрытая кнопка 1</button>
+	<button onclick="runTool('tool11')">Не работает, выкинуть (был нужен интернет)</button>
+	<button onclick="runTool('zastavka')">Заставка для терминалов</button>
+	<button onclick="runTool('life')">Симулятор жизни не работает</button>
+	<button onclick="runTool('11')">Игра в 11</button>
+<button onclick="runTool('sleep')">Сон?</button>
+<button onclick="runTool('ruletka')">рулетка</button>
+<button onclick="runTool('api')">SD Мастерская</button>
+	<button onclick="runTool('govpremium')">Невозможно?</button>
+	<button onclick="runTool('banana')">Банан.</button>
+	<button onclick="runTool('asspro')">Открытый ассистент</button>
+	<button onclick="runTool('indexeddbmanager')">IndexedDB редактор записей (опасно).</button>
+
+	</div>
+
+	<script>
+		function checkCode() {
+			var code = document.getElementById("code").value;
+			if (code === "12345") {
+				document.getElementById("hiddenButtons").classList.remove("hidden");
+			}
+		}
+	</script>
+	    </script>
+  </head>
+  <body
+  </body>
+  	<script>
+		function runTool(toolName) {
+			var url = toolName + ".html";
+			window.open(url, "_blank");
+		}
+	</script>
+	  <button onclick="runTool('glist')">НАЗАД</button>
+</body>
+</html>

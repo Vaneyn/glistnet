@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <title>Редактор уровней — Geometry Dash</title>
+  <style>
+    :root{
+      --bg1:#0f1220;
+      --bg2:#0b0f1e;
+      --panel:#12162a;
+      --panel2:#171c35;
+      --line:#2a3158;
+      --accent:#2b8cff;
+      --accent2:#00d0a6;
+      --danger:#ff4d6d;
+      --warn:#ffd166;
+      --text:#e9f0ff;
+      --muted:#9bb2ff;
+      --good:#63e6be;
+    }
+    *{box-sizing:border-box}
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, "Noto Sans";
+      color: var(--text);
+      background: radial-gradient(1200px 800px at 50% -200px, #1a1f3c, var(--bg2)) fixed;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .app {
+      display: grid;
+      grid-template-columns: 1fr min(360px, 38vw);
+      grid-template-rows: auto 1fr auto;
+      grid-template-areas:
+        "toolbar sidebar"
+        "canvas  sidebar"
+        "status  sidebar";
+      height: 100%;
+      gap: 8px;
+      padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+    }
+    @media (max-width: 900px) {
+      .app {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr auto auto;
+        grid-template-areas:
+          "toolbar"
+          "canvas"
+          "sidebar"
+          "status";
+      }
+    }
+    .toolbar {
+      grid-area: toolbar;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 12px;
+      padding: 8px;
+      box-shadow: 0 6px 20px rgba(0,0,0,.35);
+      backdrop-filter: blur(6px);
+    }
+    .toolbar .group {
+      display:flex; gap:6px; align-items:center; background: rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.08);
+      padding:6px; border-radius:10px;
+    }
+    .btn {
+      appearance: none;
+      border: 1px solid rgba(255,255,255,.12);
+      background: linear-gradient(180deg, #2a315f, #202754);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 6px 18px rgba(0,0,0,.3);
+      transition: transform .08s ease, background .2s ease, color .2s ease;
+      user-select: none;
+    }
+    .btn:active { transform: scale(.97); }
+    .btn.primary { background: linear-gradient(180deg, #2b8cff, #0f6bf0); border-color:#76b5ff; }
+    .btn.warn { background: linear-gradient(180deg, #ffb703, #e29e00); border-color:#ffe08a; color:#1a1606; }
+    .btn.danger { background: linear-gradient(180deg, #ff6b85, #ff3f64); border-color:#ffb3c1; }
+    .btn.ghost { background: transparent; border-color: rgba(255,255,255,.2); }
+    .btn.toggled { outline: 2px solid var(--accent); }
+    .field {
+      display:flex; align-items:center; gap:6px; color:var(--muted);
+    }
+    .field input[type="text"],
+    .field input[type="number"],
+    .field select {
+      width: 90px;
+      color: var(--text);
+      background: #0e1330;
+      border: 1px solid #263159;
+      border-radius: 8px;
+      padding: 6px 8px;
+      outline: none;
+    }
+    .field input[type="checkbox"] { transform: scale(1.2); }
+
+    .sidebar {
+      grid-area: sidebar;
+      display: grid;
+      grid-template-rows: auto auto 1fr auto;
+      gap: 8px;
+    }
+    .panel {
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 12px;
+      padding: 10px;
+      box-shadow: 0 6px 20px rgba(0,0,0,.35);
+      backdrop-filter: blur(6px);
+    }
+    .panel h3 {
+      margin: 0 0 8px;
+      font-size: 16px;
+      color: var(--muted);
+    }
+    .panel .row { display:flex; align-items:center; justify-content:space-between; gap: 8px; margin: 6px 0; }
+    .panel .row input[type="text"],
+    .panel .row input[type="number"] { width: 120px; }
+
+    .canvasWrap {
+      grid-area: canvas;
+      position: relative;
+      background: linear-gradient(180deg, rgba(10,12,24,.4), rgba(10,12,24,.4));
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 12px;
+      overflow: hidden;
+      min-height: 280px;
+    }
+    canvas { display:block; width:100%; height:100%; }
+    .status {
+      grid-area: status;
+      display:flex; align-items:center; justify-content:space-between; gap:8px;
+      padding: 8px 10px;
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 12px;
+      color: var(--muted);
+    }
+    .textarea {
+      width: 100%;
+      min-height: 120px;
+      background: #0e1330;
+      border: 1px solid #263159;
+      color: #e9f0ff;
+      border-radius: 8px;
+      padding: 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 12px;
+    }
+    .hint { color: var(--muted); font-size: 12px; }
+    .badge { padding: 2px 6px; border-radius: 999px; background: #24306a; color:#9bb2ff; font-size:12px; }
+    .badge.good { background:#103c34; color:#63e6be; }
+    .badge.warn { background:#3d2f05; color:#ffd166; }
+    .small { font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="toolbar panel">
+      <div class="group">
+        <button id="toolSelect" class="btn toggled" title="Выбрать (V)">Выбрать</button>
+        <button id="toolPlatform" class="btn" title="Платформа (P)">Платформа</button>
+        <button id="toolSpike" class="btn" title="Шип (S)">Шип</button>
+      </div>
+
+      <div class="group" id="groupSpike" style="display:none">
+        <span class="field small">Ряд:
+          <input id="spikeCount" type="number" min="1" step="1" value="1" />
+        </span>
+        <span class="field small">Зазор:
+          <input id="spikeGap" type="number" min="0" step="1" value="18" />
+        </span>
+        <span class="field small">Размер:
+          <input id="spikeSize" type="number" min="8" step="2" value="56" />
+        </span>
+      </div>
+
+      <div class="group">
+        <span class="field small">Зум:
+          <input id="zoom" type="range" min="0.25" max="2" step="0.01" value="1" />
+          <span id="zoomVal" class="badge">100%</span>
+        </span>
+        <span class="field small">
+          Сетка <input id="snap" type="checkbox" checked />
+          шаг <input id="gridStep" type="number" value="10" step="1" min="1" style="width:60px" />
+        </span>
+      </div>
+
+      <div class="group">
+        <button id="exportBtn" class="btn primary">Экспорт</button>
+        <button id="importBtn" class="btn">Импорт</button>
+        <button id="resetBtn" class="btn danger">Очистить</button>
+      </div>
+    </div>
+
+    <div class="canvasWrap">
+      <canvas id="canvas"></canvas>
+    </div>
+
+    <div class="sidebar">
+      <div class="panel">
+        <h3>Параметры уровня</h3>
+        <div class="row">
+          <label>Название</label>
+          <input id="levelName" type="text" value="Новый уровень" />
+        </div>
+        <div class="row">
+          <label>Длина</label>
+          <input id="levelLength" type="number" min="200" step="50" value="2400" />
+        </div>
+        <div class="row">
+          <label>Авто-пол</label>
+          <span>
+            <input id="groundEnabled" type="checkbox" checked />
+            <span class="small">Всегда платформа от x=0 на всю длину</span>
+          </span>
+        </div>
+        <div class="hint">Совет: Перемещайте сцену правой кнопкой мыши или пробел+перетаскивание. Колёсико — прокрутка по X, Ctrl+колёсико — зум.</div>
+      </div>
+
+      <div class="panel">
+        <h3>Выбранный объект</h3>
+        <div id="noSelection" class="small" style="color:var(--muted)">Ничего не выбрано</div>
+        <div id="selForm" style="display:none">
+          <div class="row"><label>Тип</label><span id="selType" class="badge"></span></div>
+          <div class="row"><label>X</label><input id="selX" type="number" step="1" /></div>
+          <div class="row"><label>Y</label><input id="selY" type="number" step="1" /></div>
+          <div class="row"><label>W</label><input id="selW" type="number" step="1" /></div>
+          <div class="row"><label>H</label><input id="selH" type="number" step="1" /></div>
+          <div class="row">
+            <button id="btnDup" class="btn">Дублировать</button>
+            <button id="btnDel" class="btn danger">Удалить</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>Импорт / Экспорт</h3>
+        <textarea id="io" class="textarea" placeholder='Здесь появится JSON. Можно вставить JSON для импорта.'></textarea>
+        <div class="row">
+          <button id="exportObjectsBtn" class="btn">Экспорт objects</button>
+          <button id="copyBtn" class="btn">Копировать</button>
+          <span id="copyStatus" class="badge" style="display:none">Скопировано</span>
+        </div>
+        <div class="hint">Экспорт даёт массив уровней вида: [ { name, length, objects:[...] } ] — для прямой вставки в игру.</div>
+      </div>
+
+      <div class="panel">
+        <h3>Проверка «не более 3 шипов подряд»</h3>
+        <div class="small">Подряд считаются шипы, чьи прямоугольники касаются/перекрываются по X без промежутков больше шага сетки. Группы &gt; 3 подсвечиваются.</div>
+        <div class="row">
+          <span>Статус:</span>
+          <span id="clusterStatus" class="badge good">ОК</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="status">
+      <div>
+        <span class="badge">WORLD_H 600</span>
+        <span class="badge">GROUND 120</span>
+        <span class="badge">Ground Y=480</span>
+        <span class="badge">SPEED 320</span>
+        <span class="badge">JUMP 950</span>
+      </div>
+      <div id="cursorPos" class="small">x: -, y: -</div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      'use strict';
+
+      // World constants (match the game)
+      const WORLD_H = 600;
+      const GROUND_HEIGHT = 120;
+      const GROUND_Y = WORLD_H - GROUND_HEIGHT;
+
+      // Canvas and view
+      const canvas = document.getElementById('canvas');
+      const ctx = canvas.getContext('2d');
+
+      let dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
+      let vw = 0, vh = 0;
+      let scale = 1;            // zoom
+      let baseScale = 1;        // base scale fitting height
+      let camX = 0;             // world x of left viewport
+      const gridMajor = 100;    // for bold grid
+      const colors = {
+        bgTop: '#0b0f1e',
+        bgBottom: '#0f1220',
+        grid: '#1f2647',
+        gridBold: '#2b335e',
+        ground: '#263159',
+        plat: '#3a4a8a',
+        platTop: '#4657a8',
+        spike: '#e04563',
+        select: '#2b8cff',
+        warn: '#ffd166',
+        end: '#ffd166'
+      };
+
+      function resize() {
+        dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
+        vw = canvas.clientWidth || canvas.parentElement.clientWidth;
+        vh = canvas.clientHeight || canvas.parentElement.clientHeight;
+        canvas.width = Math.floor(vw * dpr);
+        canvas.height = Math.floor(vh * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        baseScale = vh / WORLD_H;
+        updateScaleFromUI();
+        render();
+      }
+      new ResizeObserver(resize).observe(canvas);
+
+      // UI elements
+      const toolSelectBtn = document.getElementById('toolSelect');
+      const toolPlatformBtn = document.getElementById('toolPlatform');
+      const toolSpikeBtn = document.getElementById('toolSpike');
+      const groupSpike = document.getElementById('groupSpike');
+      const spikeCountEl = document.getElementById('spikeCount');
+      const spikeGapEl = document.getElementById('spikeGap');
+      const spikeSizeEl = document.getElementById('spikeSize');
+
+      const zoomEl = document.getElementById('zoom');
+      const zoomValEl = document.getElementById('zoomVal');
+      const snapEl = document.getElementById('snap');
+      const gridStepEl = document.getElementById('gridStep');
+
+      const exportBtn = document.getElementById('exportBtn');
+      const importBtn = document.getElementById('importBtn');
+      const resetBtn = document.getElementById('resetBtn');
+
+      const levelNameEl = document.getElementById('levelName');
+      const levelLengthEl = document.getElementById('levelLength');
+      const groundEnabledEl = document.getElementById('groundEnabled');
+
+      const noSelEl = document.getElementById('noSelection');
+      const selFormEl = document.getElementById('selForm');
+      const selTypeEl = document.getElementById('selType');
+      const selXEl = document.getElementById('selX');
+      const selYEl = document.getElementById('selY');
+      const selWEl = document.getElementById('selW');
+      const selHEl = document.getElementById('selH');
+      const btnDel = document.getElementById('btnDel');
+      const btnDup = document.getElementById('btnDup');
+
+      const ioEl = document.getElementById('io');
+      const exportObjectsBtn = document.getElementById('exportObjectsBtn');
+      const copyBtn = document.getElementById('copyBtn');
+      const copyStatus = document.getElementById('copyStatus');
+      const cursorPos = document.getElementById('cursorPos');
+      const clusterStatus = document.getElementById('clusterStatus');
+
+      // Tool state
+      let tool = 'select'; // 'select' | 'platform' | 'spike'
+      function setTool(t) {
+        tool = t;
+        for (const el of [toolSelectBtn, toolPlatformBtn, toolSpikeBtn]) el.classList.remove('toggled');
+        if (t === 'select') toolSelectBtn.classList.add('toggled');
+        if (t === 'platform') toolPlatformBtn.classList.add('toggled');
+        if (t === 'spike') toolSpikeBtn.classList.add('toggled');
+        groupSpike.style.display = (t === 'spike') ? '' : 'none';
+      }
+      toolSelectBtn.addEventListener('click', () => setTool('select'));
+      toolPlatformBtn.addEventListener('click', () => setTool('platform'));
+      toolSpikeBtn.addEventListener('click', () => setTool('spike'));
+
+      // Level data
+      const STORAGE_KEY = 'GD_EDITOR_LEVEL_V2';
+      let level = loadLevel() || {
+        name: 'Новый уровень',
+        length: 2400,
+        objects: [
+          // default ground placeholder (will be regenerated if groundEnabled)
+        ],
+        groundEnabled: true
+      };
+      // Ensure values
+      level.name = level.name || 'Новый уровень';
+      level.length = Math.max(200, +level.length || 2400);
+      level.objects = Array.isArray(level.objects) ? level.objects : [];
+      level.groundEnabled = !!(level.groundEnabled ?? true);
+
+      // Selection
+      let selectedId = null; // index in level.objects (excluding auto-ground)
+      function selectByIndex(idx) {
+        selectedId = (idx != null && idx >= 0 && idx < level.objects.length) ? idx : null;
+        updateInspector();
+        render();
+      }
+
+      // Ground management (not stored as object unless user turns it off)
+      function ensureGround() {
+        if (!level.groundEnabled) return;
+        // Remove any existing full-length ground to avoid duplicates
+        level.objects = level.objects.filter(o => !(o.type === 'platform' && Math.abs(o.y - GROUND_Y) < 0.5 && o.h >= GROUND_HEIGHT - 0.1 && o.x <= 0.1 && o.w >= level.length - 0.1));
+        level.objects.unshift({ type:'platform', x:0, y:GROUND_Y, w: level.length, h: GROUND_HEIGHT, _auto:true });
+      }
+      function removeAutoGroundBeforeSave() {
+        level.objects = level.objects.filter(o => !o._auto);
+      }
+
+      // UI bindings initial
+      levelNameEl.value = level.name;
+      levelLengthEl.value = level.length;
+      groundEnabledEl.checked = level.groundEnabled;
+
+      levelNameEl.addEventListener('input', () => { level.name = levelNameEl.value; saveLevel(); });
+      levelLengthEl.addEventListener('input', () => {
+        const L = Math.max(200, +levelLengthEl.value || 200);
+        level.length = L;
+        // clamp objects beyond length
+        for (const o of level.objects) {
+          if (o.x > L) o.x = L - o.w;
+          if (o.x + o.w > L) o.w = Math.max(2, L - o.x);
+        }
+        saveLevel();
+        render();
+      });
+      groundEnabledEl.addEventListener('change', () => {
+        level.groundEnabled = groundEnabledEl.checked;
+        if (!level.groundEnabled) {
+          // remove _auto ground
+          level.objects = level.objects.filter(o => !o._auto);
+        }
+        saveLevel();
+        render();
+      });
+
+      // Zoom
+      function updateScaleFromUI() {
+        const zr = parseFloat(zoomEl.value || '1');
+        scale = baseScale * zr;
+        zoomValEl.textContent = Math.round(zr * 100) + '%';
+      }
+      zoomEl.addEventListener('input', () => { updateScaleFromUI(); render(); });
+
+      // Grid/snap
+      function snap(v) {
+        if (!snapEl.checked) return v;
+        const step = Math.max(1, parseInt(gridStepEl.value) || 10);
+        return Math.round(v / step) * step;
+      }
+      gridStepEl.addEventListener('input', () => render());
+      snapEl.addEventListener('change', () => render());
+
+      // Export/Import/Reset
+      exportBtn.addEventListener('click', () => {
+        const arr = getExportArray();
+        ioEl.value = JSON.stringify(arr, null, 2);
+        ioEl.scrollTop = 0;
+      });
+      exportObjectsBtn.addEventListener('click', () => {
+        const objects = getObjectsForExport();
+        ioEl.value = JSON.stringify(objects, null, 2);
+        ioEl.scrollTop = 0;
+      });
+      importBtn.addEventListener('click', () => {
+        let text = ioEl.value.trim();
+        if (!text) { alert('Вставьте JSON в поле ниже для импорта.'); return; }
+        try {
+          const data = JSON.parse(text);
+          if (Array.isArray(data)) {
+            // [ { name, length, objects } ]
+            const first = data[0] || {};
+            applyImportedLevel(first);
+          } else if (data && Array.isArray(data.objects)) {
+            // { name, length, objects }
+            applyImportedLevel(data);
+          } else if (Array.isArray(data) && data.length && data[0].type) {
+            // objects only (unlikely path)
+            level.objects = data;
+          } else {
+            // Maybe objects array directly
+            if (Array.isArray(data) && data.length && data[0] && data[0].type) {
+              level.objects = data;
+            } else {
+              throw new Error('Неподдерживаемый формат');
+            }
+          }
+          saveLevel();
+          selectByIndex(null);
+          render();
+          alert('Импорт завершён');
+        } catch (e) {
+          console.error(e);
+          alert('Ошибка импорта: ' + e.message);
+        }
+      });
+      resetBtn.addEventListener('click', () => {
+        if (!confirm('Очистить уровень?')) return;
+        level.objects = [];
+        level.length = 2400;
+        level.name = 'Новый уровень';
+        level.groundEnabled = true;
+        levelNameEl.value = level.name;
+        levelLengthEl.value = level.length;
+        groundEnabledEl.checked = true;
+        selectByIndex(null);
+        saveLevel();
+        render();
+      });
+      copyBtn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(ioEl.value);
+          copyStatus.style.display = '';
+          setTimeout(() => copyStatus.style.display = 'none', 1000);
+        } catch {
+          copyStatus.textContent = 'Не удалось';
+          copyStatus.style.display = '';
+          setTimeout(() => copyStatus.style.display = 'none', 1500);
+        }
+      });
+
+      function applyImportedLevel(lvl) {
+        level.name = String(lvl.name || 'Импортированный уровень');
+        level.length = Math.max(200, +lvl.length || 2400);
+        level.objects = Array.isArray(lvl.objects) ? lvl.objects.map(o => normalizeObject(o)).filter(Boolean) : [];
+        // Preserve groundEnabled selection
+        levelNameEl.value = level.name;
+        levelLengthEl.value = level.length;
+      }
+
+      function normalizeObject(o) {
+        if (!o || (o.type !== 'platform' && o.type !== 'spike')) return null;
+        const x = +o.x || 0, y = +o.y || 0, w = Math.max(2, +o.w || (o.type === 'spike' ? 56 : 50)), h = Math.max(2, +o.h || (o.type === 'spike' ? 56 : 20));
+        return { type:o.type, x, y, w, h };
+      }
+
+      function getObjectsForExport() {
+        // exclude auto ground
+        const objs = level.objects.filter(o => !o._auto).map(({_auto, ...rest}) => rest);
+        // If groundEnabled: we recommend adding a full ground to keep compatibility
+        if (level.groundEnabled) {
+          const hasGround = objs.some(o => o.type === 'platform' && Math.abs(o.y - GROUND_Y) < 0.5 && o.h >= GROUND_HEIGHT-1 && o.x <= 0 && (o.x + o.w) >= level.length - 1);
+          if (!hasGround) {
+            objs.unshift({ type:'platform', x:0, y:GROUND_Y, w: level.length, h: GROUND_HEIGHT });
+          }
+        }
+        return objs;
+      }
+      function getExportArray() {
+        const objs = getObjectsForExport();
+        return [ { name: level.name, length: level.length, objects: objs } ];
+      }
+
+      function saveLevel() {
+        // Don't persist _auto
+        const snapshot = {
+          name: level.name,
+          length: level.length,
+          groundEnabled: level.groundEnabled,
+          objects: level.objects.filter(o => !o._auto)
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+      }
+      function loadLevel() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return null;
+          const data = JSON.parse(raw);
+          if (!data || !Array.isArray(data.objects)) return null;
+          data.objects = data.objects.map(normalizeObject).filter(Boolean);
+          return data;
+        } catch { return null; }
+      }
+
+      // Drawing helpers
+      function worldToScreenX(wx) { return Math.round((wx - camX) * scale); }
+      function worldToScreenY(wy) { return Math.round(wy * scale); }
+      function worldW(ww) { return Math.round(ww * scale); }
+      function worldH(wh) { return Math.round(wh * scale); }
+      function screenToWorldX(sx) { return sx / scale + camX; }
+      function screenToWorldY(sy) { return sy / scale; }
+
+      function drawBackground() {
+        // gradient
+        const grd = ctx.createLinearGradient(0, 0, 0, vh);
+        grd.addColorStop(0, colors.bgTop);
+        grd.addColorStop(1, colors.bgBottom);
+        ctx.fillStyle = grd;
+        ctx.fillRect(0, 0, vw, vh);
+
+        // grid
+        const step = Math.max(1, parseInt(gridStepEl.value) || 10);
+        const left = camX;
+        const right = camX + (vw / scale);
+        const top = 0;
+        const bottom = WORLD_H;
+
+        ctx.lineWidth = Math.max(1, 1);
+        // minor verticals
+        ctx.strokeStyle = colors.grid;
+        ctx.beginPath();
+        const startX = Math.floor(left/step)*step;
+        for (let x = startX; x <= right; x += step) {
+          const sx = worldToScreenX(x) + 0.5;
+          ctx.moveTo(sx, 0);
+          ctx.lineTo(sx, vh);
+        }
+        ctx.stroke();
+
+        // major verticals each 100 units
+        ctx.strokeStyle = colors.gridBold;
+        ctx.beginPath();
+        const mStart = Math.floor(left/gridMajor)*gridMajor;
+        for (let x=mStart; x<=right; x+=gridMajor) {
+          const sx = worldToScreenX(x) + 0.5;
+          ctx.moveTo(sx, 0);
+          ctx.lineTo(sx, vh);
+        }
+        ctx.stroke();
+
+        // ground area
+        ctx.fillStyle = colors.ground;
+        ctx.fillRect(0, worldToScreenY(GROUND_Y), vw, worldH(GROUND_HEIGHT));
+
+        // level end line
+        const endX = worldToScreenX(level.length);
+        ctx.strokeStyle = colors.end;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(endX + 0.5, 0);
+        ctx.lineTo(endX + 0.5, vh);
+        ctx.stroke();
+      }
+
+      function drawPlatform(p, selected=false, invalid=false) {
+        const x = worldToScreenX(p.x);
+        const y = worldToScreenY(p.y);
+        const w = worldW(p.w);
+        const h = worldH(p.h);
+        ctx.fillStyle = invalid ? '#7a2a2a' : colors.plat;
+        ctx.fillRect(x, y, w, h);
+        ctx.fillStyle = invalid ? '#9a3a3a' : colors.platTop;
+        ctx.fillRect(x, y, w, Math.max(2, Math.round(6*scale)));
+        if (selected) {
+          ctx.strokeStyle = colors.select;
+          ctx.lineWidth = 2;
+          ctx.strokeRect(x, y, w, h);
+        }
+      }
+
+      function drawSpike(s, selected=false, invalid=false) {
+        const x = worldToScreenX(s.x);
+        const y = worldToScreenY(s.y);
+        const w = worldW(s.w);
+        const h = worldH(s.h);
+        ctx.fillStyle = invalid ? '#9a3a3a' : colors.spike;
+        ctx.beginPath();
+        ctx.moveTo(x, y + h);
+        ctx.lineTo(x + w/2, y);
+        ctx.lineTo(x + w, y + h);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(0,0,0,.25)';
+        ctx.lineWidth = Math.max(1, Math.round(2*scale));
+        ctx.stroke();
+
+        if (selected) {
+          ctx.strokeStyle = colors.select;
+          ctx.lineWidth = 2;
+          ctx.strokeRect(x, y, w, h);
+        }
+      }
+
+      // Spike cluster check (>3 in a contiguous group)
+      function computeSpikeClusters() {
+        const step = Math.max(1, parseInt(gridStepEl.value) || 10);
+        const spikes = level.objects.filter(o => !o._auto && o.type === 'spike').slice().sort((a,b)=>a.x-b.x);
+        const clusters = [];
+        let curr = [];
+        for (let i=0;i<spikes.length;i++) {
+          const s = spikes[i];
+          if (curr.length === 0) { curr.push(s); continue; }
+          const prev = curr[curr.length-1];
+          const gap = s.x - (prev.x + prev.w);
+          if (gap <= step) curr.push(s);
+          else { clusters.push(curr); curr = [s]; }
+        }
+        if (curr.length) clusters.push(curr);
+        return clusters;
+      }
+
+      function render() {
+        ensureGround();
+
+        // draw
+        ctx.clearRect(0, 0, vw, vh);
+        drawBackground();
+
+        // compute clusters for warnings
+        const clusters = computeSpikeClusters();
+        const badSpikes = new Set();
+        for (const group of clusters) {
+          if (group.length > 3) for (const s of group) badSpikes.add(s);
+        }
+        if (badSpikes.size > 0) {
+          clusterStatus.textContent = `Найдено групп: ${[...new Set(clusters.filter(g=>g.length>3).map(g=>g.length))].length}`;
+          clusterStatus.className = 'badge warn';
+        } else {
+          clusterStatus.textContent = 'ОК';
+          clusterStatus.className = 'badge good';
+        }
+
+        // objects
+        for (let i=0; i<level.objects.length; i++) {
+          const o = level.objects[i];
+          if (o._auto && !level.groundEnabled) continue;
+          const selected = (i === selectedId);
+          const invalid = badSpikes.has(o);
+          if (o.type === 'platform') drawPlatform(o, selected, invalid);
+          else if (o.type === 'spike') drawSpike(o, selected, invalid);
+        }
+
+        // draw current drawing rect (platform tool)
+        if (dragState.active && dragState.mode === 'drawPlatform') {
+          const r = rectFromPoints(dragState.startX, dragState.startY, dragState.currX, dragState.currY);
+          drawPlatform(r, false, false);
+        }
+
+        // cursor position badge updates
+        if (lastPointer) {
+          const wx = screenToWorldX(lastPointer.x);
+          const wy = screenToWorldY(lastPointer.y);
+          cursorPos.textContent = `x: ${wx.toFixed(1)}  y: ${wy.toFixed(1)}  | camX: ${camX.toFixed(1)}  scale: ${(scale/baseScale).toFixed(2)}x`;
+        }
+      }
+
+      // Pointer interactions
+      let isPanning = false;
+      let panStart = { x:0, camX:0 };
+      let dragState = { active:false, mode:null, startX:0, startY:0, currX:0, currY:0, selStartX:0, selStartY:0 };
+      let lastPointer = null;
+
+      canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+      function rectFromPoints(x1,y1,x2,y2) {
+        const x = Math.min(x1,x2);
+        const y = Math.min(y1,y2);
+        const w = Math.abs(x2-x1);
+        const h = Math.abs(y2-y1);
+        return { type:'platform', x, y, w, h };
+      }
+
+      function hitTest(wx, wy) {
+        // return top-most object index under point, checking bounds (spike using bounding box)
+        for (let i=level.objects.length-1; i>=0; i--) {
+          const o = level.objects[i];
+          if (o._auto) continue; // don't select auto ground
+          if (wx >= o.x && wx <= o.x + o.w && wy >= o.y && wy <= o.y + o.h) {
+            return i;
+          }
+        }
+        return null;
+      }
+
+      function pointerToWorld(e) {
+        const rect = canvas.getBoundingClientRect();
+        const x = (e.clientX - rect.left);
+        const y = (e.clientY - rect.top);
+        return { sx:x, sy:y, wx: screenToWorldX(x), wy: screenToWorldY(y) };
+      }
+
+      function beginPan(e) {
+        isPanning = true;
+        panStart.x = e.clientX;
+        panStart.camX = camX;
+      }
+
+      function onPointerDown(e) {
+        lastPointer = { x: e.offsetX, y: e.offsetY };
+        const ptr = pointerToWorld(e);
+        const wx = snap(ptr.wx);
+        const wy = snap(ptr.wy);
+
+        const isRight = e.button === 2;
+        const spaceHeld = keysDown['Space'];
+        if (isRight || spaceHeld) { beginPan(e); return; }
+
+        if (tool === 'select') {
+          const idx = hitTest(wx, wy);
+          selectByIndex(idx);
+          if (idx != null) {
+            dragState.active = true;
+            dragState.mode = 'dragObject';
+            dragState.startX = wx;
+            dragState.startY = wy;
+            dragState.selStartX = level.objects[idx].x;
+            dragState.selStartY = level.objects[idx].y;
+          } else {
+            dragState.active = false;
+          }
+        } else if (tool === 'platform') {
+          dragState.active = true;
+          dragState.mode = 'drawPlatform';
+          dragState.startX = wx;
+          dragState.startY = wy;
+          dragState.currX = wx;
+          dragState.currY = wy;
+        } else if (tool === 'spike') {
+          const count = Math.max(1, parseInt(spikeCountEl.value) || 1);
+          const gap = Math.max(0, parseInt(spikeGapEl.value) || 0);
+          const size = Math.max(8, parseInt(spikeSizeEl.value) || 56);
+          const baseX = wx;
+          const yTop = wy;
+          const objs = [];
+          for (let i=0;i<count;i++) {
+            const x = snap(baseX + i*(size + gap));
+            const obj = { type:'spike', x, y: yTop, w: size, h: size };
+            if (x >= 0 && x <= level.length) objs.push(obj);
+          }
+          level.objects.push(...objs);
+          saveLevel();
+          render();
+        }
+      }
+      function onPointerMove(e) {
+        lastPointer = { x: e.offsetX, y: e.offsetY };
+        const ptr = pointerToWorld(e);
+        const wx = snap(ptr.wx);
+        const wy = snap(ptr.wy);
+
+        if (isPanning) {
+          const dx = (e.clientX - panStart.x) / scale;
+          camX = Math.max(0, Math.min(Math.max(0, level.length - vw/scale + 0), panStart.camX - dx));
+          render();
+          return;
+        }
+
+        if (!dragState.active) { render(); return; }
+
+        if (dragState.mode === 'dragObject' && selectedId != null) {
+          const o = level.objects[selectedId];
+          const dx = wx - dragState.startX;
+          const dy = wy - dragState.startY;
+          o.x = snap(dragState.selStartX + dx);
+          o.y = snap(dragState.selStartY + dy);
+          clampObject(o);
+          render();
+        } else if (dragState.mode === 'drawPlatform') {
+          dragState.currX = wx;
+          dragState.currY = wy;
+          render();
+        }
+      }
+      function onPointerUp(e) {
+        if (isPanning) { isPanning = false; return; }
+        if (!dragState.active) return;
+
+        if (dragState.mode === 'drawPlatform') {
+          const r = rectFromPoints(dragState.startX, dragState.startY, dragState.currX, dragState.currY);
+          // minimal size
+          if (r.w >= 2 && r.h >= 2) {
+            r.x = snap(r.x); r.y = snap(r.y); r.w = snap(r.w); r.h = snap(r.h);
+            level.objects.push(r);
+            saveLevel();
+          }
+        }
+        dragState.active = false;
+        dragState.mode = null;
+        render();
+      }
+
+      canvas.addEventListener('mousedown', onPointerDown);
+      canvas.addEventListener('mousemove', onPointerMove);
+      window.addEventListener('mouseup', onPointerUp);
+
+      // Wheel: pan horizontally; Ctrl+wheel => zoom
+      canvas.addEventListener('wheel', (e) => {
+        if (e.ctrlKey) {
+          e.preventDefault();
+          const zr = parseFloat(zoomEl.value);
+          const prevZ = zr;
+          const delta = -e.deltaY * 0.001;
+          let next = Math.min(2, Math.max(0.25, zr * (1 + delta)));
+          zoomEl.value = next.toFixed(2);
+          // zoom around cursor
+          const wxBefore = screenToWorldX(e.offsetX);
+          updateScaleFromUI();
+          const wxAfter = screenToWorldX(e.offsetX);
+          camX += (wxBefore - wxAfter);
+          camX = Math.max(0, Math.min(level.length - vw/scale, camX));
+          render();
+        } else {
+          // horizontal pan
+          const dx = e.deltaY !== 0 ? e.deltaY : e.deltaX;
+          camX = Math.max(0, Math.min(level.length - vw/scale, camX + dx / scale));
+          render();
+        }
+      }, { passive: false });
+
+      // Keyboard
+      const keysDown = {};
+      window.addEventListener('keydown', (e) => {
+        keysDown[e.code] = true;
+
+        if (e.code === 'KeyV') setTool('select');
+        if (e.code === 'KeyP') setTool('platform');
+        if (e.code === 'KeyS') setTool('spike');
+
+        if (selectedId != null) {
+          const o = level.objects[selectedId];
+          const step = e.shiftKey ? Math.max(1, parseInt(gridStepEl.value)||10) : 1;
+          let moved = false;
+          if (e.code === 'ArrowLeft') { o.x -= step; moved = true; }
+          if (e.code === 'ArrowRight') { o.x += step; moved = true; }
+          if (e.code === 'ArrowUp') { o.y -= step; moved = true; }
+          if (e.code === 'ArrowDown') { o.y += step; moved = true; }
+          if (moved) {
+            clampObject(o);
+            updateInspectorFields();
+            saveLevel();
+            render();
+            e.preventDefault();
+          }
+          if (e.code === 'Delete' || e.code === 'Backspace') {
+            deleteSelected();
+            e.preventDefault();
+          }
+          if ((e.ctrlKey || e.metaKey) && e.code === 'KeyD') {
+            duplicateSelected();
+            e.preventDefault();
+          }
+        }
+        if ((e.ctrlKey || e.metaKey) && e.code === 'KeyE') {
+          exportBtn.click();
+          e.preventDefault();
+        }
+      });
+      window.addEventListener('keyup', (e) => { delete keysDown[e.code]; });
+
+      // Inspector
+      function updateInspector() {
+        const idx = selectedId;
+        if (idx == null) {
+          noSelEl.style.display = '';
+          selFormEl.style.display = 'none';
+          return;
+        }
+        noSelEl.style.display = 'none';
+        selFormEl.style.display = '';
+        const o = level.objects[idx];
+        selTypeEl.textContent = o.type;
+        selTypeEl.className = 'badge';
+        if (o.type === 'spike') selTypeEl.classList.add('warn');
+        selXEl.value = Math.round(o.x);
+        selYEl.value = Math.round(o.y);
+        selWEl.value = Math.round(o.w);
+        selHEl.value = Math.round(o.h);
+      }
+      function updateInspectorFields() {
+        if (selectedId == null) return;
+        const o = level.objects[selectedId];
+        selXEl.value = Math.round(o.x);
+        selYEl.value = Math.round(o.y);
+        selWEl.value = Math.round(o.w);
+        selHEl.value = Math.round(o.h);
+      }
+      function clampObject(o) {
+        o.x = Math.max(0, Math.min(level.length - 1, o.x));
+        o.y = Math.max(0, Math.min(WORLD_H - 2, o.y));
+        o.w = Math.max(2, Math.min(level.length - o.x, o.w));
+        o.h = Math.max(2, Math.min(WORLD_H - o.y, o.h));
+      }
+      selXEl.addEventListener('input', () => {
+        if (selectedId == null) return;
+        const o = level.objects[selectedId];
+        o.x = +selXEl.value || 0;
+        clampObject(o); saveLevel(); render();
+      });
+      selYEl.addEventListener('input', () => {
+        if (selectedId == null) return;
+        const o = level.objects[selectedId];
+        o.y = +selYEl.value || 0;
+        clampObject(o); saveLevel(); render();
+      });
+      selWEl.addEventListener('input', () => {
+        if (selectedId == null) return;
+        const o = level.objects[selectedId];
+        o.w = +selWEl.value || 2;
+        clampObject(o); saveLevel(); render();
+      });
+      selHEl.addEventListener('input', () => {
+        if (selectedId == null) return;
+        const o = level.objects[selectedId];
+        o.h = +selHEl.value || 2;
+        clampObject(o); saveLevel(); render();
+      });
+      btnDel.addEventListener('click', () => deleteSelected());
+      btnDup.addEventListener('click', () => duplicateSelected());
+
+      function deleteSelected() {
+        if (selectedId == null) return;
+        const o = level.objects[selectedId];
+        if (o._auto) return; // do not delete auto ground
+        level.objects.splice(selectedId, 1);
+        selectByIndex(null);
+        saveLevel();
+        render();
+      }
+      function duplicateSelected() {
+        if (selectedId == null) return;
+        const o = level.objects[selectedId];
+        const copy = { ...o, x: o.x + 10, y: o.y + 10, _auto: undefined };
+        level.objects.push(copy);
+        selectByIndex(level.objects.length - 1);
+        saveLevel();
+        render();
+      }
+
+      // Final init
+      setTool(tool);
+      resize();
+      render();
+
+    })();
+  </script>
+</body>
+</html>

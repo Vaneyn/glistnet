@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Explosion Game</title>
+    <style>
+      		body {
+			color: black;
+			background-color: grey;
+		}
+		button {
+		font-size: 20px;
+			color: white;
+			background-color: black;
+		
+        canvas { display: block; }
+        
+    </style>
+</head>
+<body>
+<script>
+		function runTool(toolName) {
+			var url = toolName + ".html";
+			window.open(url, "_blank");
+		}
+	</script>
+
+			<button onclick="runTool('glist')">НАЗАД</button>
+			<p><p\>
+</head>
+<body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+    function runTool(toolName) {
+        var url = toolName + ".html";
+        window.open(url, "_blank");
+    }
+
+    const scene = new THREE.Scene();
+
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(2, 2, 8);
+    camera.lookAt(0, 0, 0);
+
+    const renderer = new THREE.WebGLRenderer();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    const targetGeometry = new THREE.BoxGeometry(1, 1.5, 1);
+    const targetMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00, emissive: 0xff0000 });
+    const target = new THREE.Mesh(targetGeometry, targetMaterial);
+    scene.add(target);
+
+    const bombGeometry = new THREE.SphereGeometry(0.5, 32, 32);
+    const bombMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.5 });
+    const bomb = new THREE.Mesh(bombGeometry, bombMaterial);
+    scene.add(bomb);
+
+    const explosionForceInput = document.createElement('input');
+    explosionForceInput.type = 'number';
+    explosionForceInput.placeholder = 'Сила взрыва, грамм тротила';
+    document.body.appendChild(explosionForceInput);
+
+    const shrapnelCountInput = document.createElement('input');
+    shrapnelCountInput.type = 'number';
+    shrapnelCountInput.placeholder = 'Количество осколков';
+    document.body.appendChild(shrapnelCountInput);
+
+    const shrapnelMassInput = document.createElement('input');
+    shrapnelMassInput.type = 'number';
+    shrapnelMassInput.placeholder = 'Масса осколка, грамм';
+    document.body.appendChild(shrapnelMassInput);
+
+    const distanceInput = document.createElement('input');
+    distanceInput.type = 'number';
+    distanceInput.placeholder = 'Отдаление мишени от заряда, метры';
+    document.body.appendChild(distanceInput);
+
+    const fireButton = document.createElement('button');
+    fireButton.textContent = 'Огонь!';
+    fireButton.onclick = () => {
+        const explosionForce = parseFloat(explosionForceInput.value);
+        const shrapnelCount = parseInt(shrapnelCountInput.value);
+        const shrapnelMass = parseFloat(shrapnelMassInput.value);
+        const distance = -parseFloat(distanceInput.value);
+        let hitCount = 0;
+
+        for (let i = 0; i < shrapnelCount; i++) {
+            createShrapnel(explosionForce, shrapnelMass, distance);
+        }
+
+        scene.children.forEach(obj => {
+            if (obj !== target && obj !== bomb && obj.position.z < 0) {
+                const targetBox = new THREE.Box3().setFromObject(target);
+                const shrapnelBox = new THREE.Box3().setFromObject(obj);
+                if (targetBox.intersectsBox(shrapnelBox)) {
+                    obj.position.set(0, 100000, 0);
+                    alert(`Есть пробитие!`);
+                }
+            }
+        });
+    };
+    document.body.appendChild(fireButton);
+
+    const gravityCheckbox = document.createElement('input');
+    gravityCheckbox.type = 'checkbox';
+    gravityCheckbox.id = 'gravityCheckbox';
+    document.body.appendChild(gravityCheckbox);
+
+    const gravityLabel = document.createElement('label');
+    gravityLabel.htmlFor = 'gravityCheckbox';
+    gravityLabel.textContent = 'Гр-ция';
+    document.body.appendChild(gravityLabel);
+
+    gravityCheckbox.addEventListener('change', () => {
+        if (gravityCheckbox.checked) {
+            // Включить гравитацию для всех осколков
+            scene.children.forEach(obj => {
+                if (obj !== target && obj !== bomb && obj !== camera) {
+                    obj.userData.gravity = true;
+                }
+            });
+        } else {
+            // Выключить гравитацию для всех осколков
+            scene.children.forEach(obj => {
+                if (obj !== target && obj !== bomb && obj !== camera) {
+                    obj.userData.gravity = false;
+                }
+            });
+        }
+    });
+
+    function createShrapnel(explosionForce, shrapnelMass, distance) {
+        const shrapnelGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+        const shrapnelMaterial = new THREE.MeshBasicMaterial({ color: 0xffa500 });
+        const shrapnel = new THREE.Mesh(shrapnelGeometry, shrapnelMaterial);
+        scene.add(shrapnel);
+
+        const velocity = new THREE.Vector3(
+            Math.random() * 2 - 1,
+            Math.random() * 2 - 1,
+            Math.random() * 2 - 1
+        ).normalize().multiplyScalar(explosionForce / shrapnelMass);
+        shrapnel.velocity = velocity;
+
+        // Применить гравитацию, если флажок установлен
+        shrapnel.userData.gravity = gravityCheckbox.checked;
+
+        shrapnel.position.set(0, 0, distance);
+    }
+
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    function animate() {
+        requestAnimationFrame(animate);
+
+        scene.children.forEach(obj => {
+            if (obj !== target && obj !== bomb) {
+                obj.position.add(obj.velocity);
+                if (obj.userData.gravity) {
+                    obj.velocity.y -= 0.01;
+                }
+            }
+        });
+
+        scene.children.forEach(obj => {
+            if (obj !== target && obj !== bomb && obj.position.z < 0) {
+                const targetBox = new THREE.Box3().setFromObject(target);
+                const shrapnelBox = new THREE.Box3().setFromObject(obj);
+                if (targetBox.intersectsBox(shrapnelBox)) {
+                    obj.position.set(0, 100000, 0);
+                    alert(`Есть пробитие!`);
+                }
+            }
+        });
+
+        renderer.render(scene, camera);
+    }
+    animate();
+
+    const zoomInButton = document.createElement('button');
+    zoomInButton.textContent = '+';
+    zoomInButton.style.position = 'absolute';
+    zoomInButton.style.top = '50px';
+    zoomInButton.style.left = '20px';
+    zoomInButton.onclick = () => {
+        camera.position.z -= 1;
+    };
+    document.body.appendChild(zoomInButton);
+
+    const zoomOutButton = document.createElement('button');
+    zoomOutButton.textContent = '—';
+    zoomOutButton.style.position = 'absolute';
+    zoomOutButton.style.top = '80px';
+    zoomOutButton.style.left = '20px';
+    zoomOutButton.onclick = () => {
+        camera.position.z += 1;
+    };
+    document.body.appendChild(zoomOutButton);
+</script>
+</body>
+</html>

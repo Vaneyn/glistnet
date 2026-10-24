@@ -1,0 +1,4030 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>SMASH HIT — Atmospheric GLSL Shader Edition</title>
+  <style>
+    :root {
+      --bg: #070b12;
+      --text-main: rgba(255, 255, 255, 0.94);
+      --text-muted: rgba(255, 255, 255, 0.42);
+      --accent: #38bdf8;
+      --accent-glow: rgba(56, 189, 248, 0.35);
+      --danger: #fb7185;
+      --gold: #fbbf24;
+      --emerald: #34d399;
+      --glass-panel: rgba(10, 16, 28, 0.58);
+      --glass-border: rgba(255, 255, 255, 0.12);
+      --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: var(--bg);
+      font-family: var(--font-sans);
+      color: var(--text-main);
+      touch-action: none;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    #webgl-container {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      cursor: crosshair;
+    }
+
+    #fx-overlay {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 2;
+      background: radial-gradient(circle at center, transparent 65%, rgba(5, 8, 15, 0.45) 100%);
+      transition: box-shadow 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    #fx-overlay.damage-flash { box-shadow: inset 0 0 100px 30px rgba(251, 113, 133, 0.65); }
+    #fx-overlay.slowmo-active { box-shadow: inset 0 0 80px 20px rgba(56, 189, 248, 0.45); }
+    #fx-overlay.explosive-active { box-shadow: inset 0 0 80px 20px rgba(251, 146, 60, 0.45); }
+    #fx-overlay.infinite-active { box-shadow: inset 0 0 80px 20px rgba(52, 211, 153, 0.45); }
+
+    #hud {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 3;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 24px 32px;
+      opacity: 0;
+      transition: opacity 0.45s ease;
+    }
+
+    #hud.visible { opacity: 1; }
+
+    .hud-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      width: 100%;
+    }
+
+    .hud-stat-box {
+      background: var(--glass-panel);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--glass-border);
+      border-radius: 14px;
+      padding: 8px 18px;
+      min-width: 130px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    }
+
+    .hud-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--text-muted);
+      margin-bottom: 2px;
+    }
+
+    .hud-value {
+      font-family: var(--font-mono);
+      font-size: 24px;
+      font-weight: 300;
+      letter-spacing: 1px;
+      color: var(--text-main);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .hud-center-balls {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+      transform: translateY(-2px);
+    }
+
+    .sphere-counter-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--glass-panel);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--glass-border);
+      padding: 6px 24px;
+      border-radius: 999px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+      transition: transform 0.15s cubic-bezier(0.2, 1, 0.3, 1), border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .sphere-counter-wrap.pulse-gain {
+      transform: scale(1.08);
+      border-color: rgba(56, 189, 248, 0.6);
+      box-shadow: 0 0 24px var(--accent-glow);
+    }
+
+    .sphere-counter-wrap.pulse-loss {
+      transform: scale(0.92);
+      border-color: var(--danger);
+      box-shadow: 0 0 28px rgba(251, 113, 133, 0.5);
+    }
+
+    .metal-sphere-icon {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #ffffff 0%, rgba(255, 255, 255, 0.4) 40%, rgba(56, 189, 248, 0.2) 100%);
+      border: 1.5px solid rgba(255, 255, 255, 0.85);
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.4);
+    }
+
+    #ball-count {
+      font-family: var(--font-mono);
+      font-size: 34px;
+      font-weight: 300;
+      letter-spacing: 1.5px;
+      color: #ffffff;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .multiball-bar-wrap {
+      margin-top: 4px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .multiball-pips { display: flex; gap: 3px; }
+
+    .mb-pip {
+      width: 10px;
+      height: 3px;
+      border-radius: 2px;
+      background: rgba(255, 255, 255, 0.14);
+      transition: background 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .mb-pip.filled { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+
+    #multiball-badge {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    #checkpoint-banner {
+      position: fixed;
+      top: 24%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.96);
+      z-index: 4;
+      pointer-events: none;
+      text-align: center;
+      opacity: 0;
+      transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    #checkpoint-banner.active { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+
+    .cp-title {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 6px;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 4px;
+    }
+
+    .cp-subtitle {
+      font-size: 28px;
+      font-weight: 200;
+      letter-spacing: 12px;
+      text-transform: uppercase;
+      color: #ffffff;
+      text-shadow: 0 0 28px rgba(255, 255, 255, 0.6);
+    }
+
+    #floating-feedback-layer {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 4;
+      overflow: hidden;
+    }
+
+    .float-tag {
+      position: absolute;
+      font-family: var(--font-mono);
+      font-weight: 500;
+      font-size: 17px;
+      letter-spacing: 1px;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      animation: floatUpFade 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes floatUpFade {
+      0% { opacity: 0; transform: translate(-50%, -30%) scale(0.8); }
+      20% { opacity: 1; transform: translate(-50%, -60%) scale(1.05); }
+      100% { opacity: 0; transform: translate(-50%, -150%) scale(0.95); }
+    }
+
+    .hud-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      width: 100%;
+    }
+
+    .powerup-dock { display: flex; gap: 10px; pointer-events: auto; }
+
+    .powerup-btn {
+      position: relative;
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      background: var(--glass-panel);
+      border: 1px solid var(--glass-border);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      opacity: 0.35;
+      transform: scale(0.96);
+      transition: opacity 0.2s ease, transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+      overflow: hidden;
+    }
+
+    .powerup-btn.available {
+      opacity: 1;
+      transform: scale(1);
+      border-color: rgba(255, 255, 255, 0.35);
+    }
+
+    .powerup-btn.available:hover {
+      transform: translateY(-2px);
+      border-color: rgba(255, 255, 255, 0.6);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    }
+
+    .powerup-btn.active-pu { border-color: #ffffff; box-shadow: 0 0 20px currentColor; }
+    .pu-icon { font-size: 20px; line-height: 1; z-index: 2; }
+
+    .pu-count {
+      position: absolute;
+      top: 4px;
+      right: 6px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      color: #ffffff;
+      z-index: 2;
+    }
+
+    .pu-key {
+      font-family: var(--font-mono);
+      font-size: 8px;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-top: 3px;
+      z-index: 2;
+    }
+
+    .pu-timer-fill {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 0%;
+      background: rgba(255, 255, 255, 0.22);
+      z-index: 1;
+      transition: height 0.08s linear;
+    }
+
+    .hud-controls-right { display: flex; gap: 8px; pointer-events: auto; }
+
+    .icon-btn {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      background: var(--glass-panel);
+      border: 1px solid var(--glass-border);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      color: var(--text-main);
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.2s ease, transform 0.15s ease, border-color 0.2s ease;
+    }
+
+    .icon-btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.4);
+      transform: translateY(-2px);
+    }
+
+    .overlay-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(5, 8, 15, 0.72);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.35s ease;
+    }
+
+    .overlay-screen.active { opacity: 1; pointer-events: auto; }
+
+    .modal-card {
+      width: min(500px, 90vw);
+      background: rgba(12, 18, 30, 0.82);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 20px;
+      padding: 34px 30px;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 40px rgba(56, 189, 248, 0.12);
+    }
+
+    .game-logo {
+      font-size: 36px;
+      font-weight: 200;
+      letter-spacing: 12px;
+      text-transform: uppercase;
+      color: #ffffff;
+      margin-bottom: 4px;
+    }
+
+    .game-logo strong { font-weight: 600; color: var(--accent); }
+
+    .game-tagline {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 24px;
+    }
+
+    .mode-selector {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .mode-card {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 12px 14px;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.2s ease;
+    }
+
+    .mode-card:hover { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.2); }
+
+    .mode-card.selected {
+      background: rgba(56, 189, 248, 0.12);
+      border-color: var(--accent);
+      box-shadow: 0 0 16px rgba(56, 189, 248, 0.2);
+    }
+
+    .mode-name {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      color: #ffffff;
+      margin-bottom: 3px;
+    }
+
+    .mode-desc { font-size: 11px; color: var(--text-muted); line-height: 1.35; }
+
+    .graphics-section {
+      margin-bottom: 18px;
+      padding-top: 14px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .graphics-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 2.5px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      text-align: left;
+      margin-bottom: 8px;
+    }
+
+    .gs-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .gs-card {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 10px 4px 8px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 74px;
+    }
+
+    .gs-card:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .gs-card.selected {
+      background: rgba(56, 189, 248, 0.14);
+      border-color: var(--accent);
+      box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
+    }
+
+    .gs-card[data-gfx="potato"].selected {
+      background: rgba(251, 191, 36, 0.16);
+      border-color: var(--gold);
+      box-shadow: 0 0 14px rgba(251, 191, 36, 0.35);
+    }
+
+    .gs-card[data-gfx="potato"] .gs-icon {
+      animation: potatoBob 2.4s ease-in-out infinite;
+    }
+
+    @keyframes potatoBob {
+      0%, 100% { transform: translateY(0) rotate(-6deg); }
+      50% { transform: translateY(-2px) rotate(6deg); }
+    }
+
+    .gs-icon { font-size: 18px; line-height: 1; margin-bottom: 4px; }
+
+    .gs-name {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      color: var(--text-main);
+    }
+
+    .gs-desc {
+      font-size: 8px;
+      color: var(--text-muted);
+      margin-top: 2px;
+      line-height: 1.15;
+    }
+
+    .gs-note {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--gold);
+      text-align: left;
+      min-height: 12px;
+      letter-spacing: 0.5px;
+      padding: 0 2px;
+    }
+
+    .primary-btn {
+      width: 100%;
+      padding: 14px 24px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      background: rgba(255, 255, 255, 0.95);
+      color: #070b12;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(255, 255, 255, 0.18);
+      transition: transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .primary-btn:hover {
+      background: #ffffff;
+      transform: translateY(-2px);
+      box-shadow: 0 12px 30px rgba(56, 189, 248, 0.4);
+    }
+
+    .engine-status-bar {
+      margin-top: 18px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .offline-file-label { color: var(--accent); cursor: pointer; text-decoration: underline; }
+
+    .stats-summary-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin: 20px 0;
+    }
+
+    .stat-tile {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 10px 6px;
+    }
+
+    .stat-tile-val {
+      font-family: var(--font-mono);
+      font-size: 20px;
+      font-weight: 300;
+      color: var(--accent);
+    }
+
+    .stat-tile-lbl {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      margin-top: 3px;
+    }
+
+    @media (max-width: 640px) {
+      #hud { padding: 14px 18px; }
+      .hud-stat-box { min-width: 100px; padding: 6px 12px; }
+      .hud-value { font-size: 18px; }
+      #ball-count { font-size: 28px; }
+      .powerup-btn { width: 46px; height: 46px; }
+      .game-logo { font-size: 28px; letter-spacing: 8px; }
+      .mode-selector { grid-template-columns: 1fr; }
+      .gs-desc { display: none; }
+      .gs-card { min-height: 58px; padding: 8px 3px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="webgl-container"></div>
+  <div id="fx-overlay"></div>
+  <div id="floating-feedback-layer"></div>
+
+  <div id="checkpoint-banner">
+    <div class="cp-title" id="cp-title-text">ZONE 1</div>
+    <div class="cp-subtitle" id="cp-sub-text">GLACIAL DAWN</div>
+  </div>
+
+  <div id="hud">
+    <div class="hud-top">
+      <div class="hud-stat-box">
+        <div class="hud-label">Дистанция</div>
+        <div class="hud-value" id="hud-distance">0</div>
+      </div>
+
+      <div class="hud-center-balls">
+        <div class="sphere-counter-wrap" id="sphere-counter-box">
+          <div class="metal-sphere-icon"></div>
+          <span id="ball-count">25</span>
+        </div>
+        <div class="multiball-bar-wrap">
+          <div class="multiball-pips" id="mb-pips-container">
+            <div class="mb-pip"></div><div class="mb-pip"></div><div class="mb-pip"></div>
+            <div class="mb-pip"></div><div class="mb-pip"></div><div class="mb-pip"></div>
+            <div class="mb-pip"></div><div class="mb-pip"></div><div class="mb-pip"></div>
+            <div class="mb-pip"></div>
+          </div>
+          <div id="multiball-badge">ЗАЛП: 1 ШАР</div>
+        </div>
+      </div>
+
+      <div class="hud-stat-box" style="text-align: right;">
+        <div class="hud-label">Рекорд (<span id="hud-mode-tag">CLASSIC</span>)</div>
+        <div class="hud-value" id="hud-best">0</div>
+      </div>
+    </div>
+
+    <div class="hud-bottom">
+      <div class="powerup-dock">
+        <button class="powerup-btn" id="pu-btn-infinite" style="color: #34d399;" title="Бесконечные шары [Клавиша 1]">
+          <div class="pu-timer-fill" id="pu-fill-infinite"></div>
+          <span class="pu-count" id="pu-cnt-infinite">0</span>
+          <span class="pu-icon">∞</span>
+          <span class="pu-key">[1] ОЧЕРЕДЬ</span>
+        </button>
+        <button class="powerup-btn" id="pu-btn-explosive" style="color: #fb923c;" title="Взрывные шары [Клавиша 2]">
+          <div class="pu-timer-fill" id="pu-fill-explosive"></div>
+          <span class="pu-count" id="pu-cnt-explosive">0</span>
+          <span class="pu-icon">💥</span>
+          <span class="pu-key">[2] ВЗРЫВ</span>
+        </button>
+        <button class="powerup-btn" id="pu-btn-slowmo" style="color: #38bdf8;" title="Замедление времени [Клавиша 3]">
+          <div class="pu-timer-fill" id="pu-fill-slowmo"></div>
+          <span class="pu-count" id="pu-cnt-slowmo">0</span>
+          <span class="pu-icon">⏱</span>
+          <span class="pu-key">[3] СЛОУ-МО</span>
+        </button>
+      </div>
+
+      <div class="hud-controls-right">
+        <button class="icon-btn" id="btn-mute" title="Звук Вкл/Выкл [M]">🔊</button>
+        <button class="icon-btn" id="btn-pause" title="Пауза [P / Esc]">⏸</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay-screen active" id="menu-screen">
+    <div class="modal-card">
+      <div class="game-logo">SMASH <strong>HIT</strong></div>
+      <div class="game-tagline">Fresnel Glass Shaders &amp; Atmospheric Mist Engine</div>
+
+      <div class="mode-selector" id="mode-selector">
+        <div class="mode-card selected" data-mode="classic">
+          <div class="mode-name">CLASSIC</div>
+          <div class="mode-desc">Плавный разгон, атмосферный туман, 11 климатических зон и комбо-залпы.</div>
+        </div>
+        <div class="mode-card" data-mode="training">
+          <div class="mode-name">TRAINING</div>
+          <div class="mode-desc">Расслабленная скорость полёта для наслаждения физикой раскола витражей.</div>
+        </div>
+      </div>
+
+      <div class="graphics-section">
+        <div class="graphics-label">Качество графики</div>
+        <div class="gs-grid" id="gs-grid">
+          <button type="button" class="gs-card" data-gfx="potato" title="Максимальный FPS на любом железе">
+            <div class="gs-icon">🥔</div>
+            <div class="gs-name">КАРТОФЕЛЬ</div>
+            <div class="gs-desc">Максимум FPS</div>
+          </button>
+          <button type="button" class="gs-card" data-gfx="low" title="Слабое железо">
+            <div class="gs-icon">📱</div>
+            <div class="gs-name">НИЗКОЕ</div>
+            <div class="gs-desc">Слабое железо</div>
+          </button>
+          <button type="button" class="gs-card selected" data-gfx="medium" title="Оптимальный баланс">
+            <div class="gs-icon">💻</div>
+            <div class="gs-name">СРЕДНЕЕ</div>
+            <div class="gs-desc">Баланс</div>
+          </button>
+          <button type="button" class="gs-card" data-gfx="high" title="Полные эффекты">
+            <div class="gs-icon">🖥️</div>
+            <div class="gs-name">ВЫСОКОЕ</div>
+            <div class="gs-desc">Максимум</div>
+          </button>
+        </div>
+        <div class="gs-note" id="gs-note"></div>
+      </div>
+
+      <button class="primary-btn" id="btn-start-game">НАЧАТЬ ПОЛЁТ</button>
+
+      <div class="engine-status-bar">
+        <span id="three-loader-status">Загрузка Three.js...</span>
+        <label class="offline-file-label" title="Выбрать локальный newthreejs.txt вручную">
+          Указать newthreejs.txt
+          <input type="file" id="manual-three-input" accept=".txt,.js" style="display:none;" />
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay-screen" id="pause-screen">
+    <div class="modal-card">
+      <div class="game-logo" style="font-size: 34px;">ПАУЗА</div>
+      <div class="game-tagline">Полёт приостановлен</div>
+      <div style="display:flex; flex-direction:column; gap:12px; margin-top:20px;">
+        <button class="primary-btn" id="btn-resume">ПРОДОЛЖИТЬ</button>
+        <button class="primary-btn" id="btn-restart-pause" style="background: rgba(51,65,85,0.75); box-shadow:none;">ЗАНОВО</button>
+        <button class="primary-btn" id="btn-to-menu-pause" style="background: rgba(30,41,59,0.65); box-shadow:none;">В ГЛАВНОЕ МЕНЮ</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay-screen" id="gameover-screen">
+    <div class="modal-card">
+      <div class="game-logo" style="font-size: 34px;">ШАРЫ <strong>ЗАКОНЧИЛИСЬ</strong></div>
+      <div class="game-tagline" id="go-zone-reached">Остановка в Зоне 1</div>
+
+      <div class="stats-summary-grid">
+        <div class="stat-tile">
+          <div class="stat-tile-val" id="go-dist">0</div>
+          <div class="stat-tile-lbl">Дистанция</div>
+        </div>
+        <div class="stat-tile">
+          <div class="stat-tile-val" id="go-best">0</div>
+          <div class="stat-tile-lbl">Рекорд</div>
+        </div>
+        <div class="stat-tile">
+          <div class="stat-tile-val" id="go-smashed">0</div>
+          <div class="stat-tile-lbl">Разбито стёкол</div>
+        </div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        <button class="primary-btn" id="btn-retry">НОВЫЙ ЗАБЕГ</button>
+        <button class="primary-btn" id="btn-to-menu-go" style="background: rgba(30,41,59,0.65); box-shadow:none;">СМЕНИТЬ РЕЖИМ</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="newthreejs.txt"></script>
+  <script>
+    if (typeof window.THREE === 'undefined') {
+      document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"><\/script>');
+    }
+  </script>
+
+  <script>
+    "use strict";
+
+    const GRAPHICS_PRESETS = {
+      potato: {
+        label: 'КАРТОФЕЛЬ', icon: '🥔',
+        pixelRatio: 0.5, antialias: false, fogDensity: 0.032,
+        visibleChunksAhead: 3, maxActiveBalls: 10, maxActiveShards: 40,
+        dustParticles: 0, ballSegments: [8, 6], lightShafts: false,
+        horizonGlow: false, shardCascadeMul: 0.35, toneMappingExposure: 0.95,
+        cameraFar: 90, simpleGlass: true, simpleCrystals: true, crystalLights: false
+      },
+      low: {
+        label: 'НИЗКОЕ', icon: '📱',
+        pixelRatio: 0.75, antialias: false, fogDensity: 0.026,
+        visibleChunksAhead: 4, maxActiveBalls: 20, maxActiveShards: 100,
+        dustParticles: 60, ballSegments: [12, 10], lightShafts: false,
+        horizonGlow: true, shardCascadeMul: 0.6, toneMappingExposure: 0.90,
+        cameraFar: 120, simpleGlass: false, simpleCrystals: false, crystalLights: true
+      },
+      medium: {
+        label: 'СРЕДНЕЕ', icon: '💻',
+        pixelRatio: 1.0, antialias: true, fogDensity: 0.022,
+        visibleChunksAhead: 5, maxActiveBalls: 32, maxActiveShards: 160,
+        dustParticles: 180, ballSegments: [16, 12], lightShafts: true,
+        horizonGlow: true, shardCascadeMul: 0.85, toneMappingExposure: 0.85,
+        cameraFar: 155, simpleGlass: false, simpleCrystals: false, crystalLights: true
+      },
+      high: {
+        label: 'ВЫСОКОЕ', icon: '🖥️',
+        pixelRatio: 2.0, antialias: true, fogDensity: 0.022,
+        visibleChunksAhead: 7, maxActiveBalls: 48, maxActiveShards: 240,
+        dustParticles: 320, ballSegments: [20, 16], lightShafts: true,
+        horizonGlow: true, shardCascadeMul: 1.0, toneMappingExposure: 0.82,
+        cameraFar: 175, simpleGlass: false, simpleCrystals: false, crystalLights: true
+      }
+    };
+
+    function getGfxPresetKey() {
+      try { return localStorage.getItem('smash_hit_gfx') || 'medium'; }
+      catch (_) { return 'medium'; }
+    }
+    function getGfxPreset() { return GRAPHICS_PRESETS[getGfxPresetKey()] || GRAPHICS_PRESETS.medium; }
+    function saveGfxPresetKey(key) { try { localStorage.setItem('smash_hit_gfx', key); } catch (_) {} }
+
+    const EngineLoader = {
+      loaded: false,
+      statusEl: document.getElementById('three-loader-status'),
+      setStatus(msg, color = '#94a3b8') {
+        if (this.statusEl) { this.statusEl.textContent = msg; this.statusEl.style.color = color; }
+      },
+      injectScriptText(codeText, sourceLabel) {
+        try {
+          const scriptEl = document.createElement('script');
+          scriptEl.type = 'text/javascript';
+          scriptEl.text = codeText;
+          document.head.appendChild(scriptEl);
+          if (typeof window.THREE !== 'undefined') {
+            this.loaded = true;
+            this.setStatus(`Three.js r${window.THREE.REVISION} активен (${sourceLabel})`, '#34d399');
+            return true;
+          }
+        } catch (err) { console.warn('Ошибка чтения скрипта ' + sourceLabel, err); }
+        return false;
+      },
+      tryLoadScriptTag(srcUrl, label) {
+        return new Promise((resolve) => {
+          const s = document.createElement('script');
+          s.src = srcUrl;
+          s.async = true;
+          s.onload = () => {
+            if (typeof window.THREE !== 'undefined') {
+              this.loaded = true;
+              this.setStatus(`Three.js r${window.THREE.REVISION} активен (${label})`, '#34d399');
+              resolve(true);
+            } else resolve(false);
+          };
+          s.onerror = () => { s.remove(); resolve(false); };
+          document.head.appendChild(s);
+        });
+      },
+      async ensureThreeJS() {
+        if (typeof window.THREE !== 'undefined') {
+          this.loaded = true;
+          this.setStatus(`Three.js r${window.THREE.REVISION} готов`, '#34d399');
+          return true;
+        }
+        const candidates = [
+          'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js',
+          'https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js'
+        ];
+        for (const url of candidates) { if (await this.tryLoadScriptTag(url, 'CDN')) return true; }
+        this.setStatus('Выберите локальный newthreejs.txt ->', '#f43f5e');
+        return false;
+      }
+    };
+
+    const GAME_CONFIG = {
+      corridorWidth: 16.0,
+      corridorHeight: 11.2,
+      chunkLength: 36.0,
+      visibleChunksAhead: 7,
+      gravity: -16.0,
+      ballRadius: 0.36,
+      ballThrowSpeed: 45.0,
+      collisionPenalty: 10,
+      comboStep: 8,
+      maxMultiball: 5,
+      maxActiveBalls: 48,
+      maxActiveShards: 240,
+      powerUpDuration: 6.5,
+      fogDensity: 0.022,
+      shardCascadeMul: 1.0,
+      lightShaftsEnabled: true,
+      crystalLightsEnabled: true,
+      ballSegments: [20, 16],
+
+      // CLASSIC baseSpeed = 7.0, TRAINING = 5.5
+      modes: {
+        classic:  { name: 'CLASSIC',  startBalls: 25, baseSpeed: 7.0, speedScale: 1.0,  infinite: false, penalty: 10, puRate: 0.18 },
+        training: { name: 'TRAINING', startBalls: 40, baseSpeed: 5.5, speedScale: 0.85, infinite: false, penalty: 5,  puRate: 0.25 }
+      },
+
+      zones: [
+        { id: 1,  name: 'GLACIAL DAWN',      fogHex: 0x060c14, horizonHex: 0x14283b, wallHex: 0x0a0f16, glassHex: 0x2b4c63, rimHex: 0x76a7c8, accentHex: 0x38bdf8 },
+        { id: 2,  name: 'CERULEAN MIST',     fogHex: 0x040b12, horizonHex: 0x0f2233, wallHex: 0x080e16, glassHex: 0x24425e, rimHex: 0x6e97be, accentHex: 0x22d3ee },
+        { id: 3,  name: 'SUNSET MIRAGE',     fogHex: 0x0d060b, horizonHex: 0x28121e, wallHex: 0x10090f, glassHex: 0x573128, rimHex: 0xa46b5a, accentHex: 0xfb923c },
+        { id: 4,  name: 'EMERALD SANCTUARY', fogHex: 0x030c0c, horizonHex: 0x0b2421, wallHex: 0x06100f, glassHex: 0x1d4e44, rimHex: 0x5fa494, accentHex: 0x2dd4bf },
+        { id: 5,  name: 'AMETHYST DREAM',    fogHex: 0x0a0512, horizonHex: 0x1d0e30, wallHex: 0x0c0814, glassHex: 0x43285c, rimHex: 0x8f6cb0, accentHex: 0xa855f7 },
+        { id: 6,  name: 'CRIMSON HORIZON',   fogHex: 0x0f0409, horizonHex: 0x2c0c16, wallHex: 0x11070c, glassHex: 0x5a1e2a, rimHex: 0xa34d5e, accentHex: 0xf43f5e },
+        { id: 7,  name: 'ARCTIC MONOLITH',   fogHex: 0x070c12, horizonHex: 0x172430, wallHex: 0x0b1015, glassHex: 0x324657, rimHex: 0x7d97ab, accentHex: 0x38bdf8 },
+        { id: 8,  name: 'GOLDEN SOLSTICE',   fogHex: 0x0c0b04, horizonHex: 0x241c0a, wallHex: 0x0f0d07, glassHex: 0x52431d, rimHex: 0x94824b, accentHex: 0xf59e0b },
+        { id: 9,  name: 'COBALT ABYSS',      fogHex: 0x040710, horizonHex: 0x0b172b, wallHex: 0x060a12, glassHex: 0x1a3a5c, rimHex: 0x5f85b0, accentHex: 0x0ea5e9 },
+        { id: 10, name: 'NEON CYBERCORE',    fogHex: 0x030b0e, horizonHex: 0x092027, wallHex: 0x050d11, glassHex: 0x15424e, rimHex: 0x5895a1, accentHex: 0x06b6d4 },
+        { id: 11, name: 'ETHEREAL INFINITY', fogHex: 0x05040e, horizonHex: 0x110e2b, wallHex: 0x080714, glassHex: 0x2c2957, rimHex: 0x6e6a9f, accentHex: 0x6366f1 }
+      ]
+    };
+
+    class ProceduralAssetFactory {
+      constructor() {
+        this.textures = {};
+        this.materials = {};
+        this.geometries = {};
+        this.envMap = null;
+        this.shaderUniforms = null;
+      }
+
+      init() {
+        const gfx = getGfxPreset();
+        this.shaderUniforms = {
+          uTime:       { value: 0.0 },
+          uFogColor:   { value: new THREE.Color(0x386890) },
+          uHorizonCol: { value: new THREE.Color(0x8be0ff) },
+          uFogDensity: { value: GAME_CONFIG.fogDensity },
+          uGlassColor: { value: new THREE.Color(0x80e5ff) },
+          uRimColor:   { value: new THREE.Color(0xffffff) }
+        };
+        this.envMap = this.createHDRLikeStudioCubeMap();
+        this.textures.archPanel = this.createArchitecturalWallTexture();
+        this.textures.bokehDust = this.createSoftParticleTexture();
+        this.initCustomShadersAndMaterials(gfx);
+        this.initSharedGeometries(gfx);
+      }
+
+      createHDRLikeStudioCubeMap() {
+        const size = 128;
+        const canvases = [];
+        for (let i = 0; i < 6; i++) {
+          const c = document.createElement('canvas');
+          c.width = size; c.height = size;
+          const ctx = c.getContext('2d');
+          const grad = ctx.createLinearGradient(0, 0, 0, size);
+          if (i === 2) {
+            grad.addColorStop(0, '#ffffff'); grad.addColorStop(0.5, '#bae6fd'); grad.addColorStop(1, '#38bdf8');
+          } else if (i === 3) {
+            grad.addColorStop(0, '#1e3a5f'); grad.addColorStop(1, '#0b192c');
+          } else {
+            grad.addColorStop(0, '#e0f2fe'); grad.addColorStop(0.35, '#38bdf8');
+            grad.addColorStop(0.55, '#1e3a5f'); grad.addColorStop(1, '#475569');
+          }
+          ctx.fillStyle = grad; ctx.fillRect(0, 0, size, size);
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
+          ctx.fillRect(10, Math.floor(size * 0.16), size - 20, 8);
+          ctx.fillStyle = 'rgba(186, 230, 253, 0.65)';
+          ctx.fillRect(18, Math.floor(size * 0.62), size - 36, 5);
+          canvases.push(c);
+        }
+        const cubeTex = new THREE.CubeTexture(canvases);
+        cubeTex.needsUpdate = true;
+        return cubeTex;
+      }
+
+      createArchitecturalWallTexture() {
+        const size = 256;
+        const c = document.createElement('canvas');
+        c.width = size; c.height = size;
+        const ctx = c.getContext('2d');
+        const grad = ctx.createLinearGradient(0, 0, size, size);
+        grad.addColorStop(0, '#c8d6e5'); grad.addColorStop(1, '#9ab0c7');
+        ctx.fillStyle = grad; ctx.fillRect(0, 0, size, size);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+        ctx.lineWidth = 2; ctx.strokeRect(2, 2, size - 4, size - 4);
+        ctx.strokeStyle = 'rgba(15, 30, 55, 0.28)'; ctx.lineWidth = 2;
+        for (let y = 64; y < size; y += 64) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(size, y); ctx.stroke(); }
+        for (let x = 128; x < size; x += 128) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, size); ctx.stroke(); }
+        const tex = new THREE.CanvasTexture(c);
+        tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(2, 2);
+        return tex;
+      }
+
+      createSoftParticleTexture() {
+        const size = 64;
+        const c = document.createElement('canvas');
+        c.width = size; c.height = size;
+        const ctx = c.getContext('2d');
+        const g = ctx.createRadialGradient(size/2, size/2, 1, size/2, size/2, size/2);
+        g.addColorStop(0, 'rgba(255,255,255,1)');
+        g.addColorStop(0.4, 'rgba(224,242,254,0.6)');
+        g.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, size, size);
+        return new THREE.CanvasTexture(c);
+      }
+
+      createFresnelGlassShaderMaterial(baseColorHex, opacityVal, isCrystal = false) {
+        const u = this.shaderUniforms;
+        return new THREE.ShaderMaterial({
+          uniforms: {
+            uTime:       u.uTime,
+            uFogColor:   u.uFogColor,
+            uHorizonCol: u.uHorizonCol,
+            uFogDensity: u.uFogDensity,
+            uBaseColor:  { value: new THREE.Color(baseColorHex) },
+            uEnvMap:     { value: this.envMap },
+            uOpacity:    { value: opacityVal },
+            uIsCrystal:  { value: isCrystal ? 1.0 : 0.0 }
+          },
+          vertexShader: `
+            varying vec3 vWorldPos;
+            varying vec3 vWorldNormal;
+            varying vec3 vModelPos;
+            varying vec2 vUv;
+            varying float vViewDist;
+            void main() {
+              vUv = uv;
+              vModelPos = position;
+              vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+              vWorldPos = worldPosition.xyz;
+              vWorldNormal = normalize(mat3(modelMatrix) * normal);
+              vec4 mvPosition = viewMatrix * worldPosition;
+              vViewDist = -mvPosition.z;
+              gl_Position = projectionMatrix * mvPosition;
+            }
+          `,
+          fragmentShader: `
+            uniform float uTime;
+            uniform vec3 uFogColor;
+            uniform vec3 uHorizonCol;
+            uniform float uFogDensity;
+            uniform vec3 uBaseColor;
+            uniform samplerCube uEnvMap;
+            uniform float uOpacity;
+            uniform float uIsCrystal;
+            varying vec3 vWorldPos;
+            varying vec3 vWorldNormal;
+            varying vec3 vModelPos;
+            varying vec2 vUv;
+            varying float vViewDist;
+            void main() {
+              vec3 N = normalize(vWorldNormal);
+              if (!gl_FrontFacing) N = -N;
+              vec3 V = normalize(cameraPosition - vWorldPos);
+              vec3 coarseCoord = vWorldPos * 1.85;
+              vec3 coarseBump = vec3(
+                sin(coarseCoord.y * 2.3 + coarseCoord.z * 1.7),
+                cos(coarseCoord.x * 2.3 + coarseCoord.z * 1.5),
+                sin(coarseCoord.x * 2.1 + coarseCoord.y * 1.9)
+              ) * 0.11;
+              vec3 roughNormal = normalize(N + coarseBump);
+              float ndotv = clamp(dot(roughNormal, V), 0.0, 1.0);
+              float f0 = 0.10;
+              float fresnel = f0 + (1.0 - f0) * pow(1.0 - ndotv, 3.2);
+              vec3 R = reflect(-V, roughNormal);
+              vec3 envReflSoft = textureCube(uEnvMap, R).rgb;
+              vec3 refr = refract(-V, roughNormal, 0.90);
+              vec3 envRefr = textureCube(uEnvMap, refr).rgb;
+              vec3 glassBody = mix(envRefr * (0.80 + uBaseColor * 0.35), uBaseColor * 0.48, 0.28);
+              vec3 finalColor = mix(glassBody, envReflSoft * 1.45, clamp(fresnel * 1.25, 0.0, 1.0));
+              vec3 keyLight = normalize(vec3(0.35, 0.88, 0.42));
+              vec3 H = normalize(V + keyLight);
+              float nDotH = max(dot(roughNormal, H), 0.0);
+              float satinSheen = pow(nDotH, 12.0) * 0.65;
+              float coreGleam  = pow(nDotH, 48.0) * 1.25;
+              float transRim   = pow(clamp(dot(-V, keyLight), 0.0, 1.0), 4.2) * 0.45;
+              vec3 specColor = mix(vec3(1.0), uBaseColor, 0.18);
+              finalColor += specColor * (satinSheen + coreGleam) + uBaseColor * transRim;
+              if (uIsCrystal > 0.5) {
+                float rad = length(vModelPos);
+                float coreGlow = exp(-rad * rad * 2.8);
+                float pulse = 0.90 + 0.10 * sin(uTime * 3.2 + vWorldPos.z * 0.25);
+                vec3 coreColor = mix(uBaseColor * 2.8, vec3(1.0, 0.98, 0.90), 0.52);
+                finalColor += coreColor * (coreGlow * 1.55) * pulse;
+              }
+              float fogFactor = 1.0 - exp(- (uFogDensity * vViewDist) * (uFogDensity * vViewDist));
+              fogFactor = clamp(fogFactor, 0.0, 1.0);
+              vec3 atmosphericMist = mix(uFogColor, uHorizonCol, clamp(vViewDist / 140.0, 0.0, 1.0));
+              finalColor = mix(finalColor, atmosphericMist, fogFactor);
+              float alpha = clamp(uOpacity * 0.78 + fresnel * 0.32, 0.45, 0.96);
+              alpha = mix(alpha, 0.0, fogFactor * 0.96);
+              gl_FragColor = vec4(finalColor, alpha);
+            }
+          `,
+          transparent: true,
+          depthWrite: false,
+          side: THREE.DoubleSide
+        });
+      }
+
+      initCustomShadersAndMaterials(gfx) {
+        this.materials.steelBall = new THREE.MeshStandardMaterial({
+          color: 0x24282c, metalness: 0.65, roughness: 0.84,
+          envMap: this.envMap, envMapIntensity: 0.08
+        });
+
+        this.materials.explosiveBall = new THREE.MeshStandardMaterial({
+          color: 0xffd8b4, emissive: 0xe05615, emissiveIntensity: 0.95,
+          metalness: 0.5, roughness: 0.2, envMap: this.envMap
+        });
+
+        this.materials.tunnelWall = new THREE.MeshStandardMaterial({
+          color: 0x141b22, roughness: 0.75, metalness: 0.12,
+          map: this.textures.archPanel, envMap: this.envMap, envMapIntensity: 0.2
+        });
+
+        this.materials.darkMetal = new THREE.MeshStandardMaterial({
+          color: 0x1c242c, metalness: 0.88, roughness: 0.38,
+          envMap: this.envMap, envMapIntensity: 0.75
+        });
+
+        this.materials.metalBracket = new THREE.MeshStandardMaterial({
+          color: 0x242e38, metalness: 0.90, roughness: 0.32,
+          envMap: this.envMap, envMapIntensity: 0.85
+        });
+
+        this.materials.steelCable = new THREE.MeshStandardMaterial({
+          color: 0x181e24, metalness: 0.85, roughness: 0.55,
+          envMap: this.envMap, envMapIntensity: 0.65
+        });
+
+        if (gfx.simpleGlass) {
+          this.materials.glassPanel = new THREE.MeshBasicMaterial({
+            color: 0x365a73, transparent: true, opacity: 0.42,
+            side: THREE.DoubleSide, depthWrite: false
+          });
+          this.materials.darkGlassPanel = new THREE.MeshBasicMaterial({
+            color: 0x0d0d14, transparent: true, opacity: 0.88,
+            side: THREE.DoubleSide, depthWrite: false
+          });
+        } else {
+          this.materials.glassPanel = this.createFresnelGlassShaderMaterial(0x365a73, 0.84, false);
+          this.materials.darkGlassPanel = this.createFresnelGlassShaderMaterial(0x14141c, 0.94, false);
+        }
+        this.materials.glassShard = this.materials.glassPanel;
+
+        if (gfx.simpleCrystals) {
+          this.materials.crystalCyan   = new THREE.MeshBasicMaterial({ color: 0x7dd3fc });
+          this.materials.crystalViolet = new THREE.MeshBasicMaterial({ color: 0xd8b4fe });
+          this.materials.crystalGold   = new THREE.MeshBasicMaterial({ color: 0xfcd34d });
+        } else {
+          this.materials.crystalCyan   = this.createFresnelGlassShaderMaterial(0x38bdf8, 0.84, true);
+          this.materials.crystalViolet = this.createFresnelGlassShaderMaterial(0xa855f7, 0.84, true);
+          this.materials.crystalGold   = this.createFresnelGlassShaderMaterial(0xf59e0b, 0.84, true);
+        }
+
+        this.materials.lightShaft = new THREE.MeshBasicMaterial({
+          color: 0x82b2d2, transparent: true, opacity: 0.05,
+          side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending
+        });
+
+        this.materials.neonStrip = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+        this.materials.laserBeam = new THREE.MeshBasicMaterial({
+          color: 0xf43f5e, transparent: true, opacity: 0.88,
+          blending: THREE.AdditiveBlending, depthWrite: false
+        });
+        this.materials.laserEmitter = new THREE.MeshBasicMaterial({ color: 0xff2a4d });
+      }
+
+      initSharedGeometries(gfx) {
+        const seg = gfx.ballSegments || [20, 16];
+        this.geometries.ball = new THREE.SphereGeometry(GAME_CONFIG.ballRadius, seg[0], seg[1]);
+        this.geometries.pyramidCrystal = new THREE.ConeGeometry(1.25, 2.4, 4);
+        this.geometries.pyramidEdges   = new THREE.EdgesGeometry(this.geometries.pyramidCrystal);
+        this.geometries.octaCrystal    = new THREE.OctahedronGeometry(1.25, 0);
+        this.geometries.octaEdges      = new THREE.EdgesGeometry(this.geometries.octaCrystal);
+        this.geometries.starCrystal    = new THREE.IcosahedronGeometry(1.35, 0);
+        this.geometries.starEdges      = new THREE.EdgesGeometry(this.geometries.starCrystal);
+        this.geometries.powerUpOrb     = new THREE.OctahedronGeometry(1.05, 1);
+      }
+    }
+
+    class ProceduralSoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.masterGain = null;
+        this.reverbNode = null;
+        this.ambientGain = null;
+        this.muted = false;
+        this.initialized = false;
+        this.timeScale = 1.0;
+        this.crystalScaleFreqs = [
+          293.66, 329.63, 392.00, 440.00, 523.25,
+          587.33, 659.25, 783.99, 880.00, 1046.50,
+          1174.66, 1318.51, 1567.98
+        ];
+        this.scaleStep = 0;
+        this.droneOsc1 = null;
+        this.droneOsc2 = null;
+        this.droneFilter = null;
+      }
+      init() {
+        if (this.initialized) return;
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        this.ctx = new AudioCtx();
+        this.masterGain = this.ctx.createGain();
+        this.masterGain.gain.value = 0.78;
+        this.masterGain.connect(this.ctx.destination);
+        this.reverbNode = this.createTunnelReverb(2.1, 2.8);
+        const reverbGain = this.ctx.createGain();
+        reverbGain.gain.value = 0.45;
+        this.reverbNode.connect(reverbGain);
+        reverbGain.connect(this.masterGain);
+        this.startAmbientDrone();
+        this.initialized = true;
+      }
+      resume() {
+        if (!this.initialized) this.init();
+        if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+      }
+      toggleMute() {
+        this.muted = !this.muted;
+        if (this.masterGain && this.ctx) {
+          this.masterGain.gain.setTargetAtTime(this.muted ? 0.0 : 0.78, this.ctx.currentTime, 0.05);
+        }
+        return this.muted;
+      }
+      createTunnelReverb(durationSec, decayRate) {
+        const rate = this.ctx.sampleRate;
+        const length = Math.floor(rate * durationSec);
+        const impulse = this.ctx.createBuffer(2, length, rate);
+        for (let ch = 0; ch < 2; ch++) {
+          const buf = impulse.getChannelData(ch);
+          for (let i = 0; i < length; i++) {
+            const env = Math.pow(1 - i / length, decayRate);
+            buf[i] = (Math.random() * 2 - 1) * env;
+          }
+        }
+        const convolver = this.ctx.createConvolver();
+        convolver.buffer = impulse;
+        return convolver;
+      }
+      startAmbientDrone() {
+        if (!this.ctx) return;
+        this.ambientGain = this.ctx.createGain();
+        this.ambientGain.gain.value = 0.12;
+        this.droneFilter = this.ctx.createBiquadFilter();
+        this.droneFilter.type = 'lowpass';
+        this.droneFilter.frequency.value = 210;
+        this.droneOsc1 = this.ctx.createOscillator();
+        this.droneOsc2 = this.ctx.createOscillator();
+        this.droneOsc1.type = 'sine';
+        this.droneOsc2.type = 'triangle';
+        this.droneOsc1.frequency.value = 65.41;
+        this.droneOsc2.frequency.value = 98.00;
+        this.droneOsc1.connect(this.droneFilter);
+        this.droneOsc2.connect(this.droneFilter);
+        this.droneFilter.connect(this.ambientGain);
+        this.ambientGain.connect(this.masterGain);
+        this.droneOsc1.start();
+        this.droneOsc2.start();
+      }
+      updateZoneAndTimeScale(zoneId, timeScale) {
+        this.timeScale = timeScale;
+        if (!this.initialized || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const rootNotes = [65.41, 73.42, 61.74, 65.41, 55.0, 58.27, 65.41, 73.42, 55.0, 65.41, 82.41];
+        const baseFreq = rootNotes[(zoneId - 1) % rootNotes.length] * (0.5 + 0.5 * timeScale);
+        this.droneOsc1.frequency.setTargetAtTime(baseFreq, now, 0.3);
+        this.droneOsc2.frequency.setTargetAtTime(baseFreq * 1.5, now, 0.3);
+        this.droneFilter.frequency.setTargetAtTime(150 + 160 * timeScale, now, 0.25);
+      }
+      playThrow(multiballCount = 1) {
+        if (!this.initialized || this.muted) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        const basePitch = (185 + multiballCount * 15) * (0.7 + 0.3 * this.timeScale);
+        osc.frequency.setValueAtTime(basePitch, now);
+        osc.frequency.exponentialRampToValueAtTime(54, now + 0.09);
+        gain.gain.setValueAtTime(0.16, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.095);
+        osc.connect(gain); gain.connect(this.masterGain);
+        osc.start(now); osc.stop(now + 0.1);
+      }
+      playCrystalChime(bonusBalls = 3) {
+        if (!this.initialized || this.muted) return;
+        const now = this.ctx.currentTime;
+        const freq = this.crystalScaleFreqs[this.scaleStep % this.crystalScaleFreqs.length] * (0.65 + 0.35 * this.timeScale);
+        this.scaleStep++;
+        const partials = [1.0, 2.0, 3.0];
+        partials.forEach((mult, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = idx === 0 ? 'sine' : 'triangle';
+          osc.frequency.setValueAtTime(freq * mult, now);
+          const amp = (idx === 0 ? 0.22 : 0.08) * (bonusBalls >= 5 ? 1.2 : 1.0);
+          const dur = (idx === 0 ? 0.75 : 0.42);
+          gain.gain.setValueAtTime(amp, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+          osc.connect(gain);
+          gain.connect(this.masterGain);
+          gain.connect(this.reverbNode);
+          osc.start(now); osc.stop(now + dur + 0.02);
+        });
+        this.playGlassShatter(0.5);
+      }
+      playGlassShatter(massFactor = 1.0) {
+        if (!this.initialized || this.muted) return;
+        const now = this.ctx.currentTime;
+        const bufSize = Math.floor(this.ctx.sampleRate * 0.28);
+        const noiseBuf = this.ctx.createBuffer(1, bufSize, this.ctx.sampleRate);
+        const out = noiseBuf.getChannelData(0);
+        for (let i = 0; i < bufSize; i++) out[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufSize, 1.7);
+        const whiteNoise = this.ctx.createBufferSource();
+        whiteNoise.buffer = noiseBuf;
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime((3100 / Math.sqrt(massFactor)) * (0.65 + 0.35 * this.timeScale), now);
+        filter.Q.value = 2.0;
+        const noiseGain = this.ctx.createGain();
+        noiseGain.gain.setValueAtTime(Math.min(0.4, 0.2 * massFactor), now);
+        noiseGain.gain.exponentialRampToValueAtTime(0.002, now + 0.26);
+        whiteNoise.connect(filter);
+        filter.connect(noiseGain);
+        noiseGain.connect(this.masterGain);
+        noiseGain.connect(this.reverbNode);
+        whiteNoise.start(now);
+        const shardCount = 6 + Math.floor(Math.random() * 3);
+        for (let i = 0; i < shardCount; i++) {
+          const delay = i * 0.016 + Math.random() * 0.015;
+          const osc = this.ctx.createOscillator();
+          const g = this.ctx.createGain();
+          osc.type = 'sine';
+          const shardFreq = (2100 + Math.random() * 3600) / Math.pow(massFactor, 0.32);
+          osc.frequency.setValueAtTime(shardFreq * (0.65 + 0.35 * this.timeScale), now + delay);
+          g.gain.setValueAtTime(0.065, now + delay);
+          g.gain.exponentialRampToValueAtTime(0.0008, now + delay + 0.13);
+          osc.connect(g);
+          g.connect(this.masterGain);
+          g.connect(this.reverbNode);
+          osc.start(now + delay); osc.stop(now + delay + 0.14);
+        }
+      }
+      playMetalRicochet() {
+        if (!this.initialized || this.muted) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(880 + Math.random() * 260, now);
+        osc.frequency.exponentialRampToValueAtTime(220, now + 0.075);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+        osc.connect(gain); gain.connect(this.masterGain);
+        osc.start(now); osc.stop(now + 0.085);
+      }
+      playHeavyGlassImpact(thickness = 0.35) {
+        if (!this.initialized || this.muted) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(160 / (thickness * 2.2), now);
+        osc.frequency.exponentialRampToValueAtTime(36, now + 0.14);
+        gain.gain.setValueAtTime(0.38, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+        osc.connect(gain); gain.connect(this.masterGain);
+        osc.start(now); osc.stop(now + 0.16);
+        const osc2 = this.ctx.createOscillator();
+        const gain2 = this.ctx.createGain();
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(3400 + Math.random() * 600, now);
+        osc2.frequency.exponentialRampToValueAtTime(1100, now + 0.08);
+        gain2.gain.setValueAtTime(0.19, now);
+        gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+        osc2.connect(gain2);
+        gain2.connect(this.masterGain);
+        gain2.connect(this.reverbNode);
+        osc2.start(now); osc2.stop(now + 0.10);
+      }
+      playSwitchActivate() {
+        if (!this.initialized || this.muted) return;
+        const now = this.ctx.currentTime;
+        const notes = [587.33, 880.0];
+        notes.forEach((n, idx) => {
+          const osc = this.ctx.createOscillator();
+          const g = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(n, now + idx * 0.06);
+          g.gain.setValueAtTime(0.18, now + idx * 0.06);
+          g.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.06 + 0.24);
+          osc.connect(g);
+          g.connect(this.masterGain);
+          g.connect(this.reverbNode);
+          osc.start(now + idx * 0.06);
+          osc.stop(now + idx * 0.06 + 0.25);
+        });
+      }
+      playCameraCrash() {
+        if (!this.initialized || this.muted) return;
+        const now = this.ctx.currentTime;
+        this.scaleStep = 0;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(110, now);
+        osc.frequency.exponentialRampToValueAtTime(28, now + 0.40);
+        gain.gain.setValueAtTime(0.42, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.42);
+        osc.connect(gain); gain.connect(this.masterGain);
+        osc.start(now); osc.stop(now + 0.44);
+        this.playGlassShatter(1.5);
+      }
+      playExplosionWave() {
+        if (!this.initialized || this.muted) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.exponentialRampToValueAtTime(30, now + 0.36);
+        gain.gain.setValueAtTime(0.42, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.37);
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        gain.connect(this.reverbNode);
+        osc.start(now); osc.stop(now + 0.38);
+        this.playGlassShatter(1.8);
+      }
+      playLaserDestroyed() {
+        if (!this.initialized || this.muted) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(1200, now);
+        osc.frequency.exponentialRampToValueAtTime(80, now + 0.30);
+        gain.gain.setValueAtTime(0.24, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.32);
+        osc.connect(gain); gain.connect(this.masterGain);
+        osc.start(now); osc.stop(now + 0.33);
+        this.playGlassShatter(2.2);
+      }
+    }
+
+    class VerletRope {
+      constructor(anchorPos, length, numSegments, material, chunk) {
+        this.numSegments = numSegments;
+        this.numPoints = numSegments + 1;
+        this.segLen = length / numSegments;
+        this.points = [];
+        this.meshes = [];
+        const p0 = anchorPos.clone();
+        for (let i = 0; i < this.numPoints; i++) {
+          this.points.push({
+            pos: new THREE.Vector3(p0.x, p0.y - i * this.segLen, p0.z),
+            oldPos: new THREE.Vector3(p0.x, p0.y - i * this.segLen, p0.z),
+            pinned: (i === 0)
+          });
+        }
+        const segGeo = new THREE.CylinderGeometry(0.045, 0.045, this.segLen, 6);
+        if (chunk && chunk.disposableGeos) chunk.disposableGeos.push(segGeo);
+        for (let i = 0; i < numSegments; i++) {
+          const mesh = new THREE.Mesh(segGeo, material);
+          this.meshes.push(mesh);
+          if (chunk && chunk.group) chunk.group.add(mesh);
+        }
+      }
+      applyImpulseAtBottom(impulse) {
+        const last = this.points[this.points.length - 1];
+        last.pos.add(impulse);
+        if (this.points.length > 2) {
+          this.points[this.points.length - 2].pos.addScaledVector(impulse, 0.65);
+        }
+      }
+      // Точка крепления верёвки к палке — верх последнего сегмента
+      getBottomPoint() {
+        return this.points[this.points.length - 1].pos;
+      }
+      update(dt, gravityY = -24.0) {
+        const damping = 0.982;
+        for (let i = 0; i < this.numPoints; i++) {
+          const p = this.points[i];
+          if (p.pinned) continue;
+          const vx = (p.pos.x - p.oldPos.x) * damping;
+          const vy = (p.pos.y - p.oldPos.y) * damping;
+          const vz = (p.pos.z - p.oldPos.z) * damping;
+          p.oldPos.copy(p.pos);
+          p.pos.x += vx;
+          p.pos.y += vy + gravityY * dt * dt;
+          p.pos.z += vz;
+        }
+        const iterations = 4;
+        for (let it = 0; it < iterations; it++) {
+          for (let i = 0; i < this.numSegments; i++) {
+            const p1 = this.points[i];
+            const p2 = this.points[i + 1];
+            const dx = p2.pos.x - p1.pos.x;
+            const dy = p2.pos.y - p1.pos.y;
+            const dz = p2.pos.z - p1.pos.z;
+            const dist = Math.hypot(dx, dy, dz) || 1e-6;
+            const diff = (dist - this.segLen) / dist;
+            if (p1.pinned) {
+              p2.pos.x -= dx * diff; p2.pos.y -= dy * diff; p2.pos.z -= dz * diff;
+            } else {
+              p1.pos.x += dx * diff * 0.5; p1.pos.y += dy * diff * 0.5; p1.pos.z += dz * diff * 0.5;
+              p2.pos.x -= dx * diff * 0.5; p2.pos.y -= dy * diff * 0.5; p2.pos.z -= dz * diff * 0.5;
+            }
+          }
+        }
+        const dir = new THREE.Vector3();
+        const mid = new THREE.Vector3();
+        const up = new THREE.Vector3(0, 1, 0);
+        const quat = new THREE.Quaternion();
+        for (let i = 0; i < this.numSegments; i++) {
+          const p1 = this.points[i].pos;
+          const p2 = this.points[i + 1].pos;
+          mid.addVectors(p1, p2).multiplyScalar(0.5);
+          dir.subVectors(p2, p1);
+          const len = dir.length();
+          if (len > 1e-4) {
+            dir.normalize();
+            quat.setFromUnitVectors(up, dir);
+            this.meshes[i].position.copy(mid);
+            this.meshes[i].quaternion.copy(quat);
+            this.meshes[i].scale.set(1.0, len / this.segLen, 1.0);
+          }
+        }
+      }
+    }
+
+    class GlassFractureEngine {
+      constructor(scene, assetFactory, soundEngine = null) {
+        this.scene = scene;
+        this.assets = assetFactory;
+        this.sound = soundEngine;
+        this.shardArchetypes = [];
+        this.activeShards = [];
+        this.shardPool = [];
+        this.fallingChunks = [];
+        this.maxShards = GAME_CONFIG.maxActiveShards;
+        this._tmpVecA = new THREE.Vector3();
+        this._tmpVecB = new THREE.Vector3();
+        this._tmpVecC = new THREE.Vector3();
+        this._tmpQuat = new THREE.Quaternion();
+        this._tmpMat4 = new THREE.Matrix4();
+      }
+
+      init() {
+        for (let i = 0; i < 16; i++) this.shardArchetypes.push(this.buildShardPrismGeometry(i));
+        for (let i = 0; i < this.maxShards; i++) {
+          const idx = i % this.shardArchetypes.length;
+          const geo = this.shardArchetypes[idx];
+          const mesh = new THREE.Mesh(geo, this.assets.materials.glassPanel);
+          mesh.visible = false;
+          this.scene.add(mesh);
+          this.shardPool.push({
+            mesh: mesh, active: false,
+            vel: new THREE.Vector3(), angVel: new THREE.Vector3(),
+            life: 0, maxLife: 3.0,
+            floorY: -GAME_CONFIG.corridorHeight * 0.5 + 0.16
+          });
+        }
+      }
+
+      buildShardPrismGeometry(seedIndex) {
+        const sides = 3 + (seedIndex % 4);
+        const pts2D = [];
+        for (let s = 0; s < sides; s++) {
+          const baseAngle = (s / sides) * Math.PI * 2;
+          const jitter = ((seedIndex * 41 + s * 23) % 100) / 100 * 0.52 - 0.26;
+          const rad = 0.38 + (((seedIndex * 17 + s * 31) % 100) / 100) * 0.36;
+          pts2D.push({
+            x: Math.cos(baseAngle + jitter) * rad,
+            y: Math.sin(baseAngle + jitter) * rad
+          });
+        }
+        const halfThick = 0.5;
+        const positions = [];
+        const uvs = [];
+        for (let i = 1; i < sides - 1; i++) {
+          positions.push(
+            pts2D[0].x, pts2D[0].y, halfThick,
+            pts2D[i].x, pts2D[i].y, halfThick,
+            pts2D[i + 1].x, pts2D[i + 1].y, halfThick
+          );
+          uvs.push(0.5, 0.5, 0.0, 1.0, 1.0, 0.0);
+          positions.push(
+            pts2D[0].x, pts2D[0].y, -halfThick,
+            pts2D[i + 1].x, pts2D[i + 1].y, -halfThick,
+            pts2D[i].x, pts2D[i].y, -halfThick
+          );
+          uvs.push(0.5, 0.5, 1.0, 0.0, 0.0, 1.0);
+        }
+        for (let i = 0; i < sides; i++) {
+          const next = (i + 1) % sides;
+          const p0 = pts2D[i];
+          const p1 = pts2D[next];
+          positions.push(
+            p0.x, p0.y, halfThick,
+            p1.x, p1.y, halfThick,
+            p1.x, p1.y, -halfThick,
+            p0.x, p0.y, halfThick,
+            p1.x, p1.y, -halfThick,
+            p0.x, p0.y, -halfThick
+          );
+          uvs.push(0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1);
+        }
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+        geo.computeVertexNormals();
+        return geo;
+      }
+
+      acquireShard() {
+        if (this.activeShards.length >= GAME_CONFIG.maxActiveShards) return null;
+        for (let i = 0; i < this.shardPool.length; i++) {
+          const s = this.shardPool[i];
+          if (!s.active) {
+            s.active = true;
+            s.mesh.visible = true;
+            this.activeShards.push(s);
+            return s;
+          }
+        }
+        if (this.activeShards.length > 0) {
+          const oldest = this.activeShards.shift();
+          oldest.active = true;
+          oldest.mesh.visible = true;
+          this.activeShards.push(oldest);
+          return oldest;
+        }
+        return null;
+      }
+
+      chipImpact(targetObj, worldHitPoint, impactVelocity) {
+        targetObj.mesh.updateMatrixWorld(true);
+        const worldQuat = this._tmpQuat;
+        targetObj.mesh.getWorldQuaternion(worldQuat);
+        const thickness = targetObj.depth || 0.18;
+        const count = Math.round((8 + Math.floor(Math.random() * 5)) * GAME_CONFIG.shardCascadeMul);
+        for (let i = 0; i < count; i++) {
+          const shard = this.acquireShard();
+          if (!shard) break;
+          shard.mesh.material = (targetObj.mesh && targetObj.mesh.material) || this.assets.materials.glassPanel;
+          shard.mesh.position.copy(worldHitPoint).add(
+            new THREE.Vector3((Math.random() - 0.5) * 0.45, (Math.random() - 0.5) * 0.45, (Math.random() - 0.5) * 0.25)
+          );
+          shard.mesh.quaternion.copy(worldQuat);
+          const sz = 0.20 + Math.random() * 0.26;
+          shard.mesh.scale.set(sz, sz, thickness * (0.65 + Math.random() * 0.45));
+          shard.vel.copy(new THREE.Vector3(
+            (Math.random() - 0.5) * 11.0,
+            Math.random() * 5.5 + 1.2,
+            (Math.random() - 0.5) * 11.0
+          )).addScaledVector(impactVelocity, -0.22);
+          shard.angVel.set((Math.random() - 0.5) * 18.0, (Math.random() - 0.5) * 18.0, (Math.random() - 0.5) * 18.0);
+          shard.life = 0;
+          shard.maxLife = 2.4 + Math.random() * 0.8;
+          shard.active = true;
+          shard.mesh.visible = true;
+        }
+      }
+
+      shatterSectors(panel, sectorsList, worldHitPoint, impactVelocity, energyScale = 1.0, shardCountOverride = null) {
+        if (!sectorsList || sectorsList.length === 0) return;
+        panel.mesh.updateWorldMatrix(true, false);
+        const panelMat = panel.mesh.matrixWorld;
+        const worldQuat = this._tmpQuat;
+        panel.mesh.getWorldQuaternion(worldQuat);
+        const thickness = panel.depth || 0.18;
+        const impactDir = this._tmpVecB.copy(impactVelocity).normalize();
+        const energyFactor = THREE.MathUtils.clamp(Math.sqrt(energyScale), 0.40, 2.4);
+        const impactSpeed = Math.max(12.0, impactVelocity.length()) * energyFactor;
+
+        const baseShards = shardCountOverride
+          ? Math.round(shardCountOverride * GAME_CONFIG.shardCascadeMul)
+          : Math.min(48, Math.max(14, sectorsList.length * 2));
+        const maxShards = Math.min(75, Math.max(6, Math.round(baseShards * energyFactor)));
+        const step = Math.max(1, Math.floor(sectorsList.length / maxShards));
+
+        for (let i = 0; i < sectorsList.length; i += step) {
+          const sec = sectorsList[i];
+          const shard = this.acquireShard();
+          if (!shard) break;
+          shard.mesh.material = (panel.mesh && panel.mesh.material) || this.assets.materials.glassPanel;
+          const rx = (Math.random() - 0.5) * (sec.width || 0.4) * 0.45;
+          const ry = (Math.random() - 0.5) * (sec.height || 0.4) * 0.45;
+          const rz = (Math.random() - 0.5) * thickness * 0.35;
+          const localPos = this._tmpVecA.set((sec.cx || 0) + rx, (sec.cy || 0) + ry, rz);
+          shard.mesh.position.copy(localPos).applyMatrix4(panelMat);
+          shard.mesh.quaternion.copy(worldQuat);
+          const sz = Math.max(0.20, Math.min(sec.width || 0.4, sec.height || 0.4) * (0.85 + Math.random() * 0.45));
+          shard.mesh.scale.set(sz, sz, thickness * 0.95);
+          const distFromHit = shard.mesh.position.distanceTo(worldHitPoint);
+          const radOut = this._tmpVecC.subVectors(shard.mesh.position, worldHitPoint).normalize();
+          const attenuation = 1.0 / (1.0 + distFromHit * 0.40);
+          shard.vel.copy(impactDir).multiplyScalar(impactSpeed * (0.28 + 0.55 * attenuation));
+          shard.vel.addScaledVector(radOut, (3.8 + Math.random() * 5.5) * attenuation * energyFactor);
+          shard.vel.y += (Math.random() - 0.22) * 4.0 * energyFactor;
+          shard.angVel.set(
+            (Math.random() - 0.5) * 16.0 * energyFactor,
+            (Math.random() - 0.5) * 16.0 * energyFactor,
+            (Math.random() - 0.5) * 16.0 * energyFactor
+          );
+          shard.life = 0;
+          shard.maxLife = 2.5 + Math.random() * 0.8;
+          shard.active = true;
+          shard.mesh.visible = true;
+        }
+      }
+
+      spawnFallingChunk(panel, detachedSectors, ballVelocity) {
+        if (!detachedSectors || detachedSectors.length === 0) return;
+        panel.mesh.updateWorldMatrix(true, false);
+        const panelMat = panel.mesh.matrixWorld;
+        const hz = panel.depth * 0.5;
+        let cxSum = 0, cySum = 0;
+        for (let i = 0; i < detachedSectors.length; i++) {
+          cxSum += detachedSectors[i].cx;
+          cySum += detachedSectors[i].cy;
+        }
+        const centerLocalX = cxSum / detachedSectors.length;
+        const centerLocalY = cySum / detachedSectors.length;
+        const positions = [];
+        for (let i = 0; i < detachedSectors.length; i++) {
+          const s = detachedSectors[i];
+          const q0 = { x: s.q0.x - centerLocalX, y: s.q0.y - centerLocalY };
+          const q1 = { x: s.q1.x - centerLocalX, y: s.q1.y - centerLocalY };
+          const q2 = { x: s.q2.x - centerLocalX, y: s.q2.y - centerLocalY };
+          const q3 = { x: s.q3.x - centerLocalX, y: s.q3.y - centerLocalY };
+          positions.push(
+            q0.x, q0.y,  hz,   q1.x, q1.y,  hz,   q2.x, q2.y,  hz,
+            q0.x, q0.y,  hz,   q2.x, q2.y,  hz,   q3.x, q3.y,  hz
+          );
+          positions.push(
+            q0.x, q0.y, -hz,   q2.x, q2.y, -hz,   q1.x, q1.y, -hz,
+            q0.x, q0.y, -hz,   q3.x, q3.y, -hz,   q2.x, q2.y, -hz
+          );
+          positions.push(
+            q0.x, q0.y, -hz,   q1.x, q1.y, -hz,   q1.x, q1.y,  hz,
+            q0.x, q0.y, -hz,   q1.x, q1.y,  hz,   q0.x, q0.y,  hz,
+            q1.x, q1.y, -hz,   q2.x, q2.y, -hz,   q2.x, q2.y,  hz,
+            q1.x, q1.y, -hz,   q2.x, q2.y,  hz,   q1.x, q1.y,  hz,
+            q2.x, q2.y, -hz,   q3.x, q3.y, -hz,   q3.x, q3.y,  hz,
+            q2.x, q2.y, -hz,   q3.x, q3.y,  hz,   q2.x, q2.y,  hz,
+            q3.x, q3.y, -hz,   q0.x, q0.y, -hz,   q0.x, q0.y,  hz,
+            q3.x, q3.y, -hz,   q0.x, q0.y,  hz,   q3.x, q3.y,  hz
+          );
+        }
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        geo.computeVertexNormals();
+        const mesh = new THREE.Mesh(geo, panel.material || this.assets.materials.glassPanel);
+        const worldCenter = new THREE.Vector3(centerLocalX, centerLocalY, 0).applyMatrix4(panelMat);
+        mesh.position.copy(worldCenter);
+        const worldQuat = new THREE.Quaternion();
+        panel.mesh.getWorldQuaternion(worldQuat);
+        mesh.quaternion.copy(worldQuat);
+        this.scene.add(mesh);
+        const pushDir = ballVelocity ? ballVelocity.clone().normalize() : new THREE.Vector3(0, 0, -1);
+        const ballSpeed = ballVelocity ? ballVelocity.length() : 38.0;
+        const speedScale = Math.min(2.4, Math.max(0.4, ballSpeed / 38.0));
+        this.fallingChunks.push({
+          mesh: mesh, geo: geo,
+          vel: new THREE.Vector3(
+            pushDir.x * 3.5 * speedScale + (Math.random() - 0.5) * 1.8,
+            -0.8 - Math.random() * 1.5,
+            pushDir.z * 3.5 * speedScale + (Math.random() - 0.5) * 1.8
+          ),
+          angVel: new THREE.Vector3(
+            (Math.random() - 0.5) * 4.5 * speedScale,
+            (Math.random() - 0.5) * 3.5 * speedScale,
+            (Math.random() - 0.5) * 4.5 * speedScale
+          ),
+          mass: Math.max(1.2, detachedSectors.length * 0.28),
+          floorY: -GAME_CONFIG.corridorHeight * 0.5 + 0.18,
+          life: 0, maxLife: 3.5
+        });
+      }
+
+      shatterFallingChunkImpact(fc) {
+        const count = Math.round(Math.min(38, Math.max(18, Math.floor(fc.mass * 12))) * GAME_CONFIG.shardCascadeMul);
+        for (let i = 0; i < count; i++) {
+          const shard = this.acquireShard();
+          if (!shard) break;
+          shard.mesh.material = this.assets.materials.glassPanel;
+          const rx = (Math.random() - 0.5) * 1.6;
+          const rz = (Math.random() - 0.5) * 1.6;
+          shard.mesh.position.set(fc.mesh.position.x + rx, fc.floorY + 0.08, fc.mesh.position.z + rz);
+          shard.mesh.quaternion.copy(fc.mesh.quaternion);
+          const sz = 0.22 + Math.random() * 0.30;
+          shard.mesh.scale.set(sz, sz, 0.16);
+          shard.vel.set(
+            (Math.random() - 0.5) * 13.0 + fc.vel.x * 0.40,
+            Math.random() * 5.0 + 1.2,
+            (Math.random() - 0.5) * 13.0 + fc.vel.z * 0.40
+          );
+          shard.angVel.set((Math.random() - 0.5) * 18.0, (Math.random() - 0.5) * 18.0, (Math.random() - 0.5) * 18.0);
+          shard.life = 0;
+          shard.maxLife = 2.4 + Math.random() * 0.8;
+          shard.active = true;
+          shard.mesh.visible = true;
+        }
+      }
+
+      shatterSolidBlock(panel, worldHitPoint, impactVelocity, energyScale = 1.0, count = 32) {
+        panel.mesh.updateWorldMatrix(true, false);
+        const wPos = this._tmpVecA;
+        panel.mesh.getWorldPosition(wPos);
+        const wQuat = this._tmpQuat;
+        panel.mesh.getWorldQuaternion(wQuat);
+        const actualCount = Math.round(count * GAME_CONFIG.shardCascadeMul);
+        for (let i = 0; i < actualCount; i++) {
+          const shard = this.acquireShard();
+          if (!shard) break;
+          shard.mesh.material = (panel.mesh && panel.mesh.material) || this.assets.materials.glassPanel;
+          const rx = (Math.random() - 0.5) * panel.width * 0.7;
+          const ry = (Math.random() - 0.5) * panel.height * 0.7;
+          const rz = (Math.random() - 0.5) * panel.depth * 0.7;
+          shard.mesh.position.set(wPos.x + rx, wPos.y + ry, wPos.z + rz);
+          shard.mesh.quaternion.copy(wQuat);
+          const sz = 0.28 + Math.random() * 0.32;
+          shard.mesh.scale.set(sz, sz, panel.depth * 0.85);
+          shard.vel.copy(impactVelocity).multiplyScalar(0.35);
+          shard.vel.x += (Math.random() - 0.5) * 9.0;
+          shard.vel.y += Math.random() * 6.5 + 1.2;
+          shard.vel.z += (Math.random() - 0.5) * 9.0;
+          shard.angVel.set((Math.random() - 0.5) * 18.0, (Math.random() - 0.5) * 18.0, (Math.random() - 0.5) * 18.0);
+          shard.life = 0;
+          shard.maxLife = 2.5 + Math.random() * 0.8;
+          shard.active = true;
+          shard.mesh.visible = true;
+        }
+      }
+
+      shatterPanel(panel, worldHitPoint, impactVelocity, energyScale = 1.0) {
+        panel.hits = (panel.hits || 0) + 1;
+        panel.shattered = true;
+        panel.mesh.visible = false;
+        if (panel.brokenMesh) {
+          panel.brokenMesh.visible = false;
+          if (panel.brokenMesh.geometry) panel.brokenMesh.geometry.dispose();
+        }
+        const sectors = panel.sectors || [];
+        const toShatter = [];
+        for (let s = 0; s < sectors.length; s++) {
+          if (!sectors[s].shattered) {
+            sectors[s].shattered = true;
+            toShatter.push(sectors[s]);
+          }
+        }
+        if (toShatter.length > 0) {
+          this.shatterSectors(panel, toShatter, worldHitPoint, impactVelocity, energyScale, 64);
+        } else {
+          this.shatterSolidBlock(panel, worldHitPoint, impactVelocity, energyScale, 36);
+        }
+      }
+
+      shatterCrystal(crystalObj, impactVelocity) {
+        const pos = this._tmpVecA;
+        crystalObj.mesh.getWorldPosition(pos);
+        const baseCount = crystalObj.reward >= 10 ? 22 : (crystalObj.reward >= 5 ? 16 : 12);
+        const count = Math.round(baseCount * GAME_CONFIG.shardCascadeMul);
+        for (let i = 0; i < count; i++) {
+          const shard = this.acquireShard();
+          if (!shard) break;
+          shard.mesh.material = crystalObj.mesh.material;
+          const rx = (Math.random() - 0.5) * 0.95;
+          const ry = (Math.random() - 0.5) * 1.3;
+          const rz = (Math.random() - 0.5) * 0.95;
+          shard.mesh.position.set(pos.x + rx, pos.y + ry, pos.z + rz);
+          shard.mesh.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
+          const s = 0.32 + Math.random() * 0.38;
+          shard.mesh.scale.set(s, s * 1.35, s * 0.65);
+          shard.vel.set(rx * 11, ry * 9 + 3.0, rz * 11);
+          shard.vel.addScaledVector(impactVelocity, 0.3);
+          shard.angVel.set((Math.random() - 0.5) * 16, (Math.random() - 0.5) * 16, (Math.random() - 0.5) * 16);
+          shard.life = 0;
+          shard.maxLife = 2.0 + Math.random() * 0.8;
+          shard.active = true;
+          shard.mesh.visible = true;
+        }
+      }
+
+      update(dt, cameraZ) {
+        const grav = GAME_CONFIG.gravity;
+        for (let i = this.fallingChunks.length - 1; i >= 0; i--) {
+          const fc = this.fallingChunks[i];
+          fc.life += dt;
+          fc.vel.y += grav * dt;
+          fc.mesh.position.addScaledVector(fc.vel, dt);
+          fc.mesh.rotation.x += fc.angVel.x * dt;
+          fc.mesh.rotation.y += fc.angVel.y * dt;
+          fc.mesh.rotation.z += fc.angVel.z * dt;
+          if (fc.mesh.position.y <= fc.floorY || fc.life >= fc.maxLife || fc.mesh.position.z > cameraZ + 5.0) {
+            if (this.sound) this.sound.playGlassShatter(fc.mass * 2.5);
+            this.shatterFallingChunkImpact(fc);
+            this.scene.remove(fc.mesh);
+            fc.geo.dispose();
+            this.fallingChunks.splice(i, 1);
+          }
+        }
+        for (let i = this.activeShards.length - 1; i >= 0; i--) {
+          const s = this.activeShards[i];
+          s.life += dt;
+          if (s.life >= s.maxLife || s.mesh.position.z > cameraZ + 5.0) {
+            s.active = false;
+            s.mesh.visible = false;
+            this.activeShards.splice(i, 1);
+            continue;
+          }
+          s.vel.y += grav * dt;
+          s.mesh.position.addScaledVector(s.vel, dt);
+          s.mesh.rotation.x += s.angVel.x * dt;
+          s.mesh.rotation.y += s.angVel.y * dt;
+          s.mesh.rotation.z += s.angVel.z * dt;
+          if (s.mesh.position.y < s.floorY && s.vel.y < 0) {
+            s.mesh.position.y = s.floorY;
+            s.vel.y *= -0.28;
+            s.vel.x *= 0.68;
+            s.vel.z *= 0.68;
+            s.angVel.multiplyScalar(0.72);
+          }
+        }
+      }
+
+      clearAll() {
+        for (let i = 0; i < this.activeShards.length; i++) {
+          this.activeShards[i].active = false;
+          this.activeShards[i].mesh.visible = false;
+        }
+        this.activeShards.length = 0;
+        for (let i = 0; i < this.fallingChunks.length; i++) {
+          this.scene.remove(this.fallingChunks[i].mesh);
+          this.fallingChunks[i].geo.dispose();
+        }
+        this.fallingChunks.length = 0;
+      }
+    }
+
+    const CCDSolver = {
+      get _invMat() { return this.__invMat || (this.__invMat = new THREE.Matrix4()); },
+      get _localP0() { return this.__localP0 || (this.__localP0 = new THREE.Vector3()); },
+      get _localP1() { return this.__localP1 || (this.__localP1 = new THREE.Vector3()); },
+      get _localDir() { return this.__localDir || (this.__localDir = new THREE.Vector3()); },
+      get _localHit() { return this.__localHit || (this.__localHit = new THREE.Vector3()); },
+      get _localNormal() { return this.__localNormal || (this.__localNormal = new THREE.Vector3()); },
+      get _normalMat() { return this.__normalMat || (this.__normalMat = new THREE.Matrix3()); },
+
+      sweepSphereOBB(p0, p1, radius, targetMesh, width, height, depth) {
+        targetMesh.updateWorldMatrix(true, false);
+        this._invMat.copy(targetMesh.matrixWorld).invert();
+        const lp0 = this._localP0.copy(p0).applyMatrix4(this._invMat);
+        const lp1 = this._localP1.copy(p1).applyMatrix4(this._invMat);
+        const dir = this._localDir.subVectors(lp1, lp0);
+        const hx = width * 0.5 + radius;
+        const hy = height * 0.5 + radius;
+        const hz = depth * 0.5 + radius;
+
+        if (Math.abs(lp0.x) <= hx && Math.abs(lp0.y) <= hy && Math.abs(lp0.z) <= hz) {
+          const dx = hx - Math.abs(lp0.x);
+          const dy = hy - Math.abs(lp0.y);
+          const dz = hz - Math.abs(lp0.z);
+          this._localNormal.set(0, 0, 0);
+          if (dx <= dy && dx <= dz) this._localNormal.x = lp0.x >= 0 ? 1 : -1;
+          else if (dy <= dx && dy <= dz) this._localNormal.y = lp0.y >= 0 ? 1 : -1;
+          else this._localNormal.z = lp0.z >= 0 ? 1 : -1;
+          this._normalMat.getNormalMatrix(targetMesh.matrixWorld);
+          const worldNorm = this._localNormal.clone().applyMatrix3(this._normalMat).normalize();
+          return { t: 0.0, point: p0.clone(), normal: worldNorm };
+        }
+
+        let tMin = 0.0, tMax = 1.0, hitAxis = -1, hitSign = 0;
+        const axes = ['x', 'y', 'z'];
+        const bounds = [hx, hy, hz];
+        for (let i = 0; i < 3; i++) {
+          const axis = axes[i];
+          const b = bounds[i];
+          const o = lp0[axis];
+          const d = dir[axis];
+          if (Math.abs(d) < 1e-7) {
+            if (o < -b || o > b) return null;
+          } else {
+            const invD = 1.0 / d;
+            let t1 = (-b - o) * invD;
+            let t2 = (b - o) * invD;
+            let sign = -1;
+            if (t1 > t2) { const tmp = t1; t1 = t2; t2 = tmp; sign = 1; }
+            if (t1 > tMin) { tMin = t1; hitAxis = i; hitSign = sign; }
+            if (t2 < tMax) tMax = t2;
+            if (tMin > tMax) return null;
+          }
+        }
+        if (tMin < 0.0 || tMin > 1.0 || hitAxis === -1) return null;
+        this._localHit.copy(lp0).addScaledVector(dir, tMin);
+        const worldHit = this._localHit.clone().applyMatrix4(targetMesh.matrixWorld);
+        this._localNormal.set(
+          hitAxis === 0 ? hitSign : 0,
+          hitAxis === 1 ? hitSign : 0,
+          hitAxis === 2 ? hitSign : 0
+        );
+        this._normalMat.getNormalMatrix(targetMesh.matrixWorld);
+        const worldNorm = this._localNormal.clone().applyMatrix3(this._normalMat).normalize();
+        return { t: tMin, point: worldHit, normal: worldNorm };
+      }
+    };
+
+    class BallManager {
+      constructor(scene, assetFactory, fractureEngine, soundEngine) {
+        this.scene = scene;
+        this.assets = assetFactory;
+        this.fracture = fractureEngine;
+        this.sound = soundEngine;
+        this.pool = [];
+        this.activeBalls = [];
+        this.shockwaves = [];
+        this._raycaster = new THREE.Raycaster();
+        this._ndc = new THREE.Vector2();
+        this._upVec = new THREE.Vector3(0, 1, 0);
+        this._rightVec = new THREE.Vector3();
+        this._camUpVec = new THREE.Vector3();
+        this._shootDir = new THREE.Vector3();
+        this._tmpMat4 = new THREE.Matrix4();
+        this._tmpVecA = new THREE.Vector3();
+        this._tmpVecB = new THREE.Vector3();
+        this._tmpVecC = new THREE.Vector3();
+        this._tmpQuat = new THREE.Quaternion();
+      }
+
+      init() {
+        for (let i = 0; i < GAME_CONFIG.maxActiveBalls; i++) {
+          const mesh = new THREE.Mesh(this.assets.geometries.ball, this.assets.materials.steelBall);
+          mesh.visible = false;
+          this.scene.add(mesh);
+          this.pool.push({
+            mesh: mesh, active: false, explosive: false,
+            prevPos: new THREE.Vector3(), pos: new THREE.Vector3(),
+            vel: new THREE.Vector3(), age: 0
+          });
+        }
+        this.shockGeo = new THREE.SphereGeometry(1.0, 20, 16);
+      }
+
+      acquireBall(isExplosive = false) {
+        if (this.activeBalls.length >= GAME_CONFIG.maxActiveBalls) return null;
+        let ball = null;
+        for (let i = 0; i < this.pool.length; i++) {
+          if (!this.pool[i].active) { ball = this.pool[i]; break; }
+        }
+        if (!ball && this.activeBalls.length > 0) ball = this.activeBalls.shift();
+        if (!ball) return null;
+        ball.active = true;
+        ball.explosive = isExplosive;
+        ball.age = 0;
+        ball.mesh.material = isExplosive ? this.assets.materials.explosiveBall : this.assets.materials.steelBall;
+        ball.mesh.visible = true;
+        this.activeBalls.push(ball);
+        return ball;
+      }
+
+      getSpreadOffsets(multiball) {
+        switch (multiball) {
+          case 1: return [[0, 0]];
+          case 2: return [[-0.026, 0], [0.026, 0]];
+          case 3: return [[-0.040, -0.010], [0, 0.020], [0.040, -0.010]];
+          case 4: return [[-0.034, 0.022], [0.034, 0.022], [-0.034, -0.022], [0.034, -0.022]];
+          default: return [[0, 0], [-0.044, 0.028], [0.044, 0.028], [-0.044, -0.028], [0.044, -0.028]];
+        }
+      }
+
+      fireSalvo(clientX, clientY, camera, cameraForwardSpeed, multiballCount, isExplosive) {
+        this._ndc.x = (clientX / window.innerWidth) * 2 - 1;
+        this._ndc.y = -(clientY / window.innerHeight) * 2 + 1;
+        this._raycaster.setFromCamera(this._ndc, camera);
+        const baseDir = this._raycaster.ray.direction.clone().normalize();
+        this._rightVec.crossVectors(baseDir, this._upVec).normalize();
+        this._camUpVec.crossVectors(this._rightVec, baseDir).normalize();
+        const offsets = this.getSpreadOffsets(isExplosive ? 1 : multiballCount);
+        const spawnOrigin = camera.position.clone();
+        spawnOrigin.y -= 0.34;
+        spawnOrigin.addScaledVector(baseDir, 0.75);
+        for (let i = 0; i < offsets.length; i++) {
+          const b = this.acquireBall(isExplosive);
+          if (!b) continue;
+          const [ox, oy] = offsets[i];
+          this._shootDir.copy(baseDir)
+            .addScaledVector(this._rightVec, ox)
+            .addScaledVector(this._camUpVec, oy)
+            .normalize();
+          b.pos.copy(spawnOrigin);
+          b.prevPos.copy(spawnOrigin);
+          b.vel.copy(this._shootDir).multiplyScalar(GAME_CONFIG.ballThrowSpeed);
+          b.vel.z -= cameraForwardSpeed * 0.85;
+          b.vel.y += 1.5;
+          b.mesh.position.copy(b.pos);
+        }
+        this.sound.playThrow(multiballCount);
+      }
+
+      triggerExplosion(centerPos, chunks, onCrystalCollected) {
+        this.sound.playExplosionWave();
+        const mat = new THREE.MeshBasicMaterial({ color: 0xfb923c, transparent: true, opacity: 0.72 });
+        const waveMesh = new THREE.Mesh(this.shockGeo, mat);
+        waveMesh.position.copy(centerPos);
+        this.scene.add(waveMesh);
+        this.shockwaves.push({ mesh: waveMesh, mat: mat, age: 0, maxAge: 0.38 });
+        const blastRadius = 9.5;
+        const dummyVel = new THREE.Vector3();
+        for (let c = 0; c < chunks.length; c++) {
+          const chunk = chunks[c];
+          for (let p = 0; p < chunk.panels.length; p++) {
+            const panel = chunk.panels[p];
+            if (panel.shattered) continue;
+            const wPos = new THREE.Vector3();
+            panel.mesh.getWorldPosition(wPos);
+            if (wPos.distanceTo(centerPos) <= blastRadius + Math.max(panel.width, panel.height) * 0.5) {
+              dummyVel.subVectors(wPos, centerPos).normalize().multiplyScalar(32);
+              this.fracture.shatterPanel(panel, centerPos, dummyVel, 2.5);
+              if (panel.onShatteredCallback) panel.onShatteredCallback(panel);
+            }
+          }
+          for (let k = 0; k < chunk.crystals.length; k++) {
+            const cr = chunk.crystals[k];
+            if (cr.collected) continue;
+            const wPos = new THREE.Vector3();
+            cr.mesh.getWorldPosition(wPos);
+            if (wPos.distanceTo(centerPos) <= blastRadius) {
+              cr.collected = true;
+              cr.mesh.visible = false;
+              dummyVel.subVectors(wPos, centerPos).normalize().multiplyScalar(25);
+              this.fracture.shatterCrystal(cr, dummyVel);
+              onCrystalCollected(cr, wPos);
+            }
+          }
+          if (chunk.lasers) {
+            for (let l = 0; l < chunk.lasers.length; l++) {
+              const laser = chunk.lasers[l];
+              if (!laser.active) continue;
+              if (laser.basePanel && laser.basePanel.shattered) laser.deactivate();
+            }
+          }
+        }
+      }
+
+      update(dt, cameraZ, chunks, callbacks) {
+        const halfW = GAME_CONFIG.corridorWidth * 0.5 - GAME_CONFIG.ballRadius;
+        const halfH = GAME_CONFIG.corridorHeight * 0.5 - GAME_CONFIG.ballRadius;
+        const ballR = GAME_CONFIG.ballRadius;
+
+        for (let i = this.shockwaves.length - 1; i >= 0; i--) {
+          const sw = this.shockwaves[i];
+          sw.age += dt;
+          const progress = sw.age / sw.maxAge;
+          if (progress >= 1.0) {
+            this.scene.remove(sw.mesh);
+            sw.mat.dispose();
+            this.shockwaves.splice(i, 1);
+          } else {
+            const scale = 0.5 + progress * 9.0;
+            sw.mesh.scale.set(scale, scale, scale);
+            sw.mat.opacity = (1.0 - progress) * 0.65;
+          }
+        }
+
+        for (let i = this.activeBalls.length - 1; i >= 0; i--) {
+          const b = this.activeBalls[i];
+          b.age += dt;
+          b.prevPos.copy(b.pos);
+          b.vel.y += GAME_CONFIG.gravity * dt;
+          b.pos.addScaledVector(b.vel, dt);
+          if (b.pos.x < -halfW) { b.pos.x = -halfW; b.vel.x *= -0.72; this.sound.playMetalRicochet(); }
+          if (b.pos.x >  halfW) { b.pos.x =  halfW; b.vel.x *= -0.72; this.sound.playMetalRicochet(); }
+          if (b.pos.y < -halfH) { b.pos.y = -halfH; b.vel.y *= -0.68; }
+          if (b.pos.y >  halfH) { b.pos.y =  halfH; b.vel.y *= -0.68; }
+
+          let removeBall = false;
+          for (let c = 0; c < chunks.length; c++) {
+            const chunk = chunks[c];
+            const minZ = Math.min(b.prevPos.z, b.pos.z) - 3.0;
+            const maxZ = Math.max(b.prevPos.z, b.pos.z) + 3.0;
+            if (minZ > chunk.zStart || maxZ < chunk.zEnd) continue;
+
+            for (let k = 0; k < chunk.crystals.length; k++) {
+              const cr = chunk.crystals[k];
+              if (cr.collected) continue;
+              const hit = CCDSolver.sweepSphereOBB(b.prevPos, b.pos, ballR + 0.48, cr.mesh, cr.width, cr.height, cr.depth);
+              if (hit) {
+                cr.collected = true;
+                cr.mesh.visible = false;
+                this.fracture.shatterCrystal(cr, b.vel);
+                this.sound.playCrystalChime(cr.reward);
+                callbacks.onCrystalHit(cr, hit.point);
+                if (b.explosive) {
+                  this.triggerExplosion(hit.point, chunks, callbacks.onCrystalHit);
+                  removeBall = true;
+                  break;
+                }
+                b.vel.multiplyScalar(0.90);
+              }
+            }
+            if (removeBall) break;
+
+            for (let p = 0; p < chunk.panels.length; p++) {
+              const panel = chunk.panels[p];
+              if (panel.shattered) continue;
+              const broadHit = CCDSolver.sweepSphereOBB(b.prevPos, b.pos, ballR + 0.14, panel.mesh, panel.width, panel.height, panel.depth);
+              if (!broadHit) continue;
+
+              if (b.explosive) {
+                this.triggerExplosion(broadHit.point, chunks, callbacks.onCrystalHit);
+                removeBall = true;
+                break;
+              }
+
+              panel.mesh.updateWorldMatrix(true, false);
+              const invMat = this._tmpMat4.copy(panel.mesh.matrixWorld).invert();
+              const localHit = this._tmpVecA.copy(broadHit.point).applyMatrix4(invMat);
+              const lp0 = this._tmpVecB.copy(b.prevPos).applyMatrix4(invMat);
+              const lp1 = this._tmpVecC.copy(b.pos).applyMatrix4(invMat);
+              const dz = lp1.z - lp0.z;
+              let u = localHit.x;
+              let v = localHit.y;
+              if (Math.abs(dz) > 1e-6) {
+                const tPlane = -lp0.z / dz;
+                if (tPlane >= -0.25 && tPlane <= 1.25) {
+                  const clampT = Math.max(0.0, Math.min(1.0, tPlane));
+                  u = lp0.x + (lp1.x - lp0.x) * clampT;
+                  v = lp0.y + (lp1.y - lp0.y) * clampT;
+                }
+              }
+
+              const sectors = panel.sectors || [];
+              const thickness = panel.depth || 0.18;
+              const isThick = thickness >= 0.28;
+
+              if (sectors.length === 0) {
+                panel.hits = (panel.hits || 0) + 1;
+                panel.shattered = true;
+                panel.mesh.visible = false;
+                if (panel.brokenMesh) panel.brokenMesh.visible = false;
+                this.fracture.shatterPanel(panel, broadHit.point, b.vel, 1.5);
+                this.sound.playGlassShatter(panel.massFactor || (thickness * 8.0));
+                callbacks.onPanelShattered(panel);
+                if (panel.onShatteredCallback) panel.onShatteredCallback(panel);
+                b.pos.copy(broadHit.point).addScaledVector(broadHit.normal, ballR + 0.04);
+                b.vel.z *= 0.25;
+                b.vel.y -= 3.0;
+                break;
+              }
+
+              let hitSector = null;
+              let minDistToSolid = Infinity;
+              for (let s = 0; s < sectors.length; s++) {
+                const sec = sectors[s];
+                if (sec.shattered) continue;
+                const halfWs = sec.width * 0.5;
+                const halfHs = sec.height * 0.5;
+                const dx = Math.max(0, Math.abs(u - sec.cx) - halfWs);
+                const dy = Math.max(0, Math.abs(v - sec.cy) - halfHs);
+                const dist = Math.hypot(dx, dy);
+                if (dist < minDistToSolid) { minDistToSolid = dist; hitSector = sec; }
+              }
+
+              if (!hitSector || minDistToSolid > ballR * 0.88) continue;
+
+              panel.hits = (panel.hits || 0) + 1;
+              const ballMass = b.explosive ? 2.5 : 1.0;
+              if (panel.verletRopes) {
+                const impulse = b.vel.clone().multiplyScalar(0.065 * ballMass);
+                panel.verletRopes.forEach(r => r.applyImpulseAtBottom(impulse));
+              } else if (panel.pendulumGroup) {
+                panel.pendulumGroup.physicsVel = (panel.pendulumGroup.physicsVel || 0) + (u >= 0 ? 2.4 : -2.4) * (b.vel.length() / 40.0) * ballMass;
+              }
+
+              const normalSpeed = Math.abs(b.vel.dot(broadHit.normal));
+              const totalSpeed = b.vel.length();
+              const effectiveImpulseSpeed = normalSpeed * 0.72 + totalSpeed * 0.28;
+              const rawImpulse = effectiveImpulseSpeed * ballMass;
+              const impulseRatio = Math.max(0.25, Math.min(2.5, rawImpulse / 38.0));
+
+              const halfDiag = Math.hypot(panel.width * 0.5, panel.height * 0.5);
+              const distFromCenter = Math.hypot(u, v);
+              const centerRatio = Math.max(0.0, 1.0 - (distFromCenter / (halfDiag * 0.85)));
+              const thicknessFactor = isThick ? 0.62 : 1.0;
+
+              let baseRadius;
+              if (centerRatio > 0.45) baseRadius = Math.min(halfDiag * 0.42, 1.35);
+              else baseRadius = Math.min(halfDiag * 0.24, 0.75);
+
+              const splashRadius = baseRadius * impulseRatio * thicknessFactor;
+
+              const newlyShattered = [];
+              for (let s = 0; s < sectors.length; s++) {
+                const sec = sectors[s];
+                if (sec.shattered) continue;
+                const d = Math.hypot(sec.cx - u, sec.cy - v);
+                if (d <= splashRadius) {
+                  sec.shattered = true;
+                  newlyShattered.push(sec);
+                } else if (impulseRatio > 1.25 && d <= splashRadius * 1.35) {
+                  const angle = Math.atan2(sec.cy - v, sec.cx - u);
+                  const crackAlignment = Math.abs(Math.sin(angle * 3.0));
+                  if (crackAlignment > 0.75 && Math.random() < (impulseRatio - 1.0) * 0.55) {
+                    sec.shattered = true;
+                    newlyShattered.push(sec);
+                  }
+                }
+              }
+
+              if (newlyShattered.length === 0) {
+                hitSector.shattered = true;
+                newlyShattered.push(hitSector);
+              }
+
+              const energyScale = impulseRatio * (isThick ? 1.25 : 1.0);
+              this.fracture.shatterSectors(panel, newlyShattered, broadHit.point, b.vel, energyScale);
+              this.sound.playGlassShatter(panel.massFactor || (thickness * 8.0));
+              chunk.checkPanelConnectivity(panel, b.vel);
+
+              const allShattered = sectors.every(s => s.shattered);
+              if (allShattered) {
+                panel.shattered = true;
+                panel.mesh.visible = false;
+                if (panel.brokenMesh) {
+                  panel.brokenMesh.visible = false;
+                  if (panel.brokenMesh.geometry) panel.brokenMesh.geometry.dispose();
+                }
+                callbacks.onPanelShattered(panel);
+                if (panel.onShatteredCallback) panel.onShatteredCallback(panel);
+              } else {
+                panel.cracked = true;
+                chunk.updateBrokenPanelGeometry(panel);
+              }
+
+              const baseSlowdown = isThick
+                ? Math.max(0.16, 0.34 - thickness * 0.5)
+                : Math.max(0.22, 0.48 - thickness * 0.8);
+              const punchFactor = THREE.MathUtils.clamp(baseSlowdown * Math.sqrt(impulseRatio), 0.12, 0.65);
+              b.pos.copy(broadHit.point).addScaledVector(broadHit.normal, ballR + 0.04);
+              b.vel.z *= punchFactor;
+              b.vel.x = b.vel.x * punchFactor + (Math.random() - 0.5) * 2.8;
+              b.vel.y = b.vel.y * punchFactor - (2.4 + thickness * 3.8) / Math.max(0.75, impulseRatio);
+              break;
+            }
+
+            if (chunk.metalColliders) {
+              for (let m = 0; m < chunk.metalColliders.length; m++) {
+                const metal = chunk.metalColliders[m];
+                if (!metal.mesh.visible) continue;
+                if (metal.parentPanel && metal.parentPanel.shattered) continue;
+                const hit = CCDSolver.sweepSphereOBB(b.prevPos, b.pos, ballR + 0.05, metal.mesh, metal.width, metal.height, metal.depth);
+                if (hit) {
+                  b.vel.reflect(hit.normal).multiplyScalar(0.72);
+                  b.pos.copy(hit.point).addScaledVector(hit.normal, ballR + 0.06);
+                  this.sound.playMetalRicochet();
+                  if (metal.verletRopes) {
+                    metal.verletRopes.forEach(r => r.applyImpulseAtBottom(b.vel.clone().multiplyScalar(0.06)));
+                  } else if (metal.rotorHub) {
+                    metal.rotorHub.rotation.z += (b.vel.x >= 0 ? 0.40 : -0.40);
+                  }
+                  break;
+                }
+              }
+            }
+            if (removeBall) break;
+          }
+
+          b.mesh.position.copy(b.pos);
+          if (removeBall || b.age > 3.6 || b.pos.z < cameraZ - 145 || b.pos.z > cameraZ + 6) {
+            b.active = false;
+            b.mesh.visible = false;
+            this.activeBalls.splice(i, 1);
+          }
+        }
+      }
+
+      clearAll() {
+        for (let i = 0; i < this.activeBalls.length; i++) {
+          this.activeBalls[i].active = false;
+          this.activeBalls[i].mesh.visible = false;
+        }
+        this.activeBalls.length = 0;
+      }
+    }
+
+    class TunnelChunkManager {
+      constructor(scene, assetFactory, fractureEngine = null) {
+        this.scene = scene;
+        this.assets = assetFactory;
+        this.fracture = fractureEngine;
+        this.chunks = [];
+        this.nextChunkIndex = 0;
+        this.obstacleCounter = 0;
+        this.scoreProvider = null;
+        this.soundRef = null;
+
+        this.W = GAME_CONFIG.corridorWidth;
+        this.H = GAME_CONFIG.corridorHeight;
+        this.L = GAME_CONFIG.chunkLength;
+        this.sharedShellGeos = {};
+        this.initSharedShellGeometries();
+      }
+
+      initSharedShellGeometries() {
+        const W = this.W, H = this.H, L = this.L;
+        this.sharedShellGeos.floorCeil   = new THREE.PlaneGeometry(W, L);
+        this.sharedShellGeos.sideWall    = new THREE.PlaneGeometry(L, H);
+        this.sharedShellGeos.ribPillar   = new THREE.BoxGeometry(0.75, H, 0.95);
+        this.sharedShellGeos.ceilingBeam = new THREE.BoxGeometry(W, 0.55, 0.95);
+        this.sharedShellGeos.neonTube    = new THREE.BoxGeometry(0.24, 0.10, L * 0.86);
+        this.sharedShellGeos.lightShaft  = new THREE.PlaneGeometry(3.8, H * 1.35);
+        this.sharedShellGeos.unitBox     = new THREE.BoxGeometry(1, 1, 1);
+      }
+
+      reset() {
+        for (let i = 0; i < this.chunks.length; i++) this.disposeChunk(this.chunks[i]);
+        this.chunks.length = 0;
+        this.nextChunkIndex = 0;
+        this.obstacleCounter = 0;
+      }
+
+      disposeChunk(chunk) {
+        this.scene.remove(chunk.group);
+        for (let i = 0; i < chunk.disposableGeos.length; i++) chunk.disposableGeos[i].dispose();
+        chunk.disposableGeos.length = 0;
+      }
+
+      ensureChunksAhead(cameraZ, modeKey) {
+        while (this.chunks.length > 0 && this.chunks[0].zEnd > cameraZ + 14.0) {
+          const old = this.chunks.shift();
+          this.disposeChunk(old);
+        }
+        while (this.chunks.length < GAME_CONFIG.visibleChunksAhead) {
+          this.spawnNextChunk(modeKey);
+        }
+      }
+
+      spawnNextChunk(modeKey) {
+        const idx = this.nextChunkIndex++;
+        const zStart = -idx * this.L;
+        const zEnd = zStart - this.L;
+        const zoneIdx = Math.floor(idx / 4) % GAME_CONFIG.zones.length;
+        const zone = GAME_CONFIG.zones[zoneIdx];
+        const isCheckpointGateChunk = (idx > 0 && idx % 4 === 0);
+        const group = new THREE.Group();
+        this.scene.add(group);
+        const chunk = {
+          index: idx,
+          zone: zone,
+          isCheckpointGate: isCheckpointGateChunk,
+          checkpointTriggered: false,
+          zStart: zStart, zEnd: zEnd,
+          group: group,
+          panels: [], crystals: [], switches: [], solids: [],
+          metalColliders: [], lasers: [], kinematics: [],
+          disposableGeos: [],
+          updateBrokenPanelGeometry: (p) => this.updateBrokenPanelGeometry(p),
+          checkPanelConnectivity: (p, v) => this.checkPanelConnectivity(p, v)
+        };
+        this.buildCorridorShell(chunk);
+        if (isCheckpointGateChunk) this.buildCheckpointGate(chunk);
+        if (idx <= 1) this.populateWarmupChunk(chunk, idx);
+        else this.populateChunkObstacles(chunk, modeKey);
+        this.chunks.push(chunk);
+      }
+
+      buildCorridorShell(chunk) {
+        const W = this.W, H = this.H, L = this.L;
+        const halfW = W * 0.5, halfH = H * 0.5;
+        const centerZ = (chunk.zStart + chunk.zEnd) * 0.5;
+        const wallMat = this.assets.materials.tunnelWall;
+        const metalMat = this.assets.materials.darkMetal;
+        const neonMat = this.assets.materials.neonStrip;
+
+        const floor = new THREE.Mesh(this.sharedShellGeos.floorCeil, wallMat);
+        floor.rotation.x = -Math.PI * 0.5;
+        floor.position.set(0, -halfH, centerZ);
+        chunk.group.add(floor);
+
+        const ceil = new THREE.Mesh(this.sharedShellGeos.floorCeil, wallMat);
+        ceil.rotation.x = Math.PI * 0.5;
+        ceil.position.set(0, halfH, centerZ);
+        chunk.group.add(ceil);
+
+        const leftW = new THREE.Mesh(this.sharedShellGeos.sideWall, wallMat);
+        leftW.rotation.y = Math.PI * 0.5;
+        leftW.position.set(-halfW, 0, centerZ);
+        chunk.group.add(leftW);
+
+        const rightW = new THREE.Mesh(this.sharedShellGeos.sideWall, wallMat);
+        rightW.rotation.y = -Math.PI * 0.5;
+        rightW.position.set(halfW, 0, centerZ);
+        chunk.group.add(rightW);
+
+        const ribOffsets = [-L * 0.25, -L * 0.75];
+        for (let i = 0; i < ribOffsets.length; i++) {
+          const rz = chunk.zStart + ribOffsets[i];
+          const pL = new THREE.Mesh(this.sharedShellGeos.ribPillar, metalMat);
+          pL.position.set(-halfW + 0.38, 0, rz);
+          chunk.group.add(pL);
+          const pR = new THREE.Mesh(this.sharedShellGeos.ribPillar, metalMat);
+          pR.position.set(halfW - 0.38, 0, rz);
+          chunk.group.add(pR);
+          const topB = new THREE.Mesh(this.sharedShellGeos.ceilingBeam, metalMat);
+          topB.position.set(0, halfH - 0.28, rz);
+          chunk.group.add(topB);
+          if (GAME_CONFIG.lightShaftsEnabled) {
+            const shaft = new THREE.Mesh(this.sharedShellGeos.lightShaft, this.assets.materials.lightShaft);
+            shaft.position.set((i === 0 ? -1.8 : 1.8), 0.4, rz - 2.5);
+            shaft.rotation.z = (i === 0 ? -0.26 : 0.26);
+            shaft.rotation.y = 0.25;
+            chunk.group.add(shaft);
+          }
+        }
+
+        const neonL = new THREE.Mesh(this.sharedShellGeos.neonTube, neonMat);
+        neonL.position.set(-halfW * 0.54, halfH - 0.08, centerZ);
+        chunk.group.add(neonL);
+
+        const neonR = new THREE.Mesh(this.sharedShellGeos.neonTube, neonMat);
+        neonR.position.set(halfW * 0.54, halfH - 0.08, centerZ);
+        chunk.group.add(neonR);
+      }
+
+      // addGlassPanel с поддержкой solid (без секторов) и anchor типов
+      addGlassPanel(chunk, x, y, z, width, height, depth = 0.18, opts = {}) {
+        const group = new THREE.Group();
+        group.position.set(x, y, z);
+        if (opts.rotZ) group.rotation.z = opts.rotZ;
+        const parent = opts.parent || chunk.group;
+        parent.add(group);
+
+        const glassMat = opts.material || this.assets.materials.glassPanel;
+
+        // === SOLID (без секторов) — для лазерной плашки ===
+        if (opts.solid) {
+          const intactMesh = new THREE.Mesh(this.sharedShellGeos.unitBox, glassMat);
+          intactMesh.scale.set(width, height, depth);
+          group.add(intactMesh);
+          const panelObj = {
+            mesh: group, intactMesh: intactMesh, brokenMesh: null,
+            width, height, depth,
+            rows: 1, cols: 1, sectors: [], chunk: chunk,
+            anchor: 'none', shattered: false, cracked: false, hits: 0,
+            material: glassMat,
+            massFactor: Math.max(0.55, Math.min(2.0, (width * height) / 18.0)),
+            onShatteredCallback: opts.onShattered || null
+          };
+          chunk.panels.push(panelObj);
+          return panelObj;
+        }
+
+        const intactMesh = new THREE.Mesh(this.sharedShellGeos.unitBox, glassMat);
+        intactMesh.scale.set(width, height, depth);
+        group.add(intactMesh);
+
+        const cols = Math.max(10, Math.min(14, Math.round(width * 1.8)));
+        const rows = Math.max(10, Math.min(14, Math.round(height * 1.8)));
+        const stepX = width / cols;
+        const stepY = height / rows;
+
+        const pts = [];
+        for (let r = 0; r <= rows; r++) {
+          pts[r] = [];
+          const baseY = -height * 0.5 + r * stepY;
+          for (let c = 0; c <= cols; c++) {
+            const baseX = -width * 0.5 + c * stepX;
+            let jx = 0, jy = 0;
+            if (c > 0 && c < cols && r > 0 && r < rows) {
+              jx = (Math.random() - 0.5) * stepX * 0.52;
+              jy = (Math.random() - 0.5) * stepY * 0.52;
+            }
+            pts[r][c] = { x: baseX + jx, y: baseY + jy };
+          }
+        }
+
+        const sectors = [];
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const p0 = pts[r][c];
+            const p1 = pts[r][c + 1];
+            const p2 = pts[r + 1][c + 1];
+            const p3 = pts[r + 1][c];
+            const cx = (p0.x + p1.x + p2.x + p3.x) * 0.25;
+            const cy = (p0.y + p1.y + p2.y + p3.y) * 0.25;
+            sectors.push({
+              r: r, c: c, cx: cx, cy: cy,
+              q0: { x: p0.x, y: p0.y },
+              q1: { x: p1.x, y: p1.y },
+              q2: { x: p2.x, y: p2.y },
+              q3: { x: p3.x, y: p3.y },
+              width: stepX, height: stepY, depth: depth,
+              shattered: false, parentPanel: null
+            });
+          }
+        }
+
+        group.material = glassMat;
+        const panelObj = {
+          mesh: group, intactMesh: intactMesh, brokenMesh: null, brokenGeo: null,
+          width: width, height: height, depth: depth,
+          rows: rows, cols: cols, sectors: sectors, chunk: chunk,
+          anchor: opts.anchor || (opts.pendulumGroup ? 'top' : (y > 1.8 ? 'top' : 'bottom')),
+          verletAnchorXs: opts.verletAnchorXs || null,
+          framed: opts.framed !== false,
+          shattered: false, cracked: false, hits: 0,
+          pendulumGroup: opts.pendulumGroup || null,
+          verletRopes: opts.verletRopes || null,
+          material: glassMat,
+          massFactor: Math.max(0.55, Math.min(2.0, (width * height) / 18.0)),
+          onShatteredCallback: opts.onShattered || null
+        };
+        sectors.forEach(s => { s.parentPanel = panelObj; });
+        chunk.panels.push(panelObj);
+        return panelObj;
+      }
+
+      // Обновлённый checkPanelConnectivity с anchor:'none' и 'verlet'
+      checkPanelConnectivity(panel, ballVelocity) {
+        if (!panel || !this.fracture) return;
+        const sectors = panel.sectors || [];
+        const rows = panel.rows || 1;
+        const cols = panel.cols || 1;
+        if (sectors.length === 0) return;
+
+        const grid = [];
+        for (let r = 0; r < rows; r++) grid[r] = [];
+        for (let i = 0; i < sectors.length; i++) {
+          const s = sectors[i];
+          grid[s.r][s.c] = s;
+        }
+
+        // === Свободно висящий объект (anchor:'none') — всё падает при любой потере целостности ===
+        if (panel.anchor === 'none') {
+          const detached = [];
+          for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+              const s = grid[r][c];
+              if (s && !s.shattered) {
+                s.shattered = true;
+                detached.push(s);
+              }
+            }
+          }
+          if (detached.length > 0) this.fracture.spawnFallingChunk(panel, detached, ballVelocity);
+          return;
+        }
+
+        const isHanging = (panel.pendulumGroup !== null) || (panel.anchor === 'top');
+        const isAnchor = (r, c) => {
+          const sec = grid[r] && grid[r][c];
+          if (!sec) return false;
+          // === Подвес на верёвках (anchor:'verlet') — якоря возле точек крепления ===
+          if (panel.anchor === 'verlet' && panel.verletAnchorXs) {
+            for (let i = 0; i < panel.verletAnchorXs.length; i++) {
+              if (Math.abs(sec.cx - panel.verletAnchorXs[i]) < 0.45) return true;
+            }
+            return false;
+          }
+          if (isHanging) return r === rows - 1;
+          if (panel.anchor === 'bottom') return r === 0;
+          if (panel.anchor === 'sides') return c === 0 || c === cols - 1;
+          return (panel.mesh && panel.mesh.position.y > 1.8) ? (r === rows - 1) : (r === 0);
+        };
+
+        const visited = [];
+        for (let r = 0; r < rows; r++) visited[r] = new Uint8Array(cols);
+        const queue = [];
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const s = grid[r][c];
+            if (s && !s.shattered && isAnchor(r, c)) {
+              visited[r][c] = 1;
+              queue.push(s);
+            }
+          }
+        }
+        let head = 0;
+        const dRow = [-1, 1, 0, 0];
+        const dCol = [0, 0, -1, 1];
+        while (head < queue.length) {
+          const curr = queue[head++];
+          for (let i = 0; i < 4; i++) {
+            const nr = curr.r + dRow[i];
+            const nc = curr.c + dCol[i];
+            if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
+              const nbr = grid[nr][nc];
+              if (nbr && !nbr.shattered && !visited[nr][nc]) {
+                visited[nr][nc] = 1;
+                queue.push(nbr);
+              }
+            }
+          }
+        }
+        const detached = [];
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const s = grid[r][c];
+            if (s && !s.shattered && !visited[r][c]) {
+              s.shattered = true;
+              detached.push(s);
+            }
+          }
+        }
+        if (detached.length > 0) this.fracture.spawnFallingChunk(panel, detached, ballVelocity);
+      }
+
+      updateBrokenPanelGeometry(panel) {
+        if (!panel) return;
+        const sectors = panel.sectors || [];
+        const rows = panel.rows || 1;
+        const cols = panel.cols || 1;
+        const hz = panel.depth * 0.5;
+        if (panel.intactMesh) panel.intactMesh.visible = false;
+        if (sectors.length === 0 || sectors.every(s => s.shattered)) {
+          panel.shattered = true;
+          panel.mesh.visible = false;
+          if (panel.brokenMesh) {
+            panel.brokenMesh.visible = false;
+            if (panel.brokenMesh.geometry) panel.brokenMesh.geometry.dispose();
+          }
+          return;
+        }
+        const grid = [];
+        for (let r = 0; r < rows; r++) grid[r] = [];
+        for (let i = 0; i < sectors.length; i++) {
+          const s = sectors[i];
+          grid[s.r][s.c] = s;
+        }
+        const positions = [];
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const s = grid[r][c];
+            if (!s || s.shattered) continue;
+            const q0 = s.q0, q1 = s.q1, q2 = s.q2, q3 = s.q3;
+            positions.push(
+              q0.x, q0.y,  hz,   q1.x, q1.y,  hz,   q2.x, q2.y,  hz,
+              q0.x, q0.y,  hz,   q2.x, q2.y,  hz,   q3.x, q3.y,  hz
+            );
+            positions.push(
+              q0.x, q0.y, -hz,   q2.x, q2.y, -hz,   q1.x, q1.y, -hz,
+              q0.x, q0.y, -hz,   q3.x, q3.y, -hz,   q2.x, q2.y, -hz
+            );
+            if (r === 0 || grid[r - 1][c].shattered) {
+              positions.push(
+                q0.x, q0.y, -hz,   q1.x, q1.y, -hz,   q1.x, q1.y,  hz,
+                q0.x, q0.y, -hz,   q1.x, q1.y,  hz,   q0.x, q0.y,  hz
+              );
+            }
+            if (c === cols - 1 || grid[r][c + 1].shattered) {
+              positions.push(
+                q1.x, q1.y, -hz,   q2.x, q2.y, -hz,   q2.x, q2.y,  hz,
+                q1.x, q1.y, -hz,   q2.x, q2.y,  hz,   q1.x, q1.y,  hz
+              );
+            }
+            if (r === rows - 1 || grid[r + 1][c].shattered) {
+              positions.push(
+                q2.x, q2.y, -hz,   q3.x, q3.y, -hz,   q3.x, q3.y,  hz,
+                q2.x, q2.y, -hz,   q3.x, q3.y,  hz,   q2.x, q2.y,  hz
+              );
+            }
+            if (c === 0 || grid[r][c - 1].shattered) {
+              positions.push(
+                q3.x, q3.y, -hz,   q0.x, q0.y, -hz,   q0.x, q0.y,  hz,
+                q3.x, q3.y, -hz,   q0.x, q0.y,  hz,   q3.x, q3.y,  hz
+              );
+            }
+          }
+        }
+        if (positions.length === 0) {
+          panel.shattered = true;
+          panel.mesh.visible = false;
+          if (panel.brokenMesh) {
+            panel.brokenMesh.visible = false;
+            if (panel.brokenMesh.geometry) panel.brokenMesh.geometry.dispose();
+          }
+          return;
+        }
+        const newGeo = new THREE.BufferGeometry();
+        newGeo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        newGeo.computeVertexNormals();
+        if (panel.chunk && panel.chunk.disposableGeos) panel.chunk.disposableGeos.push(newGeo);
+        if (panel.brokenMesh) {
+          panel.brokenMesh.geometry.dispose();
+          panel.brokenMesh.geometry = newGeo;
+          panel.brokenMesh.visible = true;
+        } else {
+          panel.brokenMesh = new THREE.Mesh(newGeo, panel.material || this.assets.materials.glassPanel);
+          panel.mesh.add(panel.brokenMesh);
+        }
+      }
+
+      addCrystal(chunk, x, y, z, type = 'pyramid', powerUpKey = null) {
+        let geo = this.assets.geometries.pyramidCrystal;
+        let mat = this.assets.materials.crystalCyan;
+        let reward = 3;
+        let w = 2.2, h = 2.5, d = 2.2;
+        if (powerUpKey) {
+          geo = this.assets.geometries.powerUpOrb;
+          mat = this.assets.materials.crystalGold;
+          reward = 3;
+          w = 2.1; h = 2.1; d = 2.1;
+        } else if (type === 'octa') {
+          geo = this.assets.geometries.octaCrystal;
+          mat = this.assets.materials.crystalViolet;
+          reward = 5;
+          w = 2.3; h = 2.5; d = 2.3;
+        } else if (type === 'star') {
+          geo = this.assets.geometries.starCrystal;
+          mat = this.assets.materials.crystalGold;
+          reward = 10;
+          w = 2.5; h = 2.5; d = 2.5;
+        }
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.set(x, y, z);
+        if (GAME_CONFIG.crystalLightsEnabled) {
+          const lightColor = (powerUpKey || type === 'star') ? 0xfef08a : (type === 'octa' ? 0xd8b4fe : 0x7dd3fc);
+          const internalLight = new THREE.PointLight(lightColor, 0.75, 4.8, 2.0);
+          mesh.add(internalLight);
+        }
+        chunk.group.add(mesh);
+        const crystalObj = {
+          mesh: mesh, type: type, powerUpType: powerUpKey, reward: reward,
+          width: w, height: h, depth: d,
+          collected: false, missedChecked: false,
+          spinSpeed: (type === 'pyramid' && !powerUpKey) ? 0.95 : 2.1
+        };
+        chunk.crystals.push(crystalObj);
+        return crystalObj;
+      }
+
+      buildCheckpointGate(chunk) {
+        const z = chunk.zStart - 3.5;
+        const ringGeo = new THREE.TorusGeometry(this.H * 0.46, 0.26, 10, 36);
+        chunk.disposableGeos.push(ringGeo);
+        const ringMesh = new THREE.Mesh(ringGeo, this.assets.materials.neonStrip);
+        ringMesh.position.set(0, 0, z);
+        chunk.group.add(ringMesh);
+        this.addGlassPanel(chunk, 0, 0, z, 5.2, 5.2, 0.14);
+        chunk.kinematics.push((dt) => { ringMesh.rotation.z += dt * 0.75; });
+      }
+
+      populateWarmupChunk(chunk, idx) {
+        const floorY = -this.H * 0.5 + 1.35;
+        if (idx === 0) {
+          this.addCrystal(chunk, -3.2, floorY, chunk.zStart - 10, 'pyramid');
+          this.addCrystal(chunk,  3.2, floorY, chunk.zStart - 17, 'pyramid');
+          this.addGlassPanel(chunk, 0, -0.4, chunk.zStart - 24, 6.8, 7.2, 0.15);
+          this.addCrystal(chunk,  0.0, floorY, chunk.zStart - 31, 'pyramid');
+        } else {
+          this.addCrystal(chunk, -3.5, floorY, chunk.zStart - 8,  'pyramid');
+          this.addGlassPanel(chunk, -2.2, 0, chunk.zStart - 15, 5.6, 8.2, 0.15);
+          this.addCrystal(chunk,  3.5, 0.2,    chunk.zStart - 22, 'octa');
+          this.addGlassPanel(chunk,  2.2, 0, chunk.zStart - 29, 5.6, 8.2, 0.15);
+        }
+      }
+
+      populateChunkObstacles(chunk, modeKey) {
+  const modeCfg = GAME_CONFIG.modes[modeKey] || GAME_CONFIG.modes.classic;
+  const playerScore = this.scoreProvider ? this.scoreProvider() : 0;
+
+  // === С 1000 очков количество бонусов снижается вдвое ===
+  const halved = playerScore >= 1000;
+
+  // 1) Ambient-кристаллы: было 2 на чанк, после 1000 — 1 на чанк
+  const ambientZ = halved
+    ? [chunk.zStart - 15.0]
+    : [chunk.zStart - 9.0, chunk.zStart - 30.0];
+
+  for (let i = 0; i < ambientZ.length; i++) {
+    const cz = ambientZ[i];
+    const cx = (Math.random() - 0.5) * (this.W - 5.4);
+    if (Math.random() < modeCfg.puRate) {
+      const puTypes = ['infinite', 'explosive', 'slowmo'];
+      const puKey = puTypes[Math.floor(Math.random() * puTypes.length)];
+      this.addCrystal(chunk, cx, 0.4, cz, 'orb', puKey);
+    } else {
+      const cy = (Math.random() - 0.3) * 2.6;
+      this.addCrystal(chunk, cx, cy, cz, 'pyramid');
+    }
+  }
+
+  // Одно препятствие на чанк
+  const oz = chunk.zStart - this.L * 0.5;
+  this.obstacleCounter++;
+
+  const isLaserObstacle = (this.obstacleCounter % 5 === 0);
+  if (isLaserObstacle) {
+    this.addLaserObstacle(chunk, oz);
+  } else {
+    const patternId = Math.floor(Math.random() * 18);
+    this.spawnGlassObstaclePattern(chunk, oz, patternId);
+  }
+
+  // 2) Бонус +3 (пирамидка):
+  //    до 1000 — на КАЖДОЕ препятствие, после 1000 — на каждое ВТОРОЕ (вдвое реже)
+  const shouldSpawn3 = !halved || (this.obstacleCounter % 2 === 0);
+  if (shouldSpawn3) {
+    const bonusZ = oz + 6.0;
+    const bx = (Math.random() - 0.5) * 4.5;
+    const by = (Math.random() - 0.2) * 2.5;
+    this.addCrystal(chunk, bx, by, bonusZ, 'pyramid');
+  }
+
+  // 3) Бонус +5 (октаэдр):
+  //    от 500 очков каждые 10 препятствий, после 1000 — каждые 20 (вдвое реже)
+  const five5Cycle = halved ? 20 : 10;
+  if (playerScore >= 500 && this.obstacleCounter % five5Cycle === 0) {
+    const o5x = (Math.random() - 0.5) * 4.0;
+    const o5y = (Math.random() - 0.3) * 2.0;
+    this.addCrystal(chunk, o5x, o5y, oz + 9.0, 'octa');
+  }
+}
+      // Лазер: тёмная плашка-основание по центру на уровне глаз + 3 луча + 3 красных эмиттера.
+      // Один выстрел в плашку полностью её уничтожает → все лучи и эмиттеры исчезают.
+      addLaserObstacle(chunk, z) {
+        const W = this.W;
+        const soundRef = this.soundRef;
+
+        const laser = {
+          active: true,
+          bars: [],
+          emitters: [],
+          z: z,
+          basePanel: null,
+          deactivate: () => {
+            if (!laser.active) return;
+            laser.active = false;
+            for (let i = 0; i < laser.bars.length; i++) {
+              const bar = laser.bars[i];
+              if (bar.parent) bar.parent.remove(bar);
+            }
+            for (let i = 0; i < laser.emitters.length; i++) {
+              const em = laser.emitters[i];
+              if (em.parent) em.parent.remove(em);
+            }
+            laser.bars.length = 0;
+            laser.emitters.length = 0;
+            if (soundRef && soundRef.playLaserDestroyed) soundRef.playLaserDestroyed();
+          }
+        };
+
+        // Основание — на уровне глаз, крупное, отчётливо тёмное
+        const basePanel = this.addGlassPanel(chunk, 0, 0, z, 3.6, 3.0, 0.42, {
+          material: this.assets.materials.darkGlassPanel,
+          solid: true,
+          anchor: 'none',
+          onShattered: () => { laser.deactivate(); }
+        });
+        laser.basePanel = basePanel;
+
+        // 3 красных эмиттера на задней грани
+        const emitterGeo = new THREE.BoxGeometry(0.55, 0.35, 0.22);
+        chunk.disposableGeos.push(emitterGeo);
+        const emitterYs = [-3.0, 0, 3.0];
+        for (let i = 0; i < emitterYs.length; i++) {
+          const em = new THREE.Mesh(emitterGeo, this.assets.materials.laserEmitter);
+          em.position.set(0, emitterYs[i], z - 0.28);
+          chunk.group.add(em);
+          laser.emitters.push(em);
+        }
+
+        // 3 горизонтальных луча сзади плашки
+        const barGeo = new THREE.BoxGeometry(W - 1.2, 0.12, 0.12);
+        chunk.disposableGeos.push(barGeo);
+        for (let i = 0; i < emitterYs.length; i++) {
+          const bar = new THREE.Mesh(barGeo, this.assets.materials.laserBeam);
+          bar.position.set(0, emitterYs[i], z - 0.6);
+          chunk.group.add(bar);
+          laser.bars.push(bar);
+        }
+
+        chunk.kinematics.push((dt, elapsed) => {
+          if (!laser.active) return;
+          const s = 0.85 + 0.15 * Math.sin(elapsed * 8.0 + z);
+          for (let i = 0; i < laser.bars.length; i++) {
+            laser.bars[i].scale.set(1, s, s);
+          }
+        });
+
+        chunk.lasers.push(laser);
+        return laser;
+      }
+
+      spawnGlassObstaclePattern(chunk, z, patternId) {
+        const W = this.W, H = this.H;
+        switch (patternId) {
+          case 0: {
+            if (Math.random() < 0.5) {
+              this.addGlassPanel(chunk, 0, -0.2, z, 7.8, H - 2.0, 0.36);
+            } else {
+              this.addGlassPanel(chunk, -3.2, 0, z,       5.6, H - 1.6, 0.28);
+              this.addGlassPanel(chunk,  3.2, 0, z - 2.4, 5.6, H - 1.6, 0.28);
+            }
+            break;
+          }
+          case 1: {
+            const p1 = this.addGlassPanel(chunk, -2.4, -0.2, z,       5.4, H - 2.0, 0.20);
+            const p2 = this.addGlassPanel(chunk,  2.4, -0.2, z - 2.6, 5.4, H - 2.0, 0.20);
+            const phase = Math.random() * Math.PI * 2;
+            chunk.kinematics.push((dt, elapsed) => {
+              if (!p1.shattered) p1.mesh.position.x = Math.sin(elapsed * 1.55 + phase) * 3.6;
+              if (!p2.shattered) p2.mesh.position.x = -Math.sin(elapsed * 1.55 + phase) * 3.6;
+            });
+            break;
+          }
+          case 2: {
+            const swingGroup = new THREE.Group();
+            swingGroup.position.set(0, H * 0.5 - 0.4, z);
+            chunk.group.add(swingGroup);
+            this.addGlassPanel(chunk, 0, 0, 0, 5.2, 0.5, 0.22, { parent: swingGroup });
+            this.addGlassPanel(chunk, 0, -3.2, 0, 5.8, 4.4, 0.32, {
+              parent: swingGroup, pendulumGroup: swingGroup
+            });
+            swingGroup.physicsAngle = (Math.random() - 0.5) * 0.45;
+            swingGroup.physicsVel = 0;
+            chunk.kinematics.push((dt) => {
+              const gravTorque = -9.8 * Math.sin(swingGroup.physicsAngle) * 0.65;
+              swingGroup.physicsVel = (swingGroup.physicsVel + gravTorque * dt) * 0.992;
+              swingGroup.physicsAngle += swingGroup.physicsVel * dt;
+              swingGroup.rotation.z = swingGroup.physicsAngle;
+            });
+            break;
+          }
+          case 3: {
+            const hub = new THREE.Group();
+            hub.position.set(0, 0, z);
+            chunk.group.add(hub);
+            const coreGeo = new THREE.OctahedronGeometry(1.2, 0);
+            chunk.disposableGeos.push(coreGeo);
+            const coreMesh = new THREE.Mesh(coreGeo, this.assets.materials.glassPanel);
+            hub.add(coreMesh);
+            const coreObj = {
+              mesh: coreMesh, width: 2.2, height: 2.2, depth: 2.2,
+              shattered: false, hits: 0
+            };
+            chunk.panels.push(coreObj);
+            const bladeLen = 4.8;
+            const bladeW = 2.4;
+            this.addGlassPanel(chunk, 0, -bladeLen * 0.5 - 0.9, 0, bladeW, bladeLen, 0.18, { parent: hub });
+            this.addGlassPanel(chunk, 0,  bladeLen * 0.5 + 0.9, 0, bladeW, bladeLen, 0.18, { parent: hub });
+            this.addGlassPanel(chunk,  bladeLen * 0.5 + 0.9, 0, 0, bladeLen, bladeW, 0.18, { parent: hub });
+            this.addGlassPanel(chunk, -bladeLen * 0.5 - 0.9, 0, 0, bladeLen, bladeW, 0.18, { parent: hub });
+            const dir = Math.random() < 0.5 ? 1 : -1;
+            chunk.kinematics.push((dt) => { hub.rotation.z += dir * dt * 0.95; });
+            break;
+          }
+          case 4: {
+            const legH = H - 2.2;
+            this.addGlassPanel(chunk, -3.4, -0.5, z, 2.6, legH, 0.22);
+            this.addGlassPanel(chunk,  3.4, -0.5, z, 2.6, legH, 0.22);
+            this.addGlassPanel(chunk,  0.0,  2.2, z - 1.2, 8.8, 3.2, 0.36);
+            break;
+          }
+          case 5: {
+            const diaGroup = new THREE.Group();
+            diaGroup.position.set(0, 0, z);
+            chunk.group.add(diaGroup);
+            this.addGlassPanel(chunk, -3.0,  2.0, 0, 5.0, 2.6, 0.20, { parent: diaGroup, rotZ:  0.55 });
+            this.addGlassPanel(chunk,  3.0,  2.0, 0, 5.0, 2.6, 0.20, { parent: diaGroup, rotZ: -0.55 });
+            this.addGlassPanel(chunk, -3.0, -2.0, 0, 5.0, 2.6, 0.20, { parent: diaGroup, rotZ: -0.55 });
+            this.addGlassPanel(chunk,  3.0, -2.0, 0, 5.0, 2.6, 0.20, { parent: diaGroup, rotZ:  0.55 });
+            const dir = Math.random() < 0.5 ? 0.75 : -0.75;
+            chunk.kinematics.push((dt) => { diaGroup.rotation.z += dir * dt; });
+            break;
+          }
+          case 6: {
+            this.addGlassPanel(chunk, -1.8, 0, z + 1.6, 5.8, H - 2.2, 0.16);
+            this.addGlassPanel(chunk,  0.0, 0, z,       5.8, H - 2.2, 0.16);
+            this.addGlassPanel(chunk,  1.8, 0, z - 1.6, 5.8, H - 2.2, 0.16);
+            break;
+          }
+          case 7: {
+            this.addGlassPanel(chunk, -2.0, 0, z,       4.6, H + 0.8, 0.20, { rotZ:  0.42 });
+            this.addGlassPanel(chunk,  2.0, 0, z - 2.2, 4.6, H + 0.8, 0.20, { rotZ: -0.42 });
+            break;
+          }
+
+          // ===== ПАТТЕРНЫ 8-17: ПЛАВАЮЩИЕ ПАЛКИ (anchor: 'none' — падают при разрушении) =====
+
+          case 8: { // 3 вертикальные стеклянные стойки — висят в воздухе
+            for (let i = -1; i <= 1; i++) {
+              this.addGlassPanel(chunk, i * 3.4, 0, z, 0.55, H - 2.2, 0.22, { anchor: 'none' });
+            }
+            break;
+          }
+          case 9: { // Горизонтальная штанга поперёк — парит
+            this.addGlassPanel(chunk, 0, 0.4, z, W - 3.2, 0.7, 0.25, { anchor: 'none' });
+            break;
+          }
+          case 10: { // Веер из 5 наклонных палок — все висят
+            const angles = [-0.5, -0.25, 0, 0.25, 0.5];
+            for (let i = 0; i < 5; i++) {
+              this.addGlassPanel(chunk, (i - 2) * 2.6, 0, z - (i % 2) * 1.2, 0.5, 5.5, 0.2,
+                { rotZ: angles[i], anchor: 'none' });
+            }
+            break;
+          }
+          case 11: { // Подвесная штанга на 2 верёвках — якоря у верёвок
+            const ropeAxX = [-2.6, 2.6];
+            const ropes = [];
+            const bar = this.addGlassPanel(chunk, 0, 1.0, z, 6.0, 0.65, 0.25, {
+              anchor: 'verlet',
+              verletAnchorXs: ropeAxX,
+              onShattered: () => {
+                for (let i = 0; i < ropes.length; i++) {
+                  for (let m = 0; m < ropes[i].meshes.length; m++) ropes[i].meshes[m].visible = false;
+                }
+              }
+            });
+            for (let i = 0; i < ropeAxX.length; i++) {
+              const ax = ropeAxX[i];
+              const anchorPos = new THREE.Vector3(ax, H * 0.5 - 0.4, z);
+              ropes.push(new VerletRope(anchorPos, 3.6, 8, this.assets.materials.steelCable, chunk));
+            }
+            bar.verletRopes = ropes;
+            chunk.kinematics.push((dt) => {
+              for (let i = 0; i < ropes.length; i++) ropes[i].update(dt);
+            });
+            break;
+          }
+          case 12: { // Стеклянный крест — свободно висит
+            this.addGlassPanel(chunk, 0, 0, z, 0.6, H - 1.6, 0.22, { anchor: 'none' });
+            this.addGlassPanel(chunk, 0, 0.4, z - 0.5, W - 4.0, 0.6, 0.22, { anchor: 'none' });
+            break;
+          }
+          case 13: { // Двойная горизонтальная перекладина — парят
+            this.addGlassPanel(chunk, 0, -1.6, z, W - 3.6, 0.6, 0.22, { anchor: 'none' });
+            this.addGlassPanel(chunk, 0, 1.6, z - 1.6, W - 3.6, 0.6, 0.22, { anchor: 'none' });
+            break;
+          }
+          case 14: { // Качающаяся палка-маятник (pendulumGroup → auto anchor='top')
+            const swing = new THREE.Group();
+            swing.position.set(0, H * 0.5 - 0.4, z);
+            chunk.group.add(swing);
+            this.addGlassPanel(chunk, 0, -3.9, 0, 0.7, 7.2, 0.25, { parent: swing, pendulumGroup: swing });
+            swing.physicsAngle = (Math.random() - 0.5) * 0.3;
+            swing.physicsVel = 0;
+            chunk.kinematics.push((dt) => {
+              const gt = -9.8 * Math.sin(swing.physicsAngle) * 0.65;
+              swing.physicsVel = (swing.physicsVel + gt * dt) * 0.992;
+              swing.physicsAngle += swing.physicsVel * dt;
+              swing.rotation.z = swing.physicsAngle;
+            });
+            break;
+          }
+          case 15: { // Частокол из 4 палок — висят
+            for (let i = 0; i < 4; i++) {
+              this.addGlassPanel(chunk, (i - 1.5) * 2.5, 0, z, 0.42, 7.8, 0.2, { anchor: 'none' });
+            }
+            break;
+          }
+          case 16: { // Парящие короткие бруски
+            this.addGlassPanel(chunk, -2.5, 1.8, z, 3.6, 0.5, 0.2, { anchor: 'none' });
+            this.addGlassPanel(chunk, 2.5, -1.2, z - 1.2, 3.6, 0.5, 0.2, { anchor: 'none' });
+            this.addGlassPanel(chunk, -1.0, -2.6, z - 2.4, 3.2, 0.5, 0.2, { anchor: 'none' });
+            break;
+          }
+          case 17: { // Шахматные наклонные палки — висят
+            for (let i = 0; i < 3; i++) {
+              this.addGlassPanel(
+                chunk, (i - 1) * 3.5, (i % 2 === 0 ? 1.2 : -1.2), z - i * 1.4,
+                0.5, 5.0, 0.2, { rotZ: (i % 2 === 0 ? 0.15 : -0.15), anchor: 'none' }
+              );
+            }
+            break;
+          }
+
+          default: {
+            for (let i = -1; i <= 1; i++) {
+              this.addGlassPanel(chunk, i * 3.4, 0, z, 0.55, H - 2.2, 0.22, { anchor: 'none' });
+            }
+            break;
+          }
+        }
+      }
+
+      update(dt, elapsed, cameraZ, modeKey) {
+        this.ensureChunksAhead(cameraZ, modeKey);
+        for (let i = 0; i < this.chunks.length; i++) {
+          const ch = this.chunks[i];
+          for (let k = 0; k < ch.crystals.length; k++) {
+            const cr = ch.crystals[k];
+            if (!cr.collected) {
+              cr.mesh.rotation.y += cr.spinSpeed * dt;
+              if (cr.powerUpType || cr.type === 'star') cr.mesh.rotation.x += 0.85 * dt;
+            }
+          }
+          for (let m = 0; m < ch.kinematics.length; m++) ch.kinematics[m](dt, elapsed);
+        }
+      }
+    }
+
+    class SmashHitGame {
+      constructor() {
+        this.container = document.getElementById('webgl-container');
+        this.scene = null;
+        this.camera = null;
+        this.renderer = null;
+        this.ambLight = null;
+        this.dirLight = null;
+        this.pointLight = null;
+        this.horizonBackdrop = null;
+        this.dustParticles = null;
+        this.dustPositions = null;
+
+        this.assets = new ProceduralAssetFactory();
+        this.sound = new ProceduralSoundEngine();
+        this.fracture = null;
+        this.ballManager = null;
+        this.tunnel = null;
+
+        this.state = 'MENU';
+        this.selectedMode = 'classic';
+        this.balls = 25;
+        this.distance = 0;
+        this.panelsShattered = 0;
+        this.comboStreak = 0;
+        this.multiball = 1;
+        this.currentZoneId = 1;
+
+        this.cameraZ = 0;
+        this.cameraSpeed = 7.0;
+        this.elapsed = 0;
+        this.timeScale = 1.0;
+        this.targetTimeScale = 1.0;
+
+        this.shakeIntensity = 0;
+        this.collisionCooldown = 0;
+
+        this.inventory = { infinite: 0, explosive: 0, slowmo: 0 };
+        this.activePowerUp = null;
+        this.powerUpTimer = 0;
+
+        this.pointerDown = false;
+        this.pointerX = window.innerWidth * 0.5;
+        this.pointerY = window.innerHeight * 0.5;
+        this.autoFireCooldown = 0;
+
+        this.targetFogColor     = new THREE.Color(0x386890);
+        this.targetHorizonColor = new THREE.Color(0x8be0ff);
+        this.targetWallColor    = new THREE.Color(0x2c4c6e);
+        this.targetGlassColor   = new THREE.Color(0x80e5ff);
+        this.targetRimColor     = new THREE.Color(0xffffff);
+        this.targetNeonColor    = new THREE.Color(0x38bdf8);
+
+        this.bestScores = { classic: 0, training: 0 };
+        this.loadBestScores();
+      }
+
+      init() {
+        const gfx = getGfxPreset();
+        GAME_CONFIG.fogDensity = gfx.fogDensity;
+        GAME_CONFIG.visibleChunksAhead = gfx.visibleChunksAhead;
+        GAME_CONFIG.maxActiveBalls = gfx.maxActiveBalls;
+        GAME_CONFIG.maxActiveShards = gfx.maxActiveShards;
+        GAME_CONFIG.shardCascadeMul = gfx.shardCascadeMul;
+        GAME_CONFIG.lightShaftsEnabled = gfx.lightShafts;
+        GAME_CONFIG.crystalLightsEnabled = gfx.crystalLights;
+        GAME_CONFIG.ballSegments = gfx.ballSegments;
+        GAME_CONFIG.cameraFar = gfx.cameraFar;
+
+        const z0 = GAME_CONFIG.zones[0];
+
+        this.scene = new THREE.Scene();
+        this.scene.background = new THREE.Color(z0.fogHex);
+        this.scene.fog = new THREE.FogExp2(z0.fogHex, GAME_CONFIG.fogDensity);
+
+        this.camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.2, gfx.cameraFar);
+        this.camera.position.set(0, 0, 0);
+
+        this.renderer = new THREE.WebGLRenderer({
+          antialias: gfx.antialias,
+          powerPreference: 'high-performance',
+          stencil: false, depth: true
+        });
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, gfx.pixelRatio));
+        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        this.renderer.toneMappingExposure = gfx.toneMappingExposure;
+        this.renderer.outputEncoding = THREE.sRGBEncoding || THREE.LinearEncoding;
+        this.container.appendChild(this.renderer.domElement);
+
+        this.ambLight = new THREE.HemisphereLight(0x202b38, 0x0a0f16, 0.28);
+        this.scene.add(this.ambLight);
+
+        this.dirLight = new THREE.DirectionalLight(0xe2e8f0, 0.78);
+        this.dirLight.position.set(6, 18, 10);
+        this.scene.add(this.dirLight);
+
+        this.pointLight = new THREE.PointLight(0x7dd3fc, 0.12, 22);
+        this.scene.add(this.pointLight);
+
+        this.assets.init();
+        this.createHorizonGlowAndDust(gfx);
+
+        this.fracture = new GlassFractureEngine(this.scene, this.assets, this.sound);
+        this.fracture.init();
+
+        this.ballManager = new BallManager(this.scene, this.assets, this.fracture, this.sound);
+        this.ballManager.init();
+
+        this.tunnel = new TunnelChunkManager(this.scene, this.assets, this.fracture);
+        this.tunnel.scoreProvider = () => this.distance;
+        this.tunnel.soundRef = this.sound;
+        this.tunnel.reset();
+        this.tunnel.ensureChunksAhead(0, this.selectedMode);
+
+        this.bindUIAndInput();
+        this.updateHUD();
+        this.syncGfxUI();
+
+        this.lastFrameTime = performance.now();
+        requestAnimationFrame((t) => this.animate(t));
+      }
+
+      createHorizonGlowAndDust(gfx) {
+        if (gfx.horizonGlow) {
+          const glowCanvas = document.createElement('canvas');
+          glowCanvas.width = 128; glowCanvas.height = 128;
+          const ctx = glowCanvas.getContext('2d');
+          const g = ctx.createRadialGradient(64, 64, 4, 64, 64, 64);
+          g.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
+          g.addColorStop(0.35, 'rgba(186, 230, 253, 0.55)');
+          g.addColorStop(1, 'rgba(56, 189, 248, 0.0)');
+          ctx.fillStyle = g;
+          ctx.fillRect(0, 0, 128, 128);
+          const glowTex = new THREE.CanvasTexture(glowCanvas);
+          const glowMat = new THREE.MeshBasicMaterial({
+            map: glowTex, color: 0x8be0ff, transparent: true, opacity: 0.85,
+            depthWrite: false, fog: false
+          });
+          this.horizonBackdrop = new THREE.Mesh(new THREE.PlaneGeometry(42, 32), glowMat);
+          this.scene.add(this.horizonBackdrop);
+        }
+        const count = gfx.dustParticles;
+        if (count <= 0) { this.dustParticles = null; return; }
+        const geo = new THREE.BufferGeometry();
+        this.dustPositions = new Float32Array(count * 3);
+        const W = GAME_CONFIG.corridorWidth - 1.5;
+        const H = GAME_CONFIG.corridorHeight - 1.5;
+        for (let i = 0; i < count; i++) {
+          this.dustPositions[i * 3]     = (Math.random() - 0.5) * W;
+          this.dustPositions[i * 3 + 1] = (Math.random() - 0.5) * H;
+          this.dustPositions[i * 3 + 2] = -Math.random() * 110;
+        }
+        geo.setAttribute('position', new THREE.BufferAttribute(this.dustPositions, 3));
+        const dustMat = new THREE.PointsMaterial({
+          size: 0.42, map: this.assets.textures.bokehDust,
+          transparent: true, opacity: 0.55, depthWrite: false,
+          blending: THREE.AdditiveBlending
+        });
+        this.dustParticles = new THREE.Points(geo, dustMat);
+        this.scene.add(this.dustParticles);
+      }
+
+      syncGfxUI() {
+        const key = getGfxPresetKey();
+        const cards = document.querySelectorAll('.gs-card');
+        cards.forEach(c => c.classList.toggle('selected', c.getAttribute('data-gfx') === key));
+      }
+
+      applyGraphicsPreset(key) {
+        const gfx = GRAPHICS_PRESETS[key];
+        if (!gfx) return;
+        saveGfxPresetKey(key);
+        GAME_CONFIG.fogDensity = gfx.fogDensity;
+        GAME_CONFIG.visibleChunksAhead = gfx.visibleChunksAhead;
+        GAME_CONFIG.shardCascadeMul = gfx.shardCascadeMul;
+        GAME_CONFIG.maxActiveBalls = gfx.maxActiveBalls;
+        GAME_CONFIG.maxActiveShards = gfx.maxActiveShards;
+        GAME_CONFIG.lightShaftsEnabled = gfx.lightShafts;
+
+        if (this.renderer) {
+          this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, gfx.pixelRatio));
+          this.renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        if (this.scene && this.scene.fog) this.scene.fog.density = gfx.fogDensity;
+        if (this.assets && this.assets.shaderUniforms) this.assets.shaderUniforms.uFogDensity.value = gfx.fogDensity;
+        if (this.dustParticles) this.dustParticles.visible = gfx.dustParticles > 0;
+        if (this.horizonBackdrop) this.horizonBackdrop.visible = gfx.horizonGlow;
+        if (this.tunnel && this.tunnel.chunks && this.assets) {
+          for (const ch of this.tunnel.chunks) {
+            ch.group.traverse(obj => {
+              if (obj.material === this.assets.materials.lightShaft) obj.visible = gfx.lightShafts;
+            });
+          }
+        }
+        const note = document.getElementById('gs-note');
+        if (note) {
+          note.textContent = '✓ Применено. Антиалиасинг и сегменты шаров — после перезагрузки страницы.';
+          clearTimeout(this._gsNoteTimer);
+          this._gsNoteTimer = setTimeout(() => { note.textContent = ''; }, 4200);
+        }
+        this.syncGfxUI();
+      }
+
+      loadBestScores() {
+        try {
+          const raw = localStorage.getItem('smash_hit_glsl_records');
+          if (raw) Object.assign(this.bestScores, JSON.parse(raw));
+        } catch (_) {}
+      }
+
+      saveBestScore() {
+        const distInt = Math.floor(this.distance);
+        if (distInt > (this.bestScores[this.selectedMode] || 0)) {
+          this.bestScores[this.selectedMode] = distInt;
+          try {
+            localStorage.setItem('smash_hit_glsl_records', JSON.stringify(this.bestScores));
+          } catch (_) {}
+        }
+      }
+
+      startGame() {
+        this.sound.resume();
+        const cfg = GAME_CONFIG.modes[this.selectedMode];
+        this.balls = cfg.startBalls;
+        this.distance = 0;
+        this.panelsShattered = 0;
+        this.comboStreak = 0;
+        this.multiball = 1;
+        this.currentZoneId = 1;
+        this.cameraZ = 0;
+        this.camera.position.set(0, 0, 0);
+        this.camera.rotation.set(0, 0, 0);
+        this.cameraSpeed = cfg.baseSpeed;
+        this.elapsed = 0;
+        this.timeScale = 1.0;
+        this.targetTimeScale = 1.0;
+        this.shakeIntensity = 0;
+        this.collisionCooldown = 0;
+
+        this.inventory = { infinite: 1, explosive: 1, slowmo: 1 };
+        this.deactivatePowerUp();
+
+        this.fracture.clearAll();
+        this.ballManager.clearAll();
+        this.tunnel.reset();
+        this.applyZonePalette(GAME_CONFIG.zones[0], true);
+        this.tunnel.ensureChunksAhead(0, this.selectedMode);
+
+        if (this.dustPositions) {
+          for (let i = 0; i < this.dustPositions.length / 3; i++) {
+            this.dustPositions[i * 3 + 2] = -Math.random() * 110;
+          }
+          this.dustParticles.geometry.attributes.position.needsUpdate = true;
+        }
+
+        this.state = 'PLAYING';
+        document.getElementById('menu-screen').classList.remove('active');
+        document.getElementById('pause-screen').classList.remove('active');
+        document.getElementById('gameover-screen').classList.remove('active');
+        document.getElementById('hud').classList.add('visible');
+
+        this.showCheckpointBanner('ZONE 1', GAME_CONFIG.zones[0].name);
+        this.updateHUD();
+        this.updatePowerUpDock();
+      }
+
+      setGlassColor(color) {
+        const m = this.assets.materials.glassPanel;
+        if (m.uniforms && m.uniforms.uBaseColor) m.uniforms.uBaseColor.value.copy(color);
+        else if (m.color) m.color.copy(color);
+      }
+      lerpGlassColor(color, t) {
+        const m = this.assets.materials.glassPanel;
+        if (m.uniforms && m.uniforms.uBaseColor) m.uniforms.uBaseColor.value.lerp(color, t);
+        else if (m.color) m.color.lerp(color, t);
+      }
+
+      applyZonePalette(zone, immediate = false) {
+        this.targetFogColor.setHex(zone.fogHex);
+        this.targetHorizonColor.setHex(zone.horizonHex);
+        this.targetWallColor.setHex(zone.wallHex);
+        this.targetGlassColor.setHex(zone.glassHex);
+        this.targetRimColor.setHex(zone.rimHex);
+        this.targetNeonColor.setHex(zone.accentHex);
+        if (immediate) {
+          this.scene.background.copy(this.targetFogColor);
+          this.scene.fog.color.copy(this.targetFogColor);
+          this.assets.shaderUniforms.uFogColor.value.copy(this.targetFogColor);
+          this.assets.shaderUniforms.uHorizonCol.value.copy(this.targetHorizonColor);
+          this.assets.shaderUniforms.uRimColor.value.copy(this.targetRimColor);
+          this.setGlassColor(this.targetGlassColor);
+          this.assets.materials.tunnelWall.color.copy(this.targetWallColor);
+          this.assets.materials.neonStrip.color.copy(this.targetNeonColor);
+          if (this.horizonBackdrop) this.horizonBackdrop.material.color.copy(this.targetHorizonColor);
+        }
+      }
+
+      showCheckpointBanner(title, subtitle) {
+        const banner = document.getElementById('checkpoint-banner');
+        document.getElementById('cp-title-text').textContent = title;
+        document.getElementById('cp-sub-text').textContent = subtitle;
+        banner.classList.add('active');
+        clearTimeout(this._bannerTimeout);
+        this._bannerTimeout = setTimeout(() => { banner.classList.remove('active'); }, 2500);
+      }
+
+      spawnFloatingTag(worldPos, text, colorHex = '#7dd3fc') {
+        const layer = document.getElementById('floating-feedback-layer');
+        const vec = worldPos.clone().project(this.camera);
+        const x = (vec.x * 0.5 + 0.5) * window.innerWidth;
+        const y = (-(vec.y * 0.5) + 0.5) * window.innerHeight;
+        const el = document.createElement('div');
+        el.className = 'float-tag';
+        el.style.left = `${x}px`;
+        el.style.top = `${y}px`;
+        el.style.color = colorHex;
+        el.style.textShadow = `0 0 14px ${colorHex}`;
+        el.textContent = text;
+        layer.appendChild(el);
+        setTimeout(() => el.remove(), 1000);
+      }
+
+      pulseCounter(isGain) {
+        const box = document.getElementById('sphere-counter-box');
+        const cls = isGain ? 'pulse-gain' : 'pulse-loss';
+        box.classList.remove('pulse-gain', 'pulse-loss');
+        void box.offsetWidth;
+        box.classList.add(cls);
+        setTimeout(() => box.classList.remove(cls), 220);
+      }
+
+      handleCrystalHit(crystal, hitPoint) {
+        if (crystal.powerUpType) {
+          this.inventory[crystal.powerUpType] = (this.inventory[crystal.powerUpType] || 0) + 1;
+          this.updatePowerUpDock();
+          const labels = { infinite: 'ОЧЕРЕДЬ ∞', explosive: 'ВЗРЫВ 💥', slowmo: 'СЛОУ-МО ⏱' };
+          this.spawnFloatingTag(hitPoint, `+1 ${labels[crystal.powerUpType]}`, '#fbbf24');
+          return;
+        }
+        const cfg = GAME_CONFIG.modes[this.selectedMode];
+        if (!cfg.infinite) this.balls += crystal.reward;
+        this.comboStreak++;
+        this.multiball = Math.min(GAME_CONFIG.maxMultiball, 1 + Math.floor(this.comboStreak / GAME_CONFIG.comboStep));
+        const tagColor = crystal.reward >= 10 ? '#fbbf24' : (crystal.reward >= 5 ? '#d8b4fe' : '#7dd3fc');
+        this.spawnFloatingTag(hitPoint, `+${crystal.reward}`, tagColor);
+        this.pulseCounter(true);
+        this.updateHUD();
+      }
+
+      checkMissedCrystals() {
+        for (let c = 0; c < this.tunnel.chunks.length; c++) {
+          const chunk = this.tunnel.chunks[c];
+          for (let k = 0; k < chunk.crystals.length; k++) {
+            const cr = chunk.crystals[k];
+            if (!cr.collected && !cr.missedChecked && !cr.powerUpType) {
+              if (cr.mesh.position.z > this.cameraZ + 1.4) {
+                cr.missedChecked = true;
+                if (this.comboStreak > 0 || this.multiball > 1) {
+                  this.comboStreak = 0;
+                  this.multiball = 1;
+                  this.sound.scaleStep = 0;
+                  this.updateHUD();
+                }
+              }
+            }
+          }
+        }
+      }
+
+      checkCameraCollisions() {
+        if (this.collisionCooldown > 0) return;
+        const camPos = this.camera.position;
+        const prevCamPos = new THREE.Vector3(camPos.x, camPos.y, camPos.z + 1.0);
+        const camRadius = 0.65;
+        const dummyImpactVel = new THREE.Vector3(0, 0, -26);
+
+        if (this.fracture && this.fracture.fallingChunks) {
+          for (let f = this.fracture.fallingChunks.length - 1; f >= 0; f--) {
+            const fc = this.fracture.fallingChunks[f];
+            if (fc.mesh.position.distanceTo(camPos) < camRadius + 1.2) {
+              if (this.sound) this.sound.playCameraCrash();
+              this.fracture.shatterFallingChunkImpact(fc);
+              this.scene.remove(fc.mesh);
+              fc.geo.dispose();
+              this.fracture.fallingChunks.splice(f, 1);
+              this.inflictCameraPenalty();
+              return;
+            }
+          }
+        }
+
+        for (let c = 0; c < this.tunnel.chunks.length; c++) {
+          const chunk = this.tunnel.chunks[c];
+          if (camPos.z > chunk.zStart + 2 || camPos.z < chunk.zEnd - 2) continue;
+
+          if (chunk.isCheckpointGate && !chunk.checkpointTriggered && camPos.z <= chunk.zStart - 3.5) {
+            chunk.checkpointTriggered = true;
+            this.currentZoneId = chunk.zone.id;
+            this.applyZonePalette(chunk.zone, false);
+            this.showCheckpointBanner(`ZONE ${chunk.zone.id}`, chunk.zone.name);
+            this.saveBestScore();
+          }
+
+          // Пересечение активного лазера
+          if (chunk.lasers) {
+            for (let l = 0; l < chunk.lasers.length; l++) {
+              const laser = chunk.lasers[l];
+              if (!laser.active) continue;
+              if (prevCamPos.z > laser.z && camPos.z <= laser.z) {
+                this.inflictCameraPenalty();
+                return;
+              }
+            }
+          }
+
+          for (let p = 0; p < chunk.panels.length; p++) {
+            const panel = chunk.panels[p];
+            if (panel.shattered) continue;
+            const broadHit = CCDSolver.sweepSphereOBB(prevCamPos, camPos, camRadius + 0.05, panel.mesh, panel.width, panel.height, panel.depth);
+            if (!broadHit) continue;
+
+            panel.mesh.updateWorldMatrix(true, false);
+            const invMat = this._tmpCamMat || (this._tmpCamMat = new THREE.Matrix4());
+            invMat.copy(panel.mesh.matrixWorld).invert();
+            const localPrev = (this._tmpCamVecB || (this._tmpCamVecB = new THREE.Vector3())).copy(prevCamPos).applyMatrix4(invMat);
+            const localCam = (this._tmpCamVec || (this._tmpCamVec = new THREE.Vector3())).copy(camPos).applyMatrix4(invMat);
+            const dz = localCam.z - localPrev.z;
+            let camU = localCam.x;
+            let camV = localCam.y;
+            if (Math.abs(dz) > 1e-6) {
+              const tPlane = -localPrev.z / dz;
+              if (tPlane >= 0.0 && tPlane <= 1.0) {
+                camU = localPrev.x + (localCam.x - localPrev.x) * tPlane;
+                camV = localPrev.y + (localCam.y - localPrev.y) * tPlane;
+              }
+            }
+
+            const sectors = panel.sectors || [];
+            if (sectors.length === 0) {
+              panel.shattered = true;
+              panel.mesh.visible = false;
+              if (panel.brokenMesh) panel.brokenMesh.visible = false;
+              this.fracture.shatterPanel(panel, broadHit.point, dummyImpactVel, 2.0);
+              this.sound.playGlassShatter(4.0);
+              if (panel.onShatteredCallback) panel.onShatteredCallback(panel);
+              this.inflictCameraPenalty();
+              return;
+            }
+
+            let hitSector = null;
+            let minDistToSolid = Infinity;
+            for (let s = 0; s < sectors.length; s++) {
+              const sec = sectors[s];
+              if (sec.shattered) continue;
+              const halfWs = sec.width * 0.5;
+              const halfHs = sec.height * 0.5;
+              const dx = Math.max(0, Math.abs(camU - sec.cx) - halfWs);
+              const dy = Math.max(0, Math.abs(camV - sec.cy) - halfHs);
+              const dist = Math.hypot(dx, dy);
+              if (dist < minDistToSolid) { minDistToSolid = dist; hitSector = sec; }
+            }
+
+            if (hitSector && minDistToSolid <= camRadius * 0.88) {
+              hitSector.shattered = true;
+              this.fracture.shatterSectors(panel, [hitSector], broadHit.point, dummyImpactVel, 2.0);
+              this.sound.playGlassShatter(3.0);
+              // Проверка связности — для плавающих палок всё падает
+              chunk.checkPanelConnectivity(panel, dummyImpactVel);
+              if (sectors.every(item => item.shattered)) {
+                panel.shattered = true;
+                panel.mesh.visible = false;
+                if (panel.brokenMesh) panel.brokenMesh.visible = false;
+                if (panel.onShatteredCallback) panel.onShatteredCallback(panel);
+              } else {
+                chunk.updateBrokenPanelGeometry(panel);
+              }
+              this.inflictCameraPenalty();
+              return;
+            }
+          }
+        }
+      }
+
+      inflictCameraPenalty() {
+        const cfg = GAME_CONFIG.modes[this.selectedMode];
+        this.collisionCooldown = 0.65;
+        this.shakeIntensity = 0.55;
+        this.comboStreak = 0;
+        this.multiball = 1;
+        this.sound.playCameraCrash();
+        const fx = document.getElementById('fx-overlay');
+        fx.classList.add('damage-flash');
+        setTimeout(() => fx.classList.remove('damage-flash'), 340);
+        if (!cfg.infinite) {
+          this.balls = Math.max(0, this.balls - cfg.penalty);
+          this.pulseCounter(false);
+          const tagPos = this.camera.position.clone();
+          tagPos.z -= 4.0;
+          this.spawnFloatingTag(tagPos, `-${cfg.penalty}`, '#f43f5e');
+        }
+        this.updateHUD();
+        if (!cfg.infinite && this.balls <= 0) this.triggerGameOver();
+      }
+
+      attemptShoot(clientX, clientY) {
+        if (this.state !== 'PLAYING') return;
+        const cfg = GAME_CONFIG.modes[this.selectedMode];
+        const isInfinitePU = (this.activePowerUp === 'infinite');
+        const isExplosivePU = (this.activePowerUp === 'explosive');
+        if (!cfg.infinite && !isInfinitePU && this.balls <= 0) {
+          this.triggerGameOver();
+          return;
+        }
+        if (!cfg.infinite && !isInfinitePU) this.balls--;
+        this.ballManager.fireSalvo(clientX, clientY, this.camera, this.cameraSpeed, this.multiball, isExplosivePU);
+        this.updateHUD();
+        if (!cfg.infinite && this.balls <= 0) this.triggerGameOver();
+      }
+
+      activatePowerUp(type) {
+        if (this.state !== 'PLAYING') return;
+        if ((this.inventory[type] || 0) <= 0) return;
+        this.inventory[type]--;
+        this.activePowerUp = type;
+        this.powerUpTimer = GAME_CONFIG.powerUpDuration;
+        this.targetTimeScale = (type === 'slowmo') ? 0.35 : 1.0;
+        const fx = document.getElementById('fx-overlay');
+        fx.classList.remove('slowmo-active', 'explosive-active', 'infinite-active');
+        fx.classList.add(`${type}-active`);
+        this.sound.playSwitchActivate();
+        this.updatePowerUpDock();
+      }
+
+      deactivatePowerUp() {
+        this.activePowerUp = null;
+        this.powerUpTimer = 0;
+        this.targetTimeScale = 1.0;
+        const fx = document.getElementById('fx-overlay');
+        fx.classList.remove('slowmo-active', 'explosive-active', 'infinite-active');
+        this.updatePowerUpDock();
+      }
+
+      updatePowerUpDock() {
+        const types = ['infinite', 'explosive', 'slowmo'];
+        for (let i = 0; i < types.length; i++) {
+          const t = types[i];
+          const count = this.inventory[t] || 0;
+          const btn = document.getElementById(`pu-btn-${t}`);
+          const cntEl = document.getElementById(`pu-cnt-${t}`);
+          const fillEl = document.getElementById(`pu-fill-${t}`);
+          cntEl.textContent = count;
+          btn.classList.toggle('available', count > 0 || this.activePowerUp === t);
+          btn.classList.toggle('active-pu', this.activePowerUp === t);
+          if (this.activePowerUp === t) {
+            const pct = Math.max(0, (this.powerUpTimer / GAME_CONFIG.powerUpDuration) * 100);
+            fillEl.style.height = `${pct}%`;
+          } else {
+            fillEl.style.height = '0%';
+          }
+        }
+      }
+
+      updateHUD() {
+        const cfg = GAME_CONFIG.modes[this.selectedMode];
+        document.getElementById('ball-count').textContent = cfg.infinite ? '∞' : this.balls;
+        document.getElementById('hud-distance').textContent = Math.floor(this.distance);
+        document.getElementById('hud-mode-tag').textContent = cfg.name;
+        document.getElementById('hud-best').textContent = Math.max(
+          Math.floor(this.distance),
+          this.bestScores[this.selectedMode] || 0
+        );
+        const pips = document.getElementById('mb-pips-container').children;
+        const pipProgress = (this.multiball >= GAME_CONFIG.maxMultiball)
+          ? 10
+          : Math.floor((this.comboStreak % GAME_CONFIG.comboStep) * (10 / GAME_CONFIG.comboStep));
+        for (let i = 0; i < pips.length; i++) pips[i].classList.toggle('filled', i < pipProgress);
+        const badge = document.getElementById('multiball-badge');
+        badge.textContent = this.multiball === 1 ? 'ЗАЛП: 1 ШАР' : `МУЛЬТИБОЛ: ${this.multiball} ШАРА`;
+      }
+
+      triggerGameOver() {
+        if (this.state === 'GAMEOVER') return;
+        this.state = 'GAMEOVER';
+        this.pointerDown = false;
+        this.deactivatePowerUp();
+        this.saveBestScore();
+        document.getElementById('go-zone-reached').textContent =
+          `Остановка в Зоне ${this.currentZoneId} (${GAME_CONFIG.zones[(this.currentZoneId - 1) % GAME_CONFIG.zones.length].name})`;
+        document.getElementById('go-dist').textContent = Math.floor(this.distance);
+        document.getElementById('go-best').textContent = this.bestScores[this.selectedMode] || 0;
+        document.getElementById('go-smashed').textContent = this.panelsShattered;
+        document.getElementById('gameover-screen').classList.add('active');
+      }
+
+      togglePause() {
+        if (this.state === 'PLAYING') {
+          this.state = 'PAUSED';
+          document.getElementById('pause-screen').classList.add('active');
+        } else if (this.state === 'PAUSED') {
+          this.state = 'PLAYING';
+          document.getElementById('pause-screen').classList.remove('active');
+        }
+      }
+
+      bindUIAndInput() {
+        const modeCards = document.querySelectorAll('.mode-card');
+        modeCards.forEach((card) => {
+          card.addEventListener('click', () => {
+            modeCards.forEach(c => c.classList.remove('selected'));
+            card.classList.add('selected');
+            this.selectedMode = card.getAttribute('data-mode');
+            this.updateHUD();
+          });
+        });
+
+        const gsCards = document.querySelectorAll('.gs-card');
+        gsCards.forEach((card) => {
+          card.addEventListener('click', () => {
+            const key = card.getAttribute('data-gfx');
+            if (key) this.applyGraphicsPreset(key);
+          });
+        });
+
+        document.getElementById('btn-start-game').addEventListener('click', () => this.startGame());
+        document.getElementById('btn-resume').addEventListener('click', () => this.togglePause());
+        document.getElementById('btn-restart-pause').addEventListener('click', () => this.startGame());
+        document.getElementById('btn-retry').addEventListener('click', () => this.startGame());
+
+        const toMenu = () => {
+          this.state = 'MENU';
+          document.getElementById('pause-screen').classList.remove('active');
+          document.getElementById('gameover-screen').classList.remove('active');
+          document.getElementById('hud').classList.remove('visible');
+          document.getElementById('menu-screen').classList.add('active');
+        };
+        document.getElementById('btn-to-menu-pause').addEventListener('click', toMenu);
+        document.getElementById('btn-to-menu-go').addEventListener('click', toMenu);
+
+        document.getElementById('btn-pause').addEventListener('click', () => this.togglePause());
+        document.getElementById('btn-mute').addEventListener('click', (e) => {
+          const muted = this.sound.toggleMute();
+          e.currentTarget.textContent = muted ? '🔇' : '🔊';
+        });
+
+        document.getElementById('pu-btn-infinite').addEventListener('pointerdown', (e) => {
+          e.stopPropagation();
+          this.activatePowerUp('infinite');
+        });
+        document.getElementById('pu-btn-explosive').addEventListener('pointerdown', (e) => {
+          e.stopPropagation();
+          this.activatePowerUp('explosive');
+        });
+        document.getElementById('pu-btn-slowmo').addEventListener('pointerdown', (e) => {
+          e.stopPropagation();
+          this.activatePowerUp('slowmo');
+        });
+
+        this.container.addEventListener('pointerdown', (e) => {
+          if (this.state !== 'PLAYING') return;
+          this.pointerDown = true;
+          this.pointerX = e.clientX;
+          this.pointerY = e.clientY;
+          this.attemptShoot(e.clientX, e.clientY);
+          this.autoFireCooldown = 0.085;
+        });
+
+        window.addEventListener('pointermove', (e) => {
+          this.pointerX = e.clientX;
+          this.pointerY = e.clientY;
+        });
+
+        window.addEventListener('pointerup', () => { this.pointerDown = false; });
+
+        window.addEventListener('keydown', (e) => {
+          if (e.code === 'Digit1') this.activatePowerUp('infinite');
+          else if (e.code === 'Digit2') this.activatePowerUp('explosive');
+          else if (e.code === 'Digit3') this.activatePowerUp('slowmo');
+          else if (e.code === 'KeyP' || e.code === 'Escape') this.togglePause();
+          else if (e.code === 'KeyM') {
+            const muted = this.sound.toggleMute();
+            document.getElementById('btn-mute').textContent = muted ? '🔇' : '🔊';
+          }
+        });
+
+        window.addEventListener('resize', () => {
+          this.camera.aspect = window.innerWidth / window.innerHeight;
+          this.camera.updateProjectionMatrix();
+          this.renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+      }
+
+      updateAtmosphereAndDust(rawDt) {
+        this.assets.shaderUniforms.uTime.value = this.elapsed;
+        const lerpSpd = rawDt * 1.8;
+        this.scene.background.lerp(this.targetFogColor, lerpSpd);
+        this.scene.fog.color.lerp(this.targetFogColor, lerpSpd);
+        this.assets.shaderUniforms.uFogColor.value.lerp(this.targetFogColor, lerpSpd);
+        this.assets.shaderUniforms.uHorizonCol.value.lerp(this.targetHorizonColor, lerpSpd);
+        this.assets.shaderUniforms.uRimColor.value.lerp(this.targetRimColor, lerpSpd);
+        this.lerpGlassColor(this.targetGlassColor, lerpSpd);
+        this.assets.materials.tunnelWall.color.lerp(this.targetWallColor, lerpSpd);
+        this.assets.materials.neonStrip.color.lerp(this.targetNeonColor, lerpSpd);
+
+        if (this.horizonBackdrop) {
+          this.horizonBackdrop.position.set(0, 0, this.cameraZ - 118);
+          this.horizonBackdrop.material.color.lerp(this.targetHorizonColor, lerpSpd);
+        }
+
+        if (this.dustParticles && this.dustPositions) {
+          const posArr = this.dustPositions;
+          const count = posArr.length / 3;
+          for (let i = 0; i < count; i++) {
+            const idx = i * 3;
+            posArr[idx + 1] += Math.sin(this.elapsed * 1.2 + i) * 0.25 * rawDt;
+            if (posArr[idx + 2] > this.cameraZ + 4.0) {
+              posArr[idx + 2] = this.cameraZ - 105.0 - Math.random() * 15.0;
+            }
+          }
+          this.dustParticles.geometry.attributes.position.needsUpdate = true;
+        }
+      }
+
+      animate(now) {
+        requestAnimationFrame((t) => this.animate(t));
+        const rawDt = Math.min(0.05, (now - this.lastFrameTime) * 0.001);
+        this.lastFrameTime = now;
+        this.updateAtmosphereAndDust(rawDt);
+
+        if (this.state === 'MENU') {
+          this.cameraZ -= 6.0 * rawDt;
+          this.elapsed += rawDt;
+          this.camera.position.set(Math.sin(now * 0.0005) * 1.1, Math.cos(now * 0.0004) * 0.5, this.cameraZ);
+          this.pointLight.position.set(0, 2, this.cameraZ - 9);
+          this.tunnel.update(rawDt, this.elapsed, this.cameraZ, this.selectedMode);
+          this.renderer.render(this.scene, this.camera);
+          return;
+        }
+
+        if (this.state === 'PAUSED') {
+          this.renderer.render(this.scene, this.camera);
+          return;
+        }
+
+        if (this.activePowerUp) {
+          this.powerUpTimer -= rawDt;
+          if (this.powerUpTimer <= 0) this.deactivatePowerUp();
+          else this.updatePowerUpDock();
+        }
+
+        this.timeScale += (this.targetTimeScale - this.timeScale) * Math.min(1.0, rawDt * 8.0);
+        const dt = rawDt * this.timeScale;
+        this.elapsed += dt;
+        this.sound.updateZoneAndTimeScale(this.currentZoneId, this.timeScale);
+
+        if (this.state === 'PLAYING') {
+  const cfg = GAME_CONFIG.modes[this.selectedMode];
+  // === НОВАЯ ФОРМУЛА СКОРОСТИ ===
+  // До 1000 очков — плавный рост 1x → 2x.
+  // После 1000 — базово x2, далее +0.1% за каждое очко сверх 1000.
+  let speedMul;
+  if (this.distance < 1000) {
+    speedMul = 1.0 + (this.distance / 1000);         // 1.0 → 2.0
+  } else {
+    speedMul = 2.0 * (1.0 + (this.distance - 1000) * 0.001);
+  }
+  this.cameraSpeed = cfg.baseSpeed * speedMul * cfg.speedScale;
+  this.cameraZ -= this.cameraSpeed * dt;
+  this.distance = Math.abs(this.cameraZ) * 0.85;
+
+          if (this.pointerDown && this.activePowerUp === 'infinite') {
+            this.autoFireCooldown -= rawDt;
+            if (this.autoFireCooldown <= 0) {
+              this.attemptShoot(this.pointerX, this.pointerY);
+              this.autoFireCooldown = 0.065;
+            }
+          }
+          if (this.collisionCooldown > 0) this.collisionCooldown -= rawDt;
+
+          let shakeX = 0, shakeY = 0;
+          if (this.shakeIntensity > 0.005) {
+            shakeX = (Math.random() - 0.5) * this.shakeIntensity;
+            shakeY = (Math.random() - 0.5) * this.shakeIntensity;
+            this.shakeIntensity *= Math.pow(0.04, rawDt);
+          } else this.shakeIntensity = 0;
+
+          const bobY = Math.sin(this.elapsed * 2.6) * 0.07;
+          this.camera.position.set(shakeX, bobY + shakeY, this.cameraZ);
+          const rollAmp = (this.currentZoneId === 5 || this.currentZoneId >= 10) ? 0.14 : 0.02;
+          this.camera.rotation.z = Math.sin(this.elapsed * 0.5) * rollAmp + shakeX * 0.22;
+          this.pointLight.position.set(0, 2.2, this.cameraZ - 11);
+
+          this.checkCameraCollisions();
+          this.checkMissedCrystals();
+          this.updateHUD();
+        } else if (this.state === 'GAMEOVER') {
+          this.cameraSpeed *= Math.pow(0.12, rawDt);
+          this.cameraZ -= this.cameraSpeed * rawDt;
+          this.camera.position.z = this.cameraZ;
+        }
+
+        this.tunnel.update(dt, this.elapsed, this.cameraZ, this.selectedMode);
+        this.ballManager.update(dt, this.cameraZ, this.tunnel.chunks, {
+          onCrystalHit: (cr, pt) => this.handleCrystalHit(cr, pt),
+          onPanelShattered: () => { this.panelsShattered++; }
+        });
+        this.fracture.update(dt, this.cameraZ);
+        this.renderer.render(this.scene, this.camera);
+      }
+    }
+
+    let smashHitApp = null;
+
+    function bootGameWhenThreeReady() {
+      if (smashHitApp || typeof window.THREE === 'undefined') return;
+      smashHitApp = new SmashHitGame();
+      smashHitApp.init();
+    }
+
+    document.getElementById('manual-three-input').addEventListener('change', (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (EngineLoader.injectScriptText(reader.result, file.name)) {
+          bootGameWhenThreeReady();
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      const ok = await EngineLoader.ensureThreeJS();
+      if (ok) bootGameWhenThreeReady();
+    });
+  </script>
+</body>
+</html>

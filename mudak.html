@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GlistPlay</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            color: #e6e6e6;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .container {
+            background: rgba(30, 30, 60, 0.8);
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 800px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            border: 1px solid #4a4a8a;
+            position: relative;
+        }
+        
+        h1 {
+            color: #f8d56b;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.2em;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        p {
+            line-height: 1.6;
+            font-size: 1.1em;
+            margin-bottom: 20px;
+        }
+        
+        .highlight {
+            color: #6bd5f8;
+            font-weight: bold;
+        }
+        
+        .interactive {
+            color: #f86bd5;
+            cursor: pointer;
+            text-decoration: underline;
+            transition: all 0.3s;
+        }
+        
+        .interactive:hover {
+            color: #ff8ce6;
+            text-shadow: 0 0 8px rgba(248, 107, 213, 0.5);
+        }
+        
+        .animation-container {
+            text-align: center;
+            margin: 20px 0;
+            min-height: 50px;
+            font-size: 2em;
+        }
+        
+        .signature {
+            font-style: italic;
+            text-align: right;
+            margin-top: 30px;
+            color: #a1a1a1;
+        }
+        
+        .back-button {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            background: rgba(107, 213, 248, 0.2);
+            color: #6bd5f8;
+            border: 1px solid #6bd5f8;
+            border-radius: 5px;
+            padding: 5px 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            font-size: 0.9em;
+        }
+        
+        .back-button:hover {
+            background: rgba(107, 213, 248, 0.4);
+            box-shadow: 0 0 10px rgba(107, 213, 248, 0.5);
+        }
+        
+        @keyframes fireworks {
+            0% { transform: scale(0.5); opacity: 0; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1); opacity: 0; }
+        }
+        
+        .firework {
+            display: inline-block;
+            animation: fireworks 1.5s ease-out;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="gp.html" class="back-button">← Назад</a>
+        
+        <h1>Мастер Установки Дополнительных Алгоритмов в Кеш</h1>
+        
+        <p>Что такое <span class="highlight">GlistPlay</span>? Это место, где лежат плагины для открытия через <span class="highlight">Мои приложения в ОС</span>. Обычно плагины весят считаные килобайты, поэтому можете поставить всё, что найдёте, а там уже разбираться. Также есть функция поиска, аккуратно с ним, он стильный и крутой.</p>
+        
+        <p>Некоторые плагины делают пользователи, но в целом я всё проверяю перед публикацией - в любом случае авторство в описании есть, если нету значит моё. Любите, творите, срите.</p>
+        
+        <p>Если вы оценили юмор названия, можете сделать <span class="interactive" id="funnyBtn">ТЫК здесь</span>. А если вы скучный человек без чувства юмора, то <span class="interactive" id="boringBtn">ЗДЕСЬ</span>.</p>
+        
+        <div class="animation-container" id="animationBox"></div>
+        
+        <div class="signature">— Ваш М.У.Д.А.К.</div>
+    </div>
+
+    <script>
+        const funnyBtn = document.getElementById('funnyBtn');
+        const boringBtn = document.getElementById('boringBtn');
+        const animationBox = document.getElementById('animationBox');
+        
+        funnyBtn.addEventListener('click', () => {
+            animationBox.innerHTML = '';
+            const fireworks = ['🎆', '✨', '🎇', '💥', '🔥', '🌈'];
+            
+            for (let i = 0; i < 10; i++) {
+                setTimeout(() => {
+                    const firework = document.createElement('span');
+                    firework.className = 'firework';
+                    firework.textContent = fireworks[Math.floor(Math.random() * fireworks.length)];
+                    firework.style.left = `${Math.random() * 100}%`;
+                    animationBox.appendChild(firework);
+                    
+                    setTimeout(() => {
+                        firework.remove();
+                    }, 1500);
+                }, i * 150);
+            }
+        });
+        
+        boringBtn.addEventListener('click', () => {
+            animationBox.innerHTML = '';
+            const boringEmojis = ['👎', '🖕', '💩', '🤡'];
+
+            let result = '';
+            
+            for (let i = 0; i < 20; i++) {
+                result += boringEmojis[Math.floor(Math.random() * boringEmojis.length)];
+            }
+            
+            animationBox.textContent = result;
+            animationBox.style.animation = 'none';
+            animationBox.style.fontSize = '1.5em';
+        });
+    </script>
+</body>
+</html>

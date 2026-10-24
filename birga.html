@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Конвертер валют</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: sans-serif;
+      background: #f2f2f2;
+      color: #333;
+    }
+
+    header {
+      background: #4a90e2;
+      color: white;
+      padding: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+    }
+
+    .back-button {
+      font-size: 0.9em;
+      padding: 4px 8px;
+      background: #ffffff30;
+      border: 1px solid white;
+      border-radius: 6px;
+      color: white;
+      text-decoration: none;
+    }
+
+    .page-title {
+      font-size: 1.1em;
+      margin-left: auto;
+      margin-right: 10px;
+    }
+
+    main {
+      padding: 20px;
+    }
+
+    h2, p {
+      margin-bottom: 15px;
+    }
+
+    select, input, button {
+      font-size: 1em;
+      padding: 10px;
+      margin-bottom: 15px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    button {
+      background-color: #4a90e2;
+      color: white;
+      border: none;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #357bd8;
+    }
+
+    input:focus, select:focus {
+      outline: none;
+      border-color: #4a90e2;
+    }
+
+    #result {
+      font-weight: bold;
+      margin-top: 10px;
+    }
+
+    .swap-container {
+      text-align: center;
+    }
+    .swap-button {
+      max-width: 200px;
+      margin: 0 auto 15px;
+      display: block;
+      background-color: #e2a04b;
+      border: none;
+      color: white;
+      padding: 8px 12px;
+      cursor: pointer;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <a href="glist.html" class="back-button">←</a>
+    <div class="page-title">Конвертер валют</div>
+  </header>
+
+  <main>
+    <h2>Конвертер валют</h2>
+    <input type="number" id="amount" placeholder="Сумма" />
+
+    <select id="from">
+      <option value="RUB">Российский рубль (RUB)</option>
+      <option value="USD">Доллар США (USD)</option>
+      <option value="EUR">Евро (EUR)</option>
+      <option value="BYN">Белорусский рубль (BYN)</option>
+      <option value="XAU">Золото (1 грамм)</option>
+    </select>
+
+    <div class="swap-container">
+      <button class="swap-button" onclick="swapCurrencies()">Поменять местами</button>
+    </div>
+
+    <select id="to">
+      <option value="RUB">Российский рубль (RUB)</option>
+      <option value="USD">Доллар США (USD)</option>
+      <option value="EUR">Евро (EUR)</option>
+      <option value="BYN">Белорусский рубль (BYN)</option>
+      <option value="XAU">Золото (1 грамм)</option>
+    </select>
+
+    <button onclick="convert()">Конвертировать</button>
+    <div id="result"></div>
+  </main>
+
+  <script>
+    const DB_NAME = 'valutes-db';
+    const DB_STORE = 'rates';
+    const DB_VERSION = 1;
+    const GRAMS_PER_OUNCE = 31.1035;
+    const CURRENCIES = ['RUB', 'USD', 'EUR', 'BYN', 'XAU'];
+
+    // Открытие базы данных
+    function openDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        request.onupgradeneeded = e => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains(DB_STORE)) {
+            db.createObjectStore(DB_STORE);
+          }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    // Сохранение нескольких пар в одной транзакции
+    async function saveRatesBatch(ratesObject) {
+      const db = await openDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(DB_STORE, 'readwrite');
+        const store = tx.objectStore(DB_STORE);
+        for (const key in ratesObject) {
+          store.put(ratesObject[key], key);
+        }
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    // Чтение сохранённого значения
+    function getRateFromDB(key) {
+      return openDB().then(db => {
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(DB_STORE, 'readonly');
+          const store = tx.objectStore(DB_STORE);
+          const req = store.get(key);
+          req.onsuccess = () => resolve(req.result);
+          req.onerror = () => reject(req.error);
+        });
+      });
+    }
+
+    // Предзагрузка всех курсов сразу
+    async function prefetchAllRates() {
+      for (let from of CURRENCIES) {
+        try {
+          const response = await fetch(`https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/${from.toLowerCase()}.json`);
+          const data = await response.json();
+          const rates = data[from.toLowerCase()];
+          const ratesToSave = {};
+
+          for (let to of CURRENCIES) {
+            // Если одинаковые валюты, курс = 1
+            if (from === to) {
+              ratesToSave[`${from}_${to}`] = 1;
+              continue;
+            }
+            let rate = rates[to.toLowerCase()];
+            if (!rate) continue;
+            // Корректировка для золота: XAU предоставлен в унциях, а нам нужно в граммах
+            if (from === 'XAU') {
+              rate /= GRAMS_PER_OUNCE;
+            } else if (to === 'XAU') {
+              rate *= GRAMS_PER_OUNCE;
+            }
+            const key = `${from}_${to}`;
+            ratesToSave[key] = rate;
+          }
+          // Сохранение всех пар для данной валюты одной транзакцией
+          await saveRatesBatch(ratesToSave);
+          console.log(`Курсы для ${from} успешно сохранены в кэш.`);
+        } catch (e) {
+          console.warn(`Не удалось загрузить курсы для ${from}:`, e);
+        }
+      }
+    }
+
+    // Получение курса из кэша
+    async function fetchRate(from, to) {
+      const key = `${from}_${to}`;
+      const rate = await getRateFromDB(key);
+      if (rate != null) return rate;
+      throw new Error(`Нет курса ${key} даже в кэше.`);
+    }
+
+    // Обработка конвертации
+    async function convert() {
+      const amount = parseFloat(document.getElementById('amount').value);
+      const from = document.getElementById('from').value;
+      const to = document.getElementById('to').value;
+      const resultDiv = document.getElementById('result');
+
+      if (isNaN(amount) || amount <= 0) {
+        resultDiv.textContent = 'Введите корректную сумму.';
+        return;
+      }
+
+      // Если валюты одинаковы, конвертация тривиальна
+      if (from === to) {
+        resultDiv.textContent = `${amount} ${from} = ${amount} ${to}`;
+        return;
+      }
+
+      try {
+        const rate = await fetchRate(from, to);
+        const converted = amount * rate;
+        resultDiv.textContent = `${amount} ${from} = ${converted.toFixed(4)} ${to}`;
+      } catch (error) {
+        resultDiv.textContent = 'Не удалось получить курс валют.';
+        console.error(error);
+      }
+    }
+
+    // Функция для обмена валют местами
+    function swapCurrencies() {
+      const fromSelect = document.getElementById('from');
+      const toSelect = document.getElementById('to');
+      const temp = fromSelect.value;
+      fromSelect.value = toSelect.value;
+      toSelect.value = temp;
+    }
+
+    // При загрузке страницы загружаем все курсы
+    window.addEventListener('load', () => {
+      prefetchAllRates();
+    });
+  </script>
+</body>
+</html>

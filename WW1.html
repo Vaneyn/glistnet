@@ -1,0 +1,3079 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Мохнатки 3D — Glist 2</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #04070d;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: #f1f5f9;
+    }
+
+    #canvas-container {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+    }
+
+    /* Minimalist Pac-Man Minimap ONLY */
+    /* Arcade Top Score Screen (Экранчик вверху со счётом) */
+    #score-screen {
+      position: fixed;
+      top: 14px;
+      left: 14px;
+      z-index: 12;
+      background: rgba(2, 4, 10, 0.90);
+      border: 2px solid #1d4ed8;
+      border-radius: 10px;
+      padding: 6px 20px;
+      box-shadow: 0 0 18px rgba(29, 78, 216, 0.45), inset 0 0 10px rgba(34, 211, 238, 0.15);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      pointer-events: none;
+      font-family: 'Courier New', Courier, monospace;
+    }
+
+    #score-screen .score-label {
+      font-size: 0.82rem;
+      font-weight: 800;
+      color: #67e8f9;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    #score-screen .score-val {
+      font-size: 1.35rem;
+      font-weight: 900;
+      color: #fde047;
+      letter-spacing: 0.08em;
+      text-shadow: 0 0 10px rgba(253, 224, 71, 0.55);
+      min-width: 72px;
+      text-align: right;
+    }
+
+    #minimap-wrap {
+      position: fixed;
+      top: 14px;
+      right: 14px;
+      z-index: 10;
+      background: rgba(2, 4, 10, 0.88);
+      border: 2px solid #1d4ed8;
+      border-radius: 10px;
+      padding: 6px;
+      box-shadow: 0 0 18px rgba(29, 78, 216, 0.45);
+      pointer-events: none;
+    }
+
+    #minimap-canvas {
+      width: 156px;
+      height: 172px;
+      display: block;
+      border-radius: 6px;
+      background: #02040a;
+    }
+
+    /* Tiny unobtrusive mode switch icon button in bottom-right corner */
+    .corner-icon-btn {
+      position: fixed;
+      bottom: 14px;
+      right: 14px;
+      z-index: 15;
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: rgba(11, 17, 28, 0.75);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      color: #cbd5e1;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      backdrop-filter: blur(8px);
+      transition: transform 0.15s, border-color 0.2s, background 0.2s;
+    }
+
+    .corner-icon-btn:hover {
+      transform: scale(1.08);
+      border-color: #84cc16;
+      background: rgba(20, 30, 48, 0.9);
+    }
+
+    /* Victory UI: Back button to glist.html */
+    #victory-ui {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 42px;
+      z-index: 25;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      gap: 14px;
+      pointer-events: none;
+    }
+
+    .back-glist-btn {
+      pointer-events: auto;
+      background: linear-gradient(135deg, #cbd5e1 0%, #64748b 50%, #334155 100%);
+      color: #0f172a;
+      border: 2px solid #e2e8f0;
+      padding: 13px 34px;
+      border-radius: 12px;
+      font-size: 1.05rem;
+      font-weight: 900;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      cursor: pointer;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.75), 0 0 22px rgba(203, 213, 225, 0.35);
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .back-glist-btn:hover {
+      transform: translateY(-2px) scale(1.03);
+      box-shadow: 0 14px 36px rgba(0, 0, 0, 0.85), 0 0 30px rgba(226, 232, 240, 0.55);
+    }
+
+    /* Game Over Minimal Overlay */
+    #gameover-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 30;
+      background: rgba(3, 6, 12, 0.72);
+      backdrop-filter: blur(6px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .retry-btn {
+      background: linear-gradient(135deg, #65a30d, #84cc16);
+      color: #052e16;
+      border: none;
+      padding: 14px 32px;
+      border-radius: 14px;
+      font-size: 1.05rem;
+      font-weight: 900;
+      cursor: pointer;
+      box-shadow: 0 10px 28px rgba(132, 204, 22, 0.45);
+      transition: transform 0.15s;
+    }
+
+    .retry-btn:hover {
+      transform: scale(1.05);
+    }
+
+    /* Showcase / Inspector UI (Hidden in Game Mode) */
+    #showcase-ui {
+      position: fixed;
+      top: 14px;
+      left: 14px;
+      z-index: 15;
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+      width: 250px;
+      background: rgba(9, 14, 24, 0.84);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(132, 204, 22, 0.28);
+      border-radius: 14px;
+      padding: 12px;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+    }
+
+    .creature-tabs {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 5px;
+    }
+
+    .creature-tab {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #94a3b8;
+      padding: 6px;
+      border-radius: 8px;
+      font-size: 0.74rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .creature-tab.active {
+      background: rgba(132, 204, 22, 0.22);
+      border-color: #84cc16;
+      color: #a3e635;
+    }
+
+    .showcase-hint {
+      font-size: 0.72rem;
+      color: #a3e635;
+      text-align: center;
+      padding-top: 2px;
+      opacity: 0.9;
+    }
+
+
+    @media (max-width: 600px) {
+      #minimap-canvas {
+        width: 122px;
+        height: 136px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <!-- Top Score Screen (Экранчик вверху со счётом) -->
+  <div id="score-screen">
+    <span class="score-label">СЧЁТ</span>
+    <span id="score-val" class="score-val">0000</span>
+  </div>
+
+  <!-- Minimalist Pac-Man Minimap -->
+  <div id="minimap-wrap">
+    <canvas id="minimap-canvas" width="180" height="198"></canvas>
+  </div>
+
+  <!-- Discreet Corner Button to toggle Showcase / Game mode -->
+  <button id="btn-mode-toggle" class="corner-icon-btn" onclick="toggleMode()" title="Осмотр 3D / Игра">🔍</button>
+
+  <!-- 3D Showcase Panel (Only visible when inspecting models) -->
+  <div id="showcase-ui">
+    <div class="creature-tabs">
+      <button class="creature-tab active" data-target="all" onclick="focusShowcaseTarget('all')">Все</button>
+      <button class="creature-tab" data-target="worm" onclick="focusShowcaseTarget('worm')">Червь</button>
+      <button class="creature-tab" data-target="forest" onclick="focusShowcaseTarget('forest')">Лесная</button>
+      <button class="creature-tab" data-target="moss" onclick="focusShowcaseTarget('moss')">Мшистая</button>
+      <button class="creature-tab" data-target="crimson" onclick="focusShowcaseTarget('crimson')">Алая</button>
+      <button class="creature-tab" onclick="startVictoryCutscene()">Сцена Glist 2</button>
+    </div>
+    <div class="showcase-hint">Можно хватать, кидать и сталкивать Мохнаток!</div>
+  </div>
+
+  <!-- Epic Victory Button leading to glist.html -->
+  <div id="victory-ui">
+    <button id="btn-back-glist" class="back-glist-btn" onclick="goBackToGlist()">← Назад</button>
+  </div>
+
+  <!-- Minimal Game Over Retry -->
+  <div id="gameover-modal">
+    <button class="retry-btn" onclick="resetMazeGame()">Заново</button>
+  </div>
+
+  <script>
+    // Silent loader: tries local file newthreejs.txt first, then falls back to CDN r128
+    const LOCAL_LIB_FILE = 'newthreejs.txt';
+    const CDN_FALLBACK_URL = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
+
+    function injectScriptUrl(url) {
+      return new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = url;
+        s.onload = () => resolve(true);
+        s.onerror = () => reject(new Error('Failed'));
+        document.head.appendChild(s);
+      });
+    }
+
+    async function ensureThreeLoaded() {
+      try {
+        await injectScriptUrl(LOCAL_LIB_FILE);
+        if (window.THREE) return;
+      } catch (e) {}
+
+      try {
+        const resp = await window.fetch(LOCAL_LIB_FILE, { cache: 'no-store' });
+        if (resp.ok) {
+          const txt = (await resp.text()).trim();
+          if (txt.startsWith('http://') || txt.startsWith('https://') || txt.startsWith('./') || txt.startsWith('/')) {
+            await injectScriptUrl(txt.split(/\s+/)[0]);
+            if (window.THREE) return;
+          } else if (txt.length > 1000) {
+            const blob = new Blob([txt], { type: 'application/javascript' });
+            const blobUrl = URL.createObjectURL(blob);
+            await injectScriptUrl(blobUrl);
+            URL.revokeObjectURL(blobUrl);
+            if (window.THREE) return;
+          }
+        }
+      } catch (e) {}
+
+      await injectScriptUrl(CDN_FALLBACK_URL);
+    }
+
+    window.goBackToGlist = function() {
+      const targetPage = 'glist' + '.html';
+      window.location.href = targetPage;
+    };
+
+    // ============================================================================
+    // BACKGROUND MUSIC (deep2.mp3) & WEB AUDIO SYNTHESIZER
+    // ============================================================================
+    const bgMusic = new Audio('deep2.mp3');
+    bgMusic.loop = true;
+    bgMusic.volume = 0.55;
+    bgMusic.preload = 'auto';
+
+    function syncBgMusic() {
+      if (appMode === 'game' && !gameState.gameOver && !gameState.victory) {
+        if (bgMusic.paused) {
+          bgMusic.play().catch(() => {});
+        }
+      } else {
+        if (!bgMusic.paused) {
+          bgMusic.pause();
+        }
+      }
+    }
+
+    let audioCtx = null;
+    function ensureAudio() {
+      if (!audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) audioCtx = new AudioContextClass();
+      }
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume().catch(() => {});
+      }
+      syncBgMusic();
+      return audioCtx;
+    }
+
+    function playSound(type) {
+      const ctx = ensureAudio();
+      if (!ctx) return;
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      if (type === 'dot') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(540, now);
+        osc.frequency.exponentialRampToValueAtTime(810, now + 0.055);
+        gain.gain.setValueAtTime(0.045, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+        osc.start(now);
+        osc.stop(now + 0.065);
+      } else if (type === 'power') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(300, now);
+        osc.frequency.exponentialRampToValueAtTime(920, now + 0.28);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.30);
+        osc.start(now);
+        osc.stop(now + 0.31);
+      } else if (type === 'eat_mokhnatka') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(240, now);
+        osc.frequency.exponentialRampToValueAtTime(980, now + 0.22);
+        gain.gain.setValueAtTime(0.13, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+        osc.start(now);
+        osc.stop(now + 0.25);
+      } else if (type === 'portal_open') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(420, now);
+        osc.frequency.exponentialRampToValueAtTime(1180, now + 0.48);
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.50);
+        osc.start(now);
+        osc.stop(now + 0.52);
+      } else if (type === 'bounce') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(160, now);
+        osc.frequency.exponentialRampToValueAtTime(340, now + 0.09);
+        osc.frequency.exponentialRampToValueAtTime(210, now + 0.16);
+        gain.gain.setValueAtTime(0.06, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.17);
+        osc.start(now);
+        osc.stop(now + 0.18);
+      } else if (type === 'hurt') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(260, now);
+        osc.frequency.exponentialRampToValueAtTime(85, now + 0.35);
+        gain.gain.setValueAtTime(0.14, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+        osc.start(now);
+        osc.stop(now + 0.40);
+      } else if (type === 'victory') {
+        const notes = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99];
+        notes.forEach((freq, idx) => {
+          const o = ctx.createOscillator();
+          const g = ctx.createGain();
+          o.type = 'triangle';
+          o.frequency.setValueAtTime(freq, now + idx * 0.14);
+          g.gain.setValueAtTime(0.12, now + idx * 0.14);
+          g.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.14 + 0.6);
+          o.connect(g);
+          g.connect(ctx.destination);
+          o.start(now + idx * 0.14);
+          o.stop(now + idx * 0.14 + 0.62);
+        });
+      }
+    }
+
+    // ============================================================================
+    // LABYRINTH & GAME CONSTANTS
+    // ============================================================================
+    // 1 = Wall, 0 = Corridor, 2 = Power Bonus, 3 = Portal (7,7), 4 = Worm Start (7,13), 5 = Mokhnatka Spawn Point (7,5)
+    // Spacious 15x15 Pac-Man Labyrinth: strictly 1-corridor thick everywhere, 0 dead ends, roomy open loops!
+    const MAZE_LAYOUT = [
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+      [1,2,0,0,0,0,0,1,0,0,0,0,0,2,1],
+      [1,0,1,1,0,1,0,1,0,1,0,1,1,0,1],
+      [1,0,0,0,0,1,0,0,0,1,0,0,0,0,1],
+      [1,0,1,1,0,1,1,0,1,1,0,1,1,0,1],
+      [1,0,0,0,0,0,0,5,0,0,0,0,0,0,1],
+      [1,0,1,1,0,1,0,1,0,1,0,1,1,0,1],
+      [1,0,0,0,0,1,0,3,0,1,0,0,0,0,1],
+      [1,0,1,1,0,1,0,1,0,1,0,1,1,0,1],
+      [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+      [1,0,1,1,0,1,1,0,1,1,0,1,1,0,1],
+      [1,0,0,0,0,1,0,0,0,1,0,0,0,0,1],
+      [1,0,1,1,0,1,0,1,0,1,0,1,1,0,1],
+      [1,2,0,0,0,0,0,4,0,0,0,0,0,2,1],
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+    ];
+
+    const GRID_SIZE = 15;
+    const TILE_SIZE = 3.25;
+    const HALF_GRID = Math.floor(GRID_SIZE / 2);
+    const SPAWN_GX = 7;
+    const SPAWN_GZ = 5;
+    const PORTAL_GX = 7;
+    const PORTAL_GZ = 7;
+    const WORM_START_GX = 7;
+    const WORM_START_GZ = 13;
+
+    // 0 = North (-Z), 1 = East (+X), 2 = South (+Z), 3 = West (-X)
+    const DIRS = [
+      { dx: 0, dz: -1, angle: Math.PI },
+      { dx: 1, dz: 0,  angle: Math.PI / 2 },
+      { dx: 0, dz: 1,  angle: 0 },
+      { dx: -1, dz: 0, angle: -Math.PI / 2 }
+    ];
+
+    function gridToWorld(gx, gz) {
+      return {
+        x: (gx - HALF_GRID) * TILE_SIZE,
+        z: (gz - HALF_GRID) * TILE_SIZE
+      };
+    }
+
+    function isWall(gx, gz) {
+      if (gx < 0 || gx >= GRID_SIZE || gz < 0 || gz >= GRID_SIZE) return true;
+      return MAZE_LAYOUT[gz][gx] === 1;
+    }
+
+    let scene, camera, renderer, clock;
+    let appMode = 'game'; // 'game' | 'showcase' | 'victory'
+    let groundMesh;
+    let mazeGroup, showcaseGroup, victoryGroup, portalGroup, spawnNestGroup;
+    let wormEntity = null;
+    let mokhnatkaEntities = [];
+    let cornerDots = [];
+    let cornerInstancedMesh = null;
+    let powerPellets = [];
+    let firefliesPoints = null;
+    let firefliesData = [];
+    let dummyMatrix;
+
+    const gameState = {
+      started: false,
+      timeSinceStart: 0,
+      lives: 3,
+      score: 0,
+      totalCorners: 0,
+      visitedCorners: 0,
+      powerTimer: 0,
+      portalOpen: false,
+      gameOver: false,
+      victory: false,
+      victoryTimer: 0,
+      invulnerableTimer: 0,
+      blinkTimer: 0
+    };
+
+    // Showcase Camera Controls
+    let showcaseTarget = 'all';
+    let orbitYaw = 0.0;
+    let orbitPitch = 0.32;
+    let orbitDistance = 16.5;
+    let isPointerDown = false;
+    let prevPointer = { x: 0, y: 0 };
+    let smoothedCamPos, smoothedLookAt;
+
+    // ============================================================================
+    // PROCEDURAL EYE TEXTURES (Forest: Pure Black, Crimson: Pure Black, Moss: Large White Sclera + Small Iris)
+    // ============================================================================
+    function createEyeTexture(type) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 1024;
+      canvas.height = 512;
+      const ctx = canvas.getContext('2d');
+      const cx = canvas.width * 0.5;
+      const cy = canvas.height * 0.5;
+
+      if (type === 'forest' || type === 'crimson') {
+        // Deep glossy jet-black spherical eyeball texture
+        ctx.fillStyle = '#030306';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const glossGrad = ctx.createRadialGradient(cx - 32, cy - 32, 8, cx, cy, 190);
+        glossGrad.addColorStop(0.0, '#27273a');
+        glossGrad.addColorStop(0.22, '#090910');
+        glossGrad.addColorStop(0.75, '#030306');
+        glossGrad.addColorStop(1.0, '#010103');
+        ctx.fillStyle = glossGrad;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 192, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (type === 'moss') {
+        // Spherical white sclera with smaller turquoise-green iris & pupil mapped directly onto the 3D sphere (no flat plates!)
+        ctx.fillStyle = '#e2e8f0';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const scleraGrad = ctx.createRadialGradient(cx, cy, 50, cx, cy, 230);
+        scleraGrad.addColorStop(0.0, '#ffffff');
+        scleraGrad.addColorStop(0.70, '#f1f5f9');
+        scleraGrad.addColorStop(1.0, '#94a3b8');
+        ctx.fillStyle = scleraGrad;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 230, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Smaller iris mapped smoothly onto the round sphere surface
+        const irisGrad = ctx.createRadialGradient(cx, cy, 14, cx, cy, 72);
+        irisGrad.addColorStop(0.0, '#020617');
+        irisGrad.addColorStop(0.44, '#020617');
+        irisGrad.addColorStop(0.49, '#6ee7b7');
+        irisGrad.addColorStop(0.82, '#10b981');
+        irisGrad.addColorStop(0.95, '#064e3b');
+        irisGrad.addColorStop(1.0, '#cbd5e1');
+        ctx.fillStyle = irisGrad;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 72, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Pupil on the sphere
+        ctx.fillStyle = '#02040a';
+        ctx.beginPath();
+        ctx.arc(cx, cy, 34, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.needsUpdate = true;
+      return tex;
+    }
+
+    // Helper for custom body deformation (e.g. Forest Mokhnatka vertical teardrop with narrow bottom)
+    function deformBodyPoint(nx, ny, nz, config) {
+      let sx = config.scaleX || 1;
+      let sy = config.scaleY || 1;
+      let sz = config.scaleZ || 1;
+
+      if (config.isTeardrop) {
+        // Slightly elongated vertically, fuller in upper-middle, tapering narrower at the bottom
+        // ny in [-1, 1]: at ny = -1 (bottom), width narrows to ~0.58; at ny = +0.25, width is ~1.03; at ny = +1 (top), slightly tapered ~0.86
+        const taper = ny < 0
+          ? (1.0 + ny * 0.42)
+          : (1.03 - Math.pow(ny, 1.6) * 0.17);
+        sx *= taper;
+        sz *= taper;
+      }
+
+      return {
+        x: nx * config.radius * sx,
+        y: ny * config.radius * sy,
+        z: nz * config.radius * sz
+      };
+    }
+
+    // ============================================================================
+    // HIGH-POLY MOKHNATKA BUILDER (Strict Eye-Zone Hair Exclusion)
+    // ============================================================================
+    function buildMokhnatka(config) {
+      const root = new THREE.Group();
+      const bodyGroup = new THREE.Group();
+      // Center of body positioned so feet/bottom touch ground y = 0.0
+      bodyGroup.position.y = config.bodyCenterY || 1.05;
+      root.add(bodyGroup);
+
+      const coreGeo = new THREE.SphereGeometry(1.0, 36, 36);
+      const posAttr = coreGeo.attributes.position;
+      for (let i = 0; i < posAttr.count; i++) {
+        const vx = posAttr.getX(i);
+        const vy = posAttr.getY(i);
+        const vz = posAttr.getZ(i);
+        const d = deformBodyPoint(vx, vy, vz, config);
+        posAttr.setXYZ(i, d.x, d.y, d.z);
+      }
+      coreGeo.computeVertexNormals();
+
+      const coreMat = new THREE.MeshStandardMaterial({
+        color: config.coreColor,
+        roughness: 0.85,
+        metalness: 0.05
+      });
+      bodyGroup.add(new THREE.Mesh(coreGeo, coreMat));
+
+      if (config.hasLegs) {
+        // Two tiny furry legs at the narrow bottom part of the teardrop body
+        const legMat = new THREE.MeshStandardMaterial({ color: config.baseColor, roughness: 0.82 });
+        const legGeo = new THREE.CylinderGeometry(0.135, 0.095, 0.38, 18);
+        const pawGeo = new THREE.SphereGeometry(0.105, 16, 12);
+        pawGeo.scale(1.0, 0.65, 1.25);
+
+        [-0.19, 0.19].forEach(lx => {
+          const legGroup = new THREE.Group();
+          legGroup.position.set(lx, -0.98, 0.04);
+          const legCyl = new THREE.Mesh(legGeo, legMat);
+          const paw = new THREE.Mesh(pawGeo, legMat);
+          paw.position.set(0, -0.17, 0.02);
+          legGroup.add(legCyl, paw);
+          bodyGroup.add(legGroup);
+        });
+      }
+
+      const eyePositions = [
+        new THREE.Vector3(-config.eyeSpacing, config.eyeY, config.eyeZ),
+        new THREE.Vector3(config.eyeSpacing, config.eyeY, config.eyeZ)
+      ];
+
+      const eyeTex = createEyeTexture(config.id);
+      const eyeGeo = new THREE.SphereGeometry(config.eyeRadius, 32, 32);
+      const eyeMat = new THREE.MeshStandardMaterial({
+        map: eyeTex,
+        roughness: config.isBlackEye ? 0.06 : 0.12,
+        metalness: config.isBlackEye ? 0.15 : 0.08
+      });
+
+      const eyeMeshes = [];
+      eyePositions.forEach(pos => {
+        const eyeSocketGroup = new THREE.Group();
+        eyeSocketGroup.position.copy(pos);
+
+        const rimGeo = new THREE.TorusGeometry(config.eyeRadius * 1.03, config.eyeRadius * 0.14, 16, 32);
+        const rimMat = new THREE.MeshStandardMaterial({
+          color: config.rimColor || 0x1e1b2e,
+          roughness: 0.55
+        });
+        const rimMesh = new THREE.Mesh(rimGeo, rimMat);
+        rimMesh.position.z = config.eyeRadius * 0.18;
+        eyeSocketGroup.add(rimMesh);
+
+        // Pure 3D round eyeball sphere — NO flat CircleGeometry or RingGeometry plates!
+        const eyeBall = new THREE.Mesh(eyeGeo, eyeMat);
+        eyeBall.rotation.y = -Math.PI / 2;
+        eyeSocketGroup.add(eyeBall);
+
+        // 3D spherical catchlights nestled on the surface of the round eyeball sphere
+        const glintGeo = new THREE.SphereGeometry(config.eyeRadius * 0.15, 14, 14);
+        const glintMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        const glint1 = new THREE.Mesh(glintGeo, glintMat);
+        glint1.position.set(-config.eyeRadius * 0.24, config.eyeRadius * 0.24, config.eyeRadius * 0.88);
+        const glint2 = new THREE.Mesh(glintGeo, glintMat);
+        glint2.scale.setScalar(0.52);
+        glint2.position.set(config.eyeRadius * 0.20, -config.eyeRadius * 0.16, config.eyeRadius * 0.90);
+        eyeSocketGroup.add(glint1, glint2);
+
+        bodyGroup.add(eyeSocketGroup);
+        eyeMeshes.push(eyeSocketGroup);
+      });
+
+      const furMeshHigh = buildFurGeometry(config, eyePositions, config.strandCount || 3800, 1.0);
+      const furMeshGame = buildFurGeometry(config, eyePositions, 1200, 1.45);
+      furMeshHigh.visible = false;
+      furMeshGame.visible = true;
+      bodyGroup.add(furMeshHigh, furMeshGame);
+
+      return {
+        id: config.id,
+        name: config.name,
+        config,
+        root,
+        bodyGroup,
+        coreMat,
+        furMesh: furMeshGame,
+        furMeshHigh,
+        furMeshGame,
+        eyeMeshes,
+        gx: SPAWN_GX,
+        gz: SPAWN_GZ,
+        targetGx: SPAWN_GX,
+        targetGz: SPAWN_GZ,
+        dir: 2,
+        moveProgress: 0,
+        speed: config.speed,
+        spawnDelay: config.spawnDelay,
+        spawned: false,
+        spawnAnim: 0,
+        eatenRespawnTimer: 0,
+        phys: {
+          vel: new THREE.Vector3(),
+          radius: 1.25,
+          squashY: 1.0,
+          squashVel: 0.0,
+          isDragged: false,
+          baseRotY: 0
+        }
+      };
+    }
+
+    function buildFurGeometry(config, eyePositions, customStrandCount, widthMult) {
+      const strandCount = customStrandCount || config.strandCount || 3800;
+      const wScale = widthMult || 1.0;
+      const positions = [];
+      const colors = [];
+      const normals = [];
+
+      const cBase = new THREE.Color(config.coreColor);
+      const cMid = new THREE.Color(config.baseColor);
+      const cTip = new THREE.Color(config.tipColor);
+
+      const goldenRatio = (1 + Math.sqrt(5)) / 2;
+      const eyeClearRadius = config.eyeRadius * 1.68;
+
+      for (let i = 0; i < strandCount; i++) {
+        const t = i / strandCount;
+        const inclination = Math.acos(1 - 2 * t);
+        const azimuth = 2 * Math.PI * goldenRatio * i;
+
+        const nx = Math.sin(inclination) * Math.cos(azimuth);
+        const ny = Math.sin(inclination) * Math.sin(azimuth);
+        const nz = Math.cos(inclination);
+
+        const surf = deformBodyPoint(nx, ny, nz, config);
+        const rx = surf.x;
+        const ry = surf.y;
+        const rz = surf.z;
+
+        let insideEyeZone = false;
+        for (let e = 0; e < eyePositions.length; e++) {
+          const ep = eyePositions[e];
+          const dx = rx - ep.x;
+          const dy = ry - ep.y;
+          const dz = rz - ep.z;
+          const dist3D = Math.sqrt(dx * dx + dy * dy + dz * dz);
+          const distXY = Math.sqrt(dx * dx + dy * dy);
+          if (dist3D < eyeClearRadius || (rz > 0.22 && distXY < config.eyeRadius * 1.55)) {
+            insideEyeZone = true;
+            break;
+          }
+        }
+        if (insideEyeZone) continue;
+
+        let dirX = nx + (Math.random() - 0.5) * config.messiness;
+        let dirY = ny - config.droop + (Math.random() - 0.5) * config.messiness;
+        let dirZ = nz + (Math.random() - 0.5) * config.messiness;
+
+        for (let e = 0; e < eyePositions.length; e++) {
+          const ep = eyePositions[e];
+          const dx = rx - ep.x;
+          const dy = ry - ep.y;
+          const distXY = Math.sqrt(dx * dx + dy * dy);
+          if (rz > 0.1 && distXY < config.eyeRadius * 2.25 && distXY > 0.001) {
+            const push = (config.eyeRadius * 2.25 - distXY) / (config.eyeRadius * 2.25);
+            dirX += (dx / distXY) * push * 1.45;
+            dirY += (dy / distXY) * push * 1.45;
+            dirZ -= push * 0.55;
+          }
+        }
+
+        const dirLen = Math.sqrt(dirX * dirX + dirY * dirY + dirZ * dirZ) || 1;
+        dirX /= dirLen;
+        dirY /= dirLen;
+        dirZ /= dirLen;
+
+        // Slightly shorter fur at the narrow bottom so the two tiny legs are clearly visible
+        const bottomFactor = (config.isTeardrop && ny < -0.55) ? 0.68 : 1.0;
+        const len = config.furLength * bottomFactor * (0.75 + Math.random() * 0.45);
+        const halfW = config.strandWidth * 0.5 * wScale;
+
+        let tx = -dirZ;
+        let ty = 0;
+        let tz = dirX;
+        const tLen = Math.sqrt(tx * tx + ty * ty + tz * tz) || 1;
+        tx = (tx / tLen) * halfW;
+        ty = (ty / tLen) * halfW;
+        tz = (tz / tLen) * halfW;
+
+        const mx = rx + dirX * (len * 0.52);
+        const my = ry + dirY * (len * 0.52) - config.droop * 0.05;
+        const mz = rz + dirZ * (len * 0.52);
+
+        const tipX = rx + dirX * len;
+        const tipY = ry + dirY * len - config.droop * 0.14;
+        const tipZ = rz + dirZ * len;
+
+        positions.push(
+          rx - tx, ry - ty, rz - tz,
+          rx + tx, ry + ty, rz + tz,
+          mx - tx * 0.55, my - ty * 0.55, mz - tz * 0.55,
+          rx + tx, ry + ty, rz + tz,
+          mx + tx * 0.55, my + ty * 0.55, mz + tz * 0.55,
+          mx - tx * 0.55, my - ty * 0.55, mz - tz * 0.55,
+          mx - tx * 0.55, my - ty * 0.55, mz - tz * 0.55,
+          mx + tx * 0.55, my + ty * 0.55, mz + tz * 0.55,
+          tipX, tipY, tipZ
+        );
+        normals.push(
+          nx, ny, nz, nx, ny, nz, dirX, dirY, dirZ,
+          nx, ny, nz, dirX, dirY, dirZ, dirX, dirY, dirZ,
+          dirX, dirY, dirZ, dirX, dirY, dirZ, dirX, dirY, dirZ
+        );
+        colors.push(
+          cBase.r, cBase.g, cBase.b, cBase.r, cBase.g, cBase.b, cMid.r, cMid.g, cMid.b,
+          cBase.r, cBase.g, cBase.b, cMid.r, cMid.g, cMid.b, cMid.r, cMid.g, cMid.b,
+          cMid.r, cMid.g, cMid.b, cMid.r, cMid.g, cMid.b, cTip.r, cTip.g, cTip.b
+        );
+      }
+
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      geo.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+      geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+      const mat = new THREE.MeshStandardMaterial({
+        vertexColors: true,
+        roughness: 0.65,
+        metalness: 0.05,
+        side: THREE.DoubleSide
+      });
+
+      return new THREE.Mesh(geo, mat);
+    }
+
+    // ============================================================================
+    // TIGHTLY STITCHED 6-SEGMENT LIME WORM (NO HORNS, PROMINENT EXPRESSIVE EYES)
+    // ============================================================================
+    function buildLimeWorm() {
+      const group = new THREE.Group();
+      const segments = [];
+      const joints = [];
+      const segmentRadii = [0.68, 0.63, 0.58, 0.52, 0.45, 0.37];
+
+      const segGeo = new THREE.SphereGeometry(1, 20, 20);
+
+      for (let i = 0; i < 6; i++) {
+        const segGroup = new THREE.Group();
+        const isHead = i === 0;
+        const r = segmentRadii[i];
+
+        const mat = new THREE.MeshStandardMaterial({
+          color: i % 2 === 0 ? 0x84cc16 : 0xa3e635,
+          emissive: 0x365314,
+          emissiveIntensity: 0.42,
+          roughness: 0.25,
+          metalness: 0.05
+        });
+
+        // Elongated segment body so adjacent segments deeply overlap & stitch together
+        const mesh = new THREE.Mesh(segGeo, mat);
+        mesh.scale.set(r * 1.06, r * 0.96, r * 1.26);
+        segGroup.add(mesh);
+
+        // Muscular connecting ring ridge around segment
+        const ringGeo = new THREE.TorusGeometry(r * 0.96, r * 0.09, 10, 20);
+        const ringMat = new THREE.MeshStandardMaterial({
+          color: 0xbef264,
+          emissive: 0x4d7c0f,
+          emissiveIntensity: 0.3,
+          roughness: 0.3
+        });
+        const ring = new THREE.Mesh(ringGeo, ringMat);
+        segGroup.add(ring);
+
+        if (isHead) {
+          // NO HORNS/ANTENNAE!
+          // Prominent, large expressive eyes mounted on the outside top-front of the head
+          const eyeWhiteGeo = new THREE.SphereGeometry(0.22, 32, 32);
+          const eyeWhiteMat = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            roughness: 0.08,
+            metalness: 0.05
+          });
+          const irisGeo = new THREE.SphereGeometry(0.145, 24, 24);
+          const irisMat = new THREE.MeshBasicMaterial({ color: 0x10b981 });
+          const pupilGeo = new THREE.SphereGeometry(0.105, 24, 24);
+          const pupilMat = new THREE.MeshBasicMaterial({ color: 0x020617 });
+          const glintGeo = new THREE.SphereGeometry(0.042, 16, 16);
+          const glintMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+
+          // Socket collar around each eye
+          const socketGeo = new THREE.TorusGeometry(0.21, 0.045, 16, 32);
+
+          [-0.31, 0.31].forEach((ex, idx) => {
+            const eyeHolder = new THREE.Group();
+            // Placed clearly outside the head surface (y=0.45, z=0.52) angled forward & slightly up
+            eyeHolder.position.set(ex, 0.45, 0.52);
+            eyeHolder.rotation.x = -0.28;
+            eyeHolder.rotation.y = idx === 0 ? -0.15 : 0.15;
+
+            const socket = new THREE.Mesh(socketGeo, mat);
+            socket.position.z = 0.02;
+            eyeHolder.add(socket);
+
+            const sclera = new THREE.Mesh(eyeWhiteGeo, eyeWhiteMat);
+            eyeHolder.add(sclera);
+
+            const iris = new THREE.Mesh(irisGeo, irisMat);
+            iris.position.set(0, 0.02, 0.11);
+            iris.scale.z = 0.65;
+            eyeHolder.add(iris);
+
+            const pupil = new THREE.Mesh(pupilGeo, pupilMat);
+            pupil.position.set(0, 0.03, 0.155);
+            pupil.scale.z = 0.65;
+            eyeHolder.add(pupil);
+
+            const glint1 = new THREE.Mesh(glintGeo, glintMat);
+            glint1.position.set(idx === 0 ? -0.05 : 0.05, 0.09, 0.21);
+            eyeHolder.add(glint1);
+
+            segGroup.add(eyeHolder);
+          });
+        }
+
+        group.add(segGroup);
+        segments.push(segGroup);
+
+        // Build a muscular stitching tube/collar between segment i and i+1
+        if (i < 5) {
+          const rNext = segmentRadii[i + 1];
+          const jointGeo = new THREE.CylinderGeometry(rNext * 0.88, r * 0.90, 1.0, 14);
+          jointGeo.rotateX(Math.PI / 2);
+          const jointMesh = new THREE.Mesh(jointGeo, mat);
+          group.add(jointMesh);
+          joints.push(jointMesh);
+        }
+      }
+
+      // Lightweight gameplay: no per-frame moving PointLight on worm head
+
+      return {
+        group,
+        segments,
+        joints,
+        segmentRadii,
+        gx: WORM_START_GX,
+        gz: WORM_START_GZ,
+        targetGx: WORM_START_GX,
+        targetGz: WORM_START_GZ,
+        dir: 3,
+        queuedDir: 3,
+        moveProgress: 0,
+        speed: 3.25,
+        pathPoints: [] // Dense polyline [{x, z, angle}]
+      };
+    }
+
+    // Place worm segments at exact arc-length distances along pathPoints so they ALWAYS overlap tightly
+    function positionWormAlongPath(elapsed) {
+      const radii = wormEntity.segmentRadii;
+      const pts = wormEntity.pathPoints;
+      if (!pts || pts.length === 0) return;
+
+      const blinkHide = gameState.invulnerableTimer > 0 && Math.floor(elapsed * 14) % 2 === 0;
+      let targetArcDist = 0;
+
+      for (let i = 0; i < 6; i++) {
+        if (i > 0) {
+          // Overlap consecutive segments by ~26% so they are tightly stitched together
+          targetArcDist += (radii[i - 1] + radii[i]) * 0.74;
+        }
+
+        // Walk along pathPoints to find exact point at targetArcDist behind head
+        let acc = 0;
+        let chosenX = pts[pts.length - 1].x;
+        let chosenZ = pts[pts.length - 1].z;
+        let chosenAngle = pts[pts.length - 1].angle;
+
+        for (let p = 0; p < pts.length - 1; p++) {
+          const a = pts[p];
+          const b = pts[p + 1];
+          const segLen = Math.hypot(b.x - a.x, b.z - a.z);
+          if (acc + segLen >= targetArcDist) {
+            const frac = segLen > 0.0001 ? (targetArcDist - acc) / segLen : 0;
+            chosenX = a.x + (b.x - a.x) * frac;
+            chosenZ = a.z + (b.z - a.z) * frac;
+            chosenAngle = a.angle;
+            break;
+          }
+          acc += segLen;
+        }
+
+        // Subtle organic ripple only when moving
+        const moveAmp = gameState.started ? 1.0 : 0.25;
+        const waveY = Math.abs(Math.sin(elapsed * 9.0 - i * 0.75)) * 0.10 * moveAmp;
+        const wiggleSide = Math.sin(elapsed * 8.0 - i * 0.8) * 0.045 * moveAmp;
+        const perpX = Math.cos(chosenAngle) * wiggleSide;
+        const perpZ = -Math.sin(chosenAngle) * wiggleSide;
+
+        const seg = wormEntity.segments[i];
+        // Rests directly on the ground (y = radius * 0.92)
+        seg.position.set(chosenX + perpX, radii[i] * 0.92 + waveY, chosenZ + perpZ);
+
+        // Smoothly orient segment toward the segment in front of it
+        if (i > 0) {
+          const prevPos = wormEntity.segments[i - 1].position;
+          const dx = prevPos.x - seg.position.x;
+          const dz = prevPos.z - seg.position.z;
+          if (Math.hypot(dx, dz) > 0.001) {
+            seg.rotation.y = Math.atan2(dx, dz);
+          } else {
+            seg.rotation.y = chosenAngle;
+          }
+        } else {
+          seg.rotation.y = chosenAngle;
+        }
+        seg.visible = !blinkHide;
+      }
+
+      // Update muscular stitching joints between segments i and i+1
+      for (let i = 0; i < 5; i++) {
+        const segA = wormEntity.segments[i];
+        const segB = wormEntity.segments[i + 1];
+        const joint = wormEntity.joints[i];
+        joint.position.lerpVectors(segA.position, segB.position, 0.5);
+        joint.lookAt(segA.position);
+        const dist = segA.position.distanceTo(segB.position);
+        joint.scale.set(1, 1, Math.max(0.1, dist * 1.15));
+        joint.visible = !blinkHide;
+      }
+    }
+
+    // ============================================================================
+    // ENVIRONMENT: GROUND, MAZE, SHOWCASE GLADE (ON GROUND!), AND EPIC "Glist 2" 3D METAL SCENE
+    // ============================================================================
+    function buildAllEnvironments() {
+      // 1. Shared Forest Ground at y = 0.0 (1x1 quad for maximum weak-device performance!)
+      const floorSize = GRID_SIZE * TILE_SIZE + 80;
+      const floorGeo = new THREE.PlaneGeometry(floorSize, floorSize, 1, 1);
+      floorGeo.rotateX(-Math.PI / 2);
+      const floorMat = new THREE.MeshLambertMaterial({
+        color: 0x09130f
+      });
+      groundMesh = new THREE.Mesh(floorGeo, floorMat);
+      groundMesh.position.y = 0.0;
+      scene.add(groundMesh);
+
+      mazeGroup = new THREE.Group();
+      showcaseGroup = new THREE.Group();
+      victoryGroup = new THREE.Group();
+      scene.add(mazeGroup);
+      scene.add(showcaseGroup);
+      scene.add(victoryGroup);
+      showcaseGroup.visible = false;
+      victoryGroup.visible = false;
+
+      // Collect maze coordinates
+      const wallCoords = [];
+      cornerDots = [];
+      powerPellets = [];
+
+      for (let gz = 0; gz < GRID_SIZE; gz++) {
+        for (let gx = 0; gx < GRID_SIZE; gx++) {
+          const cell = MAZE_LAYOUT[gz][gx];
+          if (cell === 1) {
+            wallCoords.push({ gx, gz });
+          } else {
+            cornerDots.push({ gx, gz, visited: false, index: cornerDots.length });
+            if (cell === 2) {
+              powerPellets.push({ gx, gz, active: true, group: null });
+            }
+          }
+        }
+      }
+      gameState.totalCorners = cornerDots.length;
+
+      // A. Mossy Labyrinth Walls sitting on Ground (y = 0) — simplified geometry & Lambert shading for weak devices
+      const wallHeight = 1.95;
+      const wallGeo = new THREE.CylinderGeometry(TILE_SIZE * 0.38, TILE_SIZE * 0.42, wallHeight, 12, 1);
+      const wallMat = new THREE.MeshLambertMaterial({ color: 0x152e22 });
+      const wallInstanced = new THREE.InstancedMesh(wallGeo, wallMat, wallCoords.length);
+
+      const capGeo = new THREE.SphereGeometry(TILE_SIZE * 0.40, 12, 8);
+      capGeo.scale(1, 0.35, 1);
+      const capMat = new THREE.MeshLambertMaterial({ color: 0x22492f });
+      const capInstanced = new THREE.InstancedMesh(capGeo, capMat, wallCoords.length);
+
+      wallCoords.forEach((w, idx) => {
+        const pos = gridToWorld(w.gx, w.gz);
+        const hScale = 0.94 + ((w.gx * 13 + w.gz * 7) % 4) * 0.04;
+        dummyMatrix.makeScale(1, hScale, 1);
+        dummyMatrix.setPosition(pos.x, (wallHeight * 0.5) * hScale, pos.z);
+        wallInstanced.setMatrixAt(idx, dummyMatrix);
+
+        dummyMatrix.setPosition(pos.x, wallHeight * hScale, pos.z);
+        capInstanced.setMatrixAt(idx, dummyMatrix);
+      });
+      wallInstanced.instanceMatrix.needsUpdate = true;
+      capInstanced.instanceMatrix.needsUpdate = true;
+      mazeGroup.add(wallInstanced, capInstanced);
+
+      // B. Ancient Gnarled Trees ONLY OUTSIDE THE PLAYING FIELD (gx < 0 || gx >= GRID_SIZE || gz < 0 || gz >= GRID_SIZE)
+      const outsideTreeCoords = [];
+      for (let gz = -2; gz <= GRID_SIZE + 1; gz += 2) {
+        for (let gx = -2; gx <= GRID_SIZE + 1; gx += 2) {
+          // Strictly outside the 0..GRID_SIZE-1 playing field!
+          if (gx < -1 || gx > GRID_SIZE || gz < -1 || gz > GRID_SIZE) {
+            if (((gx * 19 + gz * 31) & 1) === 0) {
+              outsideTreeCoords.push({
+                gx: gx + ((gz % 3) * 0.25),
+                gz: gz + ((gx % 3) * 0.25)
+              });
+            }
+          }
+        }
+      }
+
+      const trunkH = 4.2;
+      const trunkGeo = new THREE.CylinderGeometry(0.26, 0.65, trunkH, 10, 1);
+      const trunkMat = new THREE.MeshLambertMaterial({ color: 0x2c1d14 });
+      const trunkInst = new THREE.InstancedMesh(trunkGeo, trunkMat, outsideTreeCoords.length);
+
+      const canopyGeo = new THREE.DodecahedronGeometry(1.45, 1);
+      const canopyMat = new THREE.MeshLambertMaterial({
+        color: 0x143824,
+        emissive: 0x05180e
+      });
+      const canopyInst = new THREE.InstancedMesh(canopyGeo, canopyMat, outsideTreeCoords.length);
+
+      outsideTreeCoords.forEach((tc, idx) => {
+        const pos = gridToWorld(tc.gx, tc.gz);
+        const s = 0.90 + (idx % 4) * 0.16;
+        dummyMatrix.makeScale(s, s, s);
+        dummyMatrix.setPosition(pos.x, (trunkH * 0.5) * s, pos.z);
+        trunkInst.setMatrixAt(idx, dummyMatrix);
+
+        dummyMatrix.makeScale(s * 1.15, s * 0.82, s * 1.15);
+        dummyMatrix.setPosition(pos.x, (trunkH + 0.6) * s, pos.z);
+        canopyInst.setMatrixAt(idx, dummyMatrix);
+      });
+      trunkInst.instanceMatrix.needsUpdate = true;
+      canopyInst.instanceMatrix.needsUpdate = true;
+      mazeGroup.add(trunkInst, canopyInst);
+
+      // C. Bioluminescent Mushrooms (Lightweight low-poly instances for fast rendering)
+      const mushCount = 36;
+      const stemH = 0.56;
+      const stemGeo = new THREE.CylinderGeometry(0.06, 0.11, stemH, 8);
+      const stemMat = new THREE.MeshLambertMaterial({ color: 0xe2e8f0 });
+      const stemInst = new THREE.InstancedMesh(stemGeo, stemMat, mushCount);
+
+      const mCapGeo = new THREE.SphereGeometry(0.28, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.62);
+      const mCapMat = new THREE.MeshLambertMaterial({
+        color: 0x22d3ee,
+        emissive: 0x06b6d4
+      });
+      const mCapInst = new THREE.InstancedMesh(mCapGeo, mCapMat, mushCount);
+      const palette = [
+        new THREE.Color(0x22d3ee),
+        new THREE.Color(0xf472b6),
+        new THREE.Color(0xa855f7),
+        new THREE.Color(0xa3e635)
+      ];
+
+      for (let i = 0; i < mushCount; i++) {
+        const w = wallCoords[(i * 4) % wallCoords.length];
+        const pos = gridToWorld(w.gx, w.gz);
+        const angle = (i * 2.399) % (Math.PI * 2);
+        const rad = TILE_SIZE * 0.44;
+        const mx = pos.x + Math.cos(angle) * rad;
+        const mz = pos.z + Math.sin(angle) * rad;
+        const sc = 0.65 + (i % 4) * 0.2;
+
+        dummyMatrix.makeScale(sc, sc, sc);
+        dummyMatrix.setPosition(mx, (stemH * 0.5) * sc, mz);
+        stemInst.setMatrixAt(i, dummyMatrix);
+
+        dummyMatrix.setPosition(mx, stemH * sc, mz);
+        mCapInst.setMatrixAt(i, dummyMatrix);
+        mCapInst.setColorAt(i, palette[i % palette.length]);
+      }
+      stemInst.instanceMatrix.needsUpdate = true;
+      mCapInst.instanceMatrix.needsUpdate = true;
+      if (mCapInst.instanceColor) mCapInst.instanceColor.needsUpdate = true;
+      mazeGroup.add(stemInst, mCapInst);
+
+      // D. Collectible Corridor Spores (Low-poly Octahedron + unlit BasicMaterial for zero shader overhead)
+      const dotGeo = new THREE.OctahedronGeometry(0.22, 0);
+      const dotMat = new THREE.MeshBasicMaterial({
+        color: 0xbef264
+      });
+      cornerInstancedMesh = new THREE.InstancedMesh(dotGeo, dotMat, cornerDots.length);
+      initCornerDotsMatrices();
+      mazeGroup.add(cornerInstancedMesh);
+
+      // E. 4 Power-Up Bonus Mushrooms (Sitting on ground y = 0)
+      powerPellets.forEach(p => {
+        const pGroup = new THREE.Group();
+        const pos = gridToWorld(p.gx, p.gz);
+        pGroup.position.set(pos.x, 0.0, pos.z);
+
+        const pStem = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.14, 0.22, 0.72, 12),
+          new THREE.MeshLambertMaterial({ color: 0xfef08a, emissive: 0xca8a04 })
+        );
+        pStem.position.y = 0.36;
+
+        const pCap = new THREE.Mesh(
+          new THREE.SphereGeometry(0.55, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.6),
+          new THREE.MeshBasicMaterial({ color: 0x38bdf8 })
+        );
+        pCap.position.y = 0.72;
+
+        const pHalo = new THREE.Mesh(
+          new THREE.TorusGeometry(0.68, 0.045, 8, 24),
+          new THREE.MeshBasicMaterial({ color: 0x67e8f9 })
+        );
+        pHalo.rotation.x = Math.PI / 2;
+        pHalo.position.y = 0.12;
+
+        pGroup.add(pStem, pCap, pHalo);
+        mazeGroup.add(pGroup);
+        p.group = pGroup;
+      });
+
+      // F. Mokhnatka Spawn Burrow / Nest at (SPAWN_GX, SPAWN_GZ) = (8, 6)
+      spawnNestGroup = new THREE.Group();
+      const spawnPos = gridToWorld(SPAWN_GX, SPAWN_GZ);
+      spawnNestGroup.position.set(spawnPos.x, 0.02, spawnPos.z);
+      const nestRing = new THREE.Mesh(
+        new THREE.TorusGeometry(1.05, 0.13, 12, 32),
+        new THREE.MeshBasicMaterial({ color: 0xf43f5e })
+      );
+      nestRing.rotation.x = Math.PI / 2;
+      const nestHole = new THREE.Mesh(
+        new THREE.CircleGeometry(1.0, 24),
+        new THREE.MeshBasicMaterial({ color: 0x020408 })
+      );
+      nestHole.rotation.x = -Math.PI / 2;
+      spawnNestGroup.add(nestRing, nestHole);
+      mazeGroup.add(spawnNestGroup);
+
+      // G. Central Exit Portal at (PORTAL_GX, PORTAL_GZ) (No expensive PointLight inside maze)
+      portalGroup = new THREE.Group();
+      const centerPos = gridToWorld(PORTAL_GX, PORTAL_GZ);
+      portalGroup.position.set(centerPos.x, 1.25, centerPos.z);
+
+      const outerRing = new THREE.Mesh(
+        new THREE.TorusGeometry(1.15, 0.12, 14, 36),
+        new THREE.MeshBasicMaterial({ color: 0xa855f7 })
+      );
+      const innerRing = new THREE.Mesh(
+        new THREE.TorusGeometry(0.82, 0.07, 12, 28),
+        new THREE.MeshBasicMaterial({ color: 0x22d3ee })
+      );
+      const vortexDisc = new THREE.Mesh(
+        new THREE.CircleGeometry(0.80, 28),
+        new THREE.MeshBasicMaterial({
+          color: 0xc084fc,
+          transparent: true,
+          opacity: 0.75,
+          side: THREE.DoubleSide
+        })
+      );
+      portalGroup.add(outerRing, innerRing, vortexDisc);
+      portalGroup.visible = false;
+      mazeGroup.add(portalGroup);
+
+      // H. Build Showcase Glade (Mushrooms, Mossy Stones & Trees firmly ON THE GROUND y = 0!)
+      buildShowcaseGlade(stemGeo, stemMat, mCapGeo, mCapMat, trunkGeo, trunkMat, canopyGeo, canopyMat, palette);
+
+      // I. Build Epic Victory 3D Metal Text "Glist 2" Scene
+      buildVictoryScene(stemGeo, stemMat, mCapGeo, mCapMat, palette);
+
+      // J. No fireflies in the playing field (removed per user request & for faster performance)
+    }
+
+    // Showcase Glade where ALL mushrooms, mossy mounds, and ancient trees rest directly on the ground (y = 0)
+    function buildShowcaseGlade(stemGeo, stemMat, mCapGeo, mCapMat, trunkGeo, trunkMat, canopyGeo, canopyMat, palette) {
+      // Soft mossy clearing mound on the ground
+      const gladeDisc = new THREE.Mesh(
+        new THREE.CylinderGeometry(8.5, 9.5, 0.16, 48),
+        new THREE.MeshStandardMaterial({ color: 0x142e20, roughness: 0.9 })
+      );
+      gladeDisc.position.y = 0.08;
+      showcaseGroup.add(gladeDisc);
+
+      // 48 Bioluminescent Mushrooms planted directly on the ground (y = 0) around the creatures
+      const scMushCount = 48;
+      const scStemInst = new THREE.InstancedMesh(stemGeo, stemMat, scMushCount);
+      const scCapInst = new THREE.InstancedMesh(mCapGeo, mCapMat, scMushCount);
+      const stemH = 0.56;
+
+      for (let i = 0; i < scMushCount; i++) {
+        const ring = i < 20 ? 1 : 2;
+        const angle = (i / (ring === 1 ? 20 : 28)) * Math.PI * 2 + i * 0.2;
+        const radius = ring === 1 ? (4.4 + (i % 4) * 0.45) : (6.4 + (i % 5) * 0.55);
+        const mx = Math.cos(angle) * radius;
+        const mz = Math.sin(angle) * radius;
+        const sc = 0.65 + (i % 5) * 0.28;
+
+        dummyMatrix.makeScale(sc, sc, sc);
+        // Stem base sits on ground y = 0.08!
+        dummyMatrix.setPosition(mx, 0.08 + (stemH * 0.5) * sc, mz);
+        scStemInst.setMatrixAt(i, dummyMatrix);
+
+        dummyMatrix.setPosition(mx, 0.08 + stemH * sc, mz);
+        scCapInst.setMatrixAt(i, dummyMatrix);
+        scCapInst.setColorAt(i, palette[i % palette.length]);
+      }
+      scStemInst.instanceMatrix.needsUpdate = true;
+      scCapInst.instanceMatrix.needsUpdate = true;
+      if (scCapInst.instanceColor) scCapInst.instanceColor.needsUpdate = true;
+      showcaseGroup.add(scStemInst, scCapInst);
+
+      // 10 Ancient Trees in a semicircle behind the showcase stage, rooted on the ground (y = 0)
+      const scTreeCount = 10;
+      const scTrunkInst = new THREE.InstancedMesh(trunkGeo, trunkMat, scTreeCount);
+      const scCanopyInst = new THREE.InstancedMesh(canopyGeo, canopyMat, scTreeCount);
+      const trunkH = 4.2;
+
+      for (let i = 0; i < scTreeCount; i++) {
+        const angle = Math.PI * 0.8 + (i / (scTreeCount - 1)) * Math.PI * 1.4;
+        const rad = 8.2 + (i % 2) * 1.2;
+        const tx = Math.cos(angle) * rad;
+        const tz = Math.sin(angle) * rad;
+        const s = 0.95 + (i % 3) * 0.22;
+
+        dummyMatrix.makeScale(s, s, s);
+        dummyMatrix.setPosition(tx, (trunkH * 0.5) * s, tz);
+        scTrunkInst.setMatrixAt(i, dummyMatrix);
+
+        dummyMatrix.makeScale(s * 1.2, s * 0.85, s * 1.2);
+        dummyMatrix.setPosition(tx, (trunkH + 0.6) * s, tz);
+        scCanopyInst.setMatrixAt(i, dummyMatrix);
+      }
+      scTrunkInst.instanceMatrix.needsUpdate = true;
+      scCanopyInst.instanceMatrix.needsUpdate = true;
+      showcaseGroup.add(scTrunkInst, scCanopyInst);
+    }
+
+    // ============================================================================
+    // EPIC VICTORY SCENE: GIANT GREY 3D METALLIC TEXT "Glist 2"
+    // ============================================================================
+    function createExtrudedLetterShapes() {
+      const shapes = [];
+
+      // Helper to build a letter shape at xOffset
+      // 1. 'G' (x: -11.8 to -7.4)
+      {
+        const s = new THREE.Shape();
+        const ox = -9.6, oy = 2.4;
+        s.absarc(ox, oy, 2.2, Math.PI * 0.25, Math.PI * 1.75, false);
+        s.lineTo(ox + 1.55, oy + 0.35);
+        s.lineTo(ox - 0.10, oy + 0.35);
+        s.lineTo(ox - 0.10, oy - 0.45);
+        s.lineTo(ox + 0.70, oy - 0.45);
+        s.absarc(ox, oy, 1.32, Math.PI * 1.68, Math.PI * 0.25, true);
+        s.closePath();
+        shapes.push(s);
+      }
+
+      // 2. 'l' (x: -6.5 to -5.5)
+      {
+        const s = new THREE.Shape();
+        s.moveTo(-6.5, 0.2);
+        s.lineTo(-5.55, 0.2);
+        s.lineTo(-5.55, 4.65);
+        s.lineTo(-6.5, 4.65);
+        s.closePath();
+        shapes.push(s);
+      }
+
+      // 3. 'i' stem + dot (x: -4.6 to -3.65)
+      {
+        const stem = new THREE.Shape();
+        stem.moveTo(-4.65, 0.2);
+        stem.lineTo(-3.7, 0.2);
+        stem.lineTo(-3.7, 3.25);
+        stem.lineTo(-4.65, 3.25);
+        stem.closePath();
+        shapes.push(stem);
+
+        const dot = new THREE.Shape();
+        dot.absarc(-4.175, 4.15, 0.52, 0, Math.PI * 2, false);
+        shapes.push(dot);
+      }
+
+      // 4. 's' (x: -2.9 to -0.1) — sculpted high-res smooth S-curve polygon
+      {
+        const s = new THREE.Shape();
+        s.moveTo(-0.35, 2.95);
+        s.bezierCurveTo(-0.5, 3.45, -1.9, 3.55, -2.55, 3.1);
+        s.bezierCurveTo(-3.05, 2.75, -3.0, 1.9, -2.3, 1.6);
+        s.lineTo(-1.15, 1.25);
+        s.bezierCurveTo(-0.9, 1.15, -0.9, 0.85, -1.45, 0.85);
+        s.bezierCurveTo(-1.95, 0.85, -2.35, 1.05, -2.6, 1.25);
+        s.lineTo(-3.0, 0.6);
+        s.bezierCurveTo(-2.5, 0.15, -1.1, 0.05, -0.45, 0.5);
+        s.bezierCurveTo(0.1, 0.9, 0.05, 1.75, -0.7, 2.05);
+        s.lineTo(-1.85, 2.4);
+        s.bezierCurveTo(-2.1, 2.5, -2.05, 2.75, -1.5, 2.75);
+        s.bezierCurveTo(-1.1, 2.75, -0.75, 2.6, -0.55, 2.45);
+        s.closePath();
+        shapes.push(s);
+      }
+
+      // 5. 't' (x: 0.6 to 2.9)
+      {
+        const s = new THREE.Shape();
+        s.moveTo(1.15, 0.2);
+        s.lineTo(2.15, 0.2);
+        s.lineTo(2.15, 2.45);
+        s.lineTo(2.95, 2.45);
+        s.lineTo(2.95, 3.25);
+        s.lineTo(2.15, 3.25);
+        s.lineTo(2.15, 4.35);
+        s.lineTo(1.15, 4.35);
+        s.lineTo(1.15, 3.25);
+        s.lineTo(0.5, 3.25);
+        s.lineTo(0.5, 2.45);
+        s.lineTo(1.15, 2.45);
+        s.closePath();
+        shapes.push(s);
+      }
+
+      // 6. '2' (x: 5.0 to 9.2)
+      {
+        const s = new THREE.Shape();
+        s.moveTo(5.0, 0.2);
+        s.lineTo(9.1, 0.2);
+        s.lineTo(9.1, 1.15);
+        s.lineTo(6.55, 1.15);
+        s.lineTo(8.15, 2.45);
+        s.bezierCurveTo(9.05, 3.15, 9.0, 4.35, 7.8, 4.65);
+        s.bezierCurveTo(6.5, 4.95, 5.2, 4.4, 4.95, 3.35);
+        s.lineTo(5.95, 3.1);
+        s.bezierCurveTo(6.15, 3.75, 6.85, 3.95, 7.45, 3.8);
+        s.bezierCurveTo(7.95, 3.65, 8.0, 3.15, 7.4, 2.65);
+        s.lineTo(5.0, 0.85);
+        s.closePath();
+        shapes.push(s);
+      }
+
+      return shapes;
+    }
+
+    // Procedural Rolled Mill Steel (Прокатный Металл) Textures & Reflection EnvMap
+    function createRolledSteelAssets() {
+      // 1. High-contrast studio & industrial reflection environment map so metallic surfaces gleam
+      const envCanvas = document.createElement('canvas');
+      envCanvas.width = 512;
+      envCanvas.height = 256;
+      const eCtx = envCanvas.getContext('2d');
+      const envGrad = eCtx.createLinearGradient(0, 0, 0, 256);
+      envGrad.addColorStop(0.0, '#0f172a');
+      envGrad.addColorStop(0.22, '#475569');
+      envGrad.addColorStop(0.42, '#f8fafc');
+      envGrad.addColorStop(0.49, '#1e293b');
+      envGrad.addColorStop(0.53, '#e2e8f0');
+      envGrad.addColorStop(0.68, '#64748b');
+      envGrad.addColorStop(1.0, '#090d16');
+      eCtx.fillStyle = envGrad;
+      eCtx.fillRect(0, 0, 512, 256);
+
+      // Bright diagonal & vertical studio reflection bars
+      for (let i = 0; i < 14; i++) {
+        eCtx.fillStyle = i % 2 === 0 ? 'rgba(255, 255, 255, 0.55)' : 'rgba(148, 163, 184, 0.35)';
+        eCtx.fillRect((i * 41) % 512, 20, 14, 210);
+      }
+      const envMap = new THREE.CanvasTexture(envCanvas);
+      envMap.mapping = THREE.EquirectangularReflectionMapping;
+      envMap.needsUpdate = true;
+
+      // 2. Rolled Mill Steel (Прокатный металл) Albedo + Bump + Roughness Map
+      const millCanvas = document.createElement('canvas');
+      millCanvas.width = 1024;
+      millCanvas.height = 512;
+      const mCtx = millCanvas.getContext('2d');
+
+      // Base cold-rolled steel gradient with mill-scale bands
+      const baseGrad = mCtx.createLinearGradient(0, 0, 1024, 512);
+      baseGrad.addColorStop(0.0, '#9ca3af');
+      baseGrad.addColorStop(0.25, '#d1d5db');
+      baseGrad.addColorStop(0.50, '#6b7280');
+      baseGrad.addColorStop(0.75, '#e5e7eb');
+      baseGrad.addColorStop(1.0, '#71717a');
+      mCtx.fillStyle = baseGrad;
+      mCtx.fillRect(0, 0, 1024, 512);
+
+      // Vertical roller pressure bands (характерные полосы от валков прокатного стана)
+      for (let x = 0; x < 1024; x += 32) {
+        const bandAlpha = 0.06 + ((x * 7) % 10) * 0.012;
+        mCtx.fillStyle = (x / 32) % 2 === 0
+          ? `rgba(255, 255, 255, ${bandAlpha})`
+          : `rgba(15, 23, 42, ${bandAlpha})`;
+        mCtx.fillRect(x, 0, 24, 512);
+      }
+
+      // Dense horizontal mill-rolling grooves, brush striations & micro-scratches
+      for (let i = 0; i < 2400; i++) {
+        const y = (i * 0.213) % 512;
+        const x = (i * 73) % 900;
+        const w = 120 + (i * 37) % 450;
+        const h = (i % 5 === 0) ? 2.2 : 1.0;
+        const bright = i % 3 === 0;
+        const alpha = 0.08 + (i % 7) * 0.025;
+        mCtx.fillStyle = bright
+          ? `rgba(248, 250, 252, ${alpha})`
+          : `rgba(30, 41, 59, ${alpha})`;
+        mCtx.fillRect(x, y, w, h);
+      }
+
+      // Dark mill-scale oxidation flecks & industrial rolled texture
+      for (let i = 0; i < 180; i++) {
+        const x = (i * 97) % 1024;
+        const y = (i * 53) % 512;
+        const rw = 18 + (i % 6) * 14;
+        const rh = 2 + (i % 3) * 1.5;
+        mCtx.fillStyle = 'rgba(24, 24, 27, 0.22)';
+        mCtx.fillRect(x, y, rw, rh);
+      }
+
+      const rolledMap = new THREE.CanvasTexture(millCanvas);
+      rolledMap.wrapS = THREE.RepeatWrapping;
+      rolledMap.wrapT = THREE.RepeatWrapping;
+      rolledMap.repeat.set(0.22, 0.22);
+      rolledMap.needsUpdate = true;
+
+      return { envMap, rolledMap };
+    }
+
+    function buildVictoryScene(stemGeo, stemMat, mCapGeo, mCapMat, palette) {
+      // Giant Grey 3D Rolled-Metal Text "Glist 2"
+      const shapes = createExtrudedLetterShapes();
+      const extrudeSettings = {
+        depth: 1.65,
+        bevelEnabled: true,
+        bevelThickness: 0.30,
+        bevelSize: 0.22,
+        bevelSegments: 8,
+        curveSegments: 28
+      };
+
+      const textGeo = new THREE.ExtrudeGeometry(shapes, extrudeSettings);
+      const { envMap, rolledMap } = createRolledSteelAssets();
+
+      // Front/Back faces: bright brushed & rolled mill steel with strong directional grooves
+      const frontRolledMetalMat = new THREE.MeshStandardMaterial({
+        color: 0xd4d8de,
+        map: rolledMap,
+        bumpMap: rolledMap,
+        bumpScale: 0.09,
+        roughnessMap: rolledMap,
+        metalness: 0.94,
+        roughness: 0.24,
+        envMap: envMap,
+        envMapIntensity: 1.85
+      });
+
+      // Bevels & extruded side walls: darker hot-rolled steel edge contrast
+      const sideRolledMetalMat = new THREE.MeshStandardMaterial({
+        color: 0x71717a,
+        map: rolledMap,
+        bumpMap: rolledMap,
+        bumpScale: 0.06,
+        roughnessMap: rolledMap,
+        metalness: 0.96,
+        roughness: 0.30,
+        envMap: envMap,
+        envMapIntensity: 1.55
+      });
+
+      const metalTextMesh = new THREE.Mesh(textGeo, [frontRolledMetalMat, sideRolledMetalMat]);
+      // Make "Glist 2" 3D rolled-metal text much larger (1.68x scale)
+      metalTextMesh.scale.set(1.68, 1.68, 1.55);
+      metalTextMesh.position.set(0.8, 0.35, -1.2);
+      victoryGroup.add(metalTextMesh);
+
+      // Heavy rolled-steel I-beam / industrial plinth under giant "Glist 2" resting on the ground
+      const plinthGeo = new THREE.BoxGeometry(39.0, 0.55, 5.4);
+      const plinth = new THREE.Mesh(plinthGeo, sideRolledMetalMat);
+      plinth.position.set(-0.2, 0.275, 0);
+      victoryGroup.add(plinth);
+
+      // Dramatic moving spotlights glinting off the rolled-metal "Glist 2" letters
+      const spot1 = new THREE.PointLight(0xffffff, 3.6, 60);
+      spot1.position.set(-14, 8, 11);
+      const spot2 = new THREE.PointLight(0xbae6fd, 3.2, 60);
+      spot2.position.set(14, 7, 11);
+      const spot3 = new THREE.PointLight(0xfef08a, 2.8, 50);
+      spot3.position.set(0, 12, 8);
+      victoryGroup.add(spot1, spot2, spot3);
+
+      // 3D Scrolling Credits Plane strictly BEHIND the giant "Glist 2" metal inscription (z = -5.2)
+      const credCanvas = document.createElement('canvas');
+      credCanvas.width = 1024;
+      credCanvas.height = 2048;
+      const cCtx = credCanvas.getContext('2d');
+      cCtx.clearRect(0, 0, credCanvas.width, credCanvas.height);
+      cCtx.textAlign = 'center';
+      cCtx.textBaseline = 'middle';
+
+      const creditLines = [
+        { text: 'Автор: Ван Эйн', size: 58, weight: '900', color: '#fde047', dy: 110 },
+        { text: '', size: 30, weight: '400', color: '#ffffff', dy: 90 },
+        { text: 'Гильдия разрабов:', size: 48, weight: '800', color: '#67e8f9', dy: 85 },
+        { text: 'Kikka', size: 44, weight: '700', color: '#f8fafc', dy: 72 },
+        { text: 'Кирилл Чигинцев', size: 44, weight: '700', color: '#f8fafc', dy: 72 },
+        { text: 'и другие...', size: 38, weight: '600', color: '#cbd5e1', dy: 70 },
+        { text: '', size: 30, weight: '400', color: '#ffffff', dy: 90 },
+        { text: 'Тестировщики:', size: 48, weight: '800', color: '#a3e635', dy: 85 },
+        { text: 'Kikka', size: 44, weight: '700', color: '#f8fafc', dy: 72 },
+        { text: 'пусихантэр67', size: 44, weight: '700', color: '#f8fafc', dy: 72 },
+        { text: 'Юра «Пакет»', size: 44, weight: '700', color: '#f8fafc', dy: 72 },
+        { text: 'и другие...', size: 38, weight: '600', color: '#cbd5e1', dy: 70 },
+        { text: '', size: 30, weight: '400', color: '#ffffff', dy: 90 },
+        { text: 'Музыка и визуал:', size: 48, weight: '800', color: '#f472b6', dy: 85 },
+        { text: 'пусихантэр67', size: 44, weight: '700', color: '#f8fafc', dy: 72 },
+        { text: 'Ван Эйн', size: 44, weight: '700', color: '#f8fafc', dy: 72 }
+      ];
+
+      let curY = 140;
+      creditLines.forEach(item => {
+        curY += item.dy;
+        if (!item.text) return;
+        cCtx.font = `${item.weight} ${item.size}px "Inter", "Segoe UI", Roboto, sans-serif`;
+        cCtx.lineWidth = 10;
+        cCtx.strokeStyle = 'rgba(2, 6, 23, 0.92)';
+        cCtx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+        cCtx.shadowBlur = 16;
+        cCtx.strokeText(item.text, credCanvas.width * 0.5, curY);
+        cCtx.fillStyle = item.color;
+        cCtx.fillText(item.text, credCanvas.width * 0.5, curY);
+      });
+
+      const creditsTex = new THREE.CanvasTexture(credCanvas);
+      creditsTex.needsUpdate = true;
+      const creditsGeo = new THREE.PlaneGeometry(34, 68);
+      const creditsMat = new THREE.MeshBasicMaterial({
+        map: creditsTex,
+        transparent: true,
+        depthWrite: false,
+        fog: false,
+        side: THREE.DoubleSide
+      });
+      const creditsMesh = new THREE.Mesh(creditsGeo, creditsMat);
+      // Positioned at z = -5.2 so it rises directly BEHIND the "Glist 2" metal monument (which is at z = -1.2)
+      creditsMesh.position.set(0.0, -24.0, -5.2);
+      victoryGroup.add(creditsMesh);
+
+      victoryGroup.userData = { spot1, spot2, spot3, metalTextMesh, creditsMesh };
+
+      // Ground mushrooms around the giant "Glist 2" monument
+      const vMushCount = 36;
+      const vStemInst = new THREE.InstancedMesh(stemGeo, stemMat, vMushCount);
+      const vCapInst = new THREE.InstancedMesh(mCapGeo, mCapMat, vMushCount);
+      const stemH = 0.56;
+
+      for (let i = 0; i < vMushCount; i++) {
+        const angle = (i / vMushCount) * Math.PI * 2;
+        const rx = 24.5 + (i % 3) * 2.2;
+        const rz = 8.5 + (i % 4) * 1.6;
+        const mx = Math.cos(angle) * rx;
+        const mz = Math.sin(angle) * rz;
+        const sc = 0.75 + (i % 4) * 0.3;
+
+        dummyMatrix.makeScale(sc, sc, sc);
+        dummyMatrix.setPosition(mx, (stemH * 0.5) * sc, mz);
+        vStemInst.setMatrixAt(i, dummyMatrix);
+
+        dummyMatrix.setPosition(mx, stemH * sc, mz);
+        vCapInst.setMatrixAt(i, dummyMatrix);
+        vCapInst.setColorAt(i, palette[i % palette.length]);
+      }
+      vStemInst.instanceMatrix.needsUpdate = true;
+      vCapInst.instanceMatrix.needsUpdate = true;
+      if (vCapInst.instanceColor) vCapInst.instanceColor.needsUpdate = true;
+      victoryGroup.add(vStemInst, vCapInst);
+    }
+
+    // Initialize or hide individual dot matrices without recomputing all 140 matrices every frame
+    function initCornerDotsMatrices() {
+      if (!cornerInstancedMesh) return;
+      cornerDots.forEach((dot, idx) => {
+        if (dot.visited) {
+          dummyMatrix.makeScale(0.0001, 0.0001, 0.0001);
+          dummyMatrix.setPosition(0, -10, 0);
+        } else {
+          const pos = gridToWorld(dot.gx, dot.gz);
+          dummyMatrix.makeRotationY(idx * 0.5);
+          dummyMatrix.setPosition(pos.x, 0.38, pos.z);
+        }
+        cornerInstancedMesh.setMatrixAt(idx, dummyMatrix);
+      });
+      cornerInstancedMesh.instanceMatrix.needsUpdate = true;
+    }
+
+    function hideCornerDotAt(idx) {
+      if (!cornerInstancedMesh) return;
+      dummyMatrix.makeScale(0.0001, 0.0001, 0.0001);
+      dummyMatrix.setPosition(0, -10, 0);
+      cornerInstancedMesh.setMatrixAt(idx, dummyMatrix);
+      cornerInstancedMesh.instanceMatrix.needsUpdate = true;
+    }
+
+    // ============================================================================
+    // INITIALIZE SCENE
+    // ============================================================================
+    function initScene() {
+      const container = document.getElementById('canvas-container');
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x04070d);
+      scene.fog = new THREE.FogExp2(0x04070d, 0.0065);
+
+      camera = new THREE.PerspectiveCamera(78, window.innerWidth / window.innerHeight, 0.1, 400);
+      renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+      container.appendChild(renderer.domElement);
+
+      clock = new THREE.Clock();
+      dummyMatrix = new THREE.Matrix4();
+      smoothedCamPos = new THREE.Vector3(0, 24, 34);
+      smoothedLookAt = new THREE.Vector3(0, 0, 0);
+
+      // Single HemisphereLight + DirectionalLight for ultra-fast shading in Game Mode on weak devices
+      const ambient = new THREE.HemisphereLight(0xa7f3d0, 0x090d16, 1.05);
+      scene.add(ambient);
+
+      const dirLight = new THREE.DirectionalLight(0xf8fafc, 1.3);
+      dirLight.position.set(14, 32, 18);
+      scene.add(dirLight);
+
+      buildAllEnvironments();
+
+      wormEntity = buildLimeWorm();
+      scene.add(wormEntity.group);
+
+      // All 3 Mokhnatkas spawn from (SPAWN_GX, SPAWN_GZ) = (8, 6) one by one after the player's first move
+      const mokhnatkaConfigs = [
+        {
+          id: 'forest',
+          name: 'Лесная Мохнатка',
+          radius: 1.0,
+          scaleX: 1.02,
+          scaleY: 1.15,
+          scaleZ: 1.02,
+          isTeardrop: true,      // Slightly elongated upward teardrop, narrow at bottom
+          bodyCenterY: 1.16,
+          coreColor: 0x3b2d4a,
+          baseColor: 0xd8b4fe,
+          tipColor: 0xfef3c7,
+          furLength: 0.42,
+          strandWidth: 0.044,
+          strandCount: 3800,
+          messiness: 0.25,
+          droop: 0.12,
+          eyeSpacing: 0.25,      // Small black eyes slightly above the middle
+          eyeY: 0.18,
+          eyeZ: 0.88,
+          eyeRadius: 0.165,
+          isBlackEye: true,
+          rimColor: 0x1e162b,
+          hasLegs: true,         // Two tiny legs on the narrow bottom part
+          speed: 2.02,           // 35% slower gameplay
+          spawnDelay: 0.5,       // 1st to emerge after player moves
+          mapColor: '#e9d5ff'
+        },
+        {
+          id: 'moss',
+          name: 'Мшистая Мохнатка',
+          radius: 1.0,
+          scaleX: 1.12,
+          scaleY: 0.90,
+          scaleZ: 1.04,
+          bodyCenterY: 1.02,
+          coreColor: 0x3b2d1f,   // Brownish (not green!)
+          baseColor: 0x8c7355,   // Warm medium brown / taupe
+          tipColor: 0xd6c5ad,    // Sandy light-brown tips
+          furLength: 0.45,
+          strandWidth: 0.045,
+          strandCount: 3800,
+          messiness: 0.42,
+          droop: 0.08,
+          eyeSpacing: 0.35,
+          eyeY: -0.02,
+          eyeZ: 0.90,
+          eyeRadius: 0.28,       // Large white sclera with smaller iris
+          isBlackEye: false,
+          irisHighlightColor: 0x34d399,
+          rimColor: 0x4b3f35,
+          hasLegs: false,
+          speed: 1.88,           // 35% slower gameplay
+          spawnDelay: 3.8,       // 2nd to emerge
+          mapColor: '#b08d6a'
+        },
+        {
+          id: 'crimson',
+          name: 'Алая Мохнатка',
+          radius: 1.0,
+          scaleX: 1.05,
+          scaleY: 1.0,
+          scaleZ: 1.02,
+          bodyCenterY: 1.05,
+          coreColor: 0x7f1d1d,
+          baseColor: 0xef4444,
+          tipColor: 0xffedd5,
+          furLength: 0.48,
+          strandWidth: 0.045,
+          strandCount: 3900,
+          messiness: 0.36,
+          droop: 0.10,
+          eyeSpacing: 0.30,
+          eyeY: -0.04,
+          eyeZ: 0.88,
+          eyeRadius: 0.23,       // Pure black eyes with dark rim
+          isBlackEye: true,
+          rimColor: 0x1e1b4b,
+          hasLegs: false,
+          speed: 2.08,           // 35% slower gameplay
+          spawnDelay: 7.2,       // 3rd to emerge
+          mapColor: '#fb7185'
+        }
+      ];
+
+      mokhnatkaEntities = mokhnatkaConfigs.map(cfg => {
+        const m = buildMokhnatka(cfg);
+        scene.add(m.root);
+        return m;
+      });
+
+      setupInputAndSwipeHandlers();
+      resetMazeGame();
+      animate();
+    }
+
+    // ============================================================================
+    // GAMEPLAY LOGIC: START ON FIRST MOVE, SEQUENTIAL SPAWN, PORTAL & VICTORY
+    // ============================================================================
+    function updateScoreDisplay() {
+      const el = document.getElementById('score-val');
+      if (el) {
+        el.textContent = String(gameState.score).padStart(4, '0');
+      }
+    }
+
+    function resetWormPosition() {
+      wormEntity.gx = WORM_START_GX;
+      wormEntity.gz = WORM_START_GZ;
+      wormEntity.targetGx = WORM_START_GX;
+      wormEntity.targetGz = WORM_START_GZ;
+      wormEntity.dir = 3; // West (-X) along bottom corridor
+      wormEntity.queuedDir = 3;
+      wormEntity.moveProgress = 0;
+
+      const startPos = gridToWorld(wormEntity.gx, wormEntity.gz);
+      wormEntity.pathPoints = [];
+      // Build a 6.0-unit long trail east of head so all 6 segments are tightly stitched from frame 0
+      for (let i = 0; i <= 120; i++) {
+        wormEntity.pathPoints.push({
+          x: startPos.x + i * 0.05,
+          z: startPos.z,
+          angle: DIRS[3].angle
+        });
+      }
+      positionWormAlongPath(0);
+
+      // Much further back & higher camera position in Game Mode
+      const forward = DIRS[wormEntity.dir];
+      smoothedCamPos.set(startPos.x - forward.dx * 16.5, 23.5, startPos.z - forward.dz * 16.5);
+      smoothedLookAt.set(startPos.x + forward.dx * 3.5, 0.2, startPos.z + forward.dz * 3.5);
+    }
+
+    function resetMokhnatkasToSpawnQueue() {
+      const spawnPos = gridToWorld(SPAWN_GX, SPAWN_GZ);
+      mokhnatkaEntities.forEach(m => {
+        m.gx = SPAWN_GX;
+        m.gz = SPAWN_GZ;
+        m.targetGx = SPAWN_GX;
+        m.targetGz = SPAWN_GZ;
+        m.dir = 2;
+        m.moveProgress = 0;
+        m.spawned = false;
+        m.spawnAnim = 0;
+        m.eatenRespawnTimer = 0;
+        m.root.position.set(spawnPos.x, 0.0, spawnPos.z);
+        m.root.rotation.set(0, 0, 0);
+        m.bodyGroup.rotation.set(0, 0, 0);
+        m.root.scale.setScalar(0.001);
+        m.root.visible = false;
+        m.furMeshGame.visible = true;
+        m.furMeshHigh.visible = false;
+        m.furMesh = m.furMeshGame;
+        m.furMesh.material.emissive.setHex(0x000000);
+      });
+    }
+
+    window.resetMazeGame = function() {
+      appMode = 'game';
+      if (scene && scene.fog) scene.fog.density = 0.0065;
+      gameState.started = false;
+      gameState.timeSinceStart = 0;
+      gameState.lives = 3;
+      gameState.score = 0;
+      gameState.visitedCorners = 0;
+      gameState.powerTimer = 0;
+      gameState.portalOpen = false;
+      gameState.gameOver = false;
+      gameState.victory = false;
+      gameState.victoryTimer = 0;
+      gameState.invulnerableTimer = 0;
+
+      mazeGroup.visible = true;
+      showcaseGroup.visible = false;
+      victoryGroup.visible = false;
+      if (portalGroup) portalGroup.visible = false;
+
+      document.getElementById('minimap-wrap').style.display = 'block';
+      document.getElementById('score-screen').style.display = 'flex';
+      document.getElementById('showcase-ui').style.display = 'none';
+      document.getElementById('victory-ui').style.display = 'none';
+      document.getElementById('gameover-modal').style.display = 'none';
+      document.getElementById('btn-mode-toggle').textContent = '🔍';
+
+      cornerDots.forEach(d => { d.visited = false; });
+      initCornerDotsMatrices();
+
+      powerPellets.forEach(p => {
+        p.active = true;
+        if (p.group) p.group.visible = true;
+      });
+
+      // 35% slower gameplay (5.0 * 0.65 = 3.25)
+      wormEntity.speed = 3.25;
+      resetWormPosition();
+      resetMokhnatkasToSpawnQueue();
+      collectAtGrid(wormEntity.gx, wormEntity.gz);
+      updateScoreDisplay();
+      syncBgMusic();
+    };
+
+    window.startVictoryCutscene = function() {
+      gameState.victory = true;
+      gameState.victoryTimer = 0;
+      appMode = 'victory';
+      syncBgMusic();
+      playSound('victory');
+      if (victoryGroup && victoryGroup.userData && victoryGroup.userData.creditsMesh) {
+        victoryGroup.userData.creditsMesh.position.y = -24.0;
+      }
+
+      mazeGroup.visible = false;
+      showcaseGroup.visible = false;
+      victoryGroup.visible = true;
+
+      document.getElementById('minimap-wrap').style.display = 'none';
+      document.getElementById('score-screen').style.display = 'none';
+      document.getElementById('showcase-ui').style.display = 'none';
+      document.getElementById('victory-ui').style.display = 'flex';
+
+      // Place the 3 Mokhnatkas strictly to the LEFT and RIGHT sides of the giant "Glist 2" text so they never cover it!
+      const sidePositions = [
+        { x: -22.2, z: 1.2, rot: 0.32 },  // Left side of 'G'
+        { x: 19.2,  z: 1.2, rot: -0.28 }, // Right side of '2'
+        { x: 22.8,  z: 2.2, rot: -0.42 }  // Outer right side of '2'
+      ];
+      mokhnatkaEntities.forEach((m, idx) => {
+        m.root.visible = true;
+        m.furMeshGame.visible = false;
+        m.furMeshHigh.visible = true;
+        m.furMesh = m.furMeshHigh;
+        m.root.scale.setScalar(1.35);
+        m.furMesh.material.emissive.setHex(0x000000);
+        m.root.position.set(sidePositions[idx].x, 0.0, sidePositions[idx].z);
+        m.root.rotation.set(0, sidePositions[idx].rot, 0);
+        m.bodyGroup.rotation.set(0, 0, 0);
+      });
+
+      // Place the worm to the left flank on the ground so the center of "Glist 2" is 100% unobstructed
+      wormEntity.pathPoints = [];
+      for (let i = 0; i <= 120; i++) {
+        wormEntity.pathPoints.push({
+          x: -20.5 - i * 0.05,
+          z: 4.2 + Math.sin(i * 0.12) * 0.3,
+          angle: Math.PI / 2
+        });
+      }
+      positionWormAlongPath(0);
+
+      // Lower fog density in victory cutscene so the monument is crystal clear from afar
+      if (scene.fog) scene.fog.density = 0.0032;
+
+      // Start camera much further back for wide epic flyby showing the entire giant "Glist 2"
+      const aspect = window.innerWidth / Math.max(1, window.innerHeight);
+      const aspectPullback = aspect < 1.35 ? (1.35 - aspect) * 24.0 : 0.0;
+      smoothedCamPos.set(-34.0, 13.5, 48.0 + aspectPullback);
+      smoothedLookAt.set(-4.0, 3.8, 0.0);
+    };
+
+    function collectAtGrid(gx, gz) {
+      for (let i = 0; i < cornerDots.length; i++) {
+        const d = cornerDots[i];
+        if (!d.visited && d.gx === gx && d.gz === gz) {
+          d.visited = true;
+          hideCornerDotAt(i);
+          gameState.visitedCorners++;
+          if (gameState.started) {
+            gameState.score += 10;
+            updateScoreDisplay();
+            playSound('dot');
+          }
+          break;
+        }
+      }
+
+      for (let i = 0; i < powerPellets.length; i++) {
+        const p = powerPellets[i];
+        if (p.active && p.gx === gx && p.gz === gz) {
+          p.active = false;
+          if (p.group) p.group.visible = false;
+          gameState.powerTimer = 10.5;
+          playSound('power');
+          gameState.score += 50;
+          updateScoreDisplay();
+        }
+      }
+
+      if (!gameState.portalOpen && gameState.visitedCorners >= gameState.totalCorners) {
+        gameState.portalOpen = true;
+        if (portalGroup) portalGroup.visible = true;
+        playSound('portal_open');
+      }
+
+      if (gameState.portalOpen && gx === PORTAL_GX && gz === PORTAL_GZ) {
+        startVictoryCutscene();
+      }
+    }
+
+    // Relative turn input with corner-turning buffer & instant reversal
+    function handleRelativeTurn(turnOffset) {
+      if (appMode !== 'game' || gameState.gameOver || gameState.victory) return;
+      ensureAudio();
+
+      if (!gameState.started) {
+        gameState.started = true;
+      }
+
+      const newDir = turnOffset === 0
+        ? wormEntity.dir
+        : (wormEntity.dir + turnOffset + 4) % 4;
+      wormEntity.queuedDir = newDir;
+
+      const oppositeDir = (wormEntity.dir + 2) % 4;
+      if (newDir === oppositeDir && wormEntity.moveProgress > 0) {
+        // Instant 180-degree reversal mid-corridor
+        const tmpGx = wormEntity.gx;
+        const tmpGz = wormEntity.gz;
+        wormEntity.gx = wormEntity.targetGx;
+        wormEntity.gz = wormEntity.targetGz;
+        wormEntity.targetGx = tmpGx;
+        wormEntity.targetGz = tmpGz;
+        wormEntity.dir = oppositeDir;
+        wormEntity.moveProgress = 1.0 - wormEntity.moveProgress;
+      } else if (newDir !== wormEntity.dir) {
+        // Corner-cutting forgiveness: if slightly past a tile center (< 0.28) and the turn is open at (gx, gz), take it immediately
+        const qd = DIRS[newDir];
+        if (wormEntity.moveProgress <= 0.28 && !isWall(wormEntity.gx + qd.dx, wormEntity.gz + qd.dz)) {
+          wormEntity.dir = newDir;
+          wormEntity.targetGx = wormEntity.gx + qd.dx;
+          wormEntity.targetGz = wormEntity.gz + qd.dz;
+          wormEntity.moveProgress = 0;
+        }
+      }
+    }
+
+    function updateWormMovement(dt, elapsed) {
+      if (gameState.gameOver || gameState.victory) return;
+
+      if (!gameState.started) {
+        positionWormAlongPath(elapsed);
+        return;
+      }
+
+      const tryStartNextTile = () => {
+        const qd = DIRS[wormEntity.queuedDir];
+        if (!isWall(wormEntity.gx + qd.dx, wormEntity.gz + qd.dz)) {
+          wormEntity.dir = wormEntity.queuedDir;
+        }
+        const cd = DIRS[wormEntity.dir];
+        if (!isWall(wormEntity.gx + cd.dx, wormEntity.gz + cd.dz)) {
+          wormEntity.targetGx = wormEntity.gx + cd.dx;
+          wormEntity.targetGz = wormEntity.gz + cd.dz;
+          return true;
+        }
+        wormEntity.moveProgress = 0;
+        return false;
+      };
+
+      if (wormEntity.gx === wormEntity.targetGx && wormEntity.gz === wormEntity.targetGz) {
+        tryStartNextTile();
+      }
+
+      if (wormEntity.gx !== wormEntity.targetGx || wormEntity.gz !== wormEntity.targetGz) {
+        wormEntity.moveProgress += dt * wormEntity.speed;
+        while (wormEntity.moveProgress >= 1.0) {
+          wormEntity.gx = wormEntity.targetGx;
+          wormEntity.gz = wormEntity.targetGz;
+          wormEntity.moveProgress -= 1.0;
+          collectAtGrid(wormEntity.gx, wormEntity.gz);
+          if (gameState.victory || !tryStartNextTile()) {
+            wormEntity.moveProgress = 0;
+            break;
+          }
+        }
+      }
+
+      const pA = gridToWorld(wormEntity.gx, wormEntity.gz);
+      const pB = gridToWorld(wormEntity.targetGx, wormEntity.targetGz);
+      const headX = pA.x + (pB.x - pA.x) * wormEntity.moveProgress;
+      const headZ = pA.z + (pB.z - pA.z) * wormEntity.moveProgress;
+      const headAngle = DIRS[wormEntity.dir].angle;
+
+      const firstPt = wormEntity.pathPoints[0];
+      const stepDist = Math.hypot(headX - firstPt.x, headZ - firstPt.z);
+      if (stepDist > 0.015) {
+        wormEntity.pathPoints.unshift({ x: headX, z: headZ, angle: headAngle });
+        if (wormEntity.pathPoints.length > 180) wormEntity.pathPoints.pop();
+      } else {
+        firstPt.angle = headAngle;
+      }
+
+      positionWormAlongPath(elapsed);
+    }
+
+    function updateMokhnatkasAI(dt, elapsed) {
+      if (!gameState.started || gameState.gameOver || gameState.victory) return;
+
+      gameState.timeSinceStart += dt;
+      const isPowerActive = gameState.powerTimer > 0;
+      const wormPos = wormEntity.segments[0].position;
+      const spawnWorld = gridToWorld(SPAWN_GX, SPAWN_GZ);
+
+      mokhnatkaEntities.forEach((m, idx) => {
+        if (!m.spawned) {
+          if (gameState.timeSinceStart >= m.spawnDelay) {
+            m.spawned = true;
+            m.spawnAnim = 0.01;
+            m.root.visible = true;
+            m.gx = SPAWN_GX;
+            m.gz = SPAWN_GZ;
+            m.targetGx = SPAWN_GX;
+            m.targetGz = SPAWN_GZ;
+            m.root.position.set(spawnWorld.x, 0.0, spawnWorld.z);
+          } else {
+            return;
+          }
+        }
+
+        if (m.eatenRespawnTimer > 0) {
+          m.eatenRespawnTimer -= dt;
+          m.root.scale.setScalar(0.001);
+          if (m.eatenRespawnTimer <= 0) {
+            m.spawnAnim = 0.01;
+            m.furMesh.material.emissive.setHex(0x000000);
+          }
+          return;
+        }
+
+        if (m.spawnAnim < 1.0) {
+          m.spawnAnim = Math.min(1.0, m.spawnAnim + dt * 1.8);
+          m.root.scale.setScalar(m.spawnAnim * 0.95);
+          m.root.position.set(spawnWorld.x, 0.0, spawnWorld.z);
+          return;
+        }
+
+        if (isPowerActive) {
+          const flash = gameState.powerTimer < 2.2 && Math.floor(elapsed * 8) % 2 === 0;
+          m.furMesh.material.emissive.setHex(flash ? 0xffffff : 0x0284c7);
+          m.furMesh.material.emissiveIntensity = 0.65;
+        } else {
+          m.furMesh.material.emissive.setHex(0x000000);
+          m.furMesh.material.emissiveIntensity = 0.0;
+        }
+
+        const chooseNextDir = () => {
+          const validDirs = [];
+          const oppositeDir = (m.dir + 2) % 4;
+
+          for (let d = 0; d < 4; d++) {
+            const nx = m.gx + DIRS[d].dx;
+            const nz = m.gz + DIRS[d].dz;
+            if (!isWall(nx, nz)) validDirs.push(d);
+          }
+
+          const nonReverse = validDirs.filter(d => d !== oppositeDir);
+          const choices = nonReverse.length > 0 ? nonReverse : validDirs;
+
+          if (choices.length > 0) {
+            let bestDir = choices[0];
+            let bestScore = isPowerActive ? -Infinity : Infinity;
+
+            choices.forEach(d => {
+              const nx = m.gx + DIRS[d].dx;
+              const nz = m.gz + DIRS[d].dz;
+              const distSq = (nx - wormEntity.gx) ** 2 + (nz - wormEntity.gz) ** 2 + (Math.random() * 6.0);
+              if (isPowerActive) {
+                if (distSq > bestScore) { bestScore = distSq; bestDir = d; }
+              } else {
+                if (distSq < bestScore) { bestScore = distSq; bestDir = d; }
+              }
+            });
+
+            m.dir = bestDir;
+            m.targetGx = m.gx + DIRS[m.dir].dx;
+            m.targetGz = m.gz + DIRS[m.dir].dz;
+          }
+        };
+
+        if (m.gx === m.targetGx && m.gz === m.targetGz) {
+          chooseNextDir();
+        }
+
+        const currentSpeed = isPowerActive ? m.speed * 0.62 : m.speed;
+        m.moveProgress += dt * currentSpeed;
+        while (m.moveProgress >= 1.0) {
+          m.gx = m.targetGx;
+          m.gz = m.targetGz;
+          m.moveProgress -= 1.0;
+          chooseNextDir();
+        }
+
+        const pA = gridToWorld(m.gx, m.gz);
+        const pB = gridToWorld(m.targetGx, m.targetGz);
+        const mx = pA.x + (pB.x - pA.x) * m.moveProgress;
+        const mz = pA.z + (pB.z - pA.z) * m.moveProgress;
+        const bounceY = Math.abs(Math.sin(elapsed * 6.5 + idx)) * 0.22;
+
+        m.root.position.set(mx, bounceY, mz);
+        m.root.rotation.y = DIRS[m.dir].angle;
+        m.root.scale.setScalar(isPowerActive ? 0.78 : 0.95);
+
+        const distToWorm = Math.hypot(mx - wormPos.x, mz - wormPos.z);
+        if (distToWorm < 1.22) {
+          if (isPowerActive) {
+            gameState.score += 1000;
+            updateScoreDisplay();
+            playSound('eat_mokhnatka');
+            m.gx = SPAWN_GX;
+            m.gz = SPAWN_GZ;
+            m.targetGx = SPAWN_GX;
+            m.targetGz = SPAWN_GZ;
+            m.moveProgress = 0;
+            m.eatenRespawnTimer = 2.6;
+            m.root.position.set(spawnWorld.x, 0.0, spawnWorld.z);
+          } else if (gameState.invulnerableTimer <= 0) {
+            gameState.lives--;
+            playSound('hurt');
+            if (gameState.lives <= 0) {
+              gameState.gameOver = true;
+              syncBgMusic();
+              document.getElementById('gameover-modal').style.display = 'flex';
+            } else {
+              gameState.invulnerableTimer = 2.4;
+              resetWormPosition();
+            }
+          }
+        }
+      });
+    }
+
+    // ============================================================================
+    // OPTIMIZED PAC-MAN MINIMAP (PRE-RENDERED WALL CACHE)
+    // ============================================================================
+    let minimapBgCanvas = null;
+    function ensureMinimapBg(w, h, cell) {
+      if (minimapBgCanvas && minimapBgCanvas.width === w && minimapBgCanvas.height === h) {
+        return minimapBgCanvas;
+      }
+      minimapBgCanvas = document.createElement('canvas');
+      minimapBgCanvas.width = w;
+      minimapBgCanvas.height = h;
+      const bCtx = minimapBgCanvas.getContext('2d');
+
+      bCtx.fillStyle = '#02040a';
+      bCtx.fillRect(0, 0, w, h);
+
+      bCtx.fillStyle = '#172554';
+      bCtx.strokeStyle = '#2563eb';
+      bCtx.lineWidth = 1.1;
+      for (let gz = 0; gz < GRID_SIZE; gz++) {
+        for (let gx = 0; gx < GRID_SIZE; gx++) {
+          if (MAZE_LAYOUT[gz][gx] === 1) {
+            bCtx.fillRect(gx * cell + 0.8, gz * cell + 0.8, cell - 1.6, cell - 1.6);
+            bCtx.strokeRect(gx * cell + 0.8, gz * cell + 0.8, cell - 1.6, cell - 1.6);
+          }
+        }
+      }
+
+      // Spawn Burrow Marker (8, 6)
+      bCtx.strokeStyle = 'rgba(244, 63, 94, 0.55)';
+      bCtx.lineWidth = 1.2;
+      bCtx.beginPath();
+      bCtx.arc((SPAWN_GX + 0.5) * cell, (SPAWN_GZ + 0.5) * cell, 3.8, 0, Math.PI * 2);
+      bCtx.stroke();
+
+      return minimapBgCanvas;
+    }
+
+    function drawPacMinimap(elapsed) {
+      const canvas = document.getElementById('minimap-canvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width;
+      const mapH = w;
+      const cell = w / GRID_SIZE;
+
+      // 1. Blit cached static walls & background
+      ctx.drawImage(ensureMinimapBg(w, canvas.height, cell), 0, 0);
+
+      // 2. Unvisited Corner Dots (batched single path)
+      ctx.fillStyle = '#fde047';
+      ctx.beginPath();
+      for (let i = 0; i < cornerDots.length; i++) {
+        const d = cornerDots[i];
+        if (!d.visited) {
+          const cx = (d.gx + 0.5) * cell;
+          const cz = (d.gz + 0.5) * cell;
+          ctx.moveTo(cx + 1.7, cz);
+          ctx.arc(cx, cz, 1.7, 0, Math.PI * 2);
+        }
+      }
+      ctx.fill();
+
+      // 3. Flashing Power Pellets
+      if (Math.floor(elapsed * 4) % 2 === 0) {
+        ctx.fillStyle = '#22d3ee';
+        powerPellets.forEach(p => {
+          if (p.active) {
+            ctx.beginPath();
+            ctx.arc((p.gx + 0.5) * cell, (p.gz + 0.5) * cell, 3.8, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        });
+      }
+
+      // 4. Exit Portal in Center (PORTAL_GX, PORTAL_GZ)
+      if (gameState.portalOpen) {
+        ctx.strokeStyle = '#c084fc';
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.arc((PORTAL_GX + 0.5) * cell, (PORTAL_GZ + 0.5) * cell, 4.8, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // 5. Stitched 6-Segment Lime Worm
+      for (let i = 5; i >= 0; i--) {
+        const segPos = wormEntity.segments[i].position;
+        const mx = (segPos.x / TILE_SIZE + HALF_GRID + 0.5) * cell;
+        const mz = (segPos.z / TILE_SIZE + HALF_GRID + 0.5) * cell;
+        ctx.fillStyle = i === 0 ? '#a3e635' : '#65a30d';
+        ctx.beginPath();
+        ctx.arc(mx, mz, i === 0 ? 4.0 : 3.2 - i * 0.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // 6. Spawned Mokhnatkas
+      mokhnatkaEntities.forEach(m => {
+        if (!m.spawned || m.eatenRespawnTimer > 0) return;
+        const mx = (m.root.position.x / TILE_SIZE + HALF_GRID + 0.5) * cell;
+        const mz = (m.root.position.z / TILE_SIZE + HALF_GRID + 0.5) * cell;
+        ctx.fillStyle = gameState.powerTimer > 0 ? '#38bdf8' : m.config.mapColor;
+        ctx.beginPath();
+        ctx.arc(mx, mz, 4.2, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      // 7. Bottom strip inside minimap: 3 Lives icons + Power bar
+      const stripY = mapH + 10;
+      for (let i = 0; i < 3; i++) {
+        ctx.fillStyle = i < gameState.lives ? '#84cc16' : '#1e293b';
+        ctx.beginPath();
+        ctx.arc(14 + i * 16, stripY, 5.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      if (gameState.powerTimer > 0) {
+        ctx.fillStyle = '#22d3ee';
+        const barW = (gameState.powerTimer / 8.0) * 95;
+        ctx.fillRect(w - 102, stripY - 3.5, barW, 7);
+      }
+    }
+
+    // ============================================================================
+    // SHOWCASE / INSPECTOR MODE (ALL MUSHROOMS & CREATURES ON THE GROUND y = 0)
+    // ============================================================================
+    window.toggleMode = function() {
+      if (appMode === 'game') {
+        enterShowcaseMode();
+      } else {
+        resetMazeGame();
+      }
+    };
+
+    // Custom dependency-free 3D Drag, Throw & Elastic Bounce Physics for Showcase Mode
+    let showcaseRaycaster = null;
+    let showcaseDragPlane = null;
+    let draggedMokhnatka = null;
+    let dragOffset = null;
+    let dragSamples = [];
+    let lastBounceSoundTime = 0;
+
+    function maybePlayBounceSound() {
+      const now = performance.now();
+      if (now - lastBounceSoundTime > 90) {
+        lastBounceSoundTime = now;
+        playSound('bounce');
+      }
+    }
+
+    function tryBeginMokhnatkaDrag(clientX, clientY) {
+      if (appMode !== 'showcase') return false;
+      if (!showcaseRaycaster) {
+        showcaseRaycaster = new THREE.Raycaster();
+        showcaseDragPlane = new THREE.Plane();
+        dragOffset = new THREE.Vector3();
+      }
+      const ndc = new THREE.Vector2(
+        (clientX / window.innerWidth) * 2 - 1,
+        -(clientY / window.innerHeight) * 2 + 1
+      );
+      showcaseRaycaster.setFromCamera(ndc, camera);
+
+      let bestM = null;
+      let bestDist = Infinity;
+      const ray = showcaseRaycaster.ray;
+
+      mokhnatkaEntities.forEach(m => {
+        const centerY = m.root.position.y + (m.config.bodyCenterY || 1.05) * 1.25;
+        const center = new THREE.Vector3(m.root.position.x, centerY, m.root.position.z);
+        const distToRay = ray.distanceToPoint(center);
+        const camDist = camera.position.distanceTo(center);
+        if (distToRay < 1.58 && camDist < bestDist) {
+          bestDist = camDist;
+          bestM = m;
+        }
+      });
+
+      if (!bestM) return false;
+
+      ensureAudio();
+      draggedMokhnatka = bestM;
+      bestM.phys.isDragged = true;
+      bestM.phys.vel.set(0, 0, 0);
+
+      const camDir = new THREE.Vector3();
+      camera.getWorldDirection(camDir);
+      const grabCenter = new THREE.Vector3(
+        bestM.root.position.x,
+        bestM.root.position.y + (bestM.config.bodyCenterY || 1.05) * 1.25,
+        bestM.root.position.z
+      );
+      showcaseDragPlane.setFromNormalAndCoplanarPoint(camDir, grabCenter);
+
+      const hitPt = new THREE.Vector3();
+      if (ray.intersectPlane(showcaseDragPlane, hitPt)) {
+        dragOffset.copy(bestM.root.position).sub(hitPt);
+      } else {
+        dragOffset.set(0, 0, 0);
+      }
+
+      dragSamples = [{ pos: bestM.root.position.clone(), time: performance.now() }];
+      return true;
+    }
+
+    function updateMokhnatkaDrag(clientX, clientY) {
+      if (!draggedMokhnatka || appMode !== 'showcase') return false;
+      const ndc = new THREE.Vector2(
+        (clientX / window.innerWidth) * 2 - 1,
+        -(clientY / window.innerHeight) * 2 + 1
+      );
+      showcaseRaycaster.setFromCamera(ndc, camera);
+      const hitPt = new THREE.Vector3();
+      if (showcaseRaycaster.ray.intersectPlane(showcaseDragPlane, hitPt)) {
+        const targetPos = hitPt.add(dragOffset);
+        targetPos.y = Math.max(0.0, Math.min(10.5, targetPos.y));
+        const rHoriz = Math.hypot(targetPos.x, targetPos.z);
+        if (rHoriz > 7.6) {
+          targetPos.x = (targetPos.x / rHoriz) * 7.6;
+          targetPos.z = (targetPos.z / rHoriz) * 7.6;
+        }
+
+        const now = performance.now();
+        dragSamples.push({ pos: targetPos.clone(), time: now });
+        while (dragSamples.length > 6 && now - dragSamples[0].time > 90) {
+          dragSamples.shift();
+        }
+        if (dragSamples.length >= 2) {
+          const first = dragSamples[0];
+          const dtMs = Math.max(8, now - first.time) / 1000;
+          draggedMokhnatka.phys.vel.copy(targetPos).sub(first.pos).divideScalar(dtMs);
+        }
+        draggedMokhnatka.root.position.copy(targetPos);
+      }
+      return true;
+    }
+
+    function endMokhnatkaDrag() {
+      if (!draggedMokhnatka) return;
+      const m = draggedMokhnatka;
+      m.phys.isDragged = false;
+      draggedMokhnatka = null;
+
+      const now = performance.now();
+      while (dragSamples.length > 2 && now - dragSamples[0].time > 100) {
+        dragSamples.shift();
+      }
+      if (dragSamples.length >= 2) {
+        const first = dragSamples[0];
+        const last = dragSamples[dragSamples.length - 1];
+        const dtSec = Math.max(0.012, (last.time - first.time) / 1000);
+        if (now - last.time < 120) {
+          m.phys.vel.copy(last.pos).sub(first.pos).divideScalar(dtSec).multiplyScalar(1.12);
+        } else {
+          m.phys.vel.set(0, 0, 0);
+        }
+      }
+      const speed = m.phys.vel.length();
+      if (speed > 26.0) {
+        m.phys.vel.multiplyScalar(26.0 / speed);
+      }
+      dragSamples = [];
+    }
+
+    function updateShowcasePhysics(dt, elapsed) {
+      const substeps = 2;
+      const subDt = dt / substeps;
+      const gravity = -24.0;
+      const gladeLimit = 7.6;
+
+      for (let step = 0; step < substeps; step++) {
+        // 1. Integrate each Mokhnatka + Floor & Boundary Elastic Bounces
+        mokhnatkaEntities.forEach(m => {
+          if (!m.phys.isDragged) {
+            m.phys.vel.y += gravity * subDt;
+            m.phys.vel.multiplyScalar(Math.pow(0.94, subDt));
+            m.root.position.addScaledVector(m.phys.vel, subDt);
+
+            // Ground collision (y = 0)
+            if (m.root.position.y <= 0.0) {
+              m.root.position.y = 0.0;
+              if (m.phys.vel.y < -1.15) {
+                const impact = -m.phys.vel.y;
+                m.phys.vel.y = impact * 0.80; // Elastic bounce
+                m.phys.vel.x *= 0.92;
+                m.phys.vel.z *= 0.92;
+                m.phys.squashVel -= Math.min(impact * 1.4, 14.0);
+                maybePlayBounceSound();
+              } else {
+                m.phys.vel.y = 0.0;
+                m.phys.vel.x *= Math.pow(0.14, subDt);
+                m.phys.vel.z *= Math.pow(0.14, subDt);
+              }
+            }
+
+            // Circular glade wall bounce
+            const rH = Math.hypot(m.root.position.x, m.root.position.z);
+            if (rH > gladeLimit && rH > 0.0001) {
+              const nx = -m.root.position.x / rH;
+              const nz = -m.root.position.z / rH;
+              m.root.position.x = -nx * gladeLimit;
+              m.root.position.z = -nz * gladeLimit;
+              const vn = m.phys.vel.x * nx + m.phys.vel.z * nz;
+              if (vn < 0) {
+                m.phys.vel.x -= (1 + 0.84) * vn * nx;
+                m.phys.vel.z -= (1 + 0.84) * vn * nz;
+                m.phys.squashVel -= Math.min(Math.abs(vn) * 1.1, 10.0);
+                maybePlayBounceSound();
+              }
+            }
+
+            // Subtle elastic tilt/roll from horizontal velocity, smoothly righting itself
+            m.bodyGroup.rotation.x += m.phys.vel.z * subDt * 0.45;
+            m.bodyGroup.rotation.z -= m.phys.vel.x * subDt * 0.45;
+            m.bodyGroup.rotation.x *= Math.pow(0.05, subDt);
+            m.bodyGroup.rotation.z *= Math.pow(0.05, subDt);
+          } else {
+            m.bodyGroup.rotation.x *= Math.pow(0.05, subDt);
+            m.bodyGroup.rotation.z *= Math.pow(0.05, subDt);
+          }
+
+          // Hooke spring for plush squash-and-stretch
+          const springAcc = (1.0 - m.phys.squashY) * 68.0 - m.phys.squashVel * 7.5;
+          m.phys.squashVel += springAcc * subDt;
+          m.phys.squashY = Math.max(0.60, Math.min(1.36, m.phys.squashY + m.phys.squashVel * subDt));
+          const sy = 1.25 * m.phys.squashY;
+          const sxz = 1.25 / Math.sqrt(m.phys.squashY);
+          m.root.scale.set(sxz, sy, sxz);
+        });
+
+        // 2. Mokhnatka-to-Mokhnatka 3D Elastic Sphere Collisions
+        for (let i = 0; i < mokhnatkaEntities.length; i++) {
+          for (let j = i + 1; j < mokhnatkaEntities.length; j++) {
+            const a = mokhnatkaEntities[i];
+            const b = mokhnatkaEntities[j];
+            const ay = a.root.position.y + (a.config.bodyCenterY || 1.05) * 1.25;
+            const by = b.root.position.y + (b.config.bodyCenterY || 1.05) * 1.25;
+            const dx = b.root.position.x - a.root.position.x;
+            const dy = by - ay;
+            const dz = b.root.position.z - a.root.position.z;
+            const dist = Math.hypot(dx, dy, dz);
+            const minDist = a.phys.radius + b.phys.radius;
+
+            if (dist < minDist && dist > 0.0001) {
+              const nx = dx / dist;
+              const ny = dy / dist;
+              const nz = dz / dist;
+              const overlap = minDist - dist;
+
+              if (a.phys.isDragged && !b.phys.isDragged) {
+                b.root.position.x += nx * overlap;
+                b.root.position.y = Math.max(0, b.root.position.y + ny * overlap);
+                b.root.position.z += nz * overlap;
+              } else if (!a.phys.isDragged && b.phys.isDragged) {
+                a.root.position.x -= nx * overlap;
+                a.root.position.y = Math.max(0, a.root.position.y - ny * overlap);
+                a.root.position.z -= nz * overlap;
+              } else {
+                a.root.position.x -= nx * overlap * 0.5;
+                a.root.position.y = Math.max(0, a.root.position.y - ny * overlap * 0.5);
+                a.root.position.z -= nz * overlap * 0.5;
+                b.root.position.x += nx * overlap * 0.5;
+                b.root.position.y = Math.max(0, b.root.position.y + ny * overlap * 0.5);
+                b.root.position.z += nz * overlap * 0.5;
+              }
+
+              const rvx = b.phys.vel.x - a.phys.vel.x;
+              const rvy = b.phys.vel.y - a.phys.vel.y;
+              const rvz = b.phys.vel.z - a.phys.vel.z;
+              const velAlongNormal = rvx * nx + rvy * ny + rvz * nz;
+
+              if (velAlongNormal < 0) {
+                const restitution = 0.88;
+                const imp = -(1 + restitution) * velAlongNormal * ((a.phys.isDragged || b.phys.isDragged) ? 1.0 : 0.5);
+                if (!a.phys.isDragged) {
+                  a.phys.vel.x -= imp * nx;
+                  a.phys.vel.y -= imp * ny;
+                  a.phys.vel.z -= imp * nz;
+                  a.phys.squashVel -= Math.min(Math.abs(velAlongNormal) * 1.1, 11.0);
+                }
+                if (!b.phys.isDragged) {
+                  b.phys.vel.x += imp * nx;
+                  b.phys.vel.y += imp * ny;
+                  b.phys.vel.z += imp * nz;
+                  b.phys.squashVel -= Math.min(Math.abs(velAlongNormal) * 1.1, 11.0);
+                }
+                maybePlayBounceSound();
+              }
+            }
+          }
+        }
+      }
+    }
+
+    function enterShowcaseMode() {
+      appMode = 'showcase';
+      syncBgMusic();
+      draggedMokhnatka = null;
+      mazeGroup.visible = false;
+      victoryGroup.visible = false;
+      showcaseGroup.visible = true;
+
+      document.getElementById('minimap-wrap').style.display = 'none';
+      document.getElementById('score-screen').style.display = 'none';
+      document.getElementById('victory-ui').style.display = 'none';
+      document.getElementById('gameover-modal').style.display = 'none';
+      document.getElementById('showcase-ui').style.display = 'flex';
+      document.getElementById('btn-mode-toggle').textContent = '🎮';
+
+      // Place the 3 Mokhnatkas firmly on the ground (y = 0) with reset physics state
+      const positions = [
+        { x: -3.2, z: -0.3, rot: 0.25 },
+        { x: 0.0,  z: 0.1,  rot: 0.0 },
+        { x: 3.2,  z: -0.3, rot: -0.25 }
+      ];
+      mokhnatkaEntities.forEach((m, idx) => {
+        m.root.visible = true;
+        m.furMeshGame.visible = false;
+        m.furMeshHigh.visible = true;
+        m.furMesh = m.furMeshHigh;
+        m.root.position.set(positions[idx].x, 0.0, positions[idx].z);
+        m.root.rotation.set(0, positions[idx].rot, 0);
+        m.bodyGroup.rotation.set(0, 0, 0);
+        m.root.scale.setScalar(1.25);
+        m.furMesh.material.emissive.setHex(0x000000);
+        m.phys.vel.set(0, 0, 0);
+        m.phys.squashY = 1.0;
+        m.phys.squashVel = 0.0;
+        m.phys.isDragged = false;
+        m.phys.baseRotY = positions[idx].rot;
+      });
+
+      // Place the tightly stitched 6-segment worm on the ground in front (z = 2.4)
+      wormEntity.pathPoints = [];
+      for (let i = 0; i <= 120; i++) {
+        wormEntity.pathPoints.push({
+          x: 1.8 - i * 0.05,
+          z: 2.3 + Math.sin(i * 0.1) * 0.2,
+          angle: Math.PI / 2
+        });
+      }
+      positionWormAlongPath(0);
+      focusShowcaseTarget(showcaseTarget);
+    }
+
+    window.focusShowcaseTarget = function(target) {
+      showcaseTarget = target;
+      document.querySelectorAll('.creature-tab').forEach(btn => {
+        if (btn.dataset.target) {
+          btn.classList.toggle('active', btn.dataset.target === target);
+        }
+      });
+      if (target === 'all') orbitDistance = 16.5;
+      else if (target === 'worm') orbitDistance = 9.5;
+      else orbitDistance = 7.5;
+    };
+
+    window.triggerShowcaseBlink = function() {
+      gameState.blinkTimer = 0.28;
+    };
+
+    // ============================================================================
+    // SWIPE & KEYBOARD CONTROLS (Strictly 1 command per swipe / key press)
+    // ============================================================================
+    function setupInputAndSwipeHandlers() {
+      // Keyboard controls: ignore auto-repeat (e.repeat) so holding a key never fires multiple turns
+      window.addEventListener('keydown', e => {
+        if (appMode !== 'game' || e.repeat) return;
+        const code = e.code;
+        if (code === 'KeyA' || code === 'ArrowLeft') {
+          e.preventDefault();
+          handleRelativeTurn(-1);
+        } else if (code === 'KeyD' || code === 'ArrowRight') {
+          e.preventDefault();
+          handleRelativeTurn(1);
+        } else if (code === 'KeyW' || code === 'ArrowUp') {
+          e.preventDefault();
+          handleRelativeTurn(0);
+        } else if (code === 'KeyS' || code === 'ArrowDown') {
+          e.preventDefault();
+          handleRelativeTurn(2);
+        }
+      });
+
+      // Unified Pointer & Touch Swipe Controls:
+      // Each swipe gesture (down -> move -> up) triggers AT MOST ONE command (swipeConsumed = true)
+      const dom = renderer.domElement;
+      let swipeStart = null;
+      let swipeConsumed = false;
+
+      dom.addEventListener('touchstart', e => {
+        if (e.touches.length > 0) {
+          const tx = e.touches[0].clientX;
+          const ty = e.touches[0].clientY;
+          if (appMode === 'game') syncBgMusic();
+          swipeStart = { x: tx, y: ty };
+          swipeConsumed = false;
+          prevPointer.x = tx;
+          prevPointer.y = ty;
+          isPointerDown = true;
+          if (appMode === 'showcase') {
+            tryBeginMokhnatkaDrag(tx, ty);
+          }
+        }
+      }, { passive: false });
+
+      dom.addEventListener('touchmove', e => {
+        if (e.touches.length === 0) return;
+        const cx = e.touches[0].clientX;
+        const cy = e.touches[0].clientY;
+
+        if (appMode === 'game') {
+          if (swipeStart && !swipeConsumed) {
+            const dx = cx - swipeStart.x;
+            const dy = cy - swipeStart.y;
+            if (Math.hypot(dx, dy) > 24) {
+              swipeConsumed = true; // Lock this gesture so one swipe never fires multiple times!
+              if (Math.abs(dx) > Math.abs(dy)) {
+                handleRelativeTurn(dx < 0 ? -1 : 1);
+              } else {
+                handleRelativeTurn(dy < 0 ? 0 : 2);
+              }
+            }
+          }
+        } else if (appMode === 'showcase' && isPointerDown) {
+          if (draggedMokhnatka) {
+            updateMokhnatkaDrag(cx, cy);
+          } else {
+            const dx = cx - prevPointer.x;
+            const dy = cy - prevPointer.y;
+            prevPointer.x = cx;
+            prevPointer.y = cy;
+            orbitYaw -= dx * 0.007;
+            orbitPitch = Math.max(0.05, Math.min(1.15, orbitPitch + dy * 0.006));
+          }
+        }
+      }, { passive: false });
+
+      dom.addEventListener('touchend', () => {
+        endMokhnatkaDrag();
+        swipeStart = null;
+        swipeConsumed = false;
+        isPointerDown = false;
+      });
+
+      dom.addEventListener('touchcancel', () => {
+        endMokhnatkaDrag();
+        swipeStart = null;
+        swipeConsumed = false;
+        isPointerDown = false;
+      });
+
+      // Mouse Pointer Swipe (Game Mode), Physics Drag & Throw / Orbit (Showcase Mode)
+      dom.addEventListener('pointerdown', e => {
+        if (e.pointerType === 'touch') return;
+        if (appMode === 'game') syncBgMusic();
+        isPointerDown = true;
+        swipeStart = { x: e.clientX, y: e.clientY };
+        swipeConsumed = false;
+        prevPointer.x = e.clientX;
+        prevPointer.y = e.clientY;
+        if (appMode === 'showcase') {
+          tryBeginMokhnatkaDrag(e.clientX, e.clientY);
+        }
+      });
+
+      window.addEventListener('pointermove', e => {
+        if (e.pointerType === 'touch' || !isPointerDown) return;
+        if (appMode === 'game') {
+          if (swipeStart && !swipeConsumed) {
+            const dx = e.clientX - swipeStart.x;
+            const dy = e.clientY - swipeStart.y;
+            if (Math.hypot(dx, dy) > 28) {
+              swipeConsumed = true; // Strictly one turn per mouse swipe
+              if (Math.abs(dx) > Math.abs(dy)) {
+                handleRelativeTurn(dx < 0 ? -1 : 1);
+              } else {
+                handleRelativeTurn(dy < 0 ? 0 : 2);
+              }
+            }
+          }
+        } else if (appMode === 'showcase') {
+          if (draggedMokhnatka) {
+            updateMokhnatkaDrag(e.clientX, e.clientY);
+          } else {
+            const dx = e.clientX - prevPointer.x;
+            const dy = e.clientY - prevPointer.y;
+            prevPointer.x = e.clientX;
+            prevPointer.y = e.clientY;
+            orbitYaw -= dx * 0.007;
+            orbitPitch = Math.max(0.05, Math.min(1.15, orbitPitch + dy * 0.006));
+          }
+        }
+      });
+
+      window.addEventListener('pointerup', e => {
+        if (e.pointerType === 'touch') return;
+        endMokhnatkaDrag();
+        isPointerDown = false;
+        swipeStart = null;
+        swipeConsumed = false;
+      });
+
+      dom.addEventListener('wheel', e => {
+        if (appMode !== 'showcase') return;
+        orbitDistance = Math.max(4.0, Math.min(32.0, orbitDistance + e.deltaY * 0.008));
+      }, { passive: true });
+
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+    }
+
+    // ============================================================================
+    // MAIN ANIMATION LOOP
+    // ============================================================================
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = Math.min(clock.getDelta(), 0.05);
+      const elapsed = clock.getElapsedTime();
+
+
+
+      if (appMode === 'game') {
+        if (gameState.invulnerableTimer > 0) {
+          gameState.invulnerableTimer = Math.max(0, gameState.invulnerableTimer - dt);
+        }
+        if (gameState.powerTimer > 0) {
+          gameState.powerTimer = Math.max(0, gameState.powerTimer - dt);
+        }
+
+        powerPellets.forEach((p, idx) => {
+          if (p.active && p.group) {
+            p.group.rotation.y = elapsed * 2.2 + idx;
+            const pulse = 1.0 + Math.sin(elapsed * 5.0 + idx) * 0.1;
+            p.group.scale.setScalar(pulse);
+          }
+        });
+
+        if (portalGroup && portalGroup.visible) {
+          portalGroup.rotation.y = elapsed * 1.8;
+          portalGroup.children[0].rotation.z = elapsed * 2.5;
+          portalGroup.children[1].rotation.x = -elapsed * 3.1;
+        }
+
+        if (cornerInstancedMesh) { cornerInstancedMesh.position.y = Math.sin(elapsed * 3.2) * 0.06; }
+        updateWormMovement(dt, elapsed);
+        updateMokhnatkasAI(dt, elapsed);
+
+        // Much Further Back & Higher Wide-Angle Chase Camera Following Worm's Heading
+        const headPos = wormEntity.segments[0].position;
+        const headAngle = wormEntity.pathPoints[0].angle;
+        const forwardX = Math.sin(headAngle);
+        const forwardZ = Math.cos(headAngle);
+
+        const desiredCamPos = new THREE.Vector3(
+          headPos.x - forwardX * 16.5,
+          23.5,
+          headPos.z - forwardZ * 16.5
+        );
+        const desiredLookAt = new THREE.Vector3(
+          headPos.x + forwardX * 3.5,
+          0.2,
+          headPos.z + forwardZ * 3.5
+        );
+
+        smoothedCamPos.lerp(desiredCamPos, Math.min(1, dt * 6.0));
+        smoothedLookAt.lerp(desiredLookAt, Math.min(1, dt * 8.0));
+        camera.position.copy(smoothedCamPos);
+        camera.lookAt(smoothedLookAt);
+
+        drawPacMinimap(elapsed);
+
+      } else if (appMode === 'victory') {
+        // EPIC WIDE VICTORY FLYBY PAST GIANT GREY 3D METAL TEXT "Glist 2"
+        gameState.victoryTimer += dt;
+        const t = gameState.victoryTimer;
+
+        // Animate glinting spotlights across the metallic letters
+        if (victoryGroup.userData.spot1) {
+          victoryGroup.userData.spot1.position.x = Math.sin(elapsed * 1.8) * 14.0;
+          victoryGroup.userData.spot2.position.x = Math.cos(elapsed * 1.4) * 14.0;
+        }
+
+        // Scroll 3D Credits upward BEHIND the giant "Glist 2" metal inscription
+        if (victoryGroup.userData.creditsMesh) {
+          victoryGroup.userData.creditsMesh.position.y += dt * 2.45;
+          if (victoryGroup.userData.creditsMesh.position.y > 42.0) {
+            victoryGroup.userData.creditsMesh.position.y = -26.0;
+          }
+        }
+
+        // Joyful celebration bounce of Mokhnatkas and worm on the ground
+        mokhnatkaEntities.forEach((m, idx) => {
+          m.root.position.y = Math.abs(Math.sin(elapsed * 5.5 + idx)) * 0.45;
+          m.root.rotation.y = Math.sin(elapsed * 2.0 + idx) * 0.4;
+        });
+        positionWormAlongPath(elapsed);
+
+        // Phase 1 (0..5.0s): Wide cinematic flyby sweeping from left ("G") to right ("2") far back so the whole "Glist 2" monument is visible
+        // Phase 2 (5.0s+): Grand wide panoramic shot orbiting slowly far in front of "Glist 2" with credits rising behind it
+        const aspect = window.innerWidth / Math.max(1, window.innerHeight);
+        const aspectPullback = aspect < 1.35 ? (1.35 - aspect) * 24.0 : 0.0;
+        let desiredCam, desiredLook;
+        if (t < 5.0) {
+          const p = t / 5.0;
+          const ease = p * p * (3 - 2 * p);
+          desiredCam = new THREE.Vector3(
+            -28.0 + ease * 56.0,
+            12.5 + Math.sin(p * Math.PI) * 4.5,
+            (48.0 + aspectPullback) + Math.sin(p * Math.PI) * 6.0
+          );
+          desiredLook = new THREE.Vector3(
+            -4.0 + ease * 8.0,
+            5.2,
+            0.0
+          );
+        } else {
+          const sway = Math.sin((t - 5.0) * 0.45);
+          desiredCam = new THREE.Vector3(
+            sway * 14.0,
+            12.5 + Math.cos((t - 5.0) * 0.35) * 1.6,
+            52.0 + aspectPullback
+          );
+          desiredLook = new THREE.Vector3(0.0, 5.8, 0.0);
+        }
+
+        smoothedCamPos.lerp(desiredCam, Math.min(1, dt * 3.2));
+        smoothedLookAt.lerp(desiredLook, Math.min(1, dt * 4.0));
+        camera.position.copy(smoothedCamPos);
+        camera.lookAt(smoothedLookAt);
+
+      } else if (appMode === 'showcase') {
+        if (gameState.blinkTimer > 0) {
+          gameState.blinkTimer = Math.max(0, gameState.blinkTimer - dt);
+        }
+
+        updateShowcasePhysics(dt, elapsed);
+
+        mokhnatkaEntities.forEach((m, idx) => {
+          const breathe = Math.sin(elapsed * 2.5 + idx) * 0.04;
+          m.bodyGroup.position.y = (m.config.bodyCenterY || 1.05) + breathe;
+          const eyeScaleY = gameState.blinkTimer > 0 ? 0.1 : 1.0;
+          m.eyeMeshes.forEach(em => { em.scale.y = eyeScaleY; });
+        });
+
+        positionWormAlongPath(elapsed);
+
+        let targetCenter = new THREE.Vector3(0, 1.1, 0.8);
+        if (showcaseTarget === 'worm') targetCenter.set(0.2, 0.65, 2.3);
+        if (showcaseTarget === 'forest') targetCenter.copy(mokhnatkaEntities[0].root.position).add(new THREE.Vector3(0, 1.2, 0));
+        if (showcaseTarget === 'moss') targetCenter.copy(mokhnatkaEntities[1].root.position).add(new THREE.Vector3(0, 1.2, 0));
+        if (showcaseTarget === 'crimson') targetCenter.copy(mokhnatkaEntities[2].root.position).add(new THREE.Vector3(0, 1.2, 0));
+
+        const camX = targetCenter.x + Math.sin(orbitYaw) * Math.cos(orbitPitch) * orbitDistance;
+        const camY = Math.max(0.5, targetCenter.y + Math.sin(orbitPitch) * orbitDistance);
+        const camZ = targetCenter.z + Math.cos(orbitYaw) * Math.cos(orbitPitch) * orbitDistance;
+
+        smoothedCamPos.lerp(new THREE.Vector3(camX, camY, camZ), Math.min(1, dt * 7.0));
+        smoothedLookAt.lerp(targetCenter, Math.min(1, dt * 7.0));
+        camera.position.copy(smoothedCamPos);
+        camera.lookAt(smoothedLookAt);
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    ensureThreeLoaded().then(() => {
+      if (window.THREE) {
+        initScene();
+      }
+    });
+  </script>
+</body>
+</html>

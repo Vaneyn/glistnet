@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Example</title>
+  </head>
+  	<style>
+		body {
+			color: white;
+			background-color: grey;
+		}
+	</style>
+  <body>
+    <h1>Welcome</h1>
+    <p>Name: <span id="name"></span></p>
+        <button id="send" style="display:none;"><img src="send.png" alt="Send"></button>
+            <button onclick="goBack()">НАЗАД</button>
+
+        <input type="text" id="replika" placeholder="Enter your message...">
+        <p>Dialogs: <span id="dialogs"></span></p>
+
+
+    <script>
+      let myipis;
+ // Функция для обновления содержимого "dialogs"
+async function updateDialogs() {
+  const url2 = 'http://d90930x1.beget.tech/PocketCodeDB/DATABASE/echo/echo.php?slot=6&token=35733253709vaneyn2007@gmail.com46774546073';
+  try {
+    const response = await fetch(url2);
+    const dialogs = await response.text();
+    document.getElementById('dialogs').textContent = dialogs;
+  } catch (error) {
+//    console.error('Error fetching dialogs:', error);
+  }
+}
+
+// Вызываем функцию для обновления содержимого "dialogs" каждые 1.5 секунд
+setInterval(updateDialogs, 1500);
+      // Функция для получения IP адреса пользователя
+      async function getIpAddress() {
+        try {
+          const response = await fetch('https://api.ipify.org/?format=json');
+          const data = await response.json();
+          myipis = data.ip;
+          
+          checkAccess();
+        } catch (error) {
+          console.error('Error getting IP address:', error);
+        }
+      }
+
+      // Функция для проверки доступа к ресурсу
+      async function checkAccess() {
+        try {
+          const accessGranted = true; // Предположим, что доступ разрешен
+          if (accessGranted) {
+            const url = 'http://d90930x1.beget.tech/PocketCodeDB/DATABASE/echo/echo.php?slot=5&token=35733253709vaneyn2007@gmail.com46774546073';
+            const response = await fetch(url);
+            const ips = await response.text();
+            const ipList = ips.split(' ');
+            if (ipList.includes(myipis)) {
+              throw new Error('Access denied');
+            } else {
+              // Показываем кнопку "send", если доступ разрешен
+              document.getElementById('send').style.display = 'block';
+
+              return true;
+            }
+          } else {
+            console.log('Access denied');
+            throw new Error('Access denied'); // Вызовем ошибку, если доступ запрещен
+          }
+        } catch (error) {
+          console.error('Error checking access:', error);
+          return false;
+        }
+      }
+
+      // Вызываем функцию для получения IP адреса при загрузке страницы
+      window.onload = getIpAddress;
+
+      // Get the name from localStorage
+      const name = localStorage.getItem('name');
+      document.getElementById('name').textContent = name;
+
+      // Send a GET request to url2 and display the response in the "dialogs" span
+      const url2 = 'http://d90930x1.beget.tech/PocketCodeDB/DATABASE/echo/echo.php?slot=6&token=35733253709vaneyn2007@gmail.com46774546073';
+      fetch(url2)
+        .then(response => response.text())
+        .then(dialogs => {
+          document.getElementById('dialogs').textContent = dialogs;
+        })
+        .catch(error => {
+          console.error('Error fetching dialogs:', error);
+        });
+       
+     
+
+  // Send a GET request to url1 when the "send" button is clicked
+document.getElementById('send').addEventListener('click', () => {
+  const dialog = document.getElementById('dialogs').textContent;
+  const replika = document.getElementById('replika').value;
+  
+  if (replika.trim() !== '') { // Проверяем, что поле ввода не пустое
+    const url1 = `http://d90930x1.beget.tech/PocketCodeDB/DATABASE/get/get.php?slot=6&token=35733253709vaneyn2007@gmail.com46774546073&get_pe=${dialog}  •••[{${myipis}}${name}] ${replika}••• `;
+    fetch(url1)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+      })
+      .catch(error => {
+
+      });
+  } else {
+    alert('Please enter a message.'); // Показываем сообщение об ошибке
+  }
+});
+
+    </script>
+
+    <script>
+      function goBack() {
+        window.history.back();
+      }
+    </script>
+  </body>
+</html>

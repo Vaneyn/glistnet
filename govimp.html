@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Premium</title>
+</head>
+ <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background: linear-gradient(to bottom, red, blue); /* Градиентный фон от красного до синего */
+            height: 100vh;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .circle {
+            display: inline-block;
+            width: 50px;
+            height: 50px;
+            margin: 10px; /* Увеличим расстояние между кружками */
+            background-color: grey;
+            border-radius: 50%;
+        }
+        button {
+            padding: 10px 20px; /* Увеличим размер кнопок */
+            font-size: 18px;
+            margin: 10px; /* Увеличим расстояние между кнопками */
+        }
+    </style>
+   
+<body>
+<h1>Возвращайтесь позднее.  </h1>
+Этот уровень доступен только admin (пока). Пройди всё остальное и лично напиши создателю приложения, или подожди новой версии...
+	<script>
+		function runTool(toolName) {
+			var url = toolName + ".html";
+			window.open(url, "_blank");
+		}
+	</script>
+	<button onclick="runTool('glist')">НАЗАД</button>
+
+
+
+
+</body>
+</html>

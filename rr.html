@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Русская рулетка</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      margin: 0;
+      background: #f9f9f9;
+      overflow: hidden;
+    }
+    .hidden { display: none; }
+    canvas {
+      border: 1px solid #000;
+      background: #ddd;
+      margin: 10px;
+    }
+    button {
+      font-size: 18px;
+      margin: 5px;
+      padding: 10px 20px;
+      cursor: pointer;
+    }
+    label, select, input { font-size: 18px; }
+  </style>
+</head>
+<body>
+  <div id="setup">
+    <h1>Настройка русской рулетки</h1>
+    <label for="barrelSize">Размер барабана:</label>
+    <select id="barrelSize">
+      <option value="6">6 патронов</option>
+      <option value="12">12 патронов</option>
+      <option value="16">16 патронов</option>
+    </select>
+    <br>
+    <label for="bulletCount">Патронов: <span id="bulletCountDisplay">1</span></label><br>
+    <input type="range" id="bulletCount" min="1" max="5" value="1">
+    <br>
+    <button id="startButton">Готово</button>
+    <br>
+    <button onclick="location.href='glist.html'">Назад</button>
+  </div>
+
+  <div id="game" class="hidden">
+    <h1>Русская рулетка</h1>
+    <canvas id="pistolCanvas" width="300" height="150"></canvas>
+    <div>
+      <button id="triggerButton">Щелк</button>
+      <button id="spinButton">Прокрутка барабана</button>
+    </div>
+    <button id="backButton">Назад</button>
+    <div id="message" style="font-size: 20px; margin-top: 10px;"></div>
+  </div>
+
+  <script>
+    let chamber = [], currentChamber = 0, barrelSize = 6, loadedBullets = 1;
+    let audioContext, gainNode;
+
+    const barrelSizeSelect = document.getElementById('barrelSize');
+    const bulletCountInput = document.getElementById('bulletCount');
+    const bulletCountDisplay = document.getElementById('bulletCountDisplay');
+    const setupDiv = document.getElementById('setup');
+    const gameDiv = document.getElementById('game');
+    const triggerButton = document.getElementById('triggerButton');
+    const spinButton = document.getElementById('spinButton');
+    const backButton = document.getElementById('backButton');
+    const messageDiv = document.getElementById('message');
+    const canvas = document.getElementById('pistolCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // Resume audio context on user interaction
+    document.body.addEventListener('click', () => {
+      if (!audioContext || audioContext.state === 'suspended') {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        gainNode = audioContext.createGain();
+        gainNode.gain.setValueAtTime(0.05, audioContext.currentTime); // Set lower volume for non-shot sounds
+        gainNode.connect(audioContext.destination);
+        audioContext.resume();
+      }
+    });
+
+    barrelSizeSelect.addEventListener('change', updateBulletLimit);
+    bulletCountInput.addEventListener('input', () => bulletCountDisplay.textContent = bulletCountInput.value);
+    
+    function updateBulletLimit() {
+      barrelSize = parseInt(barrelSizeSelect.value);
+      bulletCountInput.max = barrelSize - 1;
+      bulletCountInput.value = Math.min(bulletCountInput.value, barrelSize - 1);
+      bulletCountDisplay.textContent = bulletCountInput.value;
+    }
+    updateBulletLimit();
+
+    document.getElementById('startButton').addEventListener('click', () => {
+      barrelSize = parseInt(barrelSizeSelect.value);
+      loadedBullets = parseInt(bulletCountInput.value);
+      setupGame();
+      setupDiv.classList.add('hidden');
+      gameDiv.classList.remove('hidden');
+      drawPistol();
+      messageDiv.textContent = '';
+    });
+
+    function setupGame() {
+      chamber = new Array(barrelSize).fill(0);
+      let positions = [];
+      while (positions.length < loadedBullets) {
+        let pos = Math.floor(Math.random() * barrelSize);
+        if (!positions.includes(pos)) {
+          positions.push(pos);
+          chamber[pos] = 1;
+        }
+      }
+      currentChamber = Math.floor(Math.random() * barrelSize);
+    }
+
+    triggerButton.addEventListener('click', () => {
+      if (chamber[currentChamber] === 1) {
+        messageDiv.textContent = "Бах! Выстрел!";
+        chamber[currentChamber] = 0;
+        playSound(1200, 0.45, 1); // Full volume for shot sound
+      } else {
+        messageDiv.textContent = "Щелк... пусто";
+        playSound(60, 0.05, 0.05); // Quieter click sound
+      }
+      currentChamber = (currentChamber + 1) % barrelSize;
+    });
+
+    spinButton.addEventListener('click', () => {
+      currentChamber = Math.floor(Math.random() * barrelSize);
+      messageDiv.textContent = "Барабан прокручен";
+      playSpinSound();
+    });
+
+    backButton.addEventListener('click', () => {
+      setupDiv.classList.remove('hidden');
+      gameDiv.classList.add('hidden');
+    });
+
+    function drawPistol() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#333";
+      ctx.fillRect(40, 80, 60, 50); // Handle
+      ctx.fillRect(100, 60, 20, 30); // Cylinder
+      ctx.fillStyle = "#444";
+      ctx.fillRect(120, 50, 30, 40); // Barrel
+      ctx.fillStyle = "#222";
+      ctx.fillRect(130, 60, 25, 25); // Trigger
+      ctx.fillStyle = "#666";
+      ctx.fillRect(65, 100, 15, 30); // Hammer
+      ctx.fillRect(60, 120, 30, 15); // Base
+      ctx.fillRect(150, 40, 140, 20); // Top part
+      ctx.fillRect(270, 55, 15, 7); // Sight
+    }
+
+    function playSound(frequency, duration, volume) {
+      if (!audioContext || audioContext.state === 'suspended') return; // Prevent playback if suspended
+      const oscillator = audioContext.createOscillator();
+      oscillator.type = 'square';
+      oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+      oscillator.connect(gainNode);
+      oscillator.start();
+      oscillator.stop(audioContext.currentTime + duration);
+      gainNode.gain.setValueAtTime(volume, audioContext.currentTime);
+    }
+
+    function playSpinSound() {
+      for (let i = 0; i < 4; i++) {
+        setTimeout(() => {
+          playSound(150 + (i * 15), 0.05, 0.05); // Quieter spin sounds
+        }, i * 100); // Delay for spin sounds
+      }
+    }
+  </script>
+</body>
+</html>

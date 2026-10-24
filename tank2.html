@@ -1,0 +1,3094 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Tank Battle</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<style>
+  :root {
+    --bg: #0f141b;
+    --panel: rgba(14, 20, 28, 0.80);
+    --line: rgba(255, 255, 255, 0.14);
+    --accent: #fbbf24;
+    --hp: #22c55e;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; width: 100%; height: 100%;
+    overflow: hidden; background: var(--bg); color: #e5e7eb;
+    font-family: "Segoe UI", Roboto, Arial, sans-serif;
+    user-select: none; -webkit-user-select: none;
+    overscroll-behavior: none;
+  }
+  #gameCanvas { position: absolute; left: 0; top: 0; touch-action: none; }
+
+  .panel {
+    position: absolute; z-index: 20;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+  }
+  #stats { top: 10px; left: 10px; padding: 10px 12px; min-width: 186px; font-size: 13px; line-height: 1.5; }
+  #stats .row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .chip {
+    background: var(--accent); color: #1a1a1a; font-weight: 800;
+    font-size: 12px; padding: 1px 8px; border-radius: 20px; letter-spacing: 0.5px;
+  }
+  .muted { color: #9ca3af; font-size: 12px; }
+  .bar {
+    position: relative; height: 15px; margin: 6px 0;
+    background: rgba(255, 255, 255, 0.12); border-radius: 8px; overflow: hidden;
+  }
+  .bar i {
+    position: absolute; left: 0; top: 0; bottom: 0; width: 100%;
+    background: var(--hp); transition: width 0.15s;
+  }
+  .bar span {
+    position: relative; display: block; text-align: center;
+    font-size: 11px; line-height: 15px; font-weight: 700; text-shadow: 0 1px 2px #000;
+  }
+  #trackInfo { display: none; color: #fca5a5; font-weight: 700; font-size: 12px; }
+  #statsToggle { margin-top: 4px; color: var(--accent); font-size: 12px; cursor: pointer; padding: 4px 0; }
+  #playerStats { display: none; font-size: 12px; line-height: 1.6; border-top: 1px solid var(--line); padding-top: 4px; }
+
+  #topRight { position: absolute; top: 10px; right: 10px; z-index: 20; display: flex; gap: 8px; }
+  .btn {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 10px; padding: 8px 14px; font-size: 14px; cursor: pointer; color: #fff;
+  }
+  .btn:active { background: rgba(255, 255, 255, 0.2); }
+  .btn.main { background: var(--accent); color: #1a1a1a; font-weight: 800; border: none; }
+
+  #bossWrap {
+    position: absolute; z-index: 20; top: 12px; left: 50%;
+    transform: translateX(-50%); width: min(40vw, 380px);
+    text-align: center; display: none;
+    font-weight: 800; font-size: 12px; letter-spacing: 2px; color: #d8b4fe;
+    text-shadow: 0 1px 3px #000; pointer-events: none;
+  }
+  #bossWrap .bar { height: 12px; margin: 3px 0 0; border: 1px solid #7e22ce; }
+  #bossFill { background: linear-gradient(90deg, #7e22ce, #c084fc); }
+
+  #banner {
+    position: absolute; z-index: 25; left: 0; right: 0; top: 30%;
+    text-align: center; pointer-events: none;
+    opacity: 0; transition: opacity 0.4s;
+    text-shadow: 0 2px 8px #000;
+  }
+  #banner.show { opacity: 1; }
+  #banner div { font-size: 38px; font-weight: 900; letter-spacing: 2px; color: var(--accent); }
+  #banner small { display: block; margin-top: 6px; font-size: 16px; color: #e5e7eb; }
+
+  #hurt {
+    position: absolute; inset: 0; z-index: 15; pointer-events: none; opacity: 0;
+    background: radial-gradient(ellipse at center, rgba(239, 68, 68, 0) 55%, rgba(239, 68, 68, 0.55) 100%);
+    transition: opacity 0.25s;
+  }
+
+  #fireBtn {
+    position: absolute; right: 22px; bottom: 26px; z-index: 20;
+    width: 112px; height: 112px; border-radius: 50%;
+    display: flex; justify-content: center; align-items: center;
+    touch-action: none;
+    background: rgba(14, 20, 28, 0.55);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  }
+  #fireSvg { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
+  #fireIn {
+    width: 90px; height: 90px; border-radius: 50%;
+    display: flex; justify-content: center; align-items: center; font-size: 38px;
+    background: radial-gradient(circle at 35% 30%, rgba(248, 113, 113, 0.75), rgba(153, 27, 27, 0.65));
+    border: 2px solid rgba(255, 255, 255, 0.35);
+  }
+  #fireBtn.down { transform: scale(0.92); filter: brightness(1.3); }
+
+  #shells {
+    position: absolute; right: 14px; bottom: 148px; z-index: 20;
+    display: flex; flex-direction: column; gap: 6px; align-items: flex-end;
+  }
+  .sbtn {
+    background: var(--panel); border: 2px solid var(--line);
+    border-radius: 10px; padding: 7px 12px; font-size: 14px; font-weight: 700; min-width: 86px; text-align: center;
+  }
+  .sbtn.sel { border-color: var(--accent); color: var(--accent); }
+  .sbtn.off { opacity: 0.35; }
+
+  #clearedBar {
+    position: absolute; z-index: 22; left: 50%; bottom: 18px; transform: translateX(-50%);
+    display: none; gap: 10px;
+  }
+
+  #over, #shop {
+    position: absolute; inset: 0; display: none;
+    justify-content: center; align-items: center; background: rgba(0, 0, 0, 0.74);
+  }
+  #over { z-index: 40; }
+  #shop { z-index: 35; }
+  #over .box {
+    background: #151c26; border: 1px solid var(--line); border-radius: 16px;
+    padding: 22px 26px; text-align: center; max-width: 86vw;
+  }
+  #over h2 { margin: 0 0 8px; font-size: 28px; color: #f87171; letter-spacing: 1px; }
+  #over p { margin: 6px 0; color: #cbd5e1; }
+  #over .btns { margin-top: 16px; display: flex; gap: 10px; justify-content: center; }
+
+  .shopBox {
+    width: min(94vw, 580px); max-height: calc(100% - 16px); overflow-y: auto;
+    -webkit-overflow-scrolling: touch; touch-action: pan-y;
+    background: #151c26; border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px;
+  }
+  .shopHead { display: flex; justify-content: space-between; align-items: center; font-size: 15px; gap: 10px; }
+  .shopBox h3 { margin: 14px 0 4px; font-size: 14px; letter-spacing: 1px; color: var(--accent); text-transform: uppercase; }
+  .it {
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    padding: 8px 0; border-top: 1px solid var(--line); font-size: 13px;
+  }
+  .ibtn {
+    flex: none; padding: 8px 10px; border-radius: 10px; min-width: 112px; text-align: center;
+    background: var(--accent); color: #1a1a1a; font-weight: 800; font-size: 13px;
+  }
+  .ibtn.dis { background: #374151; color: #9ca3af; }
+  .ibtn.cur { background: #14532d; color: #bbf7d0; }
+  .shopBtns { margin-top: 14px; display: flex; gap: 10px; justify-content: flex-end; }
+  #pauseOv {
+    position: absolute; inset: 0; z-index: 38; display: none;
+    justify-content: center; align-items: center; flex-direction: column; gap: 16px;
+    background: rgba(0, 0, 0, 0.6);
+  }
+  #pauseOv h2 { margin: 0; font-size: 34px; letter-spacing: 3px; color: var(--accent); }
+
+  #menu {
+    position: absolute; inset: 0; z-index: 60;
+    display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 12px;
+    background: rgba(8, 12, 18, 0.95); padding: 16px; text-align: center; overflow-y: auto;
+  }
+  #menu h1 { margin: 0; font-size: 34px; letter-spacing: 4px; color: var(--accent); }
+  .hpRow { display: flex; align-items: center; gap: 8px; }
+  .hpRow .bar { flex: 1; margin: 4px 0; }
+  #minToggle { color: var(--accent); font-size: 16px; cursor: pointer; padding: 2px 4px; line-height: 1; }
+  #stats.min { min-width: 150px; }
+  #stats.min .hideMin { display: none; }
+  #lobby {
+    position: absolute; inset: 0; z-index: 70; display: none;
+    flex-direction: column; justify-content: center; align-items: center; gap: 12px;
+    background: rgba(8, 12, 18, 0.97); padding: 16px; text-align: center; overflow-y: auto;
+  }
+  #lobCode { font: 700 54px/1.1 monospace; letter-spacing: 10px; color: var(--accent); margin: 6px 0; user-select: all; }
+  #codeIn {
+    width: 190px; padding: 12px; font: 700 32px monospace; letter-spacing: 8px; text-align: center;
+    text-transform: uppercase; color: #fff; background: #151c26; border: 2px solid var(--line); border-radius: 12px; outline: none;
+  }
+  #codeIn:focus { border-color: var(--accent); }
+  #p2Row .bar { margin: 2px 0 4px; }
+  .modeBtn {
+    width: min(92vw, 420px); padding: 14px 16px; border-radius: 14px; cursor: pointer;
+    background: #151c26; border: 2px solid var(--line);
+  }
+  .modeBtn:active { border-color: var(--accent); background: #1d2735; }
+  .modeBtn b { display: block; font-size: 18px; color: var(--accent); }
+  .modeBtn span { display: block; margin-top: 4px; font-size: 13px; color: #cbd5e1; line-height: 1.4; }
+</style>
+</head>
+<body>
+  <div id="gameCanvas"></div>
+
+  <div id="stats" class="panel">
+    <div class="hideMin">
+      <div class="row"><span class="chip">УРОВЕНЬ <span id="level">1</span></span><span>Счёт: <b id="score">0</b></span></div>
+      <div>Врагов осталось: <b id="left">0</b></div>
+      <div id="allyRow" style="display:none">Союзников: <b id="allies">0</b></div>
+      <div>Опыт: <b id="xpNow">0</b></div>
+    </div>
+    <div class="hpRow">
+      <div class="bar"><i id="hpFill"></i><span id="hpText"></span></div>
+      <div id="minToggle" title="Свернуть / развернуть">▴</div>
+    </div>
+    <div id="p2Row" style="display:none">
+      <div class="muted" style="font-size:11px">Друг</div>
+      <div class="bar"><i id="hp2Fill"></i><span id="hp2Text"></span></div>
+    </div>
+    <div class="hideMin">
+      <div id="trackInfo"></div>
+      <div class="muted">Последний бонус: <span id="lastBonus">нет</span></div>
+      <div id="statsToggle">Характеристики ▾</div>
+      <div id="playerStats"></div>
+    </div>
+  </div>
+
+  <div id="topRight">
+    <div id="pauseBtn" class="btn">⏸</div>
+    <div id="soundBtn" class="btn">🔇</div>
+    <div id="backBtn" class="btn">Назад</div>
+  </div>
+
+  <div id="bossWrap">БОСС<div class="bar"><i id="bossFill"></i></div></div>
+  <div id="banner"></div>
+  <div id="hurt"></div>
+  <div id="pauseOv"><h2>ПАУЗА</h2><div id="resumeBtn" class="btn main">▶ Продолжить</div></div>
+
+  <div id="shells">
+    <div id="sHe" class="sbtn">💣 0</div>
+    <div id="sAp" class="sbtn">🎯 0</div>
+    <div id="sReg" class="sbtn sel">● ∞</div>
+    <div id="aimBtn" class="sbtn">🔭 Прицел</div>
+    <div id="zoomBtn" class="sbtn">🔍 Автозум</div>
+  </div>
+  <div id="fireBtn">
+    <svg id="fireSvg" viewBox="0 0 112 112">
+      <circle cx="56" cy="56" r="51" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="7"/>
+      <circle id="fireArc" cx="56" cy="56" r="51" fill="none" stroke="#22c55e" stroke-width="7"
+              stroke-linecap="round" transform="rotate(-90 56 56)"
+              stroke-dasharray="320.4 320.4" stroke-dashoffset="0"/>
+    </svg>
+    <div id="fireIn">🔥</div>
+  </div>
+
+  <div id="clearedBar">
+    <div id="openShop" class="btn">🛒 Мастерская</div>
+    <div id="nextLvl" class="btn main">▶ Дальше</div>
+  </div>
+
+  <div id="shop">
+    <div class="shopBox">
+      <div class="shopHead"><span>🛒 <b>Мастерская</b></span><span>Опыт: <b id="shopXp">0</b></span></div>
+      <div class="muted" id="shopHp"></div>
+      <h3>Танки</h3><div id="shopTanks"></div>
+      <h3 id="gunsTitle">Орудия</h3><div id="shopGuns"></div>
+      <h3>Ремонт</h3><div id="shopRepair"></div>
+      <h3>Снаряды</h3><div id="shopShells"></div>
+      <div class="shopBtns">
+        <div id="shopClose" class="btn">Закрыть</div>
+        <div id="shopNext" class="btn main">▶ В бой</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="over">
+    <div class="box">
+      <h2>ИГРА ОКОНЧЕНА</h2>
+      <p id="overText"></p>
+      <p id="overFun" class="muted"></p>
+      <div class="btns">
+        <div id="restartBtn" class="btn main">Заново</div>
+        <div id="overBack" class="btn">В Glist</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="menu">
+    <h1>TANK BATTLE</h1>
+    <div class="muted">Выбери режим</div>
+    <div id="modeSolo" class="modeBtn"><b>👤 1 игрок · соло</b><span>Ты один против ботов</span></div>
+    <div id="modeTeam" class="modeBtn"><b>👥 1 игрок · команды</b><span>Ты и 2 бота-союзника против 4 врагов. Каждый уровень +1 враг, каждые 2 уровня +1 союзник</span></div>
+    <div id="modeDuo" class="modeBtn"><b>🎮 2 игрока · каждый сам</b><span>Вдвоём против ботов, но друг друга тоже можно подстрелить. Связь по WebRTC, если не выйдет — сама переключится на сервер</span></div>
+    <div id="modeDuoTeam" class="modeBtn"><b>🤝 2 игрока · команды</b><span>Вы вдвоём + 2 бота-союзника против 4 врагов. Друг друга задеть нельзя</span></div>
+    <div id="menuBack" class="btn">Назад</div>
+  </div>
+
+  <div id="lobby">
+    <h1 id="lobTitle" style="font-size:24px">2 игрока</h1>
+    <div id="lobChoice" style="display:flex;flex-direction:column;gap:12px;align-items:center">
+      <div id="lobHost" class="modeBtn"><b>🏠 Создать комнату</b><span>Ты хост: игра считается у тебя, получишь код для друга</span></div>
+      <div id="lobJoin" class="modeBtn"><b>🔑 Войти по коду</b><span>Введи код, который показал друг</span></div>
+    </div>
+    <div id="lobHostView" style="display:none">
+      <div class="muted">Код комнаты — продиктуй другу</div>
+      <div id="lobCode">----</div>
+    </div>
+    <div id="lobJoinView" style="display:none;flex-direction:column;gap:12px;align-items:center">
+      <input id="codeIn" maxlength="4" placeholder="КОД" autocomplete="off" autocapitalize="characters" spellcheck="false">
+      <div id="lobGo" class="btn main">Подключиться</div>
+    </div>
+    <div id="lobStatus" class="muted"></div>
+    <div id="lobNet" class="muted"></div>
+    <div id="lobStart" class="btn main" style="display:none">▶ Начать игру</div>
+    <div id="lobBack" class="btn">Назад</div>
+  </div>
+
+  <!-- фоновая музыка -->
+  <audio id="bgMusic" src="Geometry.m4a" loop></audio>
+
+<script src="konva.min.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  function $(id) { return document.getElementById(id); }
+  function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
+  function randInt(a, b) { return a + Math.floor(Math.random() * (b - a + 1)); }
+  function angDiff(a, b) {
+    var d = b - a;
+    while (d > Math.PI) d -= 2 * Math.PI;
+    while (d < -Math.PI) d += 2 * Math.PI;
+    return d;
+  }
+  function f2(v) { return String(Math.round(v * 100) / 100); }
+  var DEG = 180 / Math.PI;
+
+  // ====================== музыка ======================
+  var bg = $('bgMusic');
+  bg.volume = 0.3;
+  bg.muted = true;   // звук по умолчанию выключен
+  function tryPlay() {
+    if (bg.muted || !bg.paused) return;
+    var q = bg.play();
+    if (q && q.catch) q.catch(function () {});
+  }
+  tryPlay();
+  document.addEventListener('touchstart', tryPlay, { once: true });
+  document.addEventListener('mousedown', tryPlay, { once: true });
+  $('soundBtn').addEventListener('click', function () {
+    bg.muted = !bg.muted;
+    $('soundBtn').textContent = bg.muted ? '🔇' : '🔊';
+    if (!bg.muted) tryPlay();
+  });
+
+  // ====================== настройки баланса ======================
+  var WORLD = 2500;        // размер мира
+  var SCALE = 0.9;         // зум камеры (было 0.6, потом 1.2)
+  var CELL = 50;           // клетка сетки поиска пути
+  var GN = WORLD / CELL;
+  var INFL = 40;           // раздувание препятствий для ботов
+  var PLAYER_SPEED = 100;     // скорость лёгкого танка (номинал, в характеристиках остаётся 100)
+  var SPEED_K = 0.85;         // реальная скорость игрока и ботов на 15% ниже номинала
+  var AIM_SLOW = 0.1;         // во сколько раз медленнее с включённым прицелом
+  var AIM_LEN = 150;          // длина лазера: 1.5 клетки сетки (клетка = 100)
+  var LEVEL_BONUS_XP = 100;   // опыт за победу на уровне
+  var XP_MULT = 2;            // множитель опыта за урон
+  var BASE_PEN = 70;
+  var BOX_HALF = 25;          // коробка = ровно одна клетка сетки (50×50)
+
+  var ROOMS_MIN = 9;          // комнат на уровне: от
+  var ROOMS_MAX = 12;         // ... до
+  var ROOM_SIZE_MIN = 6;      // размер комнаты вместе со стенами, в коробках
+  var ROOM_SIZE_MAX = 8;
+  var ROOM_LINK_CHANCE = 0.5; // шанс, что новая комната примкнёт к уже существующей (общая стена)
+
+  var SPAWN_INTERVAL = 1;     // секунд между появлением ботов
+  var BOSS_RING_CD = 2;       // минимум секунд между кольцами пуль босса
+  var BOSS_RELOAD = 5;        // перезарядка босса, секунд
+
+  // автозум: SCALE — базовый (самый крупный) зум, камера только отдаляется
+  var AUTOZOOM_CELLS = 3.5;   // радиус, в котором видны все боты, в клетках
+  var CAM_SHIFT_MAX = 0.2;    // на сколько (доля экрана) камера может сместиться в сторону врагов
+  var CAM_SHIFT_DIST = 500;   // на каком среднем удалении врагов (px) смещение достигает максимума
+  var CAM_LOOK_CELLS = 10;    // врагов в каком радиусе (клетки) учитывать для смещения
+  var GRID_CELL = 100;        // клетка видимой сетки на земле, px
+  var AUTOZOOM_PAD = 60;      // запас до края экрана, px
+  var ZOOM_MIN = 0.2;         // дальше отдалять нельзя
+  var ZOOM_SPEED = 4;         // плавность зума
+
+  // режим «команды»
+  var TEAM_ENEMY_START = 4;   // врагов на 1 уровне (+1 каждый уровень)
+  var TEAM_ALLY_START = 2;    // союзников на 1 уровне (+1 каждые 2 уровня)
+  var TEAM_ENEMY_MAX = 40;
+  var TEAM_ALLY_MAX = 20;
+
+  // стороны танка: множитель пробития / множитель урона
+  var FACE = {
+    front: { p: 0.5, d: 0.8 },
+    side:  { p: 1,   d: 1 },
+    rear:  { p: 2,   d: 2 }
+  };
+  var TRACK_CHANCE = 0.25;     // шанс сбить гусеницу в борт
+  var TRACK_CHANCE_HE = 0.7;   // то же для фугаса
+  var TRACK_TIME = 15;         // секунд без хода
+  var MIN_PEN = 5;             // ниже этого шанса пробития нет
+
+  // снаряды: урон / пробитие
+  var SHELL = {
+    reg: { d: 1,   p: 1,   c: '#fde047', r: 4.5 },
+    he:  { d: 2,   p: 0.6, c: '#fb923c', r: 6.5 },
+    ap:  { d: 0.6, p: 1.3, c: '#67e8f9', r: 3.5 }
+  };
+  var SHELL_COST = { he: 5, ap: 10 };
+
+  // танки. size, hp, speed, armor (множитель пробития по нему), dmg
+  // reload — базовое время перезарядки в секундах (лёгкий 5, средний 7, тяжёлый 10)
+  // орудия: c — цена, d — урон, r — множитель ВРЕМЕНИ перезарядки, p — пробитие
+  var TANKS = {
+    light: {
+      name: 'Лёгкий', cost: 0, size: 30, hp: 100, speed: 1, armor: 1, dmg: 1, reload: 5,
+      color: '#3b82f6', turret: '#93c5fd',
+      guns: [
+        { c: 0,    d: 1,   r: 1,   p: 1 },
+        { c: 120,  d: 1.1, r: 0.9, p: 1 },
+        { c: 320,  d: 1.3, r: 0.8, p: 1 },
+        { c: 1200, d: 2,   r: 1.2, p: 1 }
+      ]
+    },
+    medium: {
+      name: 'Средний', cost: 1000, size: 36, hp: 200, speed: 0.8, armor: 0.75, dmg: 1, reload: 7,
+      color: '#16a34a', turret: '#86efac',
+      guns: [
+        { c: 0,    d: 1,   r: 1,   p: 1 },
+        { c: 350,  d: 1.2, r: 1.1, p: 1 },
+        { c: 500,  d: 1.7, r: 1.2, p: 1 },
+        { c: 1500, d: 2.5, r: 2.5, p: 1.2 }
+      ]
+    },
+    heavy: {
+      name: 'Тяжёлый', cost: 3000, size: 51, hp: 400, speed: 0.25, armor: 0.4, dmg: 1.1, reload: 10,
+      color: '#b45309', turret: '#fcd34d',
+      guns: [
+        { c: 0,    d: 1,   r: 1,   p: 1 },
+        { c: 2000, d: 1.2, r: 0.8, p: 1 },
+        { c: 2500, d: 0.8, r: 0.5, p: 1 },
+        { c: 5000, d: 3,   r: 2.5, p: 1.3 }
+      ]
+    }
+  };
+  var TANK_IDS = ['light', 'medium', 'heavy'];
+
+  // вражеские танки: множители относительно обычного бота
+  var ENEMY_KINDS = {
+    light:  { size: 30, hp: 1, speed: 1,   armor: 1,    reload: 3,   dmg: 1,   color: '#dc2626', turret: '#fca5a5' },
+    medium: { size: 36, hp: 2, speed: 0.8, armor: 0.75, reload: 5, dmg: 1.2, color: '#ea580c', turret: '#fdba74' },
+    heavy:  { size: 51, hp: 4, speed: 0.5, armor: 0.4,  reload: 8, dmg: 1.75, color: '#7f1d1d', turret: '#fca5a5' }
+  };
+
+  // цвета союзных ботов
+  var ALLY_COLORS = {
+    light:  { color: '#0891b2', turret: '#67e8f9' },
+    medium: { color: '#0d9488', turret: '#5eead4' },
+    heavy:  { color: '#4338ca', turret: '#c7d2fe' }
+  };
+
+  if (window.devicePixelRatio) Konva.pixelRatio = Math.min(window.devicePixelRatio, 2);
+
+  var stage = new Konva.Stage({
+    container: 'gameCanvas',
+    width: window.innerWidth,
+    height: window.innerHeight
+  });
+  var layer = new Konva.Layer();
+  stage.add(layer);
+
+  var worldGroup = new Konva.Group({ listening: false });
+  layer.add(worldGroup);
+  var groundG = new Konva.Group();
+  var obsG = new Konva.Group();
+  var boxG = new Konva.Group();
+  var bonusG = new Konva.Group();
+  var tankG = new Konva.Group();
+  var bulletG = new Konva.Group();
+  var fxG = new Konva.Group();
+  worldGroup.add(groundG, obsG, boxG, bonusG, tankG, bulletG, fxG);
+
+  groundG.add(new Konva.Rect({ x: 0, y: 0, width: WORLD, height: WORLD, fill: '#1c2a24' }));
+  groundG.add(new Konva.Shape({
+    stroke: 'rgba(255,255,255,0.06)', strokeWidth: 2,
+    sceneFunc: function (ctx, shape) {
+      ctx.beginPath();
+      for (var i = 0; i <= WORLD; i += 100) {
+        ctx.moveTo(i, 0); ctx.lineTo(i, WORLD);
+        ctx.moveTo(0, i); ctx.lineTo(WORLD, i);
+      }
+      ctx.strokeShape(shape);
+    }
+  }));
+  groundG.add(new Konva.Rect({
+    x: 0, y: 0, width: WORLD, height: WORLD,
+    stroke: '#ef4444', strokeWidth: 8, dash: [30, 20], opacity: 0.8
+  }));
+
+  // ====================== состояние ======================
+  var time = 0;
+  var score = 0;
+  var level = 0;
+  var state = 'fight';      // fight | cleared
+  var shopOpen = false;
+  var gameOver = false;
+  var playerHitCount = 0;
+  var bossKills = 0;
+  var rackKills = 0;
+  var lastBonusText = 'нет';
+  var firing = false;
+  var currentBoss = null;
+
+  var xp = 0;
+  var ammo = { he: 0, ap: 0 };
+  var shell = 'reg';
+  var curTank = 'light';
+  var owned = {
+    light:  { has: true,  learned: [true, false, false, false], gun: 1 },
+    medium: { has: false, learned: [true, false, false, false], gun: 1 },
+    heavy:  { has: false, learned: [true, false, false, false], gun: 1 }
+  };
+  var bonus = { speed: 1, reload: 1, damage: 1, pen: 0, hp: 0 };
+
+  var playerBullets = [];
+  var enemyBullets = [];
+  var enemies = [];
+  var bonuses = [];
+  var obstacles = [];
+  var boxes = [];
+  var rooms = [];           // комнаты из коробок: {x, y, w, h} в клетках сетки
+  var fx = [];
+  var spawnQueue = [];      // очередь ботов, которые ещё не появились
+  var spawnT = 0;
+  var allies = [];          // боты-союзники игрока
+  var allyQueue = [];       // союзники, которые ещё не появились
+  var mode = null;          // 'solo' | 'team'
+  var started = false;
+  var camScale = SCALE;
+  var autoZoomOn = false;       // автозум включается кнопкой; без него обычный зум SCALE
+  var camShX = 0, camShY = 0;   // текущее смещение камеры в сторону врагов, px экрана
+
+  // --- режимы на двоих ---
+  var player2 = null;           // второй игрок (хост: управляется по сети; гость: это танк хоста)
+  var scores = [0, 0];
+  var bonus2 = { speed: 1, reload: 1, damage: 1, pen: 0, hp: 0 };
+  var lastBonus2 = 'нет';
+  var boxIdSeq = 0, tankIdSeq = 0;
+  var netRole = null;           // null | 'host' | 'guest'
+  var evq = [];                 // события (взрывы, тексты) для гостя
+  var boxDirty = true, bonusDirty = true;
+  var rin = { a: 0, m: 0, f: 0, t: 0 };   // последний ввод гостя
+  function isDuo() { return mode === 'duo' || mode === 'duoteam'; }
+  function isTeamMode() { return mode === 'team' || mode === 'duoteam'; }
+
+  // ====================== бонусы с поля ======================
+  var BONUS = {
+    reload:      { c: '#22d3ee', i: '⏱', n: 'Перезарядка' },
+    speed:       { c: '#4ade80', i: '🚀', n: 'Скорость' },
+    durability:  { c: '#facc15', i: '❤', n: 'Прочность' },
+    damage:      { c: '#e879f9', i: '💥', n: 'Урон' },
+    penetration: { c: '#fb923c', i: '🎯', n: 'Пробитие' }
+  };
+  var BONUS_TYPES = Object.keys(BONUS);
+
+  // ====================== эффекты ======================
+  function floatText(x, y, text, color, size) {
+    if (netRole === 'host') evq.push(['t', Math.round(x), Math.round(y), text, color, size || 0]);
+    if (fx.length > 70) return;
+    var t = new Konva.Text({
+      x: x - 40, y: y, width: 80, align: 'center',
+      text: text, fontSize: size || 15, fontStyle: 'bold', fill: color,
+      stroke: '#000', strokeWidth: 0.6
+    });
+    fxG.add(t);
+    fx.push({ node: t, life: 0.9, max: 0.9, kind: 'text', delay: 0 });
+  }
+  function explode(x, y, r, delay) {
+    if (netRole === 'host') evq.push(['e', Math.round(x), Math.round(y), Math.round(r), delay || 0]);
+    var c = new Konva.Circle({
+      x: x, y: y, radius: r * 0.3,
+      fill: 'rgba(251,146,60,0.6)', stroke: '#fde047', strokeWidth: 3
+    });
+    if (delay) c.visible(false);
+    fxG.add(c);
+    fx.push({ node: c, life: 0.45, max: 0.45, kind: 'ring', r0: r * 0.3, r1: r, delay: delay || 0 });
+  }
+  function debris(x, y, w, color, life) {
+    var a = Math.random() * Math.PI * 2, sp = 80 + Math.random() * 220;
+    var n = new Konva.Rect({
+      x: x, y: y, width: w, height: w * 0.6, fill: color, offsetX: w / 2, offsetY: w * 0.3
+    });
+    fxG.add(n);
+    fx.push({
+      node: n, life: life, max: life, kind: 'debris', delay: 0,
+      vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, spin: (Math.random() - 0.5) * 900
+    });
+  }
+  // красивый взрыв боеукладки
+  function megaExplode(x, y, size) {
+    if (netRole === 'host') evq.push(['m', Math.round(x), Math.round(y)]);
+    explode(x, y, size * 2.6, 0);
+    explode(x, y, size * 1.7, 0.12);
+    explode(x, y, size * 3.6, 0.26);
+    var i;
+    for (i = 0; i < 16; i++) debris(x, y, 5 + Math.random() * 8, i % 2 ? '#fbbf24' : '#6b7280', 0.9 + Math.random() * 0.5);
+    var t = new Konva.Circle({ x: x, y: y, radius: size * 0.28, fill: '#4b5563', stroke: '#111', strokeWidth: 3 });
+    fxG.add(t);
+    var a = Math.random() * Math.PI * 2;
+    fx.push({
+      node: t, life: 1.3, max: 1.3, kind: 'debris', delay: 0,
+      vx: Math.cos(a) * 260, vy: Math.sin(a) * 260 - 80, spin: 0
+    });
+    floatText(x, y - size, '💀', '#fff', 40);
+  }
+  function updateFx(dt) {
+    for (var i = fx.length - 1; i >= 0; i--) {
+      var f = fx[i];
+      if (f.delay > 0) {
+        f.delay -= dt;
+        if (f.delay <= 0) f.node.visible(true);
+        continue;
+      }
+      f.life -= dt;
+      var t = 1 - f.life / f.max;
+      if (t >= 1) { f.node.destroy(); fx.splice(i, 1); continue; }
+      if (f.kind === 'text') {
+        f.node.y(f.node.y() - 38 * dt);
+        f.node.opacity(1 - t);
+      } else if (f.kind === 'ring') {
+        f.node.radius(f.r0 + (f.r1 - f.r0) * t);
+        f.node.opacity(1 - t);
+      } else {
+        f.node.x(f.node.x() + f.vx * dt);
+        f.node.y(f.node.y() + f.vy * dt);
+        if (f.spin) f.node.rotation(f.node.rotation() + f.spin * dt);
+        f.node.opacity(1 - t * t);
+      }
+    }
+  }
+
+  // ====================== классы ======================
+  class Bullet {
+    constructor(x, y, angle, damage, pen, owner, speed, r, color, shellId) {
+      this.x = x; this.y = y; this.angle = angle;
+      this.damage = damage; this.pen = pen; this.owner = owner;
+      this.speed = speed; this.r = r; this.travel = 0;
+      this.shell = shellId || 'reg';
+      this.pid = -1;
+      this.shape = new Konva.Circle({
+        x: x, y: y, radius: r, fill: color, stroke: 'rgba(255,255,255,0.7)', strokeWidth: 1
+      });
+      bulletG.add(this.shape);
+    }
+    update(dt) {
+      var d = this.speed * dt;
+      this.x += Math.cos(this.angle) * d;
+      this.y += Math.sin(this.angle) * d;
+      this.travel += d;
+      this.shape.position({ x: this.x, y: this.y });
+    }
+    destroy() { this.shape.destroy(); }
+  }
+
+  class Tank {
+    constructor(x, y, o) {
+      this.x = x; this.y = y;
+      this.size = o.size;
+      this.isPlayer = !!o.isPlayer;
+      this.pid = o.pid === undefined ? -1 : o.pid;
+      this.dead = false;
+      this.killer = -1;
+      this.id = ++tankIdSeq;
+      this.specSent = 0;
+      this.turretColor = o.turretColor;
+      this.isBoss = !!o.isBoss;
+      this.ally = !!(o.ally || o.isPlayer);   // команда игрока
+      this.armor = o.armor || 1;
+      this.color = o.color;
+      this.bulletColor = o.bulletColor;
+      this.rotate = 0; this.turret = 0; this.speed = 0;
+      this.trackColor = this.ally ? '#38bdf8' : '#ef4444';
+      this.maxHp = o.hp; this.hp = o.hp;
+      this.baseMaxSpeed = o.speed;
+      this.baseReloadTime = o.reload;
+      this.baseBulletDamage = o.damage;
+      this.baseBulletPenetration = o.pen;
+      this.bulletSpeed = o.bulletSpeed;
+      this.spread = o.spread || 0;
+      this.turretRate = o.turretRate || 3;
+      this.reload = this.isPlayer ? 0 : 0.6 + Math.random();
+      this.flash = 0;
+      this.trackT = 0;
+      this.rack = false;
+      this.spawn = o.spawn || 0;
+      this.strafe = Math.random() < 0.5 ? 1 : -1;
+      this.strafeT = 1 + Math.random() * 2;
+      this.ringT = 0;            // кулдаун кольца пуль босса
+      this.ringPending = false;  // босс получил урон и ждёт, чтобы выпустить кольцо
+      this.recalc();
+
+      var s = this.size, tr = s * 0.22;
+      this.node = new Konva.Group({ x: x, y: y });
+      this.hull = new Konva.Group();
+      this.track1 = new Konva.Rect({ x: -s / 2, y: -s / 2, width: s, height: tr, fill: this.trackColor, stroke: '#0b0f14', strokeWidth: 1, cornerRadius: 2 });
+      this.track2 = new Konva.Rect({ x: -s / 2, y: s / 2 - tr, width: s, height: tr, fill: this.trackColor, stroke: '#0b0f14', strokeWidth: 1, cornerRadius: 2 });
+      this.hull.add(this.track1, this.track2);
+      this.hullRect = new Konva.Rect({
+        x: -s / 2 + 3, y: -s / 2 + tr * 0.8, width: s - 6, height: s - tr * 1.6,
+        fill: this.color, stroke: 'rgba(0,0,0,0.55)', strokeWidth: 2, cornerRadius: 4
+      });
+      this.hull.add(this.hullRect);
+
+      // корма: радиаторная решётка и бак, чтобы было видно, где зад
+      this.hull.add(new Konva.Rect({
+        x: -s / 2 + 3, y: -s * 0.27, width: s * 0.12, height: s * 0.54, fill: '#0b0f14', cornerRadius: 1
+      }));
+      for (var gi = 0; gi < 4; gi++) {
+        var gy = -s * 0.27 + s * 0.54 * (gi + 0.5) / 4;
+        this.hull.add(new Konva.Line({
+          points: [-s / 2 + 3, gy, -s / 2 + 3 + s * 0.12, gy], stroke: '#9ca3af', strokeWidth: 1
+        }));
+      }
+      this.hull.add(new Konva.Rect({
+        x: -s / 2 - s * 0.15, y: -s * 0.2, width: s * 0.17, height: s * 0.4,
+        fill: '#a8a29e', stroke: '#1c1917', strokeWidth: 1.5, cornerRadius: 2
+      }));
+      this.hull.add(new Konva.Line({ points: [-s / 2 - s * 0.15, -s * 0.07, -s / 2 + s * 0.02, -s * 0.07], stroke: '#57534e', strokeWidth: 1.5 }));
+      this.hull.add(new Konva.Line({ points: [-s / 2 - s * 0.15, s * 0.07, -s / 2 + s * 0.02, s * 0.07], stroke: '#57534e', strokeWidth: 1.5 }));
+      this.hull.add(new Konva.Circle({ x: -s / 2 - s * 0.065, y: 0, radius: s * 0.035, fill: '#292524' }));
+
+      this.turretG = new Konva.Group();
+      this.turretG.add(new Konva.Rect({
+        x: 0, y: -s * 0.065, width: s * 0.78, height: s * 0.13, fill: '#0b0f14', cornerRadius: 2
+      }));
+      this.turretG.add(new Konva.Circle({
+        radius: s * (this.isBoss ? 0.3 : 0.26), fill: o.turretColor,
+        stroke: 'rgba(0,0,0,0.6)', strokeWidth: 2
+      }));
+
+      this.bar = new Konva.Group();
+      this.bar.add(new Konva.Rect({ x: -s / 2, y: -s / 2 - 12, width: s, height: 5, fill: 'rgba(0,0,0,0.65)', cornerRadius: 2 }));
+      this.barFg = new Konva.Rect({ x: -s / 2, y: -s / 2 - 12, width: s, height: 5, fill: '#22c55e', cornerRadius: 2 });
+      this.bar.add(this.barFg);
+      this.trackIcon = new Konva.Text({ x: -10, y: s / 2 + 3, width: 20, align: 'center', text: '⛓', fontSize: 14, fill: '#fca5a5' });
+      this.trackIcon.visible(false);
+
+      if (this.ally && !this.isPlayer) {
+        // зелёное кольцо — отметка союзника
+        this.node.add(new Konva.Circle({ radius: s * 0.78, stroke: '#22c55e', strokeWidth: 2, dash: [6, 5], opacity: 0.75 }));
+      }
+      this.node.add(this.hull, this.turretG, this.bar, this.trackIcon);
+      tankG.add(this.node);
+      this.sync();
+    }
+    recalc() {
+      var f = 0.5 + 0.5 * clamp(this.hp / this.maxHp, 0, 1);
+      this.maxSpeed = this.baseMaxSpeed * f;
+      this.reloadTime = this.baseReloadTime / f;
+      this.bulletDamage = this.baseBulletDamage * f;
+      this.bulletPen = Math.min(95, this.baseBulletPenetration * f);
+    }
+    tick(dt) {
+      this.recalc();
+      if (this.reload > 0) this.reload -= dt;
+      if (this.flash > 0) this.flash -= dt;
+      if (this.trackT > 0) this.trackT -= dt;
+      if (this.spawn > 0) this.spawn -= dt;
+    }
+    sync() {
+      this.node.position({ x: this.x, y: this.y });
+      this.hull.rotation(this.rotate * DEG);
+      this.turretG.rotation(this.turret * DEG);
+      this.hullRect.fill(this.flash > 0 ? '#ffffff' : this.color);
+      var tc = this.trackT > 0 ? '#facc15' : this.trackColor;
+      this.track1.fill(tc); this.track2.fill(tc);
+      this.trackIcon.visible(this.trackT > 0);
+      var fr = clamp(this.hp / this.maxHp, 0, 1);
+      this.barFg.width(this.size * fr);
+      this.barFg.fill(fr > 0.5 ? '#22c55e' : (fr > 0.25 ? '#eab308' : '#ef4444'));
+      this.bar.visible(fr < 0.999 || this.isPlayer);
+      this.node.opacity(this.spawn > 0 ? 0.4 + 0.2 * Math.sin(time * 20) : 1);
+    }
+    fire(offsets, shellId) {
+      var out = [];
+      if (this.reload > 0 || this.spawn > 0) return out;
+      this.reload = this.reloadTime;
+      var sh = SHELL[shellId || 'reg'];
+      var dmg = this.bulletDamage * sh.d;
+      var pen = this.bulletPen * sh.p;
+      if (shellId === 'ap') pen = Math.max(this.bulletPen, Math.min(90, this.bulletPen * 1.3));
+      var color = (shellId && shellId !== 'reg') ? sh.c : this.bulletColor;
+      var r = this.isBoss ? 6 : sh.r;
+      for (var i = 0; i < offsets.length; i++) {
+        var a = this.turret + offsets[i] + (Math.random() - 0.5) * 2 * this.spread;
+        var mx = this.x + Math.cos(a) * this.size * 0.78;
+        var my = this.y + Math.sin(a) * this.size * 0.78;
+        var nb = new Bullet(mx, my, a, dmg, pen, this.ally ? 'ally' : 'enemy',
+          this.bulletSpeed, r, color, shellId || 'reg');
+        nb.byPlayer = this.isPlayer;
+        nb.pid = this.isPlayer ? this.pid : -1;
+        out.push(nb);
+      }
+      return out;
+    }
+    // попадание: определяем сторону и угол встречи со бронёй
+    takeHit(b) {
+      var cr = Math.cos(-this.rotate), sr = Math.sin(-this.rotate);
+      var rx = b.x - this.x, ry = b.y - this.y;
+      var lx = rx * cr - ry * sr, ly = rx * sr + ry * cr;
+      var dx = Math.cos(b.angle), dy = Math.sin(b.angle);
+      var ldx = dx * cr - dy * sr, ldy = dx * sr + dy * cr;
+      var face, cosA;
+      if (Math.abs(lx) >= Math.abs(ly)) { face = lx > 0 ? 'front' : 'rear'; cosA = Math.abs(ldx); }
+      else { face = 'side'; cosA = Math.abs(ldy); }
+      var F = FACE[face];
+      var topY = this.y - this.size / 2;
+      var out = { pen: false, dmg: 0, rack: false, face: face };
+
+      // сбитая гусеница (бок), независимо от пробития
+      if (face === 'side') {
+        var tc = b.shell === 'he' ? TRACK_CHANCE_HE : TRACK_CHANCE;
+        if (Math.random() < tc) {
+          this.trackT = TRACK_TIME;
+          floatText(this.x, topY - 30, 'гусеница!', '#fbbf24', 13);
+        }
+      }
+
+      var chance = Math.min(100, b.pen * this.armor * F.p * cosA);
+      if (chance < MIN_PEN) {
+        floatText(this.x, topY - 10, 'рикошет', '#cbd5e1');
+        return out;
+      }
+      if (Math.random() * 100 < chance) {
+        var before = this.hp;
+        var dmg = (10 + Math.random() * 50) * b.damage * F.d;
+        this.hp -= dmg;
+        this.flash = 0.1;
+        out.pen = true;
+        out.dmg = dmg;
+        floatText(this.x, topY - 10, String(Math.max(1, Math.round(dmg))), this.ally ? '#fca5a5' : '#fde68a');
+        if (b.shell === 'he' && !this.isBoss && Math.random() < 0.1) {
+          out.rack = true;
+          out.dmg = before;
+          this.hp = 0;
+        }
+      } else {
+        floatText(this.x, topY - 10, 'не пробил', '#94a3b8');
+      }
+      return out;
+    }
+    destroy() { this.node.destroy(); }
+  }
+
+  class Bonus {
+    constructor(x, y, type) {
+      this.x = x; this.y = y; this.type = type;
+      var b = BONUS[type];
+      this.node = new Konva.Group({ x: x, y: y });
+      this.node.add(new Konva.Circle({ radius: 14, fill: '#0b0f14', stroke: b.c, strokeWidth: 3 }));
+      this.node.add(new Konva.Text({ x: -14, y: -8, width: 28, align: 'center', text: b.i, fontSize: 15 }));
+      bonusG.add(this.node);
+    }
+    destroy() { this.node.destroy(); }
+  }
+
+  class Obstacle {
+    constructor(x, y, w, h) {
+      this.x = x; this.y = y; this.w = w; this.h = h;
+      this.node = new Konva.Group({ x: x, y: y });
+      this.node.add(new Konva.Rect({
+        width: w, height: h, fill: '#2b3441', stroke: '#0b0f14', strokeWidth: 6, cornerRadius: 8
+      }));
+      this.node.add(new Konva.Rect({
+        x: 10, y: 10, width: w - 20, height: h - 20, fill: '#465366', cornerRadius: 4
+      }));
+      obsG.add(this.node);
+    }
+    destroy() { this.node.destroy(); }
+  }
+
+  // коробка рисуется одной фигурой — их сотни, так легче для отрисовки
+  class Box {
+    constructor(x, y) {
+      this.x = x; this.y = y;
+      this.id = ++boxIdSeq;
+      var s = BOX_HALF - 1;
+      this.node = new Konva.Shape({
+        x: x, y: y, listening: false,
+        fill: '#8b5a2b', stroke: '#4a2f12', strokeWidth: 3,
+        sceneFunc: function (ctx, shape) {
+          ctx.beginPath();
+          ctx.rect(-s, -s, s * 2, s * 2);
+          ctx.moveTo(-s, -s); ctx.lineTo(s, s);
+          ctx.moveTo(s, -s); ctx.lineTo(-s, s);
+          ctx.fillStrokeShape(shape);
+        }
+      });
+      boxG.add(this.node);
+    }
+    sync() { this.node.position({ x: this.x, y: this.y }); }
+    destroy() { this.node.destroy(); }
+  }
+
+  // ====================== сборка танков ======================
+  function loadoutStats() {
+    var T = TANKS[curTank], G = T.guns[owned[curTank].gun - 1];
+    return {
+      speed: PLAYER_SPEED * T.speed * bonus.speed,
+      reload: Math.max(0.12, T.reload * G.r * bonus.reload),
+      damage: T.dmg * G.d * bonus.damage,
+      pen: Math.min(95, (BASE_PEN + bonus.pen) * G.p),
+      maxHp: T.hp + bonus.hp
+    };
+  }
+  function createPlayer(x, y) {
+    var T = TANKS[curTank], st = loadoutStats();
+    return new Tank(x, y, {
+      size: T.size, isPlayer: true, pid: 0, color: T.color, turretColor: T.turret, bulletColor: SHELL.reg.c,
+      hp: st.maxHp, speed: st.speed, reload: st.reload, damage: st.damage, pen: st.pen,
+      bulletSpeed: 360, armor: T.armor
+    });
+  }
+  var player = createPlayer(WORLD / 2, WORLD / 2);
+
+  // второй игрок: лёгкий танк, свои бонусы, оранжевый (первый — синий)
+  function loadoutStats2() {
+    var T = TANKS.light, G = T.guns[0], b = bonus2;
+    return {
+      speed: PLAYER_SPEED * T.speed * b.speed,
+      reload: Math.max(0.12, T.reload * G.r * b.reload),
+      damage: T.dmg * G.d * b.damage,
+      pen: Math.min(95, (BASE_PEN + b.pen) * G.p),
+      maxHp: T.hp + b.hp
+    };
+  }
+  function createPlayer2(x, y, pid) {
+    var T = TANKS.light, st = loadoutStats2();
+    return new Tank(x, y, {
+      size: T.size, isPlayer: true, pid: pid === undefined ? 1 : pid,
+      color: pid === 0 ? T.color : '#f59e0b', turretColor: pid === 0 ? T.turret : '#fde68a',
+      bulletColor: SHELL.reg.c,
+      hp: st.maxHp, speed: st.speed, reload: st.reload, damage: st.damage, pen: st.pen,
+      bulletSpeed: 360, armor: T.armor
+    });
+  }
+  function recomputeStats2() {
+    if (!player2) return;
+    var st = loadoutStats2();
+    player2.baseMaxSpeed = st.speed;
+    player2.baseReloadTime = st.reload;
+    player2.baseBulletDamage = st.damage;
+    player2.baseBulletPenetration = st.pen;
+    player2.maxHp = st.maxHp;
+  }
+  function livePlayers() {
+    var r = [];
+    if (!player.dead) r.push(player);
+    if (player2 && !player2.dead) r.push(player2);
+    return r;
+  }
+  function nearestPlayer(x, y) {
+    var l = livePlayers(), best = null, bd = 1e9;
+    for (var i = 0; i < l.length; i++) {
+      var d = Math.hypot(l[i].x - x, l[i].y - y);
+      if (d < bd) { bd = d; best = l[i]; }
+    }
+    return best;
+  }
+  function camTarget() { return (player.dead && player2 && !player2.dead) ? player2 : player; }
+  function addScore(pid, n) { scores[pid] += n; score = scores[0]; }
+  function hurtFx(p) {
+    if (p === player && netRole !== 'guest') {
+      $('hurt').style.opacity = 1;
+      setTimeout(function () { $('hurt').style.opacity = 0; }, 150);
+    } else if (netRole === 'host') evq.push(['h']);
+  }
+  function revivePlayer(p, near) {
+    if (!p || !p.dead) return;
+    p.dead = false; p.hp = p.maxHp; p.trackT = 0; p.killer = -1;
+    p.node.visible(true);
+    if (near) { p.x = near.x + 60; p.y = near.y; unstick(p); }
+    p.sync();
+  }
+
+  function recomputeStats() {
+    var st = loadoutStats();
+    player.baseMaxSpeed = st.speed;
+    player.baseReloadTime = st.reload;
+    player.baseBulletDamage = st.damage;
+    player.baseBulletPenetration = st.pen;
+    player.maxHp = st.maxHp;
+    player.armor = TANKS[curTank].armor;
+    player.hp = Math.min(player.hp, player.maxHp);
+  }
+
+  // смена танка: степень повреждений переносится пропорционально
+  function rebuildPlayer() {
+    var ratio = player.hp / player.maxHp;
+    var x = player.x, y = player.y, rot = player.rotate, tk = player.trackT;
+    player.destroy();
+    player = createPlayer(x, y);
+    player.hp = ratio * player.maxHp;
+    player.rotate = rot; player.turret = rot; player.trackT = tk;
+    unstick(player);
+    player.sync();
+  }
+  function unstick(t) {
+    var h = t.size / 2 - 1;
+    if (!blocked(t.x, t.y, h)) return;
+    for (var r = 10; r <= 400; r += 10) {
+      for (var k = 0; k < 16; k++) {
+        var a = k / 16 * Math.PI * 2;
+        var nx = t.x + Math.cos(a) * r, ny = t.y + Math.sin(a) * r;
+        if (!blocked(nx, ny, h)) { t.x = nx; t.y = ny; return; }
+      }
+    }
+  }
+
+  function makeEnemy(x, y, L, boss, kind, ally) {
+    var s = 1 + 0.1 * (L - 1);
+    if (boss) {
+      return new Tank(x, y, {
+        size: 58, isBoss: true, color: '#9333ea', turretColor: '#d8b4fe', bulletColor: '#c084fc',
+        hp: 350 * s, speed: Math.min(85, 55 + L * 1.5), reload: BOSS_RELOAD,
+        damage: Math.min(1.6, 0.7 + 0.05 * L), pen: Math.min(80, 45 + L * 2),
+        bulletSpeed: 270, spread: 0.05, turretRate: 2, spawn: 1.4
+      });
+    }
+    var K = ENEMY_KINDS[kind || 'light'], AC = ALLY_COLORS[kind || 'light'];
+    return new Tank(x, y, {
+      ally: !!ally,
+      size: K.size, armor: K.armor,
+      color: ally ? AC.color : K.color, turretColor: ally ? AC.turret : K.turret,
+      bulletColor: ally ? '#86efac' : '#fb7185',
+      hp: 50 * K.hp * s, speed: Math.min(112, 68 + L * 3) * K.speed,
+      reload: Math.max(0.9, 2.3 - 0.07 * L) * K.reload,
+      damage: Math.min(1.5, 0.55 + 0.05 * L) * K.dmg, pen: Math.min(75, 38 + L * 2),
+      bulletSpeed: Math.min(340, 240 + L * 5), spread: Math.max(0.05, 0.32 - 0.015 * L),
+      turretRate: Math.min(5, 2.4 + 0.1 * L), spawn: 1.2
+    });
+  }
+
+  // ====================== сетка поиска пути ======================
+  var obsCells = new Uint8Array(GN * GN);      // клетки, закрытые препятствиями (с раздутием)
+  var boxMap = new Uint8Array(GN * GN);        // клетки, где стоит коробка
+  var blockedCells = new Uint8Array(GN * GN);  // препятствия + коробки
+  var distField = new Int16Array(GN * GN);     // расстояние до игрока
+  var allyField = new Int16Array(GN * GN);     // расстояние до ближайшего врага (для союзников)
+  var queue = new Int16Array(GN * GN);
+  var fieldT = 0;
+
+  function cellOf(v) { return clamp(Math.floor(v / CELL), 0, GN - 1); }
+
+  // препятствия не меняются в течение уровня, а коробки ломаются и двигаются,
+  // поэтому слой коробок пересобирается отдельно и часто
+  function refreshBlocked() {
+    blockedCells.set(obsCells);
+    boxMap.fill(0);
+    for (var i = 0; i < boxes.length; i++) {
+      var ci = cellOf(boxes[i].y) * GN + cellOf(boxes[i].x);
+      blockedCells[ci] = 1;
+      boxMap[ci] = 1;
+    }
+  }
+
+  function buildBlocked() {
+    obsCells.fill(0);
+    for (var i = 0; i < obstacles.length; i++) {
+      var o = obstacles[i];
+      var x0 = clamp(Math.floor((o.x - INFL) / CELL), 0, GN - 1);
+      var x1 = clamp(Math.floor((o.x + o.w + INFL) / CELL), 0, GN - 1);
+      var y0 = clamp(Math.floor((o.y - INFL) / CELL), 0, GN - 1);
+      var y1 = clamp(Math.floor((o.y + o.h + INFL) / CELL), 0, GN - 1);
+      for (var cy = y0; cy <= y1; cy++)
+        for (var cx = x0; cx <= x1; cx++) obsCells[cy * GN + cx] = 1;
+    }
+    refreshBlocked();
+  }
+
+  // ====================== комнаты из коробок ======================
+  function roomGap(a, b) {
+    return {
+      gx: Math.max(a.x, b.x) - Math.min(a.x + a.w, b.x + b.w),
+      gy: Math.max(a.y, b.y) - Math.min(a.y + a.h, b.y + b.h)
+    };
+  }
+
+  // r — кандидат, base — комната, к которой он должен примкнуть общей стеной (или null)
+  function roomFits(r, base, list, margin) {
+    if (r.x < 2 || r.y < 2 || r.x + r.w > GN - 2 || r.y + r.h > GN - 2) return false;
+    var i, pls = player2 ? [player, player2] : [player];
+    for (i = 0; i < pls.length; i++) {
+      var pcx = cellOf(pls[i].x), pcy = cellOf(pls[i].y);
+      if (pcx >= r.x - 3 && pcx <= r.x + r.w + 2 && pcy >= r.y - 3 && pcy <= r.y + r.h + 2) return false;
+    }
+    for (i = 0; i < bonuses.length; i++) {
+      var bx = cellOf(bonuses[i].x), by = cellOf(bonuses[i].y);
+      if (bx >= r.x - 1 && bx <= r.x + r.w && by >= r.y - 1 && by <= r.y + r.h) return false;
+    }
+    for (i = 0; i < list.length; i++) {
+      var o = list[i], g = roomGap(r, o);
+      if (o === base) {
+        // общая стена: перекрытие в 1 клетку по одной оси и минимум 5 клеток по другой
+        if (!((g.gx === -1 && g.gy <= -5) || (g.gy === -1 && g.gx <= -5))) return false;
+      } else if (g.gx < margin && g.gy < margin) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  function genRooms() {
+    var best = null;
+    for (var attempt = 0; attempt < 8; attempt++) {
+      var list = [], links = [], target = randInt(ROOMS_MIN, ROOMS_MAX), tries = 0;
+      while (list.length < target && tries < 600) {
+        tries++;
+        var w = randInt(ROOM_SIZE_MIN, ROOM_SIZE_MAX), h = randInt(ROOM_SIZE_MIN, ROOM_SIZE_MAX);
+        var r = { x: 0, y: 0, w: w, h: h }, base = null;
+        if (list.length && Math.random() < ROOM_LINK_CHANCE) {
+          base = list[randInt(0, list.length - 1)];
+          var side = randInt(0, 3);
+          if (side === 0)      { r.x = base.x + base.w - 1; r.y = base.y + randInt(-(h - 5), base.h - 5); }
+          else if (side === 1) { r.x = base.x - w + 1;      r.y = base.y + randInt(-(h - 5), base.h - 5); }
+          else if (side === 2) { r.y = base.y + base.h - 1; r.x = base.x + randInt(-(w - 5), base.w - 5); }
+          else                 { r.y = base.y - h + 1;      r.x = base.x + randInt(-(w - 5), base.w - 5); }
+          if (!roomFits(r, base, list, 2)) continue;
+          links.push([base, r]);
+        } else {
+          r.x = randInt(2, GN - 2 - w);
+          r.y = randInt(2, GN - 2 - h);
+          if (!roomFits(r, null, list, 3)) continue;
+        }
+        list.push(r);
+      }
+      if (!best || list.length > best.rooms.length) best = { rooms: list, links: links };
+      if (list.length >= ROOMS_MIN) break;
+    }
+    return best;
+  }
+
+  function spawnRooms() {
+    var i, cx, cy;
+    for (i = 0; i < boxes.length; i++) boxes[i].destroy();
+    boxes.length = 0;
+
+    var g = genRooms();
+    rooms = g.rooms;
+
+    var wc = new Uint8Array(GN * GN);     // сколько комнат использует клетку как стену
+    var door = new Uint8Array(GN * GN);   // клетки проёмов
+    function idx(x, y) { return y * GN + x; }
+
+    rooms.forEach(function (r) {
+      for (var x = r.x; x < r.x + r.w; x++) { wc[idx(x, r.y)]++; wc[idx(x, r.y + r.h - 1)]++; }
+      for (var y = r.y + 1; y < r.y + r.h - 1; y++) { wc[idx(r.x, y)]++; wc[idx(r.x + r.w - 1, y)]++; }
+    });
+
+    // проём в общей стене сцепленных комнат
+    g.links.forEach(function (lk) {
+      var a = lk[0], b = lk[1], lo, hi, d;
+      if (b.x === a.x + a.w - 1 || b.x + b.w - 1 === a.x) {
+        var col = (b.x === a.x + a.w - 1) ? b.x : a.x;
+        lo = Math.max(a.y, b.y); hi = Math.min(a.y + a.h, b.y + b.h) - 1;
+        d = randInt(lo + 1, hi - 2);
+        door[idx(col, d)] = 1; door[idx(col, d + 1)] = 1;
+      } else {
+        var row = (b.y === a.y + a.h - 1) ? b.y : a.y;
+        lo = Math.max(a.x, b.x); hi = Math.min(a.x + a.w, b.x + b.w) - 1;
+        d = randInt(lo + 1, hi - 2);
+        door[idx(d, row)] = 1; door[idx(d + 1, row)] = 1;
+      }
+    });
+
+    // двери наружу: по две на комнату, только в «свободных» стенах (не общих)
+    rooms.forEach(function (r) {
+      var made = 0, t = 0;
+      while (made < 2 && t < 40) {
+        t++;
+        var side = randInt(0, 3), dx = 0, dy = 0;
+        if (side < 2) { cx = randInt(r.x + 1, r.x + r.w - 3); cy = side === 0 ? r.y : r.y + r.h - 1; dx = 1; }
+        else          { cy = randInt(r.y + 1, r.y + r.h - 3); cx = side === 2 ? r.x : r.x + r.w - 1; dy = 1; }
+        var c1 = idx(cx, cy), c2 = idx(cx + dx, cy + dy);
+        if (wc[c1] !== 1 || wc[c2] !== 1 || door[c1]) continue;
+        door[c1] = 1; door[c2] = 1; made++;
+      }
+    });
+
+    for (cy = 0; cy < GN; cy++) {
+      for (cx = 0; cx < GN; cx++) {
+        var k = idx(cx, cy);
+        if (wc[k] && !door[k]) boxes.push(new Box(cx * CELL + CELL / 2, cy * CELL + CELL / 2));
+      }
+    }
+  }
+
+  function makeObstacles() {
+    var i;
+    for (i = 0; i < obstacles.length; i++) obstacles[i].destroy();
+    obstacles.length = 0;
+    var n = 7 + Math.floor(Math.random() * 5) + Math.min(6, Math.floor(level / 2));
+    var tries = 0;
+    while (obstacles.length < n && tries < 300) {
+      tries++;
+      var w = 90 + Math.random() * 130, h = 90 + Math.random() * 130;
+      var x = 60 + Math.random() * (WORLD - w - 120);
+      var y = 60 + Math.random() * (WORLD - h - 120);
+      var m = INFL + 70;
+      if (player.x > x - m && player.x < x + w + m && player.y > y - m && player.y < y + h + m) continue;
+      if (player2 && player2.x > x - m && player2.x < x + w + m && player2.y > y - m && player2.y < y + h + m) continue;
+      var onBonus = false;
+      for (i = 0; i < bonuses.length; i++) {
+        var b = bonuses[i];
+        if (b.x > x - 30 && b.x < x + w + 30 && b.y > y - 30 && b.y < y + h + 30) { onBonus = true; break; }
+      }
+      if (onBonus) continue;
+      // не лезем в комнаты и оставляем проход вокруг них
+      var nearRoom = false;
+      for (i = 0; i < rooms.length; i++) {
+        var rm = rooms[i], rx = rm.x * CELL, ry = rm.y * CELL;
+        if (x < rx + rm.w * CELL + 100 && x + w > rx - 100 && y < ry + rm.h * CELL + 100 && y + h > ry - 100) { nearRoom = true; break; }
+      }
+      if (nearRoom) continue;
+      obstacles.push(new Obstacle(x, y, w, h));
+    }
+    buildBlocked();
+  }
+
+  // коробку нельзя втолкнуть в танк (иначе она оказывается внутри него)
+  function boxHitsTank(nx, ny, t, pusher) {
+    if (t === pusher || t.dead) return false;
+    var r = BOX_HALF + t.size / 2 - 1;
+    return Math.abs(nx - t.x) < r && Math.abs(ny - t.y) < r;
+  }
+
+  function boxBlocked(nx, ny, self, pusher) {
+    var h = BOX_HALF, i;
+    if (nx - h < 0 || ny - h < 0 || nx + h > WORLD || ny + h > WORLD) return true;
+    for (i = 0; i < obstacles.length; i++) {
+      var o = obstacles[i];
+      if (nx + h > o.x && nx - h < o.x + o.w && ny + h > o.y && ny - h < o.y + o.h) return true;
+    }
+    for (i = 0; i < boxes.length; i++) {
+      var b = boxes[i];
+      if (b !== self && Math.abs(nx - b.x) < 2 * h && Math.abs(ny - b.y) < 2 * h) return true;
+    }
+    if (boxHitsTank(nx, ny, player, pusher)) return true;
+    if (player2 && boxHitsTank(nx, ny, player2, pusher)) return true;
+    for (i = 0; i < enemies.length; i++) if (boxHitsTank(nx, ny, enemies[i], pusher)) return true;
+    for (i = 0; i < allies.length; i++) if (boxHitsTank(nx, ny, allies[i], pusher)) return true;
+    return false;
+  }
+
+  function destroyBox(i) {
+    var b = boxes[i];
+    explode(b.x, b.y, 28, 0);
+    for (var k = 0; k < 6; k++) debris(b.x, b.y, 6 + Math.random() * 5, '#8b5a2b', 0.6);
+    if (netRole === 'host') evq.push(['db', Math.round(b.x), Math.round(b.y)]);
+    b.destroy();
+    boxes.splice(i, 1);
+    boxDirty = true;
+    fieldT = 0;   // проход открылся — боты пересчитают путь
+  }
+
+  function blocked(cx, cy, half) {
+    if (cx - half < 0 || cy - half < 0 || cx + half > WORLD || cy + half > WORLD) return true;
+    for (var i = 0; i < obstacles.length; i++) {
+      var o = obstacles[i];
+      if (cx + half > o.x && cx - half < o.x + o.w && cy + half > o.y && cy - half < o.y + o.h) return true;
+    }
+    return false;
+  }
+
+  // точка свободна и от препятствий, и от коробок (для спавна)
+  function spotFree(x, y, half) {
+    if (blocked(x, y, half)) return false;
+    for (var i = 0; i < boxes.length; i++) {
+      var b = boxes[i];
+      if (Math.abs(x - b.x) < half + BOX_HALF && Math.abs(y - b.y) < half + BOX_HALF) return false;
+    }
+    return true;
+  }
+
+  // попытка сдвинуться по одной оси, ящики при этом толкаются
+  function tryAxis(t, nx, ny, ddx, ddy) {
+    var h = t.size / 2 - 1;
+    if (blocked(nx, ny, h)) return false;
+    var push = null, i;
+    for (i = 0; i < boxes.length; i++) {
+      var b = boxes[i];
+      if (Math.abs(nx - b.x) < h + BOX_HALF && Math.abs(ny - b.y) < h + BOX_HALF) {
+        var bx = b.x + ddx, by = b.y + ddy;
+        if (boxBlocked(bx, by, b, t)) return false;
+        if (!push) push = [];
+        push.push(b, bx, by);
+      }
+    }
+    if (push) {
+      for (i = 0; i < push.length; i += 3) {
+        push[i].x = push[i + 1]; push[i].y = push[i + 2]; push[i].sync();
+        boxDirty = true;
+      }
+    }
+    t.x = nx; t.y = ny;
+    return true;
+  }
+
+  function moveTank(t, dx, dy) {
+    var moved = false;
+    if (dx !== 0 && tryAxis(t, t.x + dx, t.y, dx, 0)) moved = true;
+    if (dy !== 0 && tryAxis(t, t.x, t.y + dy, 0, dy)) moved = true;
+    return moved;
+  }
+
+  function bulletHitsObstacle(b) {
+    for (var i = 0; i < obstacles.length; i++) {
+      var o = obstacles[i];
+      if (b.x > o.x && b.x < o.x + o.w && b.y > o.y && b.y < o.y + o.h) return true;
+    }
+    return false;
+  }
+  function bulletHitsBox(b) {
+    for (var i = 0; i < boxes.length; i++) {
+      var o = boxes[i];
+      if (Math.abs(b.x - o.x) < BOX_HALF && Math.abs(b.y - o.y) < BOX_HALF) return i;
+    }
+    return -1;
+  }
+
+  // линия видимости; коробки тоже закрывают обзор, если не указано ignoreBoxes
+  function clearLine(x1, y1, x2, y2, margin, ignoreBoxes) {
+    var d = Math.hypot(x2 - x1, y2 - y1);
+    var steps = Math.max(1, Math.ceil(d / 16));
+    for (var s = 1; s < steps; s++) {
+      var px = x1 + (x2 - x1) * s / steps, py = y1 + (y2 - y1) * s / steps;
+      for (var i = 0; i < obstacles.length; i++) {
+        var o = obstacles[i];
+        if (px > o.x - margin && px < o.x + o.w + margin && py > o.y - margin && py < o.y + o.h + margin) return false;
+      }
+      if (!ignoreBoxes && boxMap[cellOf(py) * GN + cellOf(px)]) return false;
+    }
+    return true;
+  }
+
+  // ====================== поиск пути: поле расстояний от игрока ======================
+  var DX = [1, -1, 0, 0, 1, 1, -1, -1];
+  var DY = [0, 0, 1, -1, 1, -1, 1, -1];
+
+  // поле расстояний от одной или нескольких клеток-источников
+  function bfs(field, srcs) {
+    field.fill(-1);
+    var head = 0, tail = 0, k;
+    for (k = 0; k < srcs.length; k++) {
+      if (field[srcs[k]] < 0) { field[srcs[k]] = 0; queue[tail++] = srcs[k]; }
+    }
+    while (head < tail) {
+      var c = queue[head++];
+      var x = c % GN, y = (c / GN) | 0;
+      for (var d = 0; d < 8; d++) {
+        var nx = x + DX[d], ny = y + DY[d];
+        if (nx < 0 || ny < 0 || nx >= GN || ny >= GN) continue;
+        var ni = ny * GN + nx;
+        if (field[ni] >= 0 || blockedCells[ni]) continue;
+        if (DX[d] && DY[d] && (blockedCells[y * GN + nx] || blockedCells[ny * GN + x])) continue;
+        field[ni] = field[c] + 1;
+        queue[tail++] = ni;
+      }
+    }
+  }
+
+  function buildField() {
+    refreshBlocked();
+    var ps = livePlayers(), psrc = [];
+    if (!ps.length) ps = [player];
+    for (var pj = 0; pj < ps.length; pj++) psrc.push(cellOf(ps[pj].y) * GN + cellOf(ps[pj].x));
+    bfs(distField, psrc);
+    if (allies.length && enemies.length) {
+      var src = [];
+      for (var i = 0; i < enemies.length; i++) src.push(cellOf(enemies[i].y) * GN + cellOf(enemies[i].x));
+      bfs(allyField, src);
+    }
+  }
+
+  function flowTarget(t, field) {
+    var x = cellOf(t.x), y = cellOf(t.y), c = y * GN + x;
+    var best = -1, bd = field[c] >= 0 ? field[c] : 99999;
+    for (var d = 0; d < 8; d++) {
+      var nx = x + DX[d], ny = y + DY[d];
+      if (nx < 0 || ny < 0 || nx >= GN || ny >= GN) continue;
+      var ni = ny * GN + nx, di = field[ni];
+      if (di < 0) continue;
+      if (DX[d] && DY[d] && (blockedCells[y * GN + nx] || blockedCells[ny * GN + x])) continue;
+      if (di < bd) { bd = di; best = ni; }
+    }
+    if (best < 0) return null;
+    return { x: (best % GN) * CELL + CELL / 2, y: ((best / GN) | 0) * CELL + CELL / 2 };
+  }
+
+  // ====================== бонусы ======================
+  function dropBonus(x, y) {
+    var type = BONUS_TYPES[Math.floor(Math.random() * BONUS_TYPES.length)];
+    bonuses.push(new Bonus(x, y, type));
+    bonusDirty = true;
+  }
+
+  function applyBonus(type, who) {
+    var b = who === 1 ? bonus2 : bonus, p = who === 1 ? player2 : player;
+    var rc = who === 1 ? recomputeStats2 : recomputeStats;
+    switch (type) {
+      case 'reload':      b.reload = Math.max(0.3, b.reload * 0.95); break;
+      case 'speed':       b.speed *= 1.02; break;
+      case 'durability':  b.hp += 5; rc(); p.hp = Math.min(p.maxHp, p.hp + 12); return;
+      case 'damage':      b.damage *= 1.08; break;
+      case 'penetration': b.pen += 2.5; break;
+    }
+    rc();
+  }
+
+  // ====================== уровни ======================
+  var bannerTimer = null;
+  function showBanner(main, sub, ms) {
+    if (netRole === 'host') evq.push(['b', main, sub, ms || 0]);
+    var el = $('banner');
+    el.innerHTML = '<div>' + main + '</div><small>' + sub + '</small>';
+    el.className = 'show';
+    clearTimeout(bannerTimer);
+    bannerTimer = setTimeout(function () { el.className = ''; }, ms || 2200);
+  }
+
+  function pickKind(L) {
+    var rr = Math.random();
+    var pm = L >= 3 ? Math.min(0.5, (L - 2) * 0.08) : 0;   // доля средних
+    var ph = L > 5 ? Math.min(0.3, (L - 5) * 0.05) : 0;    // доля тяжёлых после 5 уровня
+    if (rr < ph) return 'heavy';
+    if (rr < ph + pm) return 'medium';
+    return 'light';
+  }
+
+  // бот не появляется внутри коробок, но внутри комнат из них — запросто
+  function placeEnemy(L, boss, kind) {
+    var size = boss ? 58 : ENEMY_KINDS[kind || 'light'].size;
+    var half = size / 2 + 4, x = 0, y = 0, minD = 650;
+    for (var i = 0; i < 120; i++) {
+      if (i === 60) minD = 350;   // если место не находится, разрешаем ближе к игроку
+      if (rooms.length && Math.random() < 0.5) {
+        var rm = rooms[Math.floor(Math.random() * rooms.length)];
+        x = (rm.x + 1) * CELL + half + Math.random() * Math.max(1, (rm.w - 2) * CELL - 2 * half);
+        y = (rm.y + 1) * CELL + half + Math.random() * Math.max(1, (rm.h - 2) * CELL - 2 * half);
+      } else {
+        x = 100 + Math.random() * (WORLD - 200);
+        y = 100 + Math.random() * (WORLD - 200);
+      }
+      var nearP = false, lp = livePlayers();
+      for (var pi = 0; pi < lp.length; pi++) if (Math.hypot(x - lp[pi].x, y - lp[pi].y) < minD) nearP = true;
+      if (nearP) continue;
+      if (obsCells[cellOf(y) * GN + cellOf(x)]) continue;
+      if (!spotFree(x, y, half)) continue;
+      break;
+    }
+    var e = makeEnemy(x, y, L, boss, kind);
+    enemies.push(e);
+    explode(x, y, e.size);
+    return e;
+  }
+
+  // союзник появляется рядом с игроком
+  function placeAlly(L, kind) {
+    var anc = livePlayers()[Math.floor(Math.random() * livePlayers().length)] || player;
+    var half = ENEMY_KINDS[kind].size / 2 + 4, x = anc.x, y = anc.y, ok = false;
+    for (var i = 0; i < 80 && !ok; i++) {
+      var a = Math.random() * Math.PI * 2, d = 90 + Math.random() * (i < 40 ? 200 : 600);
+      x = anc.x + Math.cos(a) * d;
+      y = anc.y + Math.sin(a) * d;
+      ok = spotFree(x, y, half) && !obsCells[cellOf(y) * GN + cellOf(x)];
+    }
+    var t = makeEnemy(x, y, L, false, kind, true);
+    t.rotate = t.turret = Math.random() * Math.PI * 2;
+    allies.push(t);
+    explode(x, y, t.size);
+    return t;
+  }
+
+  function clearBullets() {
+    var i;
+    for (i = 0; i < playerBullets.length; i++) playerBullets[i].destroy();
+    for (i = 0; i < enemyBullets.length; i++) enemyBullets[i].destroy();
+    playerBullets.length = 0;
+    enemyBullets.length = 0;
+  }
+
+  function startLevel(n) {
+    level = n;
+    state = 'fight';
+    currentBoss = null;
+    clearBullets();
+    if (player2) {   // выбывшие игроки возвращаются на новом уровне
+      revivePlayer(player, player2.dead ? null : player2);
+      revivePlayer(player2, player.dead ? null : player);
+    }
+    spawnRooms();
+    makeObstacles();
+    var isBoss = (n % 5 === 0);
+    var cnt, allyCnt = 0, ai;
+    if (isTeamMode()) {
+      cnt = Math.min(TEAM_ENEMY_MAX, TEAM_ENEMY_START + n - 1);                  // +1 враг каждый уровень
+      allyCnt = Math.min(TEAM_ALLY_MAX, TEAM_ALLY_START + Math.floor((n - 1) / 2)); // +1 союзник каждые 2 уровня
+    } else {
+      cnt = Math.min(15, n + 1);   // 2, 3, 4 ... максимум 15
+      if (isBoss) cnt = Math.floor(cnt / 2);
+    }
+
+    // команда игрока собирается заново на каждом уровне
+    for (ai = 0; ai < allies.length; ai++) allies[ai].destroy();
+    allies.length = 0;
+    allyQueue = [];
+    for (ai = 0; ai < allyCnt; ai++) allyQueue.push({ kind: ai % 4 === 3 ? 'medium' : 'light' });
+
+    // боты появляются по одному раз в секунду; босс — первым
+    spawnQueue = [];
+    if (isBoss) spawnQueue.push({ boss: true, kind: 'light' });
+    for (var k = 0; k < cnt; k++) spawnQueue.push({ boss: false, kind: pickKind(n) });
+    spawnT = 0.6;
+
+    if (netRole === 'host') netSendLevel();
+    buildField();
+    fieldT = 0.3;
+    var total = cnt + (isBoss ? 1 : 0);
+    showBanner('Уровень ' + n, (isBoss ? '⚠ Босс на подходе · ' : '') + 'врагов: ' + total + (allyCnt ? ' · союзников: ' + allyCnt : ''), 2400);
+  }
+
+  function killEnemy(e, byPlayer) {
+    if (e.rack) {
+      rackKills++;
+      megaExplode(e.x, e.y, e.size);
+    } else {
+      explode(e.x, e.y, e.size * 1.6, 0);
+    }
+    if (e.isBoss) {
+      if (byPlayer) { addScore(byPlayer - 1, 5); if (byPlayer === 1) bossKills++; }
+      if (currentBoss === e) currentBoss = null;
+      for (var i = 0; i < 4; i++) dropBonus(e.x + (Math.random() - 0.5) * 90, e.y + (Math.random() - 0.5) * 90);
+    } else {
+      if (byPlayer) addScore(byPlayer - 1, 1);   // в счёт идут только свои убийства
+      dropBonus(e.x, e.y);     // бонус падает всегда и не исчезает
+    }
+    e.destroy();
+  }
+
+  // ====================== ввод ======================
+  var joy = { active: false, id: null, ox: 0, oy: 0, dx: 0, dy: 0, R: 60 };
+  var joyBase = new Konva.Circle({
+    radius: joy.R, fill: 'rgba(255,255,255,0.07)',
+    stroke: 'rgba(255,255,255,0.4)', strokeWidth: 2, opacity: 0.6
+  });
+  var joyHandle = new Konva.Circle({ radius: 26, fill: 'rgba(255,255,255,0.55)', opacity: 0.7 });
+  layer.add(joyBase);
+  layer.add(joyHandle);
+  function joyPlace(x, y, dx, dy) {
+    joyBase.position({ x: x, y: y });
+    joyHandle.position({ x: x + dx, y: y + dy });
+  }
+  function joyReset() {
+    joy.active = false; joy.id = null; joy.dx = 0; joy.dy = 0;
+    joyPlace(95, stage.height() - 95, 0, 0);
+    joyBase.opacity(0.6); joyHandle.opacity(0.7);
+  }
+  joyReset();
+  function joyStart(id, x, y) {
+    joy.active = true; joy.id = id; joy.ox = x; joy.oy = y; joy.dx = 0; joy.dy = 0;
+    joyPlace(x, y, 0, 0);
+    joyBase.opacity(1); joyHandle.opacity(1);
+  }
+  function joyMove(x, y) {
+    var dx = x - joy.ox, dy = y - joy.oy, d = Math.hypot(dx, dy);
+    if (d > joy.R) { dx *= joy.R / d; dy *= joy.R / d; }
+    joy.dx = dx; joy.dy = dy;
+    joyHandle.position({ x: joy.ox + dx, y: joy.oy + dy });
+  }
+
+  function isUi(target) {
+    return target && target.closest && target.closest('.btn, #stats, #fireBtn, #over, #shop, .sbtn, #clearedBar, #pauseOv, #menu, #lobby');
+  }
+
+  document.addEventListener('touchstart', function (e) {
+    for (var i = 0; i < e.changedTouches.length; i++) {
+      var t = e.changedTouches[i];
+      if (!joy.active && !shopOpen && t.clientX < window.innerWidth * 0.55 && !isUi(e.target)) {
+        joyStart(t.identifier, t.clientX, t.clientY);
+      }
+    }
+  }, { passive: false });
+  document.addEventListener('touchmove', function (e) {
+    if (e.cancelable && !(e.target.closest && e.target.closest('#shop'))) e.preventDefault();
+    for (var i = 0; i < e.changedTouches.length; i++) {
+      var t = e.changedTouches[i];
+      if (joy.active && t.identifier === joy.id) joyMove(t.clientX, t.clientY);
+    }
+  }, { passive: false });
+  function touchEndHandler(e) {
+    for (var i = 0; i < e.changedTouches.length; i++) {
+      if (joy.active && e.changedTouches[i].identifier === joy.id) joyReset();
+    }
+  }
+  document.addEventListener('touchend', touchEndHandler);
+  document.addEventListener('touchcancel', touchEndHandler);
+
+  var keys = {};
+  document.addEventListener('mousedown', function (e) {
+    if (!joy.active && !shopOpen && e.clientX < window.innerWidth * 0.55 && !isUi(e.target)) joyStart('mouse', e.clientX, e.clientY);
+  });
+  document.addEventListener('mousemove', function (e) {
+    if (joy.active && joy.id === 'mouse') joyMove(e.clientX, e.clientY);
+  });
+  document.addEventListener('mouseup', function () {
+    if (joy.active && joy.id === 'mouse') joyReset();
+    firing = keys[' '] ? true : false;
+    $('fireBtn').className = '';
+  });
+
+  document.addEventListener('keydown', function (e) {
+    keys[e.key.toLowerCase()] = true;
+    if (e.key === ' ') { keys[' '] = true; firing = true; e.preventDefault(); }
+    if (e.key === '1') setShell('reg');
+    if (e.key === '2') setShell('he');
+    if (e.key === '3') setShell('ap');
+    if (e.code === 'KeyP' || e.key === 'Escape') setPause(!paused);
+    if (e.code === 'KeyQ') aimOn = !aimOn;
+    if (e.code === 'KeyZ') autoZoomOn = !autoZoomOn;
+  });
+  document.addEventListener('keyup', function (e) {
+    keys[e.key.toLowerCase()] = false;
+    if (e.key === ' ') { keys[' '] = false; firing = false; }
+  });
+
+  function getInput() {
+    if (joy.active) {
+      var mag = Math.min(1, Math.hypot(joy.dx, joy.dy) / joy.R);
+      if (mag > 0.12) return { ang: Math.atan2(joy.dy, joy.dx), mag: mag };
+    }
+    var kx = (keys['d'] || keys['arrowright'] ? 1 : 0) - (keys['a'] || keys['arrowleft'] ? 1 : 0);
+    var ky = (keys['s'] || keys['arrowdown'] ? 1 : 0) - (keys['w'] || keys['arrowup'] ? 1 : 0);
+    if (kx || ky) return { ang: Math.atan2(ky, kx), mag: 1 };
+    return { ang: 0, mag: 0 };
+  }
+
+  var fireBtn = $('fireBtn');
+  fireBtn.addEventListener('touchstart', function (e) {
+    if (e.cancelable) e.preventDefault();
+    firing = true; fireBtn.className = 'down';
+  }, { passive: false });
+  fireBtn.addEventListener('touchend', function () { firing = false; fireBtn.className = ''; });
+  fireBtn.addEventListener('touchcancel', function () { firing = false; fireBtn.className = ''; });
+  fireBtn.addEventListener('mousedown', function () { firing = true; fireBtn.className = 'down'; });
+
+  function gunLevel() { return owned[curTank].gun; }
+  function setShell(s) {
+    if (s === 'reg') { shell = 'reg'; return; }
+    if (ammo[s] > 0 && gunLevel() >= 2) shell = s;
+  }
+  $('sReg').addEventListener('click', function () { setShell('reg'); });
+  $('sHe').addEventListener('click', function () { setShell('he'); });
+  $('sAp').addEventListener('click', function () { setShell('ap'); });
+
+  var paused = false, aimOn = false;
+  function setPause(p) {
+    if (gameOver || !started || netRole) return;
+    paused = p;
+    $('pauseOv').style.display = p ? 'flex' : 'none';
+    $('pauseBtn').textContent = p ? '▶' : '⏸';
+    if (p) { firing = false; fireBtn.className = ''; joyReset(); }
+  }
+  $('pauseBtn').addEventListener('click', function () { setPause(!paused); });
+  $('resumeBtn').addEventListener('click', function () { setPause(false); });
+  $('aimBtn').addEventListener('click', function () { aimOn = !aimOn; });
+  $('zoomBtn').addEventListener('click', function () { autoZoomOn = !autoZoomOn; });
+
+  // сворачивание окна с уровнем: остаётся только здоровье
+  $('minToggle').addEventListener('click', function () {
+    var min = $('stats').classList.toggle('min');
+    $('minToggle').textContent = min ? '▾' : '▴';
+  });
+
+  var aimLine = new Konva.Line({
+    points: [0, 0, 0, 0], stroke: '#ef4444', strokeWidth: 2, opacity: 0.85,
+    shadowColor: '#ef4444', shadowBlur: 6, listening: false, visible: false
+  });
+  fxG.add(aimLine);
+
+  $('backBtn').addEventListener('click', function () { window.location.href = 'glist.html'; });
+  $('overBack').addEventListener('click', function () { window.location.href = 'glist.html'; });
+  $('restartBtn').addEventListener('click', function () { window.location.reload(); });
+
+  window.addEventListener('resize', function () {
+    stage.width(window.innerWidth);
+    stage.height(window.innerHeight);
+    if (!joy.active) joyReset();
+  });
+
+  // панель характеристик + пасхалка
+  var statsOpen = false, eggTaps = 0, eggDone = false, eggTimer = null;
+  $('statsToggle').addEventListener('click', function () {
+    statsOpen = !statsOpen;
+    $('playerStats').style.display = statsOpen ? 'block' : 'none';
+    $('statsToggle').textContent = 'Характеристики ' + (statsOpen ? '▴' : '▾');
+    eggTaps++;
+    clearTimeout(eggTimer);
+    eggTimer = setTimeout(function () { eggTaps = 0; }, 3000);
+    if (eggTaps >= 10 && !eggDone && !gameOver) {
+      eggDone = true;
+      bonus.speed *= 10;
+      recomputeStats();
+      showBanner('Реактивный понос!', 'Ух, бля! Это как вообще ?', 3000);
+    }
+  });
+
+  // ====================== мастерская ======================
+  function openShop() {
+    if (state !== 'cleared' || gameOver) return;
+    shopOpen = true;
+    firing = false;
+    fireBtn.className = '';
+    joyReset();
+    renderShop();
+    $('shop').style.display = 'flex';
+  }
+  function closeShop() {
+    shopOpen = false;
+    $('shop').style.display = 'none';
+  }
+  function nextLevel() {
+    closeShop();
+    startLevel(level + 1);
+  }
+  $('openShop').addEventListener('click', openShop);
+  $('nextLvl').addEventListener('click', nextLevel);
+  $('shopClose').addEventListener('click', closeShop);
+  $('shopNext').addEventListener('click', nextLevel);
+
+  function item(title, desc, label, a, v, cls) {
+    return '<div class="it"><div><b>' + title + '</b><div class="muted">' + desc + '</div></div>' +
+      '<div class="ibtn ' + cls + '" data-a="' + a + '" data-v="' + v + '">' + label + '</div></div>';
+  }
+
+  function renderShop() {
+    var i, html, T, O;
+    $('shopXp').textContent = Math.floor(xp);
+    $('shopHp').textContent = 'Прочность танка: ' + Math.ceil(player.hp) + ' / ' + Math.round(player.maxHp);
+
+    // танки
+    html = '';
+    for (i = 0; i < TANK_IDS.length; i++) {
+      var id = TANK_IDS[i];
+      T = TANKS[id]; O = owned[id];
+      var desc = 'прочность ' + T.hp + ' · скорость ' + Math.round(T.speed * 100) + '% · пробитие по нему ×' + T.armor +
+        (T.dmg !== 1 ? ' · урон ×' + T.dmg : '');
+      if (!O.has) {
+        html += item(T.name, desc, 'Купить · ' + T.cost, 'buyTank', id, xp >= T.cost ? '' : 'dis');
+      } else if (curTank === id) {
+        html += item(T.name, desc, 'Выбран', 'none', id, 'cur');
+      } else {
+        html += item(T.name, desc, 'Выбрать', 'selTank', id, '');
+      }
+    }
+    $('shopTanks').innerHTML = html;
+
+    // орудия текущего танка
+    T = TANKS[curTank]; O = owned[curTank];
+    $('gunsTitle').textContent = 'Орудия · ' + T.name;
+    html = '';
+    for (i = 0; i < 4; i++) {
+      var G = T.guns[i], lvl = i + 1;
+      var gd = lvl === 1 ? 'базовое' : 'урон ×' + G.d + ' · перезарядка ×' + G.r + (G.p !== 1 ? ' · пробитие ×' + G.p : '');
+      if (O.learned[i]) {
+        if (O.gun === lvl) html += item('Орудие ' + lvl, gd, 'Установлено', 'none', lvl, 'cur');
+        else html += item('Орудие ' + lvl, gd, 'Установить', 'selGun', lvl, '');
+      } else if (O.learned[i - 1]) {
+        html += item('Орудие ' + lvl, gd, 'Изучить · ' + G.c, 'learnGun', lvl, xp >= G.c ? '' : 'dis');
+      } else {
+        html += item('Орудие ' + lvl, gd, 'Нужно орудие ' + (lvl - 1), 'none', lvl, 'dis');
+      }
+    }
+    $('shopGuns').innerHTML = html;
+
+    // ремонт
+    html = '';
+    html += item('«Говно и палки»', '+20% здоровья', '150 оп', 'repair', 'small', xp >= 150 ? '' : 'dis');
+    html += item('«Железяки и сварочник»', '+50% здоровья', '300 оп', 'repair', 'big', xp >= 300 ? '' : 'dis');
+    $('shopRepair').innerHTML = html;
+
+    // снаряды
+    html = '';
+    var heOk = gunLevel() >= 2;
+    var noteHe = heOk ? '' : ' · нужно орудие 2+';
+    html += item('Фугас 💣 (есть: ' + ammo.he + ')', 'пробитие ×0.6 · урон ×2 · 10% подрыв боеукладки' + noteHe,
+      '+1 · ' + SHELL_COST.he, 'shell', 'he:1', heOk && xp >= SHELL_COST.he ? '' : 'dis');
+    html += item('Фугас ×5', 'пачкой, ' + SHELL_COST.he * 5 + ' оп', '+5 · ' + SHELL_COST.he * 5, 'shell', 'he:5', heOk && xp >= SHELL_COST.he * 5 ? '' : 'dis');
+    html += item('Бронебойный 🎯 (есть: ' + ammo.ap + ')', 'пробитие ×1.3 (до 90%) · урон ×0.6',
+      '+1 · ' + SHELL_COST.ap, 'shell', 'ap:1', xp >= SHELL_COST.ap ? '' : 'dis');
+    html += item('Бронебойный ×5', 'пачкой, ' + SHELL_COST.ap * 5 + ' оп', '+5 · ' + SHELL_COST.ap * 5, 'shell', 'ap:5', xp >= SHELL_COST.ap * 5 ? '' : 'dis');
+    $('shopShells').innerHTML = html;
+  }
+
+  $('shop').addEventListener('click', function (e) {
+    var el = e.target.closest ? e.target.closest('.ibtn') : null;
+    if (!el || /dis|cur/.test(el.className)) return;
+    var a = el.getAttribute('data-a'), v = el.getAttribute('data-v');
+    var O = owned[curTank], T = TANKS[curTank];
+    if (a === 'buyTank') {
+      var BT = TANKS[v];
+      if (xp >= BT.cost) { xp -= BT.cost; owned[v].has = true; }
+    } else if (a === 'selTank') {
+      curTank = v; rebuildPlayer();
+      if (gunLevel() < 2 && shell !== 'reg') shell = 'reg';
+    } else if (a === 'learnGun') {
+      var li = parseInt(v, 10) - 1;
+      if (O.learned[li - 1] && !O.learned[li] && xp >= T.guns[li].c) { xp -= T.guns[li].c; O.learned[li] = true; }
+    } else if (a === 'selGun') {
+      O.gun = parseInt(v, 10);
+      recomputeStats();
+      if (O.gun < 2 && shell !== 'reg') shell = 'reg';
+    } else if (a === 'repair') {
+      var cost = v === 'small' ? 150 : 300, pct = v === 'small' ? 0.2 : 0.5;
+      if (xp >= cost) { xp -= cost; player.hp = Math.min(player.maxHp, player.hp + player.maxHp * pct); }
+    } else if (a === 'shell') {
+      var p = v.split(':'), kind = p[0], cnt = parseInt(p[1], 10);
+      var price = SHELL_COST[kind] * cnt;
+      if (xp >= price && (kind === 'ap' || gunLevel() >= 2)) { xp -= price; ammo[kind] += cnt; }
+    }
+    renderShop();
+  });
+
+  // ====================== ИИ ботов ======================
+  // враги ищут игрока и его союзников, союзники — врагов
+  function updateBot(e, dt) {
+    e.tick(dt);
+    if (e.spawn > 0) { e.sync(); return; }
+
+    var foes = e.ally ? enemies : allies;
+    var tgt = null, tDist = 1e9, i, c, d;
+
+    // ближайшая видимая цель в зоне стрельбы
+    if (!e.ally) {
+      var lpl = livePlayers();
+      for (i = 0; i < lpl.length; i++) {
+        d = Math.hypot(lpl[i].x - e.x, lpl[i].y - e.y);
+        if (d < tDist && d < 700 && clearLine(e.x, e.y, lpl[i].x, lpl[i].y, 6, false)) { tgt = lpl[i]; tDist = d; }
+      }
+    }
+    for (i = 0; i < foes.length; i++) {
+      c = foes[i];
+      if (c.spawn > 0) continue;
+      d = Math.hypot(c.x - e.x, c.y - e.y);
+      if (d < tDist && d < 700 && clearLine(e.x, e.y, c.x, c.y, 6, false)) { tgt = c; tDist = d; }
+    }
+    var hasLos = !!tgt;
+
+    // если никого не видно: враги идут к игроку, союзники — к ближайшему врагу
+    var aim = tgt;
+    if (!aim) {
+      if (!e.ally) aim = nearestPlayer(e.x, e.y) || player;
+      else {
+        var nd = 1e9;
+        for (i = 0; i < foes.length; i++) {
+          c = foes[i];
+          if (c.spawn > 0) continue;
+          d = Math.hypot(c.x - e.x, c.y - e.y);
+          if (d < nd) { nd = d; aim = c; }
+        }
+      }
+    }
+
+    var dist = aim ? Math.hypot(aim.x - e.x, aim.y - e.y) : 0;
+    var ang = aim ? Math.atan2(aim.y - e.y, aim.x - e.x) : e.rotate;
+    var range = e.isBoss ? 380 : 260;
+    var losMove = hasLos && clearLine(e.x, e.y, aim.x, aim.y, e.size / 2 + 6, false);
+
+    e.strafeT -= dt;
+    if (e.strafeT <= 0) { e.strafe = Math.random() < 0.5 ? 1 : -1; e.strafeT = 1.5 + Math.random() * 2.5; }
+
+    var moveAng = ang, spd = 1, strafing = false, stuck = false;
+    if (losMove && dist <= range) {
+      strafing = true;
+      spd = 0.6;
+      moveAng = dist < range * 0.5 ? ang + Math.PI + e.strafe * 0.8 : ang + e.strafe * 1.4;
+    } else if (losMove) {
+      moveAng = ang;
+    } else {
+      var field = (e.ally && aim) ? allyField : distField;
+      // врагов нет — союзник держится рядом с игроком
+      var np0 = nearestPlayer(e.x, e.y) || player;
+      if (e.ally && !aim && Math.hypot(np0.x - e.x, np0.y - e.y) < 220) spd = 0;
+      var tg = flowTarget(e, field);
+      if (tg) moveAng = Math.atan2(tg.y - e.y, tg.x - e.x);
+      else if (aim) stuck = true;   // пути нет (например, заперт коробками)
+    }
+
+    // поворот корпуса (работает и со сбитой гусеницей) и движение
+    var diff = angDiff(e.rotate, moveAng);
+    var turn = 3.5 * dt;
+    e.rotate += clamp(diff, -turn, turn);
+    if (e.trackT <= 0) {
+      var remain = angDiff(e.rotate, moveAng);
+      var v = e.maxSpeed * SPEED_K * spd * Math.max(0, Math.cos(remain));
+      var moved = moveTank(e, Math.cos(e.rotate) * v * dt, Math.sin(e.rotate) * v * dt);
+      if (!moved && strafing) e.strafe = -e.strafe;
+    }
+
+    // башня и стрельба (запертый бот стреляет сквозь коробки, пробивая себе выход)
+    var td = angDiff(e.turret, aim ? ang : e.rotate);
+    var tt = e.turretRate * dt;
+    e.turret += clamp(td, -tt, tt);
+    var canShoot = aim && (hasLos || (stuck && clearLine(e.x, e.y, aim.x, aim.y, 6, true)));
+    if (canShoot && dist < 700 && Math.abs(angDiff(e.turret, ang)) < 0.14) {
+      var offs = e.isBoss ? [-0.2, 0, 0.2] : [0];
+      var bl = e.fire(offs, 'reg');
+      var dst = e.ally ? playerBullets : enemyBullets;
+      for (var q = 0; q < bl.length; q++) dst.push(bl[q]);
+    }
+
+    // кольцо пуль у босса: только в ответ на полученный урон
+    if (e.isBoss) {
+      if (e.ringT > 0) e.ringT -= dt;
+      if (e.ringPending && e.ringT <= 0) {
+        e.ringPending = false;
+        e.ringT = BOSS_RING_CD;
+        for (var r = 0; r < 14; r++) {
+          var a = r / 14 * Math.PI * 2;
+          enemyBullets.push(new Bullet(
+            e.x + Math.cos(a) * e.size * 0.6, e.y + Math.sin(a) * e.size * 0.6,
+            a, e.bulletDamage, e.bulletPen, 'enemy', 190, 5, e.bulletColor, 'reg'
+          ));
+        }
+      }
+    }
+    e.sync();
+  }
+
+  // боты обеих команд не слипаются друг с другом и с игроком
+  function separateBots() {
+    var all = enemies.concat(allies), n = all.length, i, j;
+    for (i = 0; i < n; i++) {
+      var a = all[i];
+      if (a.spawn > 0) continue;
+      for (j = i + 1; j < n; j++) {
+        var b = all[j];
+        if (b.spawn > 0) continue;
+        var dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy);
+        var min = (a.size + b.size) / 2 * 0.9;
+        if (d < min && d > 0.01) {
+          var push = (min - d) / 2, nx = dx / d, ny = dy / d;
+          moveTank(a, -nx * push, -ny * push);
+          moveTank(b, nx * push, ny * push);
+        }
+      }
+      var lp = livePlayers();
+      for (j = 0; j < lp.length; j++) {
+        var px = a.x - lp[j].x, py = a.y - lp[j].y, pd = Math.hypot(px, py);
+        var pmin = (a.size + lp[j].size) / 2 * 0.9;
+        if (pd < pmin && pd > 0.01) moveTank(a, px / pd * (pmin - pd), py / pd * (pmin - pd));
+      }
+    }
+    // игроки тоже не слипаются
+    if (player2 && !player.dead && !player2.dead) {
+      var qx = player2.x - player.x, qy = player2.y - player.y, qd = Math.hypot(qx, qy);
+      var qmin = (player.size + player2.size) / 2 * 0.9;
+      if (qd < qmin && qd > 0.01) {
+        moveTank(player, -qx / qd * (qmin - qd) / 2, -qy / qd * (qmin - qd) / 2);
+        moveTank(player2, qx / qd * (qmin - qd) / 2, qy / qd * (qmin - qd) / 2);
+      }
+    }
+  }
+
+  function doPlayerFire() {
+    var sh = shell;
+    if (sh !== 'reg' && (ammo[sh] <= 0 || gunLevel() < 2)) { sh = 'reg'; shell = 'reg'; }
+    var nb = player.fire([0], sh);
+    if (nb.length) {
+      if (sh !== 'reg') { ammo[sh]--; if (ammo[sh] <= 0) shell = 'reg'; }
+      for (var q = 0; q < nb.length; q++) playerBullets.push(nb[q]);
+    }
+  }
+
+  // ====================== камера: автозум + смещение к врагам ======================
+  // 1) смещение: центр кадра уходит в сторону врагов (до CAM_SHIFT_MAX экрана),
+  //    поэтому игрок стоит не в центре, а пустая часть карты не показывается;
+  // 2) зум: базовый SCALE, но если боты в радиусе AUTOZOOM_CELLS не помещаются
+  //    в кадр (с учётом смещения), камера отдаляется ровно настолько, чтобы все были видны
+  function updateCamera(dt, instant) {
+    var vw = stage.width(), vh = stage.height(), i, t, cp = camTarget();
+    var k = instant ? 1 : Math.min(1, dt * ZOOM_SPEED);
+
+    // направление смещения: среднее положение врагов вокруг игрока
+    var lookR = CAM_LOOK_CELLS * GRID_CELL, mx = 0, my = 0, mc = 0;
+    for (i = 0; i < enemies.length; i++) {
+      t = enemies[i];
+      var ddx = t.x - cp.x, ddy = t.y - cp.y;
+      if (ddx * ddx + ddy * ddy > lookR * lookR) continue;
+      mx += ddx; my += ddy; mc++;
+    }
+    var tShX = 0, tShY = 0;
+    if (autoZoomOn && mc) {
+      tShX = clamp(mx / mc / CAM_SHIFT_DIST, -1, 1) * CAM_SHIFT_MAX * vw;
+      tShY = clamp(my / mc / CAM_SHIFT_DIST, -1, 1) * CAM_SHIFT_MAX * vh;
+    }
+    camShX += (tShX - camShX) * k;
+    camShY += (tShY - camShY) * k;
+
+    // зум: каждый бот в радиусе должен остаться в кадре с запасом
+    var R = AUTOZOOM_CELLS * GRID_CELL, target = SCALE;
+    var hx = vw / 2 - AUTOZOOM_PAD, hy = vh / 2 - AUTOZOOM_PAD;
+    function fit(rel, sh, half, r) {
+      // экранная позиция относительно центра кадра: rel*s - sh, нужно |...| + r*s <= half
+      var c1 = rel + r, c2 = -rel + r;
+      if (c1 > 0) target = Math.min(target, (half + sh) / c1);
+      if (c2 > 0) target = Math.min(target, (half - sh) / c2);
+    }
+    var all = enemies.concat(allies);
+    for (i = 0; autoZoomOn && i < all.length; i++) {
+      t = all[i];
+      var dx = t.x - cp.x, dy = t.y - cp.y;
+      if (dx * dx + dy * dy > R * R) continue;
+      fit(dx, camShX, hx, t.size / 2);
+      fit(dy, camShY, hy, t.size / 2);
+    }
+    target = clamp(target, ZOOM_MIN, SCALE);
+    camScale += (target - camScale) * k;
+
+    var sc = camScale, ww = WORLD * sc;
+    worldGroup.scale({ x: sc, y: sc });
+    // центр кадра = игрок + смещение к врагам
+    var offX = ww <= vw ? (vw - ww) / 2 : Math.min(0, Math.max(vw - ww, vw / 2 - camShX - cp.x * sc));
+    var offY = ww <= vh ? (vh - ww) / 2 : Math.min(0, Math.max(vh - ww, vh / 2 - camShY - cp.y * sc));
+    worldGroup.position({ x: offX, y: offY });
+  }
+
+  // ====================== основной апдейт ======================
+  function update(dt) {
+    time += dt;
+
+    // боты появляются по одному в секунду (по одному врагу и по одному союзнику)
+    if (state === 'fight' && (spawnQueue.length || allyQueue.length)) {
+      spawnT -= dt;
+      if (spawnT <= 0) {
+        if (spawnQueue.length) {
+          var sq = spawnQueue.shift();
+          var ne = placeEnemy(level, sq.boss, sq.kind);
+          if (sq.boss) currentBoss = ne;
+        }
+        if (allyQueue.length) {
+          var aq = allyQueue.shift();
+          placeAlly(level, aq.kind);
+        }
+        spawnT = SPAWN_INTERVAL;
+      }
+    }
+
+    if (state === 'fight' && enemies.length === 0 && spawnQueue.length === 0) {
+      state = 'cleared';
+      xp += LEVEL_BONUS_XP;
+      showBanner('Уровень пройден', '+' + LEVEL_BONUS_XP + ' опыта · собери бонусы, загляни в мастерскую и жми дальше', 3200);
+    }
+
+    // игрок
+    var inp = player.dead ? { ang: 0, mag: 0 } : getInput();
+    player.tick(dt);
+    if (inp.mag > 0) {
+      player.rotate = inp.ang;
+      if (player.trackT <= 0) {
+        var sp = inp.mag * player.maxSpeed * SPEED_K * (aimOn ? AIM_SLOW : 1) * dt;
+        moveTank(player, Math.cos(inp.ang) * sp, Math.sin(inp.ang) * sp);
+      }
+    }
+    player.turret = player.rotate;
+    if (firing && !player.dead) doPlayerFire();
+    player.sync();
+    if (player2 && netRole === 'host') updateP2(dt);
+
+    if (aimOn && !player.dead) {
+      var ax = player.x + Math.cos(player.turret) * player.size * 0.78;
+      var ay = player.y + Math.sin(player.turret) * player.size * 0.78;
+      var len = 0;
+      while (len < AIM_LEN) {
+        var tx = ax + Math.cos(player.turret) * (len + 6), ty = ay + Math.sin(player.turret) * (len + 6);
+        if (bulletHitsObstacle({ x: tx, y: ty })) break;
+        len += 6;
+      }
+      aimLine.points([ax, ay, ax + Math.cos(player.turret) * len, ay + Math.sin(player.turret) * len]);
+      aimLine.visible(true);
+    } else aimLine.visible(false);
+
+    fieldT -= dt;
+    if (fieldT <= 0) { buildField(); fieldT = 0.3; }
+
+    var i, j;
+    for (i = 0; i < enemies.length; i++) updateBot(enemies[i], dt);
+    for (i = 0; i < allies.length; i++) updateBot(allies[i], dt);
+    separateBots();
+
+    // пули игрока
+    for (i = playerBullets.length - 1; i >= 0; i--) {
+      var b = playerBullets[i];
+      b.update(dt);
+      var dead = bulletHitsObstacle(b) || b.travel > 1100 ||
+        b.x < 0 || b.x > WORLD || b.y < 0 || b.y > WORLD;
+      if (!dead) {
+        var bi = bulletHitsBox(b);
+        if (bi >= 0) { destroyBox(bi); dead = true; }
+      }
+      if (!dead) {
+        for (j = enemies.length - 1; j >= 0; j--) {
+          var e = enemies[j];
+          if (e.spawn > 0) continue;
+          if (Math.hypot(b.x - e.x, b.y - e.y) < e.size / 2 + b.r) {
+            var hp0 = e.hp;
+            var out = e.takeHit(b);
+            if (out.pen && b.pid === 0) xp += Math.min(out.dmg, hp0) * XP_MULT;   // 1 урон = 2 опыта, только за свои попадания
+            if (out.rack) e.rack = true;
+            if (e.isBoss && out.pen) e.ringPending = true;          // босс огрызается кольцом пуль
+            dead = true;
+            if (e.hp <= 0) { killEnemy(e, b.pid + 1); enemies.splice(j, 1); }
+            break;
+          }
+        }
+      }
+      if (!dead && mode === 'duo' && b.pid >= 0) {
+        var vt = b.pid === 0 ? player2 : player;
+        if (vt && !vt.dead && Math.hypot(b.x - vt.x, b.y - vt.y) < vt.size / 2 + b.r) {
+          var vo = vt.takeHit(b);
+          if (vo.pen) { hurtFx(vt); vt.killer = b.pid; }
+          dead = true;
+        }
+      }
+      if (dead) { b.destroy(); playerBullets.splice(i, 1); }
+    }
+
+    // пули врагов
+    for (i = enemyBullets.length - 1; i >= 0; i--) {
+      var eb = enemyBullets[i];
+      eb.update(dt);
+      var gone = bulletHitsObstacle(eb) || eb.travel > 1100 ||
+        eb.x < 0 || eb.x > WORLD || eb.y < 0 || eb.y > WORLD;
+      if (!gone) {
+        var bj = bulletHitsBox(eb);
+        if (bj >= 0) { destroyBox(bj); gone = true; }
+      }
+      if (!gone) {
+        var lpp = livePlayers();
+        for (var pi2 = 0; pi2 < lpp.length; pi2++) {
+          var pl = lpp[pi2];
+          if (Math.hypot(eb.x - pl.x, eb.y - pl.y) < pl.size / 2 + eb.r) {
+            if (pl === player) playerHitCount++;
+            var po = pl.takeHit(eb);
+            if (po.pen) hurtFx(pl);
+            gone = true;
+            break;
+          }
+        }
+      }
+      if (!gone) {
+        for (j = allies.length - 1; j >= 0; j--) {
+          var al = allies[j];
+          if (al.spawn > 0) continue;
+          if (Math.hypot(eb.x - al.x, eb.y - al.y) < al.size / 2 + eb.r) {
+            al.takeHit(eb);
+            gone = true;
+            if (al.hp <= 0) { explode(al.x, al.y, al.size * 1.6, 0); al.destroy(); allies.splice(j, 1); }
+            break;
+          }
+        }
+      }
+      if (gone) { eb.destroy(); enemyBullets.splice(i, 1); }
+    }
+
+    // бонусы (не исчезают)
+    for (i = bonuses.length - 1; i >= 0; i--) {
+      var bn = bonuses[i];
+      var pulse = 1 + 0.12 * Math.sin(time * 6);
+      bn.node.scale({ x: pulse, y: pulse });
+      var lpb = livePlayers();
+      for (var pk = 0; pk < lpb.length; pk++) {
+        var pq = lpb[pk], who = pq === player2 ? 1 : 0;
+        if (Math.hypot(bn.x - pq.x, bn.y - pq.y) < pq.size / 2 + 16) {
+          applyBonus(bn.type, who);
+          if (who === 1) lastBonus2 = BONUS[bn.type].n; else lastBonusText = BONUS[bn.type].n;
+          floatText(pq.x, pq.y - 30, BONUS[bn.type].i + ' ' + BONUS[bn.type].n, '#fff');
+          bn.destroy(); bonuses.splice(i, 1);
+          bonusDirty = true;
+          break;
+        }
+      }
+    }
+
+    updateFx(dt);
+
+    checkDeaths();
+
+    updateCamera(dt, false);
+  }
+
+  // смерть игроков: в режимах на двоих выбывший возвращается на следующем уровне
+  function checkDeaths() {
+    var ps = player2 ? [player, player2] : [player], i;
+    for (i = 0; i < ps.length; i++) {
+      var p = ps[i];
+      if (p.dead || p.hp > 0) continue;
+      p.hp = 0;
+      if (!player2) { endGame(); return; }
+      p.dead = true;
+      explode(p.x, p.y, 70, 0);
+      p.node.visible(false);
+      if (p.killer >= 0) addScore(p.killer, 1);
+      p.killer = -1;
+      showBanner(i === 0 ? 'Хост выбыл' : 'Гость выбыл', 'вернётся на следующем уровне', 2000);
+    }
+    if (player2 && player.dead && player2.dead) endGame();
+  }
+
+  var FUN = [
+    'Кабзда рулю',
+    'Фейерверк за твой счёт',
+    '... На радость плохим парням.',
+    'Словил маслину',
+    'Скушал брёвнышко',
+    'Пора и честь знать!',
+    'Да, танкист из тебя...',
+    'Ну вот и всё, вот и всё.',
+    'Да всё равно рано или поздно, какая разница ? Сыграем в ящик по очереди.',
+    'Воооот такие у нас новости!',
+    'Я веселый таракан, я бегу бегу бегу...',
+    'Наводчик неуклюжен',
+    'Есть пробитие!',
+    'Был пацан и нет пацана',
+    'Пацан к успеху шёл',
+    'Тяжело в учении - ох, тяжело',
+    'А ты попробуй снова, вдруг получится', 
+    'Уроки иди учи',
+    'Иди в доту играть, танкист блин.',
+    'Попытка хорошая. Попытайся снова, хорошо ?'
+  ];
+  function endGame() {
+    gameOver = true;
+    aimLine.visible(false);
+    if (!player.dead) explode(player.x, player.y, 70, 0);
+    player.destroy();
+    if (player2) player2.destroy();
+    if (netRole === 'host') netSend({ t: 'over', lv: level, sc: scores.slice() });
+    $('overText').textContent = player2
+      ? 'Уровень: ' + level + ' · Счёт (ты : друг) — ' + scores[0] + ' : ' + scores[1]
+      : 'Уровень: ' + level + ' · Счёт: ' + score;
+    $('overFun').textContent = FUN[Math.floor(Math.random() * FUN.length)];
+    $('over').style.display = 'flex';
+    $('bossWrap').style.display = 'none';
+    $('clearedBar').style.display = 'none';
+  }
+
+  // ====================== HUD ======================
+  var hudT = 0;
+  function updateHUD(dt) {
+    hudT -= dt;
+    if (hudT > 0) return;
+    hudT = 0.1;
+    $('level').textContent = level;
+    $('score').textContent = player2 ? scores[0] + ' : ' + scores[1] : score;
+    $('left').textContent = enemies.length + spawnQueue.length;
+    $('allyRow').style.display = isTeamMode() ? 'block' : 'none';
+    $('allies').textContent = allies.length + allyQueue.length;
+    $('xpNow').textContent = Math.floor(xp);
+    $('lastBonus').textContent = lastBonusText;
+    var fr = clamp(player.hp / player.maxHp, 0, 1);
+    var hpFill = $('hpFill');
+    hpFill.style.width = (fr * 100) + '%';
+    hpFill.style.background = fr > 0.5 ? '#22c55e' : (fr > 0.25 ? '#eab308' : '#ef4444');
+    $('hpText').textContent = Math.ceil(player.hp) + ' / ' + Math.round(player.maxHp);
+
+    if (player2) {
+      var f2r = clamp(player2.hp / player2.maxHp, 0, 1);
+      $('p2Row').style.display = 'block';
+      $('hp2Fill').style.width = (f2r * 100) + '%';
+      $('hp2Fill').style.background = f2r > 0.5 ? '#22c55e' : (f2r > 0.25 ? '#eab308' : '#ef4444');
+      $('hp2Text').textContent = Math.ceil(player2.hp) + ' / ' + Math.round(player2.maxHp);
+    } else $('p2Row').style.display = 'none';
+
+    var ti = $('trackInfo');
+    if (player.trackT > 0) {
+      ti.style.display = 'block';
+      ti.textContent = '⛓ Гусеница сбита: ' + Math.ceil(player.trackT) + ' с';
+    } else ti.style.display = 'none';
+
+    if (statsOpen) {
+      $('playerStats').innerHTML =
+        'Танк: ' + TANKS[curTank].name + ' · орудие ' + gunLevel() + '<br>' +
+        'Скорость: ' + player.maxSpeed.toFixed(0) + '<br>' +
+        'Перезарядка: ' + player.reloadTime.toFixed(2) + ' с<br>' +
+        'Сила снаряда: ' + (player.bulletDamage * 100).toFixed(0) + '%<br>' +
+        'Пробиваемость: ' + player.bulletPen.toFixed(0) + '%<br>' +
+        'Броня (пробитие по вам): ×' + player.armor;
+    }
+
+    // снаряды
+    var heOff = ammo.he <= 0 || gunLevel() < 2, apOff = ammo.ap <= 0 || gunLevel() < 2;
+    $('sHe').textContent = '💣 ' + ammo.he;
+    $('sAp').textContent = '🎯 ' + ammo.ap;
+    $('sHe').className = 'sbtn' + (shell === 'he' ? ' sel' : '') + (heOff ? ' off' : '');
+    $('sAp').className = 'sbtn' + (shell === 'ap' ? ' sel' : '') + (apOff ? ' off' : '');
+    $('sReg').className = 'sbtn' + (shell === 'reg' ? ' sel' : '');
+    $('aimBtn').className = 'sbtn' + (aimOn ? ' sel' : '');
+    $('zoomBtn').className = 'sbtn' + (autoZoomOn ? ' sel' : '');
+
+    $('nextLvl').textContent = '▶ Уровень ' + (level + 1);
+    $('clearedBar').style.display = (state === 'cleared' && !gameOver && !shopOpen) ? 'flex' : 'none';
+
+    if (currentBoss && enemies.indexOf(currentBoss) >= 0) {
+      $('bossWrap').style.display = 'block';
+      $('bossFill').style.width = (clamp(currentBoss.hp / currentBoss.maxHp, 0, 1) * 100) + '%';
+    } else {
+      $('bossWrap').style.display = 'none';
+    }
+  }
+
+  // ====================== IndexedDB и достижения ======================
+  var dbPromise = null;
+  function initDB() {
+    if (dbPromise) return dbPromise;
+    dbPromise = new Promise(function (res, rej) {
+      var rq = indexedDB.open('AchievementsDB', 1);
+      rq.onerror = function () { rej(rq.error); };
+      rq.onsuccess = function () { res(rq.result); };
+      rq.onupgradeneeded = function (e) {
+        e.target.result.createObjectStore('achievements', { keyPath: 'title' });
+      };
+    });
+    return dbPromise;
+  }
+
+  async function addAchievement(title, text, image) {
+    try {
+      var db = await initDB();
+      var tx = db.transaction(['achievements'], 'readwrite');
+      var store = tx.objectStore('achievements');
+      var g = store.get(title);
+      return new Promise(function (r) {
+        g.onsuccess = function () {
+          if (!g.result) {
+            store.add({ title: title, text: text, image: image || 'button.png' }).onsuccess = function () {
+              var d = document.createElement('div');
+              d.textContent = title;
+              Object.assign(d.style, {
+                position: 'fixed', top: '15px', left: '5%', width: '90%',
+                background: '#ffd700', color: '#1a1a1a', padding: '10px',
+                borderRadius: '8px', boxShadow: '0 3px 10px rgba(0,0,0,0.3)',
+                zIndex: '1000', textAlign: 'center', fontWeight: '700'
+              });
+              document.body.appendChild(d);
+              setTimeout(function () { d.remove(); }, 3000);
+              r(true);
+            };
+          } else r(false);
+        };
+      });
+    } catch (e) { console.error(e); return false; }
+  }
+
+  var ACH = [
+    { title: 'Танкист 1', img: 'button.png',
+      text: 'Ты смог уничтожить кого-то, при этом даже не себя.',
+      test: function () { return score >= 1; } },
+    { title: 'Танкист 2', img: 'button.png',
+      text: 'Ты смог уничтожить 10 танков противника, нанеся урон силам противника. Победа не за горами!',
+      test: function () { return score >= 10; } },
+    { title: 'Танкист 3', img: 'goldentank.png',
+      text: 'Ты смог уничтожить 100 танков противника, это победа! Можешь считать себя мастером танчиков',
+      test: function () { return score >= 100; } },
+    { title: 'Живучий', img: 'button.png',
+      text: 'Ты выжил после 10 попаданий в танчиках, Колобанов в истории Glist!',
+      test: function () { return playerHitCount >= 10 && !gameOver; } },
+    { title: 'Турботабуретка', img: 'button.png',
+      text: 'Ты разогнался до 1000% в танчиках. Что ты в бензобак залил, ирод?',
+      test: function () { return bonus.speed >= 10; } },
+    { title: 'Лузер', img: 'button.png',
+      text: 'Помер, не уничтожив ни одного врага... Поооолный провал!',
+      test: function () { return gameOver && score === 0; } },
+    { title: 'Босс-хантер', img: 'button.png',
+      text: 'Ты свалил босса. Он ещё долго будет вспоминать этот день анальной боли и унижения',
+      test: function () { return bossKills >= 1; } },
+    { title: 'Десятый уровень', img: 'button.png',
+      text: 'Ты дожил до 10 уровня. Это успех!',
+      test: function () { return level >= 10; } },
+    { title: 'Бабах', img: 'button.png',
+      text: 'Снёс БК ради ради мамы и пирога',
+      test: function () { return rackKills >= 1; } },
+    { title: 'Давить несогласных', img: 'button.png',
+      text: 'Ты купил тяжёлый танк.',
+      test: function () { return owned.heavy.has; } }
+  ];
+  var achDone = {};
+  setInterval(function () {
+    for (var i = 0; i < ACH.length; i++) {
+      var a = ACH[i];
+      if (achDone[a.title] || !a.test()) continue;
+      achDone[a.title] = true;
+      addAchievement(a.title, a.text, a.img);
+    }
+  }, 1000);
+
+  // ====================== кольцо перезарядки на кнопке огня ======================
+  var fireArc = $('fireArc'), arcLast = -1;
+  function updateFireRing() {
+    var p = player.reload > 0 ? 1 - player.reload / player.reloadTime : 1;
+    p = clamp(p, 0, 1);
+    var q = Math.round(p * 200);
+    if (q === arcLast) return;
+    arcLast = q;
+    fireArc.setAttribute('stroke-dashoffset', String(320.4 * (1 - p)));
+    fireArc.setAttribute('stroke', p >= 1 ? '#22c55e' : '#fbbf24');
+  }
+
+  // ====================== режимы на двоих: сеть ======================
+  // Хост считает всю игру. Гость шлёт ввод и рисует снимки мира.
+  // Связь: сперва WebRTC (прямо, в т.ч. по локалке), сигнализация — через публичный MQTT-брокер.
+  // Если за ~7 с прямого канала нет (или он порвался) — всё идёт через тот же брокер.
+  var BROKERS = [
+    'wss://broker.emqx.io:8084/mqtt',
+    'wss://broker.hivemq.com:8884/mqtt',
+    'wss://test.mosquitto.org:8081',
+    'wss://mqtt.eclipseprojects.io/mqtt'
+  ];
+  var TOPIC = 'glist-tank2p/';
+  var CODE_CH = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  var RTC_WAIT = 7000;
+  var net = {};
+  function rnd(n, ch) {
+    var r = '';
+    for (var i = 0; i < n; i++) r += (ch || 'abcdefghijklmnopqrstuvwxyz0123456789').charAt(Math.floor(Math.random() * (ch ? ch.length : 36)));
+    return r;
+  }
+
+  // --- минимальный клиент MQTT 3.1.1 поверх WebSocket (QoS 0) ---
+  function MQ(url, cid) {
+    var self = this, enc = new TextEncoder(), dec = new TextDecoder(), ws, pingT = null;
+    self.ready = false; self.dead = false; self.rx = new Uint8Array(0);
+    self.onopen = null; self.onclose = null; self.onmsg = null;
+    function str(v) {
+      var b = enc.encode(v), o = new Uint8Array(2 + b.length);
+      o[0] = b.length >> 8; o[1] = b.length & 255; o.set(b, 2);
+      return o;
+    }
+    function cat(arrs) {
+      var n = 0, i, o, p = 0;
+      for (i = 0; i < arrs.length; i++) n += arrs[i].length;
+      o = new Uint8Array(n);
+      for (i = 0; i < arrs.length; i++) { o.set(arrs[i], p); p += arrs[i].length; }
+      return o;
+    }
+    function packet(first, body) {
+      var l = [], n = body.length;
+      do { var d = n % 128; n = Math.floor(n / 128); if (n > 0) d |= 128; l.push(d); } while (n > 0);
+      return cat([new Uint8Array([first]), new Uint8Array(l), body]);
+    }
+    function fail() {
+      if (self.dead) return;
+      self.dead = true; self.ready = false;
+      clearInterval(pingT);
+      if (self.onclose) self.onclose();
+    }
+    self.close = function () {
+      var was = self.dead;
+      self.dead = true; self.ready = false; clearInterval(pingT);
+      try { ws.close(); } catch (e) {}
+      return was;
+    };
+    self.pub = function (topic, text) {
+      if (!self.ready || ws.readyState !== 1) return;
+      ws.send(packet(0x30, cat([str(topic), enc.encode(text)])));
+    };
+    self.sub = function (topic) {
+      if (ws.readyState === 1) ws.send(packet(0x82, cat([new Uint8Array([0, 1]), str(topic), new Uint8Array([0])])));
+    };
+    self.buffered = function () { return ws ? ws.bufferedAmount : 0; };
+    function parse() {
+      var b = self.rx;
+      while (b.length >= 2) {
+        var mul = 1, len = 0, i = 1, dig;
+        do {
+          if (i >= b.length) { self.rx = b; return; }
+          dig = b[i++]; len += (dig & 127) * mul; mul *= 128;
+        } while (dig & 128);
+        if (b.length < i + len) { self.rx = b; return; }
+        var first = b[0], type = first >> 4, body = b.subarray(i, i + len);
+        if (type === 2) {   // CONNACK
+          if (body[1] === 0) {
+            self.ready = true;
+            pingT = setInterval(function () { if (ws.readyState === 1) ws.send(new Uint8Array([0xC0, 0])); }, 20000);
+            if (self.onopen) self.onopen();
+          } else fail();
+        } else if (type === 3) {   // PUBLISH
+          var tl = (body[0] << 8) | body[1], off = 2 + tl;
+          if ((first >> 1) & 3) off += 2;
+          if (self.onmsg) self.onmsg(dec.decode(body.subarray(2, 2 + tl)), dec.decode(body.subarray(off)));
+        }
+        b = b.subarray(i + len);
+      }
+      self.rx = b;
+    }
+    try { ws = new WebSocket(url, 'mqtt'); } catch (e) { setTimeout(fail, 0); return; }
+    ws.binaryType = 'arraybuffer';
+    ws.onopen = function () {
+      ws.send(packet(0x10, cat([str('MQTT'), new Uint8Array([4, 2, 0, 30]), str(cid)])));
+    };
+    ws.onmessage = function (ev) { self.rx = cat([self.rx, new Uint8Array(ev.data)]); parse(); };
+    ws.onerror = fail;
+    ws.onclose = fail;
+  }
+
+  // --- лобби ---
+  function lobStatus(t) { $('lobStatus').textContent = t; }
+  function lobNetLabel() {
+    $('lobNet').textContent = !net.guestCid && net.role === 'host' ? '' :
+      (net.rtcOk ? 'Канал: WebRTC напрямую ✓' : (net.ready || net.role === 'guest' ? 'Канал: через сервер (MQTT)' : 'Пробую прямое соединение (WebRTC)…'));
+  }
+  function resetNet() {
+    closeNet();
+    net = {
+      role: null, code: '', mq: null, pc: null, dc: null, cid: rnd(8), guestCid: null, inT: '', outT: '',
+      rtcOk: false, ready: false, hbT: null, joinT: null, settleT: null, pendingIce: [], remoteSet: false,
+      lastSnap: 0, lastN: -1, tick: 0, sendT: 0, inT2: 0, lastIn: 0, lastFull: 0, myPid: 0, pendingMode: net.pendingMode || null,
+      tk: {}, gb: [], left: 0, al: 0, lb: ['нет', 'нет'], boss: 0, obKey: '', hudT: 0, lostShown: false, guestLost: false, snapped: false
+    };
+  }
+  function closeNet() {
+    if (!net || !net.cid) return;
+    clearInterval(net.hbT); clearInterval(net.joinT); clearTimeout(net.settleT);
+    try { if (net.dc) net.dc.close(); } catch (e) {}
+    try { if (net.pc) net.pc.close(); } catch (e) {}
+    try { if (net.mq) net.mq.close(); } catch (e) {}
+  }
+
+  function mqPub(o) { if (net.mq && net.mq.ready) net.mq.pub(net.outT, JSON.stringify(o)); }
+  // игровые сообщения: прямой канал, если он жив, иначе брокер
+  function netSend(o, lossy) {
+    var s = JSON.stringify(o);
+    if (net.dc && net.dc.readyState === 'open') {
+      if (lossy && net.dc.bufferedAmount > 100000) return;
+      try { net.dc.send(s); return; } catch (e) {}
+    }
+    if (net.mq && net.mq.ready) {
+      if (lossy && net.mq.buffered() > 150000) return;
+      net.mq.pub(net.outT, s);
+    }
+  }
+
+  function mqConnect(idx, cb) {
+    if (idx >= BROKERS.length) { cb(null); return; }
+    var mq = new MQ(BROKERS[idx], 'tk' + net.cid), done = false;
+    var to = setTimeout(function () { if (!done) { done = true; mq.close(); mqConnect(idx + 1, cb); } }, 6000);
+    mq.onopen = function () { if (!done) { done = true; clearTimeout(to); cb(mq); } };
+    mq.onclose = function () { if (!done) { done = true; clearTimeout(to); mqConnect(idx + 1, cb); } };
+  }
+
+  // --- WebRTC ---
+  function newPc() {
+    var pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+    net.pc = pc; net.remoteSet = false; net.pendingIce = [];
+    pc.onicecandidate = function (e) {
+      if (!e.candidate) return;
+      var c = { candidate: e.candidate.candidate, sdpMid: e.candidate.sdpMid, sdpMLineIndex: e.candidate.sdpMLineIndex };
+      mqPub(net.role === 'host' ? { t: 'ice', to: net.guestCid, cand: c } : { t: 'ice', c: net.cid, cand: c });
+    };
+    return pc;
+  }
+  function flushIce() {
+    var l = net.pendingIce; net.pendingIce = [];
+    for (var i = 0; i < l.length; i++) { try { net.pc.addIceCandidate(new RTCIceCandidate(l[i])).catch(function () {}); } catch (e) {} }
+  }
+  function setupDc(dc) {
+    dc.onopen = function () {
+      net.dc = dc; net.rtcOk = true;
+      if (net.role === 'host' && !net.ready) { clearTimeout(net.settleT); hostSettle(); }
+      lobNetLabel();
+    };
+    dc.onclose = function () { if (net.dc === dc) { net.dc = null; net.rtcOk = false; lobNetLabel(); } };
+    dc.onmessage = function (e) { onNetStr(e.data); };
+  }
+  function hostRtc() {
+    if (!window.RTCPeerConnection) return;
+    try {
+      var pc = newPc();
+      setupDc(pc.createDataChannel('g'));
+      pc.createOffer().then(function (o) { return pc.setLocalDescription(o); }).then(function () {
+        mqPub({ t: 'offer', to: net.guestCid, sdp: { type: pc.localDescription.type, sdp: pc.localDescription.sdp } });
+      }).catch(function () {});
+    } catch (e) {}
+  }
+  function guestRtc(sdp) {
+    if (!window.RTCPeerConnection || net.pc) return;
+    try {
+      var pc = newPc();
+      pc.ondatachannel = function (e) { setupDc(e.channel); };
+      pc.setRemoteDescription(new RTCSessionDescription(sdp)).then(function () {
+        net.remoteSet = true; flushIce();
+        return pc.createAnswer();
+      }).then(function (a) { return pc.setLocalDescription(a); }).then(function () {
+        mqPub({ t: 'answer', c: net.cid, sdp: { type: pc.localDescription.type, sdp: pc.localDescription.sdp } });
+      }).catch(function () {});
+    } catch (e) {}
+  }
+
+  function hostSettle() {
+    net.ready = true;
+    lobStatus('Друг подключился. Можно начинать!');
+    $('lobStart').style.display = 'block';
+    lobNetLabel();
+  }
+
+  // --- приём сообщений ---
+  function onNetStr(str) {
+    var m;
+    try { m = JSON.parse(str); } catch (e) { return; }
+    var t = m.t;
+    if (net.role === 'host') {
+      if (t === 'join') {
+        if (net.guestCid && net.guestCid !== m.c) { mqPub({ t: 'full', to: m.c }); return; }
+        net.lastIn = performance.now();
+        if (!net.guestCid) {
+          net.guestCid = m.c;
+          lobStatus('Друг найден. Проверяю прямое соединение (WebRTC)…');
+          hostRtc();
+          net.settleT = setTimeout(function () { if (!net.ready) hostSettle(); }, RTC_WAIT);
+        }
+        mqPub({ t: 'hello', to: m.c });
+      } else if (t === 'answer' && m.c === net.guestCid && net.pc) {
+        net.pc.setRemoteDescription(new RTCSessionDescription(m.sdp)).then(function () { net.remoteSet = true; flushIce(); }).catch(function () {});
+      } else if (t === 'ice' && m.c === net.guestCid && net.pc) {
+        if (net.remoteSet) { try { net.pc.addIceCandidate(new RTCIceCandidate(m.cand)).catch(function () {}); } catch (e) {} }
+        else net.pendingIce.push(m.cand);
+      } else if (t === 'i') {
+        rin.a = m.a; rin.m = m.m; rin.f = m.f; rin.t = net.lastIn = performance.now();
+      }
+      return;
+    }
+    if (net.role === 'guest') {
+      if ((t === 'hello' || t === 'offer' || t === 'ice' || t === 'full') && m.to !== net.cid) return;
+      if (t === 'hello') {
+        clearInterval(net.joinT);
+        lobStatus('Подключено! Ждём, когда хост начнёт игру…');
+        lobNetLabel();
+      } else if (t === 'full') {
+        clearInterval(net.joinT); lobStatus('В этой комнате уже играют двое');
+      } else if (t === 'offer') guestRtc(m.sdp);
+      else if (t === 'ice' && net.pc) {
+        if (net.remoteSet) { try { net.pc.addIceCandidate(new RTCIceCandidate(m.cand)).catch(function () {}); } catch (e) {} }
+        else net.pendingIce.push(m.cand);
+      } else if (t === 'start') startGuest(m.mode);
+      else if (t === 'lvl') { startGuest(m.mode); applyLevel(m); }
+      else if (t === 's') applySnap(m);
+      else if (t === 'over') guestOver(m);
+    }
+  }
+
+  // --- хост: открыть комнату ---
+  function hostOpen() {
+    resetNet();
+    net.role = 'host';
+    net.code = rnd(4, CODE_CH);
+    $('lobCode').textContent = net.code;
+    lobStatus('Подключаюсь к серверу…');
+    mqConnect(0, function (mq) {
+      if (!mq) { lobStatus('Не получилось подключиться к серверу. Проверь интернет/VPN и попробуй снова'); return; }
+      net.mq = mq;
+      net.inT = TOPIC + net.code + '/h'; net.outT = TOPIC + net.code + '/g';
+      mq.onmsg = function (tp, p) { onNetStr(p); };
+      mq.onclose = function () { if (!started) lobStatus('Связь с сервером потеряна. Создай комнату заново'); };
+      mq.sub(net.inT);
+      lobStatus('Комната открыта. Ждём друга…');
+      net.hbT = setInterval(function () { if (!net.guestCid) mqPub({ t: 'hb' }); }, 2000);
+      mqPub({ t: 'hb' });
+    });
+  }
+  function hostStart() {
+    if (net.role !== 'host' || !net.ready) return;
+    mode = net.pendingMode;
+    netRole = 'host';
+    clearInterval(net.hbT);
+    net.lastIn = performance.now();
+    player2 = createPlayer2(WORLD / 2 + 70, WORLD / 2, 1);
+    $('lobby').style.display = 'none';
+    netSend({ t: 'start', mode: mode });
+    startGame(mode);
+  }
+
+  // --- гость: войти по коду ---
+  function guestOpen(code) {
+    resetNet();
+    net.role = 'guest';
+    net.code = code.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (net.code.length !== 4) { lobStatus('Код — 4 символа'); return; }
+    tryBroker(0);
+    function tryBroker(idx) {
+      if (idx >= BROKERS.length) { lobStatus('Комната не найдена. Проверь код и что хост уже ждёт'); return; }
+      lobStatus('Ищу комнату… (' + (idx + 1) + '/' + BROKERS.length + ')');
+      var mq = new MQ(BROKERS[idx], 'tk' + net.cid), fin = false;
+      var inT = TOPIC + net.code + '/g', outT = TOPIC + net.code + '/h';
+      var tm = setTimeout(next, 6000);
+      function next() {
+        if (fin) return;
+        fin = true; clearTimeout(tm);
+        try { mq.close(); } catch (e) {}
+        tryBroker(idx + 1);
+      }
+      mq.onclose = next;
+      mq.onopen = function () {
+        if (fin) return;
+        mq.sub(inT);
+        clearTimeout(tm); tm = setTimeout(next, 5000);   // ждём сердцебиение хоста
+      };
+      mq.onmsg = function (tp, p) {
+        if (fin) return;
+        var m; try { m = JSON.parse(p); } catch (e) { return; }
+        if (m.t !== 'hb' && m.t !== 'hello') return;
+        fin = true; clearTimeout(tm);
+        net.mq = mq; net.inT = inT; net.outT = outT;
+        mq.onmsg = function (tp2, p2) { onNetStr(p2); };
+        mq.onclose = function () { if (!started) lobStatus('Связь с сервером потеряна'); };
+        lobStatus('Комната найдена, подключаюсь…');
+        var j = function () { mqPub({ t: 'join', c: net.cid }); };
+        j(); net.joinT = setInterval(j, 1500);
+      };
+    }
+  }
+
+  // --- хост: состояние мира -> гостю ---
+  function netSendLevel() {
+    netSend({
+      t: 'lvl', n: level, mode: mode,
+      ob: obstacles.map(function (o) { return [Math.round(o.x), Math.round(o.y), Math.round(o.w), Math.round(o.h)]; }),
+      bx: boxes.map(function (b) { return [b.id, Math.round(b.x), Math.round(b.y)]; }),
+      bn: bonuses.map(function (b) { return [Math.round(b.x), Math.round(b.y), b.type]; })
+    });
+    boxDirty = false; bonusDirty = false;
+    // гостю нужны описания всех танков заново (на случай, если кто-то остался с прошлого уровня)
+    var all = enemies.concat(allies, [player, player2]);
+    for (var i = 0; i < all.length; i++) if (all[i]) all[i].specSent = 0;
+  }
+
+  function updateP2(dt) {
+    if (player2.dead) return;
+    player2.tick(dt);
+    var fresh = performance.now() - rin.t < 1500;
+    var mg = fresh ? rin.m / 100 : 0, an = rin.a / 100;
+    if (mg > 0) {
+      player2.rotate = an;
+      if (player2.trackT <= 0) {
+        var sp = mg * player2.maxSpeed * SPEED_K * dt;
+        moveTank(player2, Math.cos(an) * sp, Math.sin(an) * sp);
+      }
+    }
+    player2.turret = player2.rotate;
+    if (fresh && rin.f) {
+      var nb = player2.fire([0], 'reg');
+      for (var q = 0; q < nb.length; q++) playerBullets.push(nb[q]);
+    }
+    player2.sync();
+  }
+
+  function snapEnt(t, kind, full) {
+    var spec = 0;
+    if (full || t.specSent < 3) { t.specSent++; spec = [t.size, t.color, t.turretColor, t.isBoss ? 1 : 0]; }
+    var e = [t.id, kind, t.pid, Math.round(t.x), Math.round(t.y), Math.round(t.rotate * 100), Math.round(t.turret * 100),
+      Math.round(t.hp), Math.round(t.maxHp), Math.ceil(t.trackT), t.spawn > 0 ? 1 : 0, spec];
+    if (kind === 2) e.push(t.reload > 0 ? Math.round(100 * (1 - t.reload / t.reloadTime)) : 100);
+    return e;
+  }
+  function hostNetTick(dt) {
+    if (!net.guestCid) return;
+    var now = performance.now();
+    if (started && !net.guestLost && net.lastIn && now - net.lastIn > 8000) {
+      net.guestLost = true;
+      if (player2) player2.hp = 0;
+      showBanner('Друг отключился', 'игра продолжается без него', 2500);
+    }
+    net.sendT -= dt;
+    if (net.sendT > 0) return;
+    net.sendT = (net.dc && net.dc.readyState === 'open') ? 0.05 : 0.09;
+    if (!(net.dc && net.dc.readyState === 'open') && !(net.mq && net.mq.ready)) return;
+    if (net.dc && net.dc.readyState === 'open' && net.dc.bufferedAmount > 100000) return;
+    if (!(net.dc && net.dc.readyState === 'open') && net.mq.buffered() > 150000) return;
+    var full = now - net.lastFull > 4000, T = [], B = [], i;
+    if (full) net.lastFull = now;
+    T.push(snapEnt(player, 2, full));
+    if (player2) T.push(snapEnt(player2, 2, full));
+    for (i = 0; i < enemies.length; i++) T.push(snapEnt(enemies[i], 0, full));
+    for (i = 0; i < allies.length; i++) T.push(snapEnt(allies[i], 1, full));
+    var arrs = [playerBullets, enemyBullets];
+    for (var k = 0; k < 2; k++) {
+      for (i = 0; i < arrs[k].length; i++) {
+        var b = arrs[k][i];
+        B.push([Math.round(b.x), Math.round(b.y), Math.round(b.angle * 100), Math.round(b.speed), Math.round(b.r * 10), b.shape.fill()]);
+      }
+    }
+    var snap = {
+      t: 's', n: ++net.tick, st: state === 'fight' ? 0 : 1, lv: level,
+      lf: enemies.length + spawnQueue.length, al: allies.length + allyQueue.length,
+      sc: scores, lb: [lastBonusText, lastBonus2], T: T, B: B,
+      bs: (currentBoss && enemies.indexOf(currentBoss) >= 0) ? [Math.round(currentBoss.hp), Math.round(currentBoss.maxHp)] : 0,
+      ev: evq
+    };
+    if (full || boxDirty) { snap.bx = boxes.map(function (b2) { return [b2.id, Math.round(b2.x), Math.round(b2.y)]; }); boxDirty = false; }
+    if (full || bonusDirty) { snap.bn = bonuses.map(function (b3) { return [Math.round(b3.x), Math.round(b3.y), b3.type]; }); bonusDirty = false; }
+    if (full) snap.ob = obstacles.map(function (o) { return [Math.round(o.x), Math.round(o.y), Math.round(o.w), Math.round(o.h)]; });
+    evq = [];
+    netSend(snap, true);
+  }
+
+  // --- гость: приём ---
+  function startGuest(m) {
+    if (started) return;
+    mode = m; netRole = 'guest'; started = true; net.myPid = 1;
+    clearInterval(net.joinT);
+    $('menu').style.display = 'none';
+    $('lobby').style.display = 'none';
+    player.destroy();
+    player = createPlayer2(WORLD / 2 + 70, WORLD / 2, 1);
+    player2 = createPlayer2(WORLD / 2, WORLD / 2, 0);
+    ['sHe', 'sAp', 'sReg', 'aimBtn', 'pauseBtn'].forEach(function (id) { $(id).style.display = 'none'; });
+    lastT = performance.now();
+  }
+  function applyObstacles(list) {
+    var key = JSON.stringify(list);
+    if (key === net.obKey) return;
+    net.obKey = key;
+    for (var i = 0; i < obstacles.length; i++) obstacles[i].destroy();
+    obstacles = list.map(function (o) { return new Obstacle(o[0], o[1], o[2], o[3]); });
+  }
+  function applyBoxes(list) {
+    var have = {}, seen = {}, keep = [], i;
+    for (i = 0; i < boxes.length; i++) have[boxes[i].id] = boxes[i];
+    for (i = 0; i < list.length; i++) {
+      var l = list[i], b = have[l[0]];
+      if (!b) { b = new Box(l[1], l[2]); b.id = l[0]; }
+      else { b.x = l[1]; b.y = l[2]; b.sync(); }
+      keep.push(b); seen[l[0]] = 1;
+    }
+    for (i = 0; i < boxes.length; i++) if (!seen[boxes[i].id]) boxes[i].destroy();
+    boxes = keep;
+  }
+  function applyBonuses(list) {
+    var i;
+    for (i = 0; i < bonuses.length; i++) bonuses[i].destroy();
+    bonuses = list.map(function (l) { return new Bonus(l[0], l[1], l[2]); });
+  }
+  function applyLevel(m) {
+    var i;
+    level = m.n; state = 'fight';
+    for (i = 0; i < enemies.length; i++) enemies[i].destroy();
+    for (i = 0; i < allies.length; i++) allies[i].destroy();
+    enemies = []; allies = []; net.tk = {};
+    for (i = 0; i < net.gb.length; i++) net.gb[i].shape.visible(false);
+    net.obKey = '';
+    applyObstacles(m.ob);
+    applyBoxes(m.bx);
+    applyBonuses(m.bn);
+  }
+  function specTank(kind, pid, sp) {
+    return new Tank(0, 0, {
+      size: sp[0], color: sp[1], turretColor: sp[2], isBoss: !!sp[3], ally: kind === 1, isPlayer: kind === 2, pid: pid,
+      hp: 1, speed: 1, reload: 1, damage: 1, pen: 1, bulletSpeed: 1, armor: 1
+    });
+  }
+  function guestEv(e) {
+    var k, c;
+    switch (e[0]) {
+      case 'e': explode(e[1], e[2], e[3], e[4]); break;
+      case 't': floatText(e[1], e[2], e[3], e[4], e[5] || undefined); break;
+      case 'b': showBanner(e[1], e[2], e[3] || undefined); break;
+      case 'h':
+        $('hurt').style.opacity = 1;
+        setTimeout(function () { $('hurt').style.opacity = 0; }, 150);
+        break;
+      case 'm':
+        for (k = 0; k < 16; k++) debris(e[1], e[2], 5 + Math.random() * 8, k % 2 ? '#fbbf24' : '#6b7280', 0.9 + Math.random() * 0.5);
+        break;
+      case 'db':
+        for (c = 0; c < 6; c++) debris(e[1], e[2], 6 + Math.random() * 5, '#8b5a2b', 0.6);
+        break;
+    }
+  }
+  function applySnap(m) {
+    if (!started || m.n <= net.lastN) return;
+    net.lastN = m.n; net.lastSnap = performance.now(); net.lostShown = false;
+    state = m.st ? 'cleared' : 'fight'; level = m.lv;
+    net.left = m.lf; net.al = m.al; net.lb = m.lb; net.boss = m.bs;
+    scores = m.sc; score = scores[1];
+    var ne = [], na = [], seen = {}, i;
+    for (i = 0; i < m.T.length; i++) {
+      var e = m.T[i], kind = e[1], pid = e[2], sp = e[11], t;
+      if (kind === 2) {
+        t = pid === net.myPid ? player : player2;
+        if (sp && (t.size !== sp[0] || t.color !== sp[1] || t.turretColor !== sp[2])) {
+          var nt = specTank(2, pid, sp);
+          t.destroy();
+          if (pid === net.myPid) player = nt; else player2 = nt;
+          t = nt;
+        }
+      } else {
+        t = net.tk[e[0]];
+        if (!t) {
+          if (!sp) continue;
+          t = specTank(kind, pid, sp);
+          net.tk[e[0]] = t;
+        }
+        seen[e[0]] = 1;
+        (kind === 1 ? na : ne).push(t);
+      }
+      t.tx = e[3]; t.ty = e[4]; t.trot = e[5] / 100; t.ttur = e[6] / 100;
+      if (e[7] < t.hp - 0.5) t.flash = 0.1;
+      t.hp = e[7]; t.maxHp = e[8]; t.trackT = e[9]; t.spawn = e[10];
+      if (!t.gInit) { t.x = t.tx; t.y = t.ty; t.rotate = t.trot; t.turret = t.ttur; t.gInit = true; }
+      if (kind === 2) {
+        t.reload = 1 - e[12] / 100; t.reloadTime = 1;
+        t.dead = e[7] <= 0;
+        t.node.visible(!t.dead);
+      }
+    }
+    for (var id in net.tk) if (!seen[id]) { net.tk[id].destroy(); delete net.tk[id]; }
+    enemies = ne; allies = na;
+
+    var B = m.B;
+    while (net.gb.length < B.length) {
+      var sh = new Konva.Circle({ radius: 4, fill: '#fff', stroke: 'rgba(255,255,255,0.7)', strokeWidth: 1 });
+      bulletG.add(sh);
+      net.gb.push({ shape: sh, x: 0, y: 0, vx: 0, vy: 0, on: false });
+    }
+    for (i = 0; i < net.gb.length; i++) {
+      var g = net.gb[i];
+      if (i < B.length) {
+        var bb = B[i], a = bb[2] / 100;
+        g.x = bb[0]; g.y = bb[1]; g.vx = Math.cos(a) * bb[3]; g.vy = Math.sin(a) * bb[3];
+        g.shape.radius(bb[4] / 10); g.shape.fill(bb[5]); g.shape.visible(true); g.on = true;
+        g.shape.position({ x: g.x, y: g.y });
+      } else if (g.on) { g.shape.visible(false); g.on = false; }
+    }
+    if (m.ob) applyObstacles(m.ob);
+    if (m.bx) applyBoxes(m.bx);
+    if (m.bn) applyBonuses(m.bn);
+    for (i = 0; i < m.ev.length; i++) guestEv(m.ev[i]);
+    if (!net.snapped) { net.snapped = true; updateCamera(0, true); }
+  }
+  function guestUpdate(dt) {
+    time += dt;
+    var k = Math.min(1, dt * 14), all = enemies.concat(allies, [player, player2]), i;
+    for (i = 0; i < all.length; i++) {
+      var t = all[i];
+      if (!t.gInit) continue;
+      t.x += (t.tx - t.x) * k; t.y += (t.ty - t.y) * k;
+      t.rotate += angDiff(t.rotate, t.trot) * k;
+      t.turret += angDiff(t.turret, t.ttur) * k;
+      if (t.flash > 0) t.flash -= dt;
+      t.sync();
+    }
+    for (i = 0; i < net.gb.length; i++) {
+      var g = net.gb[i];
+      if (!g.on) continue;
+      g.x += g.vx * dt; g.y += g.vy * dt;
+      g.shape.position({ x: g.x, y: g.y });
+    }
+    for (i = 0; i < bonuses.length; i++) {
+      var pulse = 1 + 0.12 * Math.sin(time * 6);
+      bonuses[i].node.scale({ x: pulse, y: pulse });
+    }
+    updateFx(dt);
+    net.inT2 -= dt;
+    if (net.inT2 <= 0) {
+      net.inT2 = 0.05;
+      var inp = player.dead ? { ang: 0, mag: 0 } : getInput();
+      netSend({ t: 'i', a: Math.round(inp.ang * 100), m: Math.round(inp.mag * 100), f: (firing && !player.dead) ? 1 : 0 }, true);
+    }
+    if (net.snapped) updateCamera(dt, false);
+    if (net.lastSnap && !net.lostShown && performance.now() - net.lastSnap > 7000) {
+      net.lostShown = true;
+      showBanner('Связь потеряна', 'ждём хоста…', 3000);
+    }
+  }
+  function guestOver(m) {
+    if (gameOver) return;
+    gameOver = true;
+    aimLine.visible(false);
+    $('overText').textContent = 'Уровень: ' + m.lv + ' · Счёт (ты : друг) — ' + m.sc[1] + ' : ' + m.sc[0];
+    $('overFun').textContent = FUN[Math.floor(Math.random() * FUN.length)];
+    $('over').style.display = 'flex';
+    $('bossWrap').style.display = 'none';
+    $('clearedBar').style.display = 'none';
+  }
+  function updateHUDGuest(dt) {
+    net.hudT -= dt;
+    if (net.hudT > 0) return;
+    net.hudT = 0.1;
+    $('level').textContent = level;
+    $('score').textContent = scores[1] + ' : ' + scores[0];
+    $('left').textContent = net.left;
+    $('allyRow').style.display = isTeamMode() ? 'block' : 'none';
+    $('allies').textContent = net.al;
+    $('xpNow').textContent = '—';
+    $('lastBonus').textContent = net.lb[1];
+    var fr = clamp(player.hp / player.maxHp, 0, 1), hf = $('hpFill');
+    hf.style.width = (fr * 100) + '%';
+    hf.style.background = fr > 0.5 ? '#22c55e' : (fr > 0.25 ? '#eab308' : '#ef4444');
+    $('hpText').textContent = Math.ceil(player.hp) + ' / ' + Math.round(player.maxHp);
+    var f2r = clamp(player2.hp / player2.maxHp, 0, 1);
+    $('p2Row').style.display = 'block';
+    $('hp2Fill').style.width = (f2r * 100) + '%';
+    $('hp2Fill').style.background = f2r > 0.5 ? '#22c55e' : (f2r > 0.25 ? '#eab308' : '#ef4444');
+    $('hp2Text').textContent = Math.ceil(player2.hp) + ' / ' + Math.round(player2.maxHp);
+    var ti = $('trackInfo');
+    if (player.trackT > 0) { ti.style.display = 'block'; ti.textContent = '⛓ Гусеница сбита: ' + Math.ceil(player.trackT) + ' с'; }
+    else ti.style.display = 'none';
+    $('zoomBtn').className = 'sbtn' + (autoZoomOn ? ' sel' : '');
+    $('clearedBar').style.display = 'none';
+    if (net.boss) {
+      $('bossWrap').style.display = 'block';
+      $('bossFill').style.width = (clamp(net.boss[0] / net.boss[1], 0, 1) * 100) + '%';
+    } else $('bossWrap').style.display = 'none';
+  }
+
+  // --- лобби: кнопки ---
+  function openLobby(m) {
+    net.pendingMode = m;
+    $('lobTitle').textContent = m === 'duo' ? '🎮 2 игрока · каждый сам' : '🤝 2 игрока · команды';
+    $('lobChoice').style.display = 'flex';
+    $('lobHostView').style.display = 'none';
+    $('lobJoinView').style.display = 'none';
+    $('lobStart').style.display = 'none';
+    lobStatus(''); $('lobNet').textContent = '';
+    $('lobby').style.display = 'flex';
+  }
+  function closeLobby() {
+    closeNet();
+    var pm = net.pendingMode;
+    net = { pendingMode: pm };
+    $('lobby').style.display = 'none';
+  }
+  $('modeDuo').addEventListener('click', function () { openLobby('duo'); });
+  $('modeDuoTeam').addEventListener('click', function () { openLobby('duoteam'); });
+  $('lobHost').addEventListener('click', function () {
+    $('lobChoice').style.display = 'none';
+    $('lobHostView').style.display = 'block';
+    hostOpen();
+  });
+  $('lobJoin').addEventListener('click', function () {
+    $('lobChoice').style.display = 'none';
+    $('lobJoinView').style.display = 'flex';
+  });
+  $('lobGo').addEventListener('click', function () { guestOpen($('codeIn').value); });
+  $('lobStart').addEventListener('click', hostStart);
+  $('lobBack').addEventListener('click', closeLobby);
+  net = { pendingMode: null };
+
+  // ====================== игровой цикл ======================
+  var lastT = performance.now();
+  function loop(now) {
+    var dt = Math.min(0.05, (now - lastT) / 1000);
+    lastT = now;
+    if (!gameOver) {
+      if (netRole === 'guest') {
+        if (started) guestUpdate(dt);
+        updateHUDGuest(dt);
+      } else {
+        if (started && !shopOpen && !paused) update(dt);
+        updateHUD(dt);
+      }
+      if (netRole === 'host') hostNetTick(dt);
+      updateFireRing();
+    } else {
+      updateFx(dt);
+      if (netRole === 'host') hostNetTick(dt);
+    }
+    layer.batchDraw();
+    requestAnimationFrame(loop);
+  }
+
+  function startGame(m) {
+    mode = m;
+    started = true;
+    $('menu').style.display = 'none';
+    if (isDuo()) $('pauseBtn').style.display = 'none';   // на двоих паузы нет
+    lastT = performance.now();
+    startLevel(1);
+    updateCamera(0, true);
+  }
+  $('modeSolo').addEventListener('click', function () { startGame('solo'); });
+  $('modeTeam').addEventListener('click', function () { startGame('team'); });
+  $('menuBack').addEventListener('click', function () { window.location.href = 'glist.html'; });
+
+  updateCamera(0, true);
+  updateHUD(1);
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

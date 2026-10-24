@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Эмулятор терминала</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {
+      background-color: #272822;
+      color: #F8F8F2;
+      font-family: monospace;
+      padding: 20px;
+    }
+    h1 { font-size: 24px; }
+    #output {
+      height: 200px;
+      width: 310px;
+      border: 1px solid #75715E;
+      background-color: #1E1F1C;
+      padding: 10px;
+      overflow: auto;
+      margin-bottom: 10px;
+    }
+    #output p { margin: 0; padding: 0; }
+    input[type="text"] {
+      width: 300px;
+      padding: 5px;
+      font-size: 14px;
+      border: none;
+      background-color: #1E1F1C;
+      color: #F8F8F2;
+    }
+    button {
+      padding: 5px 10px;
+      font-size: 14px;
+      background-color: #75715E;
+      color: #F8F8F2;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #F8F8F2;
+      color: #272822;
+    }
+    /* Стили для модального окна */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      justify-content: center; align-items: center;
+    }
+    .modal-content {
+      background-color: #1E1F1C;
+      padding: 20px;
+      border-radius: 5px;
+      color: #F8F8F2;
+      max-width: 90%;
+      box-sizing: border-box;
+    }
+    .modal textarea {
+      width: 100%;
+      max-width: 100%;
+      height: 300px;
+      padding: 5px;
+      font-size: 14px;
+      border: 1px solid #75715E;
+      background-color: #272822;
+      color: #F8F8F2;
+      box-sizing: border-box;
+    }
+    .modal button { margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h1>Терминал</h1>
+  <div id="output"></div>
+  <input id="input" type="text" autofocus>
+  <button onclick="executeCommand()">Выполнить</button>
+  <img id="image" src="" style="display: none;">
+  
+  <!-- Модальное окно для MicroPython -->
+  <div id="micropythonModal" class="modal">
+    <div class="modal-content">
+      <h2>MicroPython</h2>
+      <textarea id="micropythonCode"># Пример: вывод ряда Фибоначчи
+print("Добро пожаловать в тест MicroPython!")
+a, b = 0, 1
+for i in range(10):
+    print("Число Фибоначчи:", b)
+    a, b = b, a + b
+</textarea>
+      <button onclick="runMicroPython()">Выполнить</button>
+      <button onclick="closeModal()">Закрыть</button>
+    </div>
+  </div>
+
+  <script>
+    let pyodide = null;
+    let avcommand = false;
+    // Режим использования ресурсов: "ram" (загружаем в оперативную память без сохранения),
+    // "local" – используем сохранённые данные из IndexedDB.
+    let resourceMode = null;
+    
+    // Определяем необходимые ресурсы для Pyodide v0.27.5 (вместо устаревших имён)
+    const resourceMap = {
+      "pyodide.wasm": "python1",
+      "pyodide.worker.js": "python2"
+    };
+    const requiredFiles = Object.keys(resourceMap);
+
+    // --- Работа с IndexedDB для ресурсов ---
+    function openResourceDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open("PyodideResourcesDB", 1);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result);
+        request.onupgradeneeded = event => {
+          const db = event.target.result;
+          db.createObjectStore("files", { keyPath: "filename" });
+        };
+      });
+    }
+
+    async function saveResourceToDB(filename, content) {
+      const db = await openResourceDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction("files", "readwrite");
+        const store = tx.objectStore("files");
+        const request = store.put({ filename, content });
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    async function getResourceFromDB(filename) {
+      const db = await openResourceDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction("files", "readonly");
+        const store = tx.objectStore("files");
+        const request = store.get(filename);
+        request.onsuccess = () => resolve(request.result ? request.result.content : null);
+        request.onerror = () => reject(request.error);
+      });
+    }
+    // --- Конец работы с IndexedDB ---
+
+    // Переопределяем fetch так, чтобы при запросе нужных ресурсов возвращать их из IndexedDB
+    const originalFetch = window.fetch;
+    window.fetch = async function(url, options) {
+      // Если выбран режим использования локальных данных и запрашивается нужный файл …
+      for (let file of requiredFiles) {
+      if (String(url).endsWith(file) && (resourceMode === "local" || resourceMode === "storage")) {
+          try {
+            let storedContent = await getResourceFromDB(file);
+            if (storedContent) {
+              // Создаём Response с данными из IndexedDB. Для бинарных файлов можно использовать Blob.
+              return new Response(storedContent);
+            }
+          } catch (e) {
+            console.log("Ошибка доступа к IndexedDB для файла:", file, e);
+          }
+        }
+      }
+      return originalFetch(url, options);
+    };
+
+    // Переопределение console.log для вывода в окно #output
+    (function() {
+      const originalLog = console.log;
+      console.log = function(...args) {
+        originalLog.apply(console, args);
+        const output = document.getElementById("output");
+        output.innerHTML += '<p>' + args.join(" ") + '</p>';
+      };
+    })();
+
+    // Функция загрузки скрипта Pyodide:
+    // Пытаемся загрузить локальный файл python.txt, иначе с CDN.
+    async function loadPyodideScript() {
+      return new Promise((resolve, reject) => {
+        if (document.getElementById("pyodideScript")) {
+          resolve();
+          return;
+        }
+        const script = document.createElement("script");
+        script.id = "pyodideScript";
+        script.src = "python.txt"; // пробуем локально
+        script.onload = resolve;
+        script.onerror = () => {
+          console.log("Локальный файл python.txt не найден, загрузка с CDN.");
+          script.src = "https://cdn.jsdelivr.net/pyodide/v0.27.5/full/pyodide.js";
+          script.onload = resolve;
+          script.onerror = reject;
+        };
+        document.body.appendChild(script);
+      });
+    }
+
+    // Функция загрузки Pyodide и необходимых пакетов
+    async function loadPyodideAndPackages() {
+      try {
+        pyodide = await loadPyodide({
+          // indexURL указывает на CDN, но благодаря переопределённому fetch,
+          // если resourceMode = "local", запрошенные файлы будут получаться из IndexedDB.
+          indexURL: "https://cdn.jsdelivr.net/pyodide/v0.27.5/full/"
+        });
+        await pyodide.loadPackage("micropip");
+        await pyodide.runPythonAsync("import micropip");
+        console.log("Установщик Micro Python загружен!");
+      } catch (error) {
+        console.log("Ошибка при загрузке Pyodide:", error);
+        document.getElementById('output').innerHTML += '<p style="color: red;">Ошибка при загрузке Pyodide. Смотрите консоль.</p>';
+      }
+    }
+
+    function runTool(toolName) {
+      var url = toolName + ".html";
+      window.open(url, "_blank");
+    }
+
+    function changeColor(color) {
+      document.getElementById('output').style.color = color;
+    }
+
+    function displayImage(imageURL) {
+      const imageElement = document.getElementById('image');
+      imageElement.src = imageURL;
+      imageElement.style.display = 'block';
+    }
+
+    function playAudio(audioURL) {
+      new Audio(audioURL).play();
+    }
+
+    function openModal() {
+      document.getElementById('micropythonModal').style.display = 'flex';
+    }
+
+    function closeModal() {
+      document.getElementById('micropythonModal').style.display = 'none';
+    }
+
+    async function runMicroPython() {
+      const pythonCode = document.getElementById('micropythonCode').value;
+      try {
+        let result = await pyodide.runPythonAsync(pythonCode);
+        if (result !== undefined && result !== null) {
+          console.log(String(result));
+        }
+      } catch (error) {
+        console.log("Ошибка Python: " + error);
+      }
+      closeModal();
+    }
+
+    // Проверка наличия необходимых ресурсов в IndexedDB
+    async function checkLocalResources() {
+      const missing = [];
+      for (let file of requiredFiles) {
+        const content = await getResourceFromDB(file);
+        if (!content) {
+          missing.push(file);
+        }
+      }
+      return missing;
+    }
+
+    // Функция для скачивания и сохранения ресурсов в IndexedDB
+    async function downloadAndSaveResources(missingFiles) {
+      const baseURL = "https://cdn.jsdelivr.net/pyodide/v0.27.5/full/";
+      for (let file of missingFiles) {
+        try {
+          let response = await originalFetch(baseURL + file);
+          // Здесь для бинарных файлов (например, WASM) можно использовать blob или arrayBuffer.
+          // Для простоты мы сохраняем текстовый контент; в реальной реализации для бинарных файлов
+          // возможно потребуется конвертация.
+          let content = await response.text();
+          await saveResourceToDB(file, content);
+        } catch (e) {
+          console.log("Ошибка загрузки файла: " + file, e);
+        }
+      }
+    }
+
+    // Вывод выбора вариантов загрузки
+    function showResourceOptions(missingFiles) {
+      const output = document.getElementById('output');
+      output.innerHTML += '<p>Нужные ресурсы ещё не загружены локально. Выберите вариант:</p>' +
+        '<button id="loadInRam">Подгрузить в ОЗУ</button> ' +
+        '<button id="downloadAndSave">Скачать и сохранить</button>';
+      document.getElementById("loadInRam").onclick = function() {
+        resourceMode = "ram";
+        output.innerHTML += '<p>Ресурсы будут загружены в ОЗУ.</p>';
+        proceedLoading();
+      };
+      document.getElementById("downloadAndSave").onclick = async function() {
+        resourceMode = "storage";
+        output.innerHTML += '<p>Скачиваю и сохраняю ресурсы...</p>';
+        await downloadAndSaveResources(missingFiles);
+        output.innerHTML += '<p>Ресурсы сохранены в данных приложения.</p>';
+        // После успешного сохранения устанавливаем режим local, чтобы fetch использовал IndexedDB
+        resourceMode = "local";
+        proceedLoading();
+      };
+    }
+
+    // Продолжаем загрузку Pyodide после выбора варианта
+    async function proceedLoading() {
+      await loadPyodideScript();
+      await loadPyodideAndPackages();
+      openModal();
+    }
+
+    // Обработчик команды из поля ввода
+    async function executeCommand() {
+      const command = document.getElementById('input').value.toLowerCase();
+      const output = document.getElementById('output');
+
+      if (command === 'help') {
+        output.innerHTML += '<p>Доступные команды: help, print, cl, js, run, python. Для подробной справки напиши "run r".</p>';
+      } else if (command.startsWith('print ')) {
+        output.innerHTML += '<p>' + command.substring(6) + '</p>';
+      } else if (command.startsWith('color ')) {
+        changeColor(command.substring(6));
+      } else if (command.startsWith('run ')) {
+        runTool(command.substring(4));
+      } else if (command === 'cl') {
+        output.innerHTML = '';
+      } else if (command === 'av') {
+        displayImage('AV.png');
+        output.innerHTML += '<p>Артем Варейко настоящий ДЕБИЛ. Кто, если не он?</p>';
+        playAudio('Geometry.m4a');
+        avcommand = true;
+      } else if (command.startsWith('js ')) {
+        try {
+          eval(command.substring(3));
+          output.innerHTML += '<p style="color: yellow;">Код выполнен: ' + command.substring(3) + '</p>';
+        } catch (error) {
+          output.innerHTML += '<p style="color: red;">Ошибка выполнения кода: ' + error + '</p>';
+        }
+      } else if (command === 'python') {
+        // При команде python сначала проверяем наличие ресурсов в IndexedDB
+        const missingFiles = await checkLocalResources();
+        if (missingFiles.length > 0) {
+          showResourceOptions(missingFiles);
+          return; // дальнейшая загрузка запустится после выбора пользователем варианта
+        } else {
+          resourceMode = "local";
+          output.innerHTML += '<p>Ресурсы загружены из данных приложения.</p>';
+          await loadPyodideScript();
+          await loadPyodideAndPackages();
+          openModal();
+        }
+      } else {
+        output.innerHTML += '<p>Неверно! Попробуй ввести "help". Неизвестная команда: ' + command + '</p>';
+      }
+      document.getElementById('input').value = '';
+    }
+
+    // --- Код для достижений (без изменений) ---
+    function initDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open("AchievementsDB", 1);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result);
+        request.onupgradeneeded = event => {
+          const db = event.target.result;
+          db.createObjectStore("achievements", { keyPath: "title" });
+        };
+      });
+    }
+
+    async function addAchievement(title, text, image = false) {
+      try {
+        const db = await initDB();
+        const transaction = db.transaction(["achievements"], "readwrite");
+        const objectStore = transaction.objectStore("achievements");
+        const checkRequest = objectStore.get(title);
+        return new Promise((resolve) => {
+          checkRequest.onsuccess = () => {
+            if (!checkRequest.result) {
+              const newAchievement = { title, text, image: image || "button.png" };
+              objectStore.add(newAchievement).onsuccess = () => {
+                const div = document.createElement("div");
+                div.textContent = title;
+                div.style.position = "fixed";
+                div.style.top = "15px";
+                div.style.left = "5%";
+                div.style.width = "90%";
+                div.style.background = "#ffd700";
+                div.style.color = "#1a1a1a";
+                div.style.padding = "10px";
+                div.style.borderRadius = "8px";
+                div.style.boxShadow = "0 3px 10px rgba(0, 0, 0, 0.3)";
+                div.style.zIndex = "1000";
+                document.body.appendChild(div);
+                setTimeout(() => div.remove(), 3000);
+                resolve(true);
+              };
+            } else {
+              resolve(false);
+            }
+          };
+        });
+      } catch (error) {
+        console.log("Error:", error);
+        return false;
+      }
+    }
+
+    async function checkAndAddAchievement() {
+      if (avcommand === true) {
+        const added = await addAchievement(
+          "Какашка",
+          "Наступил на говно в терминале!",
+          "AV.png"
+        );
+        if (added) console.log("Достижение добавлено!");
+      }
+    }
+    setInterval(checkAndAddAchievement, 1000);
+    // --- Конец кода достижений ---
+  </script>
+  <button onclick="runTool('tool7')">НАЗАД</button>
+</body>
+</html>

@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Учебный день</title>
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      background: #111;
+      font-family: sans-serif;
+      color: #eee;
+      gap: 24px;
+    }
+
+    .buttons {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    button {
+      padding: 10px 16px;
+      border: 2px solid #555;
+      background: #222;
+      color: #eee;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    button:hover {
+      background: #333;
+      border-color: #888;
+    }
+
+    button.active {
+      background: #1a4a1a;
+      border-color: #4caf50;
+      color: #4caf50;
+    }
+
+    #canvas-wrap {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    canvas {
+      width: 300px;
+      height: 300px;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      border: 2px solid #444;
+    }
+
+    #info {
+      font-size: 13px;
+      color: #aaa;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<div class="buttons">
+  <button onclick="selectPairs(2, this)">У меня сегодня две пары</button>
+  <button onclick="selectPairs(3, this)">У меня сегодня три пары</button>
+  <button onclick="selectPairs(4, this)">У меня сегодня четыре пары</button>
+</div>
+
+<div id="canvas-wrap">
+  <canvas id="c" width="100" height="100"></canvas>
+  <div id="info"></div>
+</div>
+
+<script>
+  const END_TIMES = {
+    2: { h: 11, m: 15 },
+    3: { h: 13, m: 15 },
+    4: { h: 15, m: 35 }
+  };
+
+  const START = { h: 8, m: 0 };
+  const TOTAL_PX = 100 * 100;
+
+  let currentPairs = null;
+  let animFrame = null;
+
+  function selectPairs(n, btn) {
+    currentPairs = n;
+    document.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('canvas-wrap').style.display = 'flex';
+    if (animFrame) cancelAnimationFrame(animFrame);
+    draw();
+  }
+
+  function toMinutes(h, m) {
+    return h * 60 + m;
+  }
+
+  function draw() {
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+
+    const end = END_TIMES[currentPairs];
+    const startMin = toMinutes(START.h, START.m);
+    const endMin = toMinutes(end.h, end.m);
+    const totalMin = endMin - startMin;
+
+    const now = new Date();
+    const nowMin = toMinutes(now.getHours(), now.getMinutes()) + now.getSeconds() / 60;
+
+    ctx.clearRect(0, 0, 100, 100);
+
+    const info = document.getElementById('info');
+
+    if (nowMin < startMin) {
+      // День не начался
+      info.textContent = `День начнётся в 8:00. До начала: ${formatDiff(startMin - nowMin)}`;
+      animFrame = requestAnimationFrame(draw);
+      return;
+    }
+
+    if (nowMin >= endMin) {
+      // День закончился — закрасить всё
+      ctx.fillStyle = '#4caf50';
+      ctx.fillRect(0, 0, 100, 100);
+      info.textContent = `Учебный день завершён в ${END_TIMES[currentPairs].h}:${String(END_TIMES[currentPairs].m).padStart(2,'0')} 🎉`;
+      return;
+    }
+
+    const elapsed = nowMin - startMin;
+    const progress = elapsed / totalMin;
+    const filledPx = Math.floor(progress * TOTAL_PX);
+
+    const imageData = ctx.createImageData(100, 100);
+    const d = imageData.data;
+
+    for (let i = 0; i < TOTAL_PX; i++) {
+      const idx = i * 4;
+      if (i < filledPx) {
+        d[idx]     = 76;   // R
+        d[idx + 1] = 175;  // G
+        d[idx + 2] = 80;   // B
+        d[idx + 3] = 255;  // A
+      } else {
+        d[idx]     = 30;
+        d[idx + 1] = 30;
+        d[idx + 2] = 30;
+        d[idx + 3] = 255;
+      }
+    }
+
+    ctx.putImageData(imageData, 0, 0);
+
+    const remaining = endMin - nowMin;
+    const pct = (progress * 100).toFixed(1);
+    info.textContent = `${pct}% · осталось ${formatDiff(remaining)} · конец в ${end.h}:${String(end.m).padStart(2,'0')}`;
+
+    animFrame = requestAnimationFrame(draw);
+  }
+
+  function formatDiff(minutes) {
+    const h = Math.floor(minutes / 60);
+    const m = Math.floor(minutes % 60);
+    const s = Math.floor((minutes % 1) * 60);
+    if (h > 0) return `${h}ч ${m}м`;
+    if (m > 0) return `${m}м ${s}с`;
+    return `${s}с`;
+  }
+</script>
+</body>
+</html>

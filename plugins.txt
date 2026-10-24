@@ -1,0 +1,174 @@
+name: Тестовый плагин
+description: Это простой тестовый плагин для демонстрации.
+code_url: https://vaneyn.github.io/glistnet/bin.html
+icon_url: https://i.postimg.cc/vZc6Lg45/1000032584.jpg
+screenshots: https://i.postimg.cc/pX1mTWsr/1000033481.jpg, https://i.postimg.cc/pX1mTWsr/1000033481.jpg, https://i.postimg.cc/pX1mTWsr/1000033481.jpg, https://i.postimg.cc/pX1mTWsr/1000033481.jpg
+---
+name: Дата и IP
+description: Простая утилита для получения своего ip адреса и текущего времени в Минск/Москва. А больше ничего знать и не надо..
+code_url: https://vaneyn.github.io/glistnet/datatime.html
+icon_url: 
+screenshots: 
+---
+name: Цветовой RGB master
+description: Позволяет получить текстовую расшифровку цвета
+code_url:https://vaneyn.github.io/glistnet/rgb.html
+icon_url: 
+screenshots: 
+---
+name: Игра в перевхат
+description: Для игры с другом. Чьё нажатие перехвачено, тот проиграл. #2p
+code_url: https://vaneyn.github.io/glistnet/hvat.html
+icon_url: 
+screenshots: 
+---
+name: Игра 3D шутер пошаговый
+description: Для игры с другом на одном экране. Настоятельно рекомендую использовать альбомную ориентацию во время игры! Добавлено с версии 1.91 в сборник игр. На мой взгляд, совершенно не подходит для ПК. 
+code_url: https://vaneyn.github.io/glistnet/shooter2p.html
+icon_url: https://i.postimg.cc/2yKLzPC5/1000059018.png
+screenshots: https://i.postimg.cc/HsrBQmcB/1000059019.jpg
+---
+name: Элетрический конвертер
+description: Плагин для электриков и других чуваков, помешанных на законе Ома для участка цепи.
+code_url: https://vaneyn.github.io/glistnet/electrocalc.html
+icon_url: 
+screenshots: https://i.postimg.cc/c4MnGbm7/1000059047.jpg
+---
+name: Летающая Птица
+description: Летающая Птица – это простая, но увлекательная аркада, где вы управляете птицей, пролетающей между зелёными трубами. By Кирилл Чигинцев.
+code_url: https://vaneyn.github.io/glistnet/flybird.html
+icon_url: https://i.postimg.cc/DwVkKxxg/IMG-20250604-204501-376.jpg
+screenshots: 
+---
+name: Тест скорости загрузки
+description: Я не хочу добавлять это в основную сборку по очень простой причине - хз насколько это объективная инфа, но в консоли можно посмотреть подробнее и лично мне вполне достаточно этой инфы для примерной оценки скорости скачивания. 
+code_url: https://vaneyn.github.io/glistnet/downloadtest.html
+icon_url: 
+screenshots: https://i.postimg.cc/GhCC6cq2/1000059056.jpg
+---
+name: Безумный строитель 
+description: Больше роффельный проект, но зато красивая графика. Зайдет чисто на пять минут, но это 6/10, господа.
+code_url: https://vaneyn.github.io/glistnet/tower.html
+icon_url: 
+screenshots: https://i.postimg.cc/GhhPjNdq/1000059068.jpg
+---
+name: Тестирование онлайн сервисов Глиста
+description: Тула покажет, есть ли доступ к онлайн ресурсам API. Ассистент может не работать, даже если всё прказывает в норме, там много возможных проблем.
+code_url: https://vaneyn.github.io/glistnet/Testingapiglist.html
+icon_url: 
+screenshots: https://i.postimg.cc/zvpS3PCP/1000059134.jpg
+---
+name: Измерение расстояния до грозы 
+description: Тула покажет, как далеко находится источник звука от вас. 
+code_url: https://vaneyn.github.io/glistnet/audiometr.html
+icon_url: 
+screenshots: https://i.postimg.cc/3JZGNYDP/1000059327.jpg
+---
+name: Банан: Возвращение.
+description: Кажется, он вернулся. Он стал ещё бананее, ещё более желтым... И он готов быть бананом. Навсегда. 
+code_url: https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/banana2.html
+icon_url: https://i.postimg.cc/KYS4STCb/1000060789.png
+screenshots: 
+---
+name: Осистент
+description: Кхм, он сам себя опишет (он дурак): Здраствуйте! Я - ученый синтетический интеллект, созданный на основе машинного обучения. Я умею принимать текстовые вводы, анализировать и отвечать на них, креативно формируя текст. Я специализируюсь на обучении и рассеивании знаний по разным из годами изученным предметам, а также способен решать различные задачи, от простой Каликулы до более сложных - это зависит от доступной моей базы знаний. Я также способен генерации текста, как и создания ответов на различного рода вопросы, ответы на которые менее стандартизированы и более творческими.
+code_url: https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/osistent.html
+icon_url: 
+screenshots: 
+---
+name: Тест задержки дыхания 
+description: Секундомер для замера дыхания и оценки результатов. Замер производится от ВДОХА до первых позывов выдоха, сокращения мышц. У разраба (Ван Эйна) отоичный результат:)  На этом всё.
+code_url: https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/aerotest.html
+icon_url: 
+screenshots: 
+---
+name: Сборник "Что можно съесть"
+description: Нужно поесть. Жрать охота в лесу. Лес. Ядерная война. Скачай заранее. #ЧС
+code_url: https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/eatordead.html
+icon_url: 
+screenshots: 
+---
+name: Эмулятор SEGAreta
+description: Чувак предложил - я сделал. Только с интернетом пашет. Ну я сделал, ибо че б нет. На 100% функционал не обещаю, вообще никаких гарантий.
+code_url: https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/Segareta.html
+icon_url: 
+screenshots: 
+---
+name: КуатоРитм
+description: Ритм-игра с интеллектуальным анализом аудиотреков и автоматическим определением нот по частотам. Оптимизирована для мобильных устройств — плавный рендер без лагов, точный тайминг для идеального попадания. Встроенный импорт треков из плеера Glist и локальных файлов. Прогрессбар вверху экрана показывает ход игры в процентах. Удобная сенсорная зона с повышенной точностью обработки касаний и свайпов. Идеально для любителей музыкальных игр и создания кастомного ритма прямо на телефоне.
+code_url: https://vaneyn.github.io/glistnet/4game.html
+icon_url: https://i.postimg.cc/028Y4vV5/1000066399.jpg
+screenshots: https://i.postimg.cc/C17ysYvB/1000066396.jpg, https://i.postimg.cc/GttfPD8V/1000066397.jpg
+---
+name: Битва за зоны - WW1 (версия 4)
+description: Битва в стиле "все против всех". Вам доверили участок фронта. Задача - тотальное доминирование. Особенности задачи: 10 сухпайков - прибывает бот на помощь. Иногда вам могут прислать подкрепление - такие боты светлее. Раненые боты пассивные, а сильно раненые боты - ветераны - будут охранять свою зону до самой смерти. Некоторые боты склонны сдаваться в плен. Бронежилет (синий) повышает шанс выжить. Собирать бонусы можно только на своей территории. Скорость захвата зоны зависит от многих факторов, часто беззащитную зону можно взять почти сразу. Миникарта даёт представление о ситуации в целом. В новой версии от ваших личных успехов будет зависеть, сможите ли вы вызвать себе на помощь подкрепление! А также появилось два новых вида оружия: Дробовик и (для прирожденный мочил) РПГ. Жесть. Кроме того, добавлена система уровней разной сложности и игра по сети.
+code_url: https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/WW1game.html
+icon_url: https://i.postimg.cc/TPtdHTWb/1000066452.jpg
+screenshots: https://i.postimg.cc/HxbSkk4c/1000066449.jpg, https://i.postimg.cc/KzbPQrBj/1000066448.jpg
+---
+name: Крестики нолики с вылетом
+description: Как обычная игра, но старые символы исчезают. Игра. Пары. Нечего делать.
+code_url: https://vaneyn.github.io/glistnet/xo.html
+icon_url: https://i.postimg.cc/15MPq4hG/1000066939.jpg
+screenshots: 
+---
+name: Высота - горизонт калькулятор 
+description: Позволяет узнать расстояние до горизонта при нахождении на определенной высоте. Теги: География, калькулятор, географ, ориентирование
+code_url: https://vaneyn.github.io/glistnet/horizonaltitude.html
+icon_url: 
+screenshots: 
+---
+name: Тест GPU
+description: Позволяет проверить устройство на качество отрисовки 3D. Результаты тестов для современного типа рендера: 100+ должно быть достаточно для базовой работы с 3D. 250-350 - Вполне обычный результат для бюджетника в 2025 году. 500-1000 - сильно. 2000 - айфон 10. 6к - Неплохой ПК.
+code_url: https://vaneyn.github.io/glistnet/testgpu.html
+icon_url: 
+screenshots: 
+---
+name: ВосхитИИтельные картИИнки 
+description: Генератор картинок на ИИ. Простой. Хороший. #ИИ #Картинки #Изображения #API
+code_url: https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/aiimg.html
+icon_url: 
+screenshots: https://i.postimg.cc/Bn3h7KST/1000082045.jpg
+---
+name: Три в ряд 
+description: Я не знал что сделать и сделал злоедрючий три в ряд
+code_url: https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/3inline.html
+icon_url: 
+screenshots: https://i.postimg.cc/k4nykRyj/1000096236.jpg
+---
+name: Бумажная игра
+description:Ещё будучи школьником, бездарно тратя время в школе, я придумал игру на бумаге на двоих. Позже, сидя на парах, я тоже тратил время впустую. Сейчас оцифровал старую игру в точности, чтобы не тратить бумагу - береги природу, чепуха! Правила. Черные ходят три раза подряд, могут перейти стену если займут её полностью. Второй игрок пытается помешать, забивая те или иные точки, чтобы из них нельзя было развиваться дальше. За баланс не шарю, вроде могут выиграть обе стороны. Если игра займет у вас 3-4 часа уроков или пар, потраченное время на оцифровку окупится. #2p
+code_url: https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/papergame.html
+icon_url: 
+screenshots: https://i.postimg.cc/wxtGjymc/1000096285.jpg
+---
+name: Хойка
+description: Игра стратегия - развивай армию, экономику и захвати страны. Осторожно, твои атки могут вызвать акции возмездия! Если лагает то перезайди.
+code_url: https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/hoika.html
+icon_url: 
+screenshots: https://i.postimg.cc/TPHghcyF/1000096293.jpg
+---
+name: Ассистент 2
+description: Попробуй поболтать с ассистентом Glist 2.0 ещё до выхода самой версии 2.0! Возможно, ещё доработаю. Кнопка заново работает странно. РАБОТАЕТ ВОТ И ВСЁ. ЕСЛИ НАДО - СМОТРИ ЕДРЮЧИЕ ЧЕРТЕЖИ.
+code_url: https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/assistant2.html
+icon_url: 
+screenshots: https://i.postimg.cc/Dz7B15wZ/1000094073.jpg
+---
+name: Защита шара 
+description: Защита шара это очень важно, но багов куча так что смирись чел
+code_url: https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/ballprotect.html
+icon_url: 
+screenshots: 
+---
+name: Защита шара - Редактор уровней 
+description: Мне самому впадлу делать уровни, вот и всё.
+code_url: https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/ballprotectredactor.html
+icon_url: 
+screenshots: 
+---
+name: Парсер куфара ИИ 
+description: Не трогай ничего кроме названия и цены. ИИ оценка работает.
+code_url: https://raw.githubusercontent.com/Vaneyn/glistnet/refs/heads/main/kufarparse.html
+icon_url: 
+screenshots: https://i.postimg.cc/L8XQKrP6/IMG-20260221-103312-377.jpg
+---

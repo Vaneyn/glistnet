@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+	<style>
+		body{color:black;background-color:grey;}
+		button{font-size:20px;color:white;background-color:black;}
+	</style>
+	<head>
+		<title>Поиск и сохранение</title>
+		<script>
+			function run(tool){
+				var url=tool+".html";
+				window.open(url,"_blank");
+			}
+		</script>
+		<button onclick="run('glist')">НАЗАД</button>
+		<script>
+			function get(url,callback){
+				fetch(url)
+					.then(response=>response.text())
+					.then(data=>callback(data.trim()))
+					.catch(error=>console.error("Произошла ошибка:",error));
+			}
+			function store(){
+				var urls=["http://d90930x1.beget.tech/PocketCodeDB/DATABASE/echo/echo.php?slot=10&token=35733253709vaneyn2007@gmail.com46774546073", "http://d90930x1.beget.tech/PocketCodeDB/DATABASE/echo/echo.php?slot=11&token=35733253709vaneyn2007@gmail.com46774546073", "http://d90930x1.beget.tech/PocketCodeDB/DATABASE/echo/echo.php?slot=12&token=35733253709vaneyn2007@gmail.com46774546073", "http://d90930x1.beget.tech/PocketCodeDB/DATABASE/echo/echo.php?slot=13&token=35733253709vaneyn2007@gmail.com46774546073"]; // Оставьте ссылки, как в вашем примере
+				var promises=urls.map(url=>new Promise((resolve,reject)=>{
+					get(url,result=>resolve(result));
+				}));
+				Promise.all(promises)
+					.then(results=>{
+						var database=results.join(", ");
+						localStorage.setItem("database",database);
+						alert("Данные сохранены в базе данных!");
+					})
+					.catch(error=>console.error("Произошла ошибка:",error));
+			}
+			function search(){
+				var searchTerm=document.getElementById("term").value.toLowerCase();
+				var database=localStorage.getItem("database");
+				var results=[];
+				if(database){
+					var entries=database.split(", ");
+					entries.forEach(entry=>{
+						if(entry.toLowerCase().includes(searchTerm)){
+							results.push(entry);
+						}
+					});
+				}
+				document.getElementById("results").textContent=results.join(", ");
+			}
+			function execute(){
+				var url=document.getElementById("url").value;
+				get(url,html=>{
+					document.open();
+					document.write(html);
+					document.close();
+				});
+			}
+		</script>
+	</head>
+	<body>
+		<button onclick="store()">Загрузить базу данных</button>
+		<br>
+		<input type="text" id="term" placeholder="Поисковый термин">
+		<button onclick="search()">Поиск</button>
+		<br>
+		<div id="results"></div>
+		<br>
+		<input type="text" id="url" placeholder="URL для GET запроса">
+		<button onclick="execute()">Выполнить GET запрос</button>
+	</body>
+</html>

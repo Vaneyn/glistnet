@@ -1,0 +1,1323 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Glist tools v2.0</title>
+<script>
+/* ============================================================
+   Гейт first_run: если в localStorage не "0" — уводим на презентацию
+   ============================================================ */
+(function(){
+  try {
+    const fr = localStorage.getItem('first_run');
+    if (fr !== '0') {
+      console.log('[gate] first_run = ' + fr + ' — редирект на презентацию');
+      window.location.replace('glist_presentation.html');
+    } else {
+      console.log('[gate] first_run = 0 — пропускаем');
+    }
+  } catch (e) {
+    // localStorage заблокирован: не редиректим, иначе вечный цикл
+    console.warn('[gate] localStorage недоступен, пропускаем:', e);
+  }
+})();
+</script>
+<style>
+:root{
+  --bg:#09090b;
+  --menu-bg:rgba(14, 14, 17, 0.98);
+  --tile-bg:#18181b;
+  --tile-bg-hover:#222226;
+  --tile-light-bg:#000000;
+  --tile-light-text:#ffffff;
+  --text:#f4f4f6;
+  --text-dim:#71717a;
+  --border:rgba(255, 255, 255, 0.08);
+  --border-strong:rgba(255, 255, 255, 0.22);
+  --gap:10px;
+  --header-h:56px;
+  --min-font:10;
+  --max-font:30;
+  --font-sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  --font-mono:'JetBrains Mono','SFMono-Regular',Consolas,'Liberation Mono',monospace;
+  --ease-out:cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html,body{
+  height:100%;margin:0;padding:0;
+  background:var(--bg);
+  font-family:var(--font-sans);
+  color:var(--text);
+  overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+}
+
+/* ---------- Header ---------- */
+header{
+  height:var(--header-h);
+  display:flex;align-items:center;gap:14px;
+  padding:0 16px;
+  background:rgba(9,9,11,0.92);
+  backdrop-filter:blur(8px);
+  -webkit-backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--border);
+  box-sizing:border-box;
+  position:relative;
+  z-index:50;
+}
+
+#menuButton{
+  background:transparent;
+  border:1px solid var(--border);
+  color:var(--text);
+  font-size:15px;
+  width:34px;height:34px;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;
+  padding:0;
+  border-radius:0;
+  font-family:var(--font-mono);
+  transition:border-color 0.2s var(--ease-out), background-color 0.2s var(--ease-out);
+}
+#menuButton:hover{
+  border-color:var(--border-strong);
+  background:rgba(255,255,255,0.03);
+}
+
+h1#brand{
+  margin:0;
+  font-family:var(--font-sans);
+  font-size:15px;
+  font-weight:700;
+  color:var(--text);
+  letter-spacing:0.03em;
+}
+
+.hdr-right{
+  margin-left:auto;
+  color:var(--text-dim);
+  font-family:var(--font-mono);
+  font-size:10px;
+  letter-spacing:0.18em;
+  text-transform:uppercase;
+  opacity:1;
+}
+
+/* ---------- Viewport / pages ---------- */
+#viewport{height:calc(100vh - var(--header-h));width:100%;position:relative;overflow:hidden;touch-action:pan-y}
+.pages{height:100%;display:flex;transition:transform .28s var(--ease-out);will-change:transform}
+.page{min-width:100%;height:100%;box-sizing:border-box;padding:12px;display:block}
+.grid{position:relative;width:100%;height:100%;box-sizing:border-box}
+
+/* ---------- Tiles ---------- */
+.tile{
+  position:absolute;
+  background:var(--tile-bg);
+  color:var(--text);
+  border:1px solid var(--border);
+  padding:12px;
+  box-sizing:border-box;
+  display:flex;align-items:center;justify-content:center;text-align:center;
+  cursor:pointer;
+  user-select:none;-webkit-user-select:none;
+  -webkit-tap-highlight-color:transparent;
+  outline:none;
+  overflow:hidden;
+  word-break:break-word;
+  line-height:1.1;
+  border-radius:0;
+  box-shadow:none;
+  transition:background-color 0.2s var(--ease-out), border-color 0.2s var(--ease-out), transform 0.12s;
+}
+
+.tile:hover{
+  background:var(--tile-bg-hover);
+  border-color:var(--border-strong);
+}
+.tile:active{
+  transform:translateY(1px);
+}
+
+/* Очень чёрная плитка в углу */
+.tile.light{
+  background:#000;
+  color:#fff;
+  border-color:rgba(255,255,255,0.10);
+}
+.tile.light:hover{
+  background:#050505;
+  border-color:rgba(255,255,255,0.28);
+}
+
+@keyframes pulse {
+  0%{transform:scale(1);opacity:0.96}
+  50%{transform:scale(var(--pulse-scale,1.03));opacity:1}
+  100%{transform:scale(1);opacity:0.96}
+}
+.tile.pulse{
+  animation:pulse 1000ms ease-in-out infinite;
+  border-color:rgba(255,255,255,0.35);
+  box-shadow:0 0 24px rgba(255,255,255,0.08), inset 0 0 24px rgba(255,255,255,0.04);
+}
+
+/* ---------- Overlay ---------- */
+#overlay{
+  position:fixed;inset:0;
+  background:rgba(9,9,11,0.72);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  opacity:0;pointer-events:none;
+  transition:opacity 0.22s var(--ease-out);
+  z-index:110;
+}
+#overlay.show{opacity:1;pointer-events:auto}
+
+/* ---------- Side menu ---------- */
+#sideMenu{
+  position:fixed;
+  left:-320px;top:0;bottom:0;
+  width:320px;
+  background:var(--menu-bg);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  color:var(--text);
+  z-index:120;
+  transition:left 0.24s var(--ease-out);
+  display:flex;
+  flex-direction:column;
+  padding-top:8px;
+  box-sizing:border-box;
+  overflow-y:auto;
+  border-right:1px solid var(--border-strong);
+  box-shadow:20px 0 60px rgba(0,0,0,0.5);
+}
+#sideMenu.show{left:0}
+
+.menu-top{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 16px;
+  border-bottom:1px solid var(--border);
+  color:var(--text);
+}
+.menu-top > div:first-child{
+  display:flex;gap:10px;align-items:center;
+  font-family:var(--font-mono);
+  font-size:11px;
+  letter-spacing:0.15em;
+  text-transform:uppercase;
+}
+.menu-top strong{font-weight:600}
+
+#menuClose{
+  background:transparent;
+  border:1px solid var(--border);
+  color:var(--text-dim);
+  width:28px;height:28px;
+  cursor:pointer;
+  font-family:var(--font-mono);
+  font-size:12px;
+  padding:0;
+  border-radius:0;
+  transition:all 0.2s var(--ease-out);
+}
+#menuClose:hover{
+  border-color:var(--border-strong);
+  color:var(--text);
+}
+
+.menu-item{
+  padding:14px 18px;
+  border:0;
+  background:transparent;
+  text-align:left;
+  font-size:14px;
+  color:var(--text);
+  cursor:pointer;
+  border-bottom:1px solid var(--border);
+  font-family:var(--font-sans);
+  transition:background-color 0.15s;
+}
+.menu-item:hover{
+  background:rgba(255,255,255,0.04);
+}
+
+/* ---------- Pagination dots ---------- */
+.dots{
+  position:absolute;
+  left:50%;transform:translateX(-50%);
+  bottom:12px;
+  display:flex;gap:8px;
+  z-index:90;
+}
+.dot{
+  width:6px;height:6px;
+  border-radius:50%;
+  background:rgba(255,255,255,0.15);
+  transition:background-color 0.2s;
+}
+.dot.active{
+  background:var(--text);
+  box-shadow:0 0 8px rgba(255,255,255,0.5);
+}
+
+/* ---------- Telegram block ---------- */
+#tgLatest{
+  padding:14px 18px;
+  margin-top:8px;
+  border-top:1px solid var(--border);
+  color:var(--text);
+  font-size:13px;
+  word-break:break-all;
+  font-family:var(--font-sans);
+}
+#tgLatest .tg-label{
+  color:var(--text-dim);
+  font-family:var(--font-mono);
+  font-size:10px;
+  letter-spacing:0.12em;
+  text-transform:uppercase;
+  margin-bottom:6px;
+}
+#tgLatestName{
+  color:var(--text);
+  font-weight:600;
+  font-family:var(--font-mono);
+  font-size:12px;
+  text-decoration:none;
+}
+#tgLatestName:hover{text-decoration:underline}
+#tgLatestSize{
+  color:var(--text-dim);
+  font-family:var(--font-mono);
+  font-size:11px;
+  margin-left:6px;
+}
+#tgLatestStatus{
+  color:var(--text-dim);
+  font-family:var(--font-mono);
+  font-size:10px;
+  letter-spacing:0.05em;
+  margin-top:6px;
+}
+#tgRetry{
+  margin-top:10px;
+  padding:6px 12px;
+  font-size:11px;
+  border:1px solid var(--border-strong);
+  background:transparent;
+  color:var(--text);
+  cursor:pointer;
+  font-family:var(--font-mono);
+  letter-spacing:0.1em;
+  border-radius:0;
+  transition:all 0.2s var(--ease-out);
+}
+#tgRetry:hover{
+  background:var(--text);
+  color:var(--bg);
+}
+
+@media (max-width:520px){ #sideMenu{width:100%;left:-100%} #sideMenu.show{left:0} }
+</style>
+</head>
+<body>
+<header>
+  <button id="menuButton" aria-label="menu">☰</button>
+  <h1 id="brand">Glist tools v2.0</h1>
+  <div class="hdr-right">Van Eyn</div>
+</header>
+
+<div id="viewport" aria-live="polite">
+  <div class="pages" id="pages"></div>
+  <div class="dots" id="dots" aria-hidden="false"></div>
+</div>
+
+<div id="overlay" aria-hidden="true"></div>
+<nav id="sideMenu" aria-hidden="true">
+  <div class="menu-top">
+    <div><span>🛠</span><strong>Меню</strong></div>
+    <div><button id="menuClose" aria-label="close">✕</button></div>
+  </div>
+  <button class="menu-item" onclick="openTool('gazeta')">📰 Новости</button>
+  <button class="menu-item" onclick="openTool('terminal')">⌨️ Терминал</button>
+  <button class="menu-item" onclick="openTool('dostig')">🏆 Достижения</button>
+  <button class="menu-item" onclick="openTool('saver')">💾 Экспорт / Импорт</button>
+  <button class="menu-item" onclick="openTool('tool9')">❓ Помощь</button>
+  <button class="menu-item" onclick="openTool('settings')">⚙️ Настройки</button>
+  <div id="tgLatest">
+    <div class="tg-label">Последняя версия на Telegram канале</div>
+    <a id="tgLatestName" href="#" target="_blank">Загрузка…</a>
+    <span id="tgLatestSize"></span>
+    <div id="tgLatestStatus"></div>
+    <button id="tgRetry">Проверить</button>
+  </div>
+</nav>
+
+<!-- hidden list of tools -->
+<div id="sourceButtons" style="display:none">
+  <button data-tool="tool1">Генератор случайных чисел</button>
+  <button data-tool="tool5">biper</button>
+  <button data-tool="tool6">Параболист</button>
+  <button data-tool="tool8">Калькан</button>
+  <button data-tool="j2me">JaVAРЕНЬЕ</button>
+  <button data-tool="tool9">?</button>
+  <button data-tool="tool10">Частотушки</button>
+  <button data-tool="mp3player">Плеер</button>
+  <button data-tool="tool12">Тест мощности</button>
+  <button data-tool="gazeta">Газета / Новости</button>
+  <button data-tool="paint">Пейнт</button>
+  <button data-tool="notes">Заметки</button>
+  <button data-tool="1fire">Шифратор</button>
+  <button data-tool="symbol">Символист</button>
+  <button data-tool="arhiv">Архив инструментов 🗄</button>
+  <button data-tool="birga">Конвертер валют 💰</button>
+  <button data-tool="date">СкоВОста</button>
+  <button data-tool="karta">Карта</button>
+  <button data-tool="howtolive">ЧС - ресурсы</button>
+  <button data-tool="download2">Мои приложения в OS</button>
+  <button data-tool="tool7">OS</button>
+  <button data-tool="gp">GlistPlay</button>
+  <button data-tool="srednball">Подсчет среднего балла</button>
+  <button data-tool="ebota">Сборник развлечений 🧩</button>
+  <button data-tool="gamebar">Сборник игр 🎮</button>
+  <button data-tool="ass4">ИИ ассистент (интернет)</button>
+  <button data-tool="neser1">МайоNES</button>
+</div>
+
+<p id="output" style="display:none"></p>
+
+<script>
+/* ========== Configuration / flags ========== */
+const doRandomColors = Math.random() < 0.01;
+const doGravity = Math.random() < 0.01;
+const doAlert = Math.random() < 0.05;
+const doRotate = Math.random() < 0.01;
+const doRunaway = Math.random() < 0.01;
+
+/* ========== MEMES ========== */
+const MEME_COUNT = 14;
+const MEME_CHANCE = 0.05;
+let memeActive = false;
+
+function memesDisabled(){
+  try{ const ms = localStorage.getItem('main_settings'); return !!ms && ms.indexOf('novideomeme') !== -1; }catch(e){ return false; }
+}
+
+/* ========== Redirect oldmenu ========== */
+(function(){
+  try{
+    const ms = localStorage.getItem('main_settings');
+    if(ms){
+      let found = false;
+      try{
+        const parsed = JSON.parse(ms);
+        if(Array.isArray(parsed)) found = parsed.indexOf('oldmenu') !== -1;
+        else if(typeof parsed === 'object' && parsed !== null) found = JSON.stringify(parsed).indexOf('oldmenu') !== -1;
+        else found = String(parsed).indexOf('oldmenu') !== -1;
+      }catch(e){ found = String(ms).indexOf('oldmenu') !== -1; }
+      if(found){ window.location.href = 'glist1.html'; }
+    }
+  }catch(e){}
+})();
+
+/* ========== Easter eggs ========== */
+function triggerOldEasterEggs(){
+  try {
+    if(Math.random() < 1/100){
+      const brandEl = document.getElementById('brand');
+      if(brandEl) brandEl.innerText = 'Глист';
+      console.log('[egg] brand->Глист');
+    }
+    if(Math.random() < 1/20){
+      const images = ['a.jpg','b.jpg','c.jpg','d.jpg','e.jpg','hdd.jpg'];
+      const src = images[Math.floor(Math.random()*images.length)];
+      const img = document.createElement('img');
+      img.src = src; img.style.width='256px'; img.style.height='256px';
+      img.style.position='fixed'; img.style.top='0'; img.style.left='0'; img.style.zIndex='99999'; img.style.pointerEvents='none';
+      document.body.appendChild(img);
+      try{
+        const audio = new Audio('ha.mp3');
+        audio.play().catch(()=>{});
+        audio.onended = function(){ try{ img.remove(); }catch(e){} };
+        setTimeout(()=>{ try{ img.remove(); }catch(e){} }, 9000);
+      }catch(e){
+        setTimeout(()=>{ try{ img.remove(); }catch(e){} }, 4000);
+      }
+      console.log('[egg] random-image:', src);
+    }
+  }catch(e){ console.warn('old eggs failed', e); }
+}
+
+const samplePhrases = ["Привет, уходи","Сегодня мне откусили жопу", "Избегайте артемов", "Никогда не поздно начать позориться", "Всегда никогда бурмалда да-да", "ептвмть", "Ок", "Что-то пошло не так, ну и хрен с ним", "Если наступит конец света, то Glist будет твоим спасением", "Люби ближнего своего", "Мой тарелку после гречки СРАЗУ", "Разраб этого приложения прошел долгий путь, попадал в передряги, и, будьте уверены, если он жив, то попадает в них и ныне. За безликим приложением стоят десятки жизненных историй, надежд, рисков, безумных проишествий и невероятных приключений. Живите сегодня. Завтра может не наступить. 16 октября 2026 года. ", "Что бы не случилось, с таким как ты останутся хотя бы глисты", "Что бы не случилось, глисты будут с тобой", "Не ок", "Почему ты всегда выбераешь ок?", "Нажми ок если ты пидарок", "Всё идет по плану", "Артем ест песок"];
+if(doAlert) setTimeout(()=> { alert(samplePhrases[Math.floor(Math.random()*samplePhrases.length)]); console.log('[egg] alert shown'); }, 300);
+
+/* ========== Menu logic ========== */
+const overlay = document.getElementById('overlay'), sideMenu = document.getElementById('sideMenu'),
+      menuButton = document.getElementById('menuButton'), menuClose = document.getElementById('menuClose');
+function openMenu(){ sideMenu.classList.add('show'); overlay.classList.add('show'); sideMenu.setAttribute('aria-hidden','false'); loadTgLatest(false); }
+function closeMenu(){ sideMenu.classList.remove('show'); overlay.classList.remove('show'); sideMenu.setAttribute('aria-hidden','true'); }
+menuButton.addEventListener('click', ()=> sideMenu.classList.contains('show')? closeMenu() : openMenu());
+if(menuClose) menuClose.addEventListener('click', closeMenu);
+overlay.addEventListener('click', closeMenu);
+document.addEventListener('keydown', (e)=> { if(e.key==='Escape') closeMenu(); });
+function openTool(name){ try{ window.open(name + '.html','_blank'); }catch(e){ console.log('open',name); } closeMenu(); }
+
+/* =========================================================================
+   Последняя версия из Telegram-канала
+   ========================================================================= */
+const TG_CHANNEL  = 'glist_channel';
+const TG_START    = 120;
+const TG_BATCH    = 30;
+const TG_MAX_GAP  = 30;
+const TG_CACHE_MS = 10 * 60 * 1000;
+
+let tgLoading = false, tgLoadedAt = 0;
+
+function tgSleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+function tgStatus(msg){
+  const el = document.getElementById('tgLatestStatus');
+  if(el) el.textContent = msg || '';
+}
+
+function tgParsePost(html){
+  if(html.indexOf('tgme_widget_message_error') !== -1) return {ok:false};
+  if(html.indexOf('data-post="') === -1 && html.indexOf('tgme_widget_message') === -1) return {ok:false};
+
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const files = [];
+  const docs = doc.querySelectorAll('.tgme_widget_message_document');
+  for(let k=0;k<docs.length;k++){
+    const t = docs[k].querySelector('.tgme_widget_message_document_title');
+    const e = docs[k].querySelector('.tgme_widget_message_document_extra');
+    if(t) files.push({name:t.textContent.trim(), size: e ? e.textContent.trim() : ''});
+  }
+  if(!files.length){
+    const t2 = doc.querySelectorAll('.tgme_widget_message_document_title, .tgme_widget_message_audio_title');
+    for(let m=0;m<t2.length;m++) files.push({name:t2[m].textContent.trim(), size:''});
+  }
+  return {ok:true, files:files};
+}
+
+async function tgFetchPost(i){
+  const url = 'https://t.me/' + TG_CHANNEL + '/' + i + '?embed=1&mode=tme';
+  for(let t=0;t<3;t++){
+    try{
+      const r = await fetch(url);
+      if(r.status === 404) return {i:i, ok:false};
+      if(r.status === 429 || r.status >= 500){ await tgSleep(600*(t+1)); continue; }
+      const html = await r.text();
+      const p = tgParsePost(html); p.i = i; return p;
+    }catch(e){ await tgSleep(300*(t+1)); }
+  }
+  return {i:i, ok:false, err:true};
+}
+
+function tgShow(name, size, post){
+  const a = document.getElementById('tgLatestName'), sz = document.getElementById('tgLatestSize');
+  if(!a || !sz) return;
+  a.textContent = name;
+  sz.textContent = size || '';
+  a.href = post ? ('https://t.me/' + TG_CHANNEL + '/' + post) : '#';
+  a.onclick = post ? null : function(e){ e.preventDefault(); loadTgLatest(true); };
+}
+
+async function loadTgLatest(force){
+  if(tgLoading) return;
+  if(!force && Date.now() - tgLoadedAt < TG_CACHE_MS) return;
+  tgLoading = true;
+
+  try{
+    const c = JSON.parse(localStorage.getItem('tg_latest') || 'null');
+    if(c && c.name) tgShow(c.name, c.size, c.post);
+    else tgShow('Загрузка…', '', 0);
+  }catch(e){ tgShow('Загрузка…', '', 0); }
+
+  tgStatus('Сканирую от №' + TG_START + '…');
+
+  let next = TG_START;
+  let gap = 0, okPosts = 0, errCount = 0, first = true, ended = false, lastValid = 0;
+  let best = null;
+
+  try{
+    while(!ended){
+      const batch = [];
+      for(let k=0;k<TG_BATCH;k++) batch.push(tgFetchPost(next + k));
+      const res = await Promise.all(batch);
+
+      if(first){
+        first = false;
+        let allErr = true;
+        for(let a=0;a<res.length;a++) if(!res[a].err) allErr = false;
+        if(allErr){
+          tgStatus('Все запросы упали. Проверь сеть.');
+          break;
+        }
+      }
+
+      for(let j=0;j<res.length;j++){
+        const r = res[j];
+        if(r.err) errCount++;
+        if(r.ok){
+          gap = 0; okPosts++; lastValid = r.i;
+          if(r.files.length){
+            const lastFile = r.files[r.files.length - 1];
+            best = {name: lastFile.name, size: lastFile.size, post: r.i};
+          }
+        } else {
+          gap++;
+          if(gap >= TG_MAX_GAP){ ended = true; break; }
+        }
+      }
+
+      next += TG_BATCH;
+      tgStatus('Проверено до №' + (next - 1) +
+               ' | постов: ' + okPosts +
+               (best ? ' | файл: №' + best.post : '') +
+               (errCount ? ' | ошибок: ' + errCount : ''));
+    }
+  }catch(e){ console.warn('[tg] load failed', e); }
+
+  if(best){
+    tgShow(best.name, best.size, best.post);
+    try{ localStorage.setItem('tg_latest', JSON.stringify(best)); }catch(e){}
+    tgLoadedAt = Date.now();
+    tgStatus('OK. Последний файл в посте №' + best.post + (errCount ? ' | ошибок: ' + errCount : ''));
+  } else {
+    const nameEl = document.getElementById('tgLatestName');
+    const hasCache = nameEl && nameEl.textContent &&
+                     nameEl.textContent !== 'Загрузка…' &&
+                     nameEl.textContent.indexOf('Не удалось') === -1;
+    if(!hasCache){
+      tgShow('Не удалось загрузить (тапни, чтобы повторить)', '', 0);
+      tgStatus('Ни одного поста с файлами не найдено. Ошибок: ' + errCount);
+    } else {
+      tgStatus('Свежий скан не дал файлов, показан кэш.');
+    }
+  }
+  tgLoading = false;
+}
+
+/* ========== Pages / tiles data ========== */
+const srcButtons = Array.from(document.querySelectorAll('#sourceButtons button'));
+const allItems = srcButtons.map(b=>({label: b.innerText.trim(), tool: b.dataset.tool || b.getAttribute('data-tool') || null}));
+const perPage = 16; const realPerPage = perPage - 1;
+const pagesEl = document.getElementById('pages'), dotsEl = document.getElementById('dots');
+function chunk(arr, sz){ const R=[]; for(let i=0;i<arr.length;i+=sz) R.push(arr.slice(i,i+sz)); return R; }
+const pagesData = chunk(allItems, realPerPage);
+if(pagesData.length===0) pagesData.push([]);
+pagesData.forEach(()=>{ const p=document.createElement('div'); p.className='page'; const g=document.createElement('div'); g.className='grid'; p.appendChild(g); pagesEl.appendChild(p); });
+function renderDots(){ dotsEl.innerHTML=''; document.querySelectorAll('.grid').forEach((_,i)=>{ const d=document.createElement('div'); d.className='dot'; if(i===0) d.classList.add('active'); dotsEl.appendChild(d); }); }
+renderDots();
+
+/* ========== Helpers ========== */
+function strhash01(s){ let h=2166136261; for(let i=0;i<s.length;i++){ h = Math.imul(h ^ s.charCodeAt(i), 16777619); } h += h << 13; h ^= h >>> 7; h += h << 3; h ^= h >>> 17; h += h << 5; return ((h >>> 0) % 10000) / 10000; }
+function baseRawArea(text){ const n = Math.max(1, text.length); return Math.pow(n, 1.08) + 18; }
+function aspectFromText(text){ const v = strhash01(text || 'x'); return 0.6 + v * 1.2; }
+
+/* ========== layout ========== */
+function layoutPage(gridEl, itemsOnPage){
+  const viewportHeight = window.innerHeight;
+  const bottomGapTarget = Math.round(0.05 * viewportHeight);
+  const W = Math.max(320, gridEl.clientWidth || (window.innerWidth - 24));
+  const H = Math.max(240, gridEl.clientHeight || (window.innerHeight - 56 - 24));
+  const gap = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--gap')) || 10;
+
+  const tiles = itemsOnPage.slice(0, realPerPage).map(it=>({label:it.label, tool:it.tool, real:true}));
+  tiles.push({label:'', tool:null, real:false, special:true});
+
+  const raw = tiles.map(t => ({t: t, rawArea: baseRawArea(t.label || 'empty'), ar: aspectFromText(t.label || 'empty')}));
+  let rawSum = raw.reduce((s,r)=>s+r.rawArea,0);
+
+  const usableW = W - 2*gap;
+  const usableH = H - 2*gap;
+  const usableArea = Math.max( usableW * (usableH - bottomGapTarget) * 0.94, usableW * Math.max(80, usableH*0.5) );
+  const scale = Math.max(0.2, usableArea / rawSum);
+  raw.forEach(r => { r.area = Math.max(60, r.rawArea * scale); });
+  raw.forEach(r => { r.width = Math.max(36, Math.sqrt(r.area * r.ar)); r.height = Math.max(36, Math.sqrt(r.area / r.ar)); });
+
+  const rows = [];
+  let currentRow = {items:[], y:0, height:0, usedW:0};
+  for(let i=0;i<raw.length;i++){
+    const r = raw[i];
+    const need = (currentRow.items.length? (currentRow.usedW + gap + r.width) : (currentRow.usedW + r.width));
+    if(need <= usableW || currentRow.items.length===0){
+      currentRow.items.push(r);
+      currentRow.usedW = currentRow.items.reduce((s,x)=>s + x.width, 0) + gap*(currentRow.items.length - 1);
+      currentRow.height = Math.max(currentRow.height, r.height);
+    } else {
+      rows.push(currentRow);
+      currentRow = {items:[r], y: currentRow.y + currentRow.height + gap, height: r.height, usedW: r.width};
+    }
+  }
+  if(currentRow.items.length) rows.push(currentRow);
+
+  let totalRowsH = rows.reduce((s,row)=> s + row.height, 0) + gap*(rows.length - 1);
+  const maxAllowedRowsH = Math.max(40, usableH - bottomGapTarget);
+  if(totalRowsH > maxAllowedRowsH){
+    const down = maxAllowedRowsH / totalRowsH;
+    rows.forEach(row => { row.items.forEach(it => { it.width *= down; it.height *= down; }); row.height *= down; });
+    totalRowsH = maxAllowedRowsH;
+  } else {
+    const slack = Math.max(0, maxAllowedRowsH - totalRowsH);
+    if(slack > 6){
+      const sumH = rows.reduce((s,r)=>s + r.height,0) || 1;
+      rows.forEach(row=> {
+        const add = Math.floor(slack * (row.height / sumH) * 0.9);
+        row.height += add;
+        row.items.forEach(it => {
+          const sfi = row.height / it.height;
+          it.width *= sfi;
+          it.height = row.height;
+        });
+      });
+      totalRowsH = Math.min(maxAllowedRowsH, rows.reduce((s,row)=> s + row.height, 0) + gap*(rows.length - 1));
+    }
+  }
+
+  rows.forEach(row=>{
+    const currentW = row.items.reduce((s,it)=>s + it.width, 0);
+    const totalGap = gap*(row.items.length - 1);
+    const targetW = Math.max(usableW - totalGap, 1);
+    if(currentW > 0){
+      const sf = targetW / currentW;
+      row.items.forEach(it => { it.width *= sf; });
+    }
+  });
+
+  const leftOffset = Math.round((W - usableW)/2);
+  const freeV = Math.max(0, usableH - totalRowsH);
+  let topOffset = Math.round(Math.max(0, freeV - bottomGapTarget) * 0.45) + gap;
+  topOffset = Math.max(topOffset, gap);
+
+  let yCursor = topOffset;
+  const placements = [];
+  rows.forEach(row=>{
+    let xCursor = leftOffset;
+    row.items.forEach((it) => {
+      const x = Math.round(xCursor);
+      const y = Math.round(yCursor);
+      const w = Math.max(32, Math.round(it.width));
+      const h = Math.max(32, Math.round(row.height));
+      placements.push({label: it.t.label, tool: it.t.tool, special: !!it.t.special, x:x, y:y, w:w, h:h});
+      xCursor += w + gap;
+    });
+    yCursor += row.height + gap;
+  });
+
+  gridEl.innerHTML = '';
+  placements.forEach(pl=>{
+    const el = document.createElement('div');
+    el.className = 'tile' + (pl.special ? ' light' : '');
+    el.setAttribute('role','button');
+    el.tabIndex = 0;
+    if(pl.special){
+      el.innerHTML = '';
+      el.dataset.special = '1';
+      el.dataset.clicks = '0';
+    } else {
+      el.innerText = pl.label || '';
+      if(pl.tool) el.dataset.tool = pl.tool;
+    }
+    el.style.left = pl.x + 'px';
+    el.style.top = pl.y + 'px';
+    el.style.width = pl.w + 'px';
+    el.style.height = pl.h + 'px';
+    const area = pl.w * pl.h;
+    let fs = Math.floor(Math.sqrt(area) / 6);
+    if(pl.w / pl.h > 1.3) fs = Math.floor(Math.sqrt(area) / 5);
+    fs = Math.max(parseInt(getComputedStyle(document.documentElement).getPropertyValue('--min-font')) || 10, fs);
+    fs = Math.min(parseInt(getComputedStyle(document.documentElement).getPropertyValue('--max-font')) || 30, fs);
+    el.style.fontSize = fs + 'px';
+    gridEl.appendChild(el);
+  });
+
+  const specialEl = gridEl.querySelector('.tile[data-special]');
+  if(specialEl){
+    specialEl.classList.remove('pulse');
+    specialEl.style.setProperty('--pulse-scale','1.03');
+  }
+}
+
+/* ========== special tile ========== */
+function specialHandlerSynthetic(tile){
+  const el = tile;
+  if(memeActive) return;
+  let clicks = parseInt(el.dataset.clicks || '0') + 1;
+  el.dataset.clicks = String(clicks);
+  if(clicks === 1){ el.classList.add('pulse'); el.style.setProperty('--pulse-scale','1.03'); return; }
+  if(clicks === 2){ el.style.setProperty('--pulse-scale','1.07'); return; }
+  if(clicks >= 3){
+    el.classList.remove('pulse'); el.style.setProperty('--pulse-scale','1.0');
+    showMemeFromTile(el);
+  }
+}
+
+/* ========== meme on triple tap ========== */
+function showMemeFromTile(origEl){
+  if(memeActive) return;
+  memeActive = true;
+  try{
+    const rect = origEl.getBoundingClientRect();
+    const clone = origEl.cloneNode(true);
+    clone.removeAttribute('data-special');
+    clone.style.position = 'fixed';
+    clone.style.left = rect.left + 'px';
+    clone.style.top = rect.top + 'px';
+    clone.style.width = rect.width + 'px';
+    clone.style.height = rect.height + 'px';
+    clone.style.margin = '0';
+    clone.style.zIndex = 100000;
+    clone.style.transition = 'all 520ms cubic-bezier(.2,.9,.2,1)';
+    clone.style.display = 'flex';
+    clone.style.alignItems = 'center';
+    clone.style.justifyContent = 'center';
+    clone.style.overflow = 'hidden';
+    clone.style.background = '#000';
+    clone.style.border = '0';
+    document.body.appendChild(clone);
+    origEl.style.visibility = 'hidden';
+
+    requestAnimationFrame(()=>{
+      requestAnimationFrame(()=>{
+        clone.style.left = '0px';
+        clone.style.top = '0px';
+        clone.style.width = window.innerWidth + 'px';
+        clone.style.height = window.innerHeight + 'px';
+      });
+    });
+
+    let audioEl = null, videoEl = null, forcedTO = null;
+
+    const cleanupAll = (() => {
+      let done = false;
+      return function(reason){
+        if(done) return; done = true;
+        try{ if(audioEl){ audioEl.pause(); try{ audioEl.currentTime = 0; }catch(e){} audioEl.remove(); } }catch(e){}
+        try{ if(videoEl){ videoEl.pause(); videoEl.remove(); } }catch(e){}
+        try{ clone.style.transition = 'opacity 420ms'; clone.style.opacity = '0'; }catch(e){}
+        setTimeout(()=>{
+          try{ clone.remove(); }catch(e){}
+          try{ origEl.style.visibility = 'visible'; origEl.dataset.clicks = '0'; origEl.classList.remove('pulse'); }catch(e){}
+          memeActive = false;
+        }, 420);
+        console.log('[meme] cleanup', reason || '');
+      };
+    })();
+
+    const onTransitionEnd = (ev) => {
+      if(ev.propertyName !== 'width' && ev.propertyName !== 'height') return;
+      clone.removeEventListener('transitionend', onTransitionEnd);
+
+      clone.innerHTML = '';
+      const container = document.createElement('div');
+      container.style.width = '100%'; container.style.height = '100%';
+      container.style.display = 'flex'; container.style.alignItems = 'center'; container.style.justifyContent = 'center';
+      container.style.background = '#000';
+
+      videoEl = document.createElement('video');
+      videoEl.src = 'meme.mp4';
+      videoEl.preload = 'auto';
+      videoEl.muted = true;
+      videoEl.playsInline = true;
+      videoEl.style.maxWidth = '90%'; videoEl.style.maxHeight = '90%';
+      videoEl.style.objectFit = 'contain'; videoEl.style.display = 'block';
+      videoEl.controls = false;
+
+      audioEl = new Audio('meme.mp3');
+      audioEl.preload = 'auto';
+
+      function startAudioAtOne(){
+        try{
+          if(audioEl.readyState >= 1){
+            try{ audioEl.currentTime = 1; }catch(e){}
+            audioEl.play().catch(()=>{});
+          } else {
+            audioEl.addEventListener('loadedmetadata', function once(){
+              try{ audioEl.currentTime = 1; }catch(e){}
+              audioEl.play().catch(()=>{});
+              audioEl.removeEventListener('loadedmetadata', once);
+            });
+            try{ audioEl.load(); }catch(e){}
+            audioEl.play().catch(()=>{});
+          }
+        }catch(err){ try{ audioEl.play().catch(()=>{}); }catch(e){} }
+      }
+
+      container.appendChild(videoEl);
+      clone.appendChild(container);
+
+      startAudioAtOne();
+      videoEl.play().catch(()=>{});
+
+      videoEl.addEventListener('ended', () => { cleanupAll('video ended'); }, {once:true});
+      videoEl.addEventListener('error', ()=> { console.warn('[meme] video error'); cleanupAll('video error'); });
+      audioEl.addEventListener('error', ()=> { console.warn('[meme] audio error'); });
+
+      forcedTO = setTimeout(()=> { cleanupAll('forced timeout'); }, 30000);
+      videoEl.addEventListener('ended', ()=>{ if(forcedTO) clearTimeout(forcedTO); });
+    };
+
+    clone.addEventListener('transitionend', onTransitionEnd);
+    setTimeout(()=>{ if(!videoEl) onTransitionEnd({propertyName:'width'}); }, 900);
+
+  }catch(err){
+    console.error('showMemeFromTile error', err);
+    try{ origEl.style.visibility = 'visible'; }catch(e){}
+    memeActive = false;
+  }
+}
+
+/* ========== random meme on load ========== */
+const MEME_EXTS = ['3gp','mp4'];
+
+function showRandomMeme(origEl){
+  if(memeActive) return;
+  memeActive = true;
+
+  const n = 1 + Math.floor(Math.random() * MEME_COUNT);
+  let extIdx = 0, playing = false, done = false, to = null, stuckTO = null, soundBlocked = false;
+
+  const v = document.createElement('video');
+  v.playsInline = true; v.setAttribute('playsinline','');
+  v.preload = 'auto'; v.muted = false; v.volume = 1;
+  v.style.cssText = 'width:100%;height:100%;object-fit:contain;display:block;background:#000';
+
+  const msg = document.createElement('div');
+  msg.style.cssText = 'position:absolute;left:12px;right:12px;bottom:24px;color:#fff;font:14px Arial,sans-serif;text-align:center;text-shadow:0 0 4px #000;pointer-events:none';
+
+  const box = document.createElement('div');
+  const base = 'position:fixed;z-index:100000;background:#000;display:flex;align-items:center;justify-content:center;overflow:hidden;';
+  if(origEl){
+    const r = origEl.getBoundingClientRect();
+    box.style.cssText = base + 'left:'+r.left+'px;top:'+r.top+'px;width:'+r.width+'px;height:'+r.height+'px;transition:all 450ms cubic-bezier(.2,.9,.2,1)';
+    document.body.appendChild(box);
+    origEl.style.visibility = 'hidden';
+    requestAnimationFrame(()=> requestAnimationFrame(()=>{
+      box.style.left = '0px'; box.style.top = '0px'; box.style.width = '100%'; box.style.height = '100%';
+    }));
+  } else {
+    box.style.cssText = base + 'left:0;top:0;right:0;bottom:0;width:100vw;height:100vh;opacity:0;transition:opacity 300ms';
+    document.body.appendChild(box);
+    requestAnimationFrame(()=> box.style.opacity = '1');
+  }
+  box.appendChild(v); box.appendChild(msg);
+
+  function showHint(){
+    if(soundBlocked && !done){
+      msg.style.display = 'block';
+      msg.textContent = '🔊 Тапни, чтобы включить звук (следующий тап закроет)';
+    }
+  }
+
+  function close(reason, delay){
+    if(done) return; done = true;
+    clearTimeout(to); clearTimeout(stuckTO);
+    try{ v.pause(); }catch(e){}
+    setTimeout(()=>{
+      box.style.transition = 'opacity 300ms';
+      box.style.opacity = '0';
+      setTimeout(()=>{
+        try{ box.remove(); }catch(e){}
+        memeActive = false;
+        if(origEl){ origEl.style.visibility = 'visible'; origEl.dataset.clicks = '0'; origEl.classList.remove('pulse'); }
+      }, 300);
+    }, delay || 0);
+    console.log('[meme] close', reason || '');
+  }
+
+  function tryLoad(){
+    const src = n + '.' + MEME_EXTS[extIdx];
+    msg.style.display = 'block';
+    msg.textContent = 'Загрузка ' + src + '…';
+    console.log('[meme] load', src);
+    v.muted = false;
+    v.src = src;
+    try{ v.load(); }catch(e){}
+    const p = v.play();
+    if(p && p.catch) p.catch(()=>{
+      console.warn('[meme] звук заблокирован автоплеем');
+      v.muted = true; soundBlocked = true;
+      const p2 = v.play(); if(p2 && p2.catch) p2.catch(()=>{});
+      showHint();
+    });
+  }
+
+  v.addEventListener('playing', ()=>{
+    playing = true; clearTimeout(stuckTO);
+    if(soundBlocked) showHint(); else msg.style.display = 'none';
+  });
+  v.addEventListener('ended', ()=> close('ended'));
+  v.addEventListener('error', ()=>{
+    const code = v.error ? v.error.code : '?';
+    console.warn('[meme] error', v.src, 'code', code);
+    if(extIdx < MEME_EXTS.length - 1){ extIdx++; tryLoad(); return; }
+    msg.style.display = 'block';
+    msg.textContent = 'Мем не загрузился: ' + n + '.(' + MEME_EXTS.join('|') + '), код ' + code;
+    close('error', 3000);
+  });
+  box.addEventListener('click', ()=>{
+    if(soundBlocked){
+      soundBlocked = false; v.muted = false;
+      const pp = v.play();
+      if(pp && pp.then) pp.then(()=>{ msg.style.display = 'none'; }).catch(()=>{ msg.style.display = 'block'; msg.textContent = 'Звук не включился'; });
+      else msg.style.display = 'none';
+      return;
+    }
+    close('tap');
+  });
+  to = setTimeout(()=> close('timeout'), 60000);
+  stuckTO = setTimeout(()=>{
+    if(!playing && !done){
+      msg.style.display = 'block';
+      msg.textContent = 'Не стартует: readyState ' + v.readyState + ', network ' + v.networkState + '. Тапни, чтобы закрыть.';
+    }
+  }, 5000);
+
+  tryLoad();
+}
+
+/* ========== Delegated input ========== */
+let lastDown = {tile: null, x:0, y:0, time:0, pointerId: null};
+const TAP_THRESHOLD = 10;
+function findTileFromEventTarget(target){ if(!target) return null; return target.closest('.tile'); }
+document.addEventListener('pointerdown', function(e){ const t = findTileFromEventTarget(e.target); lastDown.tile = t; lastDown.x = e.clientX; lastDown.y = e.clientY; lastDown.time = Date.now(); lastDown.pointerId = e.pointerId || null; }, {passive:true});
+document.addEventListener('pointerup', function(e){ if(e.button && e.button !== 0) return; const upTile = findTileFromEventTarget(e.target) || lastDown.tile; if(!upTile) { lastDown.tile = null; return; } if(upTile !== lastDown.tile) { lastDown.tile = null; return; } const dx = Math.abs(e.clientX - lastDown.x); const dy = Math.abs(e.clientY - lastDown.y); if(dx <= TAP_THRESHOLD && dy <= TAP_THRESHOLD){ handleTileTap(upTile); } lastDown.tile = null; }, {passive:true});
+document.addEventListener('keydown', function(e){ if(e.key === 'Enter' || e.key === ' '){ const active = document.activeElement; if(active && active.classList && active.classList.contains('tile')){ e.preventDefault(); handleTileTap(active); } }});
+function handleTileTap(tile){ if(!tile) return; if(tile.dataset && tile.dataset.special === '1'){ specialHandlerSynthetic(tile); return; } const tool = tile.dataset && tile.dataset.tool; if(tool){ openTool(tool); return; } tile.style.transform = 'scale(0.995)'; setTimeout(()=> tile.style.transform = '', 120); }
+
+/* ========== ROTATE / GRAVITY / RUNAWAY ========== */
+function triggerRotateEffect(){
+  if(window._rotateActive) return;
+  window._rotateActive = true;
+  console.log('[egg] rotate started');
+  let start = performance.now(), lastSec = 0, speed = 5, lastTime = performance.now(), angle = 0;
+  function frame(now){
+    const elapsed = (now - start) / 1000;
+    const sec = Math.floor(elapsed) || 0;
+    if(sec > lastSec){ if(sec >= 2){ const delta = 5 * (0.25 * sec); speed += delta; } lastSec = sec; }
+    const dt = (now - lastTime) / 1000; lastTime = now;
+    angle += speed * dt;
+    document.body.style.transform = `rotate(${angle}deg)`;
+    window._rotateRAF = requestAnimationFrame(frame);
+  }
+  window._rotateRAF = requestAnimationFrame(frame);
+}
+function stopRotateEffect(){ if(window._rotateRAF) cancelAnimationFrame(window._rotateRAF); window._rotateActive = false; document.body.style.transform = ''; console.log('[egg] rotate stopped'); }
+
+function triggerGravityEffect(){
+  console.log('[egg] gravity started');
+  const tiles = Array.from(document.querySelectorAll('.tile'));
+  if(tiles.length === 0) return;
+  const clones = [];
+  tiles.forEach(t => {
+    const r = t.getBoundingClientRect();
+    const c = t.cloneNode(true);
+    c.style.position = 'fixed'; c.style.left = r.left + 'px'; c.style.top = r.top + 'px';
+    c.style.width = r.width + 'px'; c.style.height = r.height + 'px'; c.style.margin = 0; c.style.zIndex = 99999; c.style.pointerEvents='none';
+    c._rot = (Math.random() - 0.5) * 0.6; c._vx = (Math.random() - 0.5) * 6; c._vy = 0;
+    document.body.appendChild(c); clones.push(c);
+    try{ t.style.visibility = 'hidden'; }catch(e){}
+  });
+  let raf = null; const gravity = 0.9;
+  function step(){
+    for(let i=0;i<clones.length;i++){
+      const n = clones[i]; if(!n) continue;
+      n._vy += gravity;
+      n._vx += (Math.random() - 0.5) * 0.6;
+      let left = (parseFloat(n.style.left) || 0) + n._vx;
+      let top = (parseFloat(n.style.top) || 0) + n._vy;
+      n.style.left = left + 'px'; n.style.top = top + 'px';
+      n._rot = (n._rot || 0) + (n._vx * 0.02);
+      n.style.transform = `rotate(${n._rot}rad)`;
+      if(top > window.innerHeight + 300 || left < -500 || left > window.innerWidth + 500){
+        try{ n.remove(); }catch(e){} clones[i] = null;
+      }
+    }
+    const alive = clones.filter(Boolean);
+    if(alive.length === 0){
+      document.querySelectorAll('.tile').forEach(t=>{ try{ t.style.visibility = 'visible'; }catch(e){} });
+      if(raf) cancelAnimationFrame(raf);
+      console.log('[egg] gravity ended');
+      return;
+    }
+    raf = requestAnimationFrame(step);
+  }
+  raf = requestAnimationFrame(step);
+  setTimeout(()=>{ try{ clones.forEach(c=>c && c.remove()); document.querySelectorAll('.tile').forEach(t=>t.style.visibility='visible'); if(raf) cancelAnimationFrame(raf); console.log('[egg] gravity forced stop'); }catch(e){} }, 14000);
+}
+
+function triggerRunawayEffect(){
+  console.log('[egg] runaway started');
+  const tiles = Array.from(document.querySelectorAll('.tile'));
+  if(tiles.length === 0) return;
+  const clones = [];
+  tiles.forEach(t => {
+    const r = t.getBoundingClientRect();
+    const c = t.cloneNode(true);
+    c.style.position = 'fixed'; c.style.left = r.left + 'px'; c.style.top = r.top + 'px';
+    c.style.width = r.width + 'px'; c.style.height = r.height + 'px'; c.style.margin = 0; c.style.zIndex = 99999; c.style.pointerEvents='none';
+    c._r = Math.max(12, Math.min(r.width, r.height)/2);
+    const angle = Math.random() * Math.PI * 2; const speed = 3 + Math.random()*4;
+    c._vx = Math.cos(angle) * speed; c._vy = Math.sin(angle) * speed;
+    document.body.appendChild(c); clones.push(c);
+    try{ t.style.visibility = 'hidden'; }catch(e){}
+  });
+  let raf = null;
+  function step(){
+    for(let i=0;i<clones.length;i++){
+      const A = clones[i]; if(!A) continue;
+      A.style.left = (parseFloat(A.style.left) + A._vx) + 'px';
+      A.style.top = (parseFloat(A.style.top) + A._vy) + 'px';
+    }
+    for(let i=0;i<clones.length;i++){
+      const A = clones[i]; if(!A) continue;
+      const ax = parseFloat(A.style.left) + (parseFloat(A.style.width)/2);
+      const ay = parseFloat(A.style.top) + (parseFloat(A.style.height)/2);
+      for(let j=i+1;j<clones.length;j++){
+        const B = clones[j]; if(!B) continue;
+        const bx = parseFloat(B.style.left) + (parseFloat(B.style.width)/2);
+        const by = parseFloat(B.style.top) + (parseFloat(B.style.height)/2);
+        const dx = bx - ax, dy = by - ay;
+        const dist = Math.sqrt(dx*dx + dy*dy) || 0.01;
+        const minDist = (A._r || 20) + (B._r || 20);
+        if(dist < minDist){
+          const overlap = (minDist - dist) / 2;
+          const nx = dx / dist, ny = dy / dist;
+          A.style.left = (parseFloat(A.style.left) - nx * overlap) + 'px';
+          A.style.top = (parseFloat(A.style.top) - ny * overlap) + 'px';
+          B.style.left = (parseFloat(B.style.left) + nx * overlap) + 'px';
+          B.style.top = (parseFloat(B.style.top) + ny * overlap) + 'px';
+          const vx = A._vx, vy = A._vy;
+          A._vx = B._vx * 0.9; A._vy = B._vy * 0.9;
+          B._vx = vx * 0.9; B._vy = vy * 0.9;
+        }
+      }
+    }
+    clones.forEach(c => { if(c){ c._vx += (Math.random()-0.5)*0.4; c._vy += (Math.random()-0.5)*0.4; } });
+    for(let i=0;i<clones.length;i++){
+      const c = clones[i]; if(!c) continue;
+      const left = parseFloat(c.style.left), top = parseFloat(c.style.top);
+      if(left < -600 || left > window.innerWidth + 600 || top < -600 || top > window.innerHeight + 600){
+        try{ c.remove(); }catch(e){} clones[i] = null;
+      }
+    }
+    const alive = clones.filter(Boolean);
+    if(alive.length === 0){
+      document.querySelectorAll('.tile').forEach(t=>{ try{ t.style.visibility = 'visible'; }catch(e){} });
+      if(raf) cancelAnimationFrame(raf);
+      console.log('[egg] runaway ended');
+      return;
+    }
+    raf = requestAnimationFrame(step);
+  }
+  raf = requestAnimationFrame(step);
+  setTimeout(()=>{ try{ clones.forEach(c=>c && c.remove()); document.querySelectorAll('.tile').forEach(t=>t.style.visibility='visible'); if(raf) cancelAnimationFrame(raf); console.log('[egg] runaway forced stop'); }catch(e){} }, 20000);
+}
+
+/* ========== color explosion ========== */
+if(doRandomColors){
+  setTimeout(()=> {
+    console.log('[egg] random color explosion');
+    const all = Array.from(document.querySelectorAll('*'));
+    all.forEach(el=>{
+      try{
+        const r=Math.floor(Math.random()*210)+20, g=Math.floor(Math.random()*210)+20, b=Math.floor(Math.random()*210)+20;
+        el.style.background = `rgb(${r},${g},${b})`;
+        const lum = 0.299*r + 0.587*g + 0.114*b;
+        el.style.color = (lum>150) ? '#111' : '#fff';
+      }catch(e){}
+    });
+  }, 600);
+}
+
+/* ========== carousel ========== */
+function layoutAll(){
+  while(document.querySelectorAll('.grid').length < pagesData.length){
+    const p=document.createElement('div'); p.className='page'; const g=document.createElement('div'); g.className='grid'; p.appendChild(g); pagesEl.appendChild(p);
+  }
+  const grids = Array.from(document.querySelectorAll('.grid'));
+  grids.forEach((g, idx)=>{ const items = pagesData[idx] || []; layoutPage(g, items); });
+  renderDots();
+  requestAnimationFrame(()=> updateTransform(false));
+}
+let viewport = document.getElementById('viewport'), pages = document.getElementById('pages');
+let viewportWidth = viewport.clientWidth, current = 0;
+function updateTransform(animated=true){ pages.style.transition = animated ? '' : 'none'; pages.style.transform = `translateX(${-current * viewportWidth}px)`; Array.from(dotsEl.children).forEach((d,i)=> d.classList.toggle('active', i===current)); }
+updateTransform(false);
+let dragging=false, startX=0, dx=0, pid=null; const minSwipe = 40;
+viewport.addEventListener('pointerdown', (e)=>{ dragging=true; startX=e.clientX; dx=0; pid=e.pointerId; try{ viewport.setPointerCapture(pid); }catch(_){ } pages.style.transition='none'; });
+viewport.addEventListener('pointermove', (e)=>{ if(!dragging) return; dx = e.clientX - startX; pages.style.transform = `translateX(${-current * viewportWidth + dx}px)`; });
+viewport.addEventListener('pointerup', (e)=>{ if(!dragging) return; dragging=false; try{ viewport.releasePointerCapture(pid);}catch(_){} if(Math.abs(dx) > minSwipe){ if(dx > 0 && current > 0) current--; else if(dx < 0 && current < (document.querySelectorAll('.grid').length - 1)) current++; } dx=0; updateTransform(true); });
+viewport.addEventListener('pointercancel', ()=>{ dragging=false; dx=0; updateTransform(true); });
+dotsEl.addEventListener('click', (e)=>{ const idx = Array.from(dotsEl.children).indexOf(e.target); if(idx>=0){ current = idx; updateTransform(true); }});
+document.addEventListener('keydown', (e)=>{ if(e.key==='ArrowLeft' && current>0){ current--; updateTransform(true);} if(e.key==='ArrowRight' && current < (document.querySelectorAll('.grid').length-1)){ current++; updateTransform(true);} });
+window.addEventListener('resize', debounce(()=>{ viewportWidth = viewport.clientWidth; layoutAll(); updateTransform(false); }, 120));
+function debounce(fn,ms){ let id; return function(){ clearTimeout(id); id=setTimeout(()=>fn.apply(this,arguments),ms);} }
+
+/* ========== startup ========== */
+document.addEventListener('DOMContentLoaded', function(){
+  const retryBtn = document.getElementById('tgRetry');
+  if(retryBtn) retryBtn.addEventListener('click', ()=> { tgLoadedAt = 0; loadTgLatest(true); });
+
+  triggerOldEasterEggs();
+  const forceMeme = /[?&]meme(=|&|$)/.test(location.search);
+  const roll = Math.random();
+  console.log('[meme] roll', roll.toFixed(3), 'нужно <', MEME_CHANCE, 'forced', forceMeme, 'disabled', memesDisabled());
+  if(!memesDisabled() && (forceMeme || roll < MEME_CHANCE)) setTimeout(()=>{ try{ showRandomMeme(null); }catch(e){ memeActive = false; alert('Ошибка мема: ' + e.message); } }, 1500);
+
+  setTimeout(()=>{ layoutAll(); viewportWidth = viewport.clientWidth; updateTransform(false);
+    if(doGravity) setTimeout(()=> triggerGravityEffect(), 300);
+    if(doRotate) setTimeout(()=> triggerRotateEffect(), 500);
+    if(doRunaway) setTimeout(()=> triggerRunawayEffect(), 350);
+  }, 80);
+});
+</script>
+
+<script>
+(function() {
+  function checkWin98() {
+    try {
+      const ms = localStorage.getItem('main_settings');
+      if (!ms) return false;
+
+      try {
+        const parsed = JSON.parse(ms);
+        if (Array.isArray(parsed) && (parsed.includes(98) || parsed.includes('98'))) return true;
+        if (typeof parsed === 'object' && parsed !== null) {
+          return Object.values(parsed).includes(98) || Object.values(parsed).includes('98');
+        }
+      } catch(e) {}
+
+      return ms.includes('98');
+    } catch(e) {
+      return false;
+    }
+  }
+
+  if (checkWin98()) {
+    const win98Style = document.createElement('style');
+    win98Style.id = 'win98-theme';
+    win98Style.textContent = `
+      :root {
+        --bg: #008080 !important;
+        --menu-bg: #c0c0c0 !important;
+        --text: #000000 !important;
+      }
+
+      html, body {
+        font-family: "MS Sans Serif", Tahoma, Arial, sans-serif !important;
+        letter-spacing: normal !important;
+      }
+
+      header {
+        background: linear-gradient(90deg, #000080, #1084d0) !important;
+        color: #ffffff !important;
+        border: 2px solid #dfdfdf;
+        border-top-color: #ffffff;
+        border-left-color: #ffffff;
+        border-right-color: #808080;
+        border-bottom-color: #808080;
+        margin: 4px;
+        height: 38px !important;
+        box-shadow: none !important;
+        backdrop-filter: none !important;
+      }
+      #brand, .hdr-right {
+        color: #ffffff !important;
+        font-family: "MS Sans Serif", Tahoma, sans-serif !important;
+        font-size: 13px !important;
+        font-weight: bold !important;
+      }
+
+      #menuButton, #menuClose, #tgRetry {
+        background: #c0c0c0 !important;
+        color: #000 !important;
+        border: 2px solid #fff !important;
+        border-right-color: #000 !important;
+        border-bottom-color: #000 !important;
+        border-left-color: #fff !important;
+        border-top-color: #fff !important;
+        box-shadow: inset -1px -1px #808080, inset 1px 1px #dfdfdf !important;
+        border-radius: 0 !important;
+        padding: 2px 6px !important;
+        font-size: 12px !important;
+        cursor: default !important;
+      }
+      #menuButton:active, #menuClose:active, #tgRetry:active {
+        border-top-color: #000 !important;
+        border-left-color: #000 !important;
+        border-right-color: #fff !important;
+        border-bottom-color: #fff !important;
+        box-shadow: inset 1px 1px #808080 !important;
+      }
+
+      .tile {
+        background: #c0c0c0 !important;
+        color: #000000 !important;
+        border: 2px solid #ffffff !important;
+        border-right-color: #000000 !important;
+        border-bottom-color: #000000 !important;
+        box-shadow: inset -1px -1px #808080, inset 1px 1px #dfdfdf !important;
+        border-radius: 0 !important;
+        font-size: 13px !important;
+        font-weight: normal !important;
+        animation: none !important;
+        transition: none !important;
+      }
+      .tile:active {
+        border-top-color: #000000 !important;
+        border-left-color: #000000 !important;
+        border-right-color: #ffffff !important;
+        border-bottom-color: #ffffff !important;
+        box-shadow: inset 1px 1px #808080 !important;
+        transform: none !important;
+        padding-top: 14px !important;
+        padding-left: 14px !important;
+      }
+
+      #sideMenu {
+        border: 2px solid #ffffff !important;
+        border-right-color: #000000 !important;
+        border-bottom-color: #000000 !important;
+        box-shadow: inset -1px -1px #808080, inset 1px 1px #dfdfdf !important;
+      }
+      .menu-top {
+        background: #000080 !important;
+        color: #ffffff !important;
+        padding: 4px 6px !important;
+      }
+      .menu-top strong {
+        color: #ffffff !important;
+        font-size: 13px;
+      }
+      .menu-item {
+        font-size: 13px !important;
+        border-radius: 0 !important;
+        margin: 1px 4px;
+        padding: 6px 10px !important;
+      }
+      .menu-item:hover {
+        background: #000080 !important;
+        color: #ffffff !important;
+      }
+
+      .dot {
+        border-radius: 0 !important;
+        border: 1px solid #000 !important;
+        background: #c0c0c0 !important;
+        width: 10px !important;
+        height: 10px !important;
+      }
+      .dot.active {
+        background: #000080 !important;
+      }
+    `;
+    document.head.appendChild(win98Style);
+  }
+})();
+</script>
+
+</body>
+</html>

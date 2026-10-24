@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Приложение Заметки</title>
+  <style>
+    :root {
+      --bg: #f0f0f0;
+      --card: #ffffff;
+      --primary: #333333;
+      --secondary: #666666;
+      --accent: #dddddd;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
+    body {
+      background-color: var(--bg);
+      color: var(--primary);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+    header {
+      width: 100%; max-width: 600px;
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 20px;
+    }
+    header h1 { font-size: 1.8rem; }
+    header .back-btn {
+      text-decoration: none; background-color: var(--accent);
+      color: var(--secondary); padding: 8px 12px; border-radius: 4px;
+      transition: background 0.3s;
+    }
+    header .back-btn:hover { background-color: var(--secondary); color: #fff; }
+
+    .note-input {
+      width: 100%; max-width: 600px; background-color: var(--card);
+      padding: 16px; border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px;
+    }
+    .note-input textarea {
+      width: 100%; height: 80px; border: 1px solid var(--accent);
+      border-radius: 4px; padding: 8px; resize: vertical;
+      font-size: 1rem; margin-bottom: 10px;
+      transition: border-color 0.3s;
+    }
+    .note-input textarea:focus { border-color: var(--secondary); outline: none; }
+    .note-input button {
+      background-color: var(--accent); border: none;
+      padding: 10px 16px; border-radius: 4px;
+      cursor: pointer; font-size: 1rem; color: var(--secondary);
+      transition: background 0.3s;
+    }
+    .note-input button:hover { background-color: var(--secondary); color: #fff; }
+
+    .notes-list {
+      width: 100%; max-width: 600px; display: flex;
+      flex-direction: column; gap: 10px;
+    }
+    .note-item {
+      background-color: var(--card); border-left: 4px solid var(--accent);
+      padding: 12px 16px; border-radius: 6px;
+      position: relative; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+    .note-item.show { opacity: 1; transform: translateY(0); }
+    .note-item.hide { opacity: 0; transform: translateY(-10px); height: 0; margin: 0; padding: 0; border: 0; }
+
+    .note-content {
+      max-height: 4.2em;
+      overflow: hidden; transition: max-height 0.3s ease;
+    }
+    .note-content.expanded { max-height: 500px; }
+
+    .note-item p { color: var(--secondary); line-height: 1.4; white-space: pre-wrap; word-break: break-word; }
+    .note-controls {
+      margin-top: 8px; display: flex; gap: 16px;
+    }
+    .note-controls button {
+      background: transparent; border: none; font-size: 0.9rem;
+      cursor: pointer; color: var(--secondary);
+      transition: color 0.2s;
+    }
+    .note-controls button:hover { color: var(--primary); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Мои заметки</h1>
+    <a href="glist.html" class="back-btn">← Назад</a>
+  </header>
+
+  <div class="note-input">
+    <textarea id="noteText" placeholder="Напишите заметку здесь..."></textarea>
+    <button id="addNoteBtn">Добавить заметку</button>
+  </div>
+
+  <div class="notes-list" id="notesList"></div>
+
+  <script>
+    (function() {
+      const STORAGE_KEY = 'notes';
+      let notes = [];
+
+      function loadNotes() {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        notes = stored ? JSON.parse(stored) : [];
+      }
+      function saveNotes() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+      }
+
+      function createNoteElement(note, index) {
+        const item = document.createElement('div');
+        item.className = 'note-item hide';
+
+        const content = document.createElement('div');
+        content.className = 'note-content';
+        const textP = document.createElement('p');
+        textP.textContent = note;
+        content.appendChild(textP);
+
+        const controls = document.createElement('div');
+        controls.className = 'note-controls';
+
+        const toggleBtn = document.createElement('button');
+        toggleBtn.textContent = 'Развернуть';
+        toggleBtn.addEventListener('click', () => {
+          const expanded = content.classList.toggle('expanded');
+          toggleBtn.textContent = expanded ? 'Свернуть' : 'Развернуть';
+        });
+        controls.appendChild(toggleBtn);
+
+        const editBtn = document.createElement('button');
+        editBtn.textContent = 'Изменить';
+        editBtn.addEventListener('click', () => editNote(index, item, content, textP));
+        controls.appendChild(editBtn);
+
+        const copyBtn = document.createElement('button');
+        copyBtn.textContent = 'Копировать';
+        copyBtn.addEventListener('click', () => {
+          navigator.clipboard.writeText(note).then(() => alert('Скопировано!'));
+        });
+        controls.appendChild(copyBtn);
+
+        const delBtn = document.createElement('button');
+        delBtn.textContent = '🗑️';
+        delBtn.addEventListener('click', () => {
+          if (confirm('Удалить эту заметку?')) {
+            deleteNote(index);
+          }
+        });
+        controls.appendChild(delBtn);
+
+        item.appendChild(content);
+        item.appendChild(controls);
+        requestAnimationFrame(() => {
+          item.classList.remove('hide');
+          item.classList.add('show');
+        });
+        return item;
+      }
+
+      function renderNotes() {
+        const list = document.getElementById('notesList');
+        list.innerHTML = '';
+        notes.forEach((note, idx) => {
+          const el = createNoteElement(note, idx);
+          list.appendChild(el);
+        });
+      }
+
+      function addNote(text) {
+        notes.unshift(text);
+        saveNotes(); renderNotes();
+      }
+
+      function deleteNote(index) {
+        notes.splice(index, 1);
+        saveNotes(); renderNotes();
+      }
+
+      function editNote(index, item, contentDiv, textP) {
+        const textarea = document.createElement('textarea');
+        textarea.value = notes[index];
+        textarea.style.width = '100%'; textarea.style.height = '80px';
+        contentDiv.replaceChild(textarea, textP);
+        const controls = item.querySelector('.note-controls');
+        controls.innerHTML = '';
+        const saveBtn = document.createElement('button');
+        saveBtn.textContent = 'Сохранить';
+        saveBtn.addEventListener('click', () => {
+          const newText = textarea.value.trim();
+          if (newText) {
+            notes[index] = newText;
+            saveNotes(); renderNotes();
+          }
+        });
+        const cancelBtn = document.createElement('button');
+        cancelBtn.textContent = 'Отмена';
+        cancelBtn.addEventListener('click', renderNotes);
+        controls.appendChild(saveBtn);
+        controls.appendChild(cancelBtn);
+      }
+
+      document.getElementById('addNoteBtn').addEventListener('click', () => {
+        const textarea = document.getElementById('noteText');
+        const text = textarea.value.trim();
+        if (!text) return;
+        addNote(text);
+        textarea.value = '';
+      });
+
+      loadNotes(); renderNotes();
+    })();
+  </script>
+</body>
+</html>

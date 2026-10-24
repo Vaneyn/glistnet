@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Меню</title>
+    <style>
+        /* Общие стили */
+        body {
+            margin: 0;
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #f4f4f9, #e0e0e0);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            animation: fadeIn 1s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .menu-container {
+            width: 100%;
+            max-width: 400px;
+            padding: 20px;
+            box-sizing: border-box;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            background: white;
+            text-align: center;
+        }
+
+        .menu {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .menu-button {
+            text-decoration: none;
+            color: #fff;
+            background-color: #6200ea;
+            padding: 15px 20px;
+            border-radius: 8px;
+            font-size: 18px;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .menu-button::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 300%;
+            height: 300%;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            transition: transform 0.5s ease;
+            transform: translate(-50%, -50%) scale(0);
+            z-index: 0;
+        }
+
+        .menu-button:hover::before {
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        .menu-button:hover {
+            background-color: #3700b3;
+            transform: translateY(-2px);
+            color: #fff;
+        }
+
+        .menu-button:active {
+            transform: translateY(0);
+        }
+
+        .back-button {
+            background-color: #03dac6;
+        }
+
+        .back-button:hover {
+            background-color: #018786;
+        }
+
+        /* Адаптация для мобильных устройств */
+        @media (max-width: 480px) {
+            .menu-button {
+                font-size: 16px;
+                padding: 12px 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="menu-container">
+        <h1 style="font-size: 24px; margin-bottom: 20px; color: #333;">Главное меню</h1>
+        <nav class="menu">
+            <a href="glist.html" class="menu-button back-button">Назад</a>
+            <a href="tank.html" class="menu-button">Танки старые</a>
+            <a href="tank2.html" class="menu-button">Танки новые</a>
+        </nav>
+    </div>
+</body>
+</html>

@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <h2>Игра "Захват клеток" Нормально</h2>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+            background-color: #f8f9fa;
+            overflow: hidden;
+        }
+        h1 {
+            color: #333;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            width: 100vw;
+            height: 80vh; /* Уменьшение высоты для соответствия экрану */
+            max-width: 600px;
+            max-height: 600px;
+            margin-top: 10px;
+        }
+        .cell {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 1px solid #ccc;
+            background-color: #fff;
+            cursor: pointer;
+            user-select: none;
+            transition: background-color 0.3s, border 0.3s;
+        }
+        .selected {
+            border: 2px solid #007bff; /* Бордер для выделенной клетки */
+        }
+        #endTurn {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        #endTurn:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+
+    <button id="endTurn">Ход сделан</button>
+    
+    <div class="grid" id="grid"></div>
+    <script>
+        const gridElement = document.getElementById('grid');
+        const endTurnButton = document.getElementById('endTurn');
+        const gridSize = 10;
+        let playerCells = [];
+        let selectedCell = null;
+
+        // Инициализация поля
+        function initGrid() {
+            for (let i = 0; i < gridSize; i++) {
+                playerCells[i] = [];
+                for (let j = 0; j < gridSize; j++) {
+                    const count = Math.floor(Math.random() * 5) + 1;
+                    const color = Math.random() < 0.4 ? '🟦' : '🟥';
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.x = i;
+                    cell.dataset.y = j;
+                    cell.dataset.color = color;
+                    cell.dataset.count = count;
+                    cell.innerText = `${color}×${count}`;
+                    cell.style.backgroundColor = getCellColor(count, color);
+                    cell.addEventListener('click', handleCellClick);
+                    gridElement.appendChild(cell);
+                    playerCells[i][j] = { color, count };
+                }
+            }
+        }
+
+        // Получение цвета клетки в зависимости от количества юнитов
+        function getCellColor(count, color) {
+            const shade = Math.floor((count / 10) * 255);
+            return color === '🟦' ? `rgba(0, 0, ${shade}, 0.5)` : `rgba(${shade}, 0, 0, 0.5)`;
+        }
+
+        // Обработка клика по клетке
+        function handleCellClick(event) {
+            const cell = event.target;
+            const x = parseInt(cell.dataset.x);
+            const y = parseInt(cell.dataset.y);
+            const cellData = playerCells[x][y];
+
+            // Проверка, что клетка принадлежит игроку
+            if (cellData.color === '🟦') {
+                if (selectedCell) {
+                    if (selectedCell === cell) {
+                        // Снять выделение
+                        selectedCell.classList.remove('selected');
+                        selectedCell = null;
+                    } else if (areAdjacent(selectedCell, cell)) {
+                        // Перемещение юнитов
+                        moveUnits(selectedCell.dataset, { x, y });
+                        selectedCell.classList.remove('selected');
+                        selectedCell = null;
+                    }
+                } else {
+                    // Выбор клетки
+                    selectedCell = cell;
+                    cell.classList.add('selected');
+                }
+            } else if (cellData.color === '🟥') {
+                // Атака на красную клетку
+                if (selectedCell && areAdjacent(selectedCell, cell)) {
+                    attackCell(selectedCell.dataset, { x, y });
+                    selectedCell.classList.remove('selected');
+                    selectedCell = null;
+                }
+            }
+        }
+
+        // Проверка, являются ли клетки соседними
+        function areAdjacent(cell1, cell2) {
+            const x1 = parseInt(cell1.dataset.x);
+            const y1 = parseInt(cell1.dataset.y);
+            const x2 = parseInt(cell2.dataset.x);
+            const y2 = parseInt(cell2.dataset.y);
+            return (Math.abs(x1 - x2) === 1 && y1 === y2) || (Math.abs(y1 - y2) === 1 && x1 === x2);
+        }
+
+        // Атака на клетку
+        function attackCell(attacker, defender) {
+            const attackerX = parseInt(attacker.x);
+            const attackerY = parseInt(attacker.y);
+            const defenderX = defender.x;
+            const defenderY = defender.y;
+
+            const attackerCell = playerCells[attackerX][attackerY];
+            const defenderCell = playerCells[defenderX][defenderY];
+
+            let attackingUnits = attackerCell.count - 1; // Один юнит остаётся для защиты
+            let defendingUnits = defenderCell.count;
+
+            while (attackingUnits > 0 && defendingUnits > 0) {
+                const outcome = Math.random();
+                const totalUnits = attackingUnits + defendingUnits;
+                const attackingChance = attackingUnits / totalUnits;
+
+                // Определение исхода боя
+                if (outcome < attackingChance) {
+                    defendingUnits--; // Защитники теряют юнита
+                } else {
+                    attackingUnits--; // Атакующие теряют юнита
+                }
+            }
+
+            // Обновление клеток после боя
+            if (defendingUnits <= 0) {
+                // Атакующие захватывают клетку
+                defenderCell.count = attackingUnits; // Все оставшиеся юниты захватывают клетку
+                defenderCell.color = attackerCell.color; // Цвет клетки меняется на цвет атакующего
+                attackerCell.count = 1; // Один остаётся в клетке для защиты
+            } else {
+                // Защитники остаются
+                defenderCell.count = defendingUnits; // Обновляем защитников
+                attackerCell.count = attackingUnits + 1; // Один остаётся для защиты
+            }
+
+            // Обновить отображение клеток
+            updateCellDisplay(attackerX, attackerY);
+            updateCellDisplay(defenderX, defenderY);
+        }
+
+        // Перемещение юнитов
+        function moveUnits(from, to) {
+            const fromX = parseInt(from.x);
+            const fromY = parseInt(from.y);
+            const toX = to.x;
+            const toY = to.y;
+
+            const fromCell = playerCells[fromX][fromY];
+            const toCell = playerCells[toX][toY];
+
+            // Проверка, что перемещение возможно
+            if (fromCell.count > 1) {
+                const moveCount = fromCell.count - 1; // Один остаётся
+                if (toCell.count + moveCount <= 10) {
+                    // Перемещение возможно
+                    toCell.count += moveCount;
+                    fromCell.count = 1; // Один остаётся в клетке
+                } else {
+                    // Если больше 10, оставляем максимум
+                    const excess = (toCell.count + moveCount) - 10;
+                    toCell.count = 10;
+                    fromCell.count = excess + 1; // Один остаётся в клетке
+                }
+                updateCellDisplay(fromX, fromY);
+                updateCellDisplay(toX, toY);
+            }
+        }
+
+        // Обновление отображения клетки
+        function updateCellDisplay(x, y) {
+            const cell = gridElement.children[x * gridSize + y];
+            const { color, count } = playerCells[x][y];
+            cell.innerText = `${color}×${count}`;
+            cell.style.backgroundColor = getCellColor(count, color);
+        }
+
+        // Ход противника
+        function enemyTurn() {
+            let attackMade = false;
+
+            // Проверка на клетки, где есть превосходство
+            for (let i = 0; i < gridSize; i++) {
+                for (let j = 0; j < gridSize; j++) {
+                    const redCell = playerCells[i][j];
+                    if (redCell.color === '🟥') {
+                        // Проверяем соседние клетки
+                        for (let x = Math.max(0, i - 1); x <= Math.min(gridSize - 1, i + 1); x++) {
+                            for (let y = Math.max(0, j - 1); y <= Math.min(gridSize - 1, j + 1); y++) {
+                                const blueCell = playerCells[x][y];
+                                if (blueCell.color === '🟦' && (redCell.count - blueCell.count) >= 2) {
+                                    // Атака на клетку с превосходством
+                                    attackCell({ x: i, y: j }, { x, y });
+                                    attackMade = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Если атака не была сделана, случайные атаки
+            if (!attackMade) {
+                for (let i = 0; i < 2; i++) { // Максимум 2 случайные атаки
+                    if (Math.random() < 0.5) {
+                        const randomX = Math.floor(Math.random() * gridSize);
+                        const randomY = Math.floor(Math.random() * gridSize);
+                        const randomCell = playerCells[randomX][randomY];
+                        if (randomCell.color === '🟦' && randomCell.count > 1) {
+                            attackCell({ x: randomX, y: randomY }, { x: randomX, y: randomY });
+                        }
+                    }
+                }
+            }
+
+            // Обновление клеток после хода
+            for (let i = 0; i < gridSize; i++) {
+                for (let j = 0; j < gridSize; j++) {
+                    if (playerCells[i][j].count < 10) {
+                        playerCells[i][j].count += 1;
+                        updateCellDisplay(i, j);
+                    }
+                }
+            }
+        }
+
+        // Завершение хода
+        endTurnButton.addEventListener('click', () => {
+            enemyTurn();
+        });
+
+        initGrid();
+    </script>
+			<button onclick="runTool('glist')">НАЗАД</button>
+
+   	<script>
+		function runTool(toolName) {
+			var url = toolName + ".html";
+			window.open(url, "_blank");
+		}
+	</script>
+
+</body>
+</html>

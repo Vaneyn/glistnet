@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Отправка запроса на сервер</title>
+  </head>
+  <body>
+    <form>
+      <label for="phone">Номер телефона:</label>
+      <input type="tel" id="phone" name="phone" required>
+      <br>
+      <button type="submit">Отправить запрос на" https://www.w3.org/2000/svg+ phoneInput"</button>
+    </form>
+
+    <script>
+      const form = document.querySelector('form');
+      const phoneInput = document.querySelector('#phone');
+
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const xhr = new XMLHttpRequest();
+        const url = 'https://www.w3.org/2000/svg+${phone}';
+
+        xhr.open('GET', url);
+        xhr.send();
+
+        xhr.onreadystatechange = function() {
+          if (xhr.readyState === XMLHttpRequest.DONE) {
+            if (xhr.status === 200) {
+              console.log(xhr.responseText);
+            } else {
+              console.error('Ошибка запроса');
+            }
+          }
+        };
+      });
+    </script>
+  </body>
+</html>

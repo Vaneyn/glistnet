@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Рулетка</title>
+  <style>
+    body {
+        background-color: #f5f5f5;
+        font-family: Arial, sans-serif;
+        text-align: center;
+        margin: 20px;
+    }
+
+    h1 {
+        color: #333333;
+    }
+
+    button {
+        background-color: #4CAF50;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        cursor: pointer;
+        margin: 5px;
+    }
+
+    button:hover {
+        background-color: #45a049;
+    }
+
+    #situation {
+        background-color: #eeeeee;
+        padding: 20px;
+        margin: 20px;
+    }
+
+    #stats {
+        background-color: #cccccc;
+        padding: 10px;
+        margin: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Азартная игра - Рулетка</h1>
+  
+  <label for="balance">Ваш баланс:</label>
+  <input type="number" id="balance" min="0" value="1000">
+  
+  <label for="bet">Ваша ставка:</label>
+  <input type="number" id="bet" min="1" value="10">
+  
+  <button onclick="playRoulette()">Играть</button>
+  
+  <div id="situation"></div>
+  <div id="stats"></div>
+  
+  <script>
+    function playRoulette() {
+      var balance = parseInt(document.getElementById("balance").value);
+      var bet = parseInt(document.getElementById("bet").value);
+      var situationElement = document.getElementById("situation");
+      var statsElement = document.getElementById("stats");
+      var situationText = "";
+      var statsText = "<h2>Статистика игры:</h2>";
+      
+      while (balance >= bet) {
+        // Генерируем случайное число от 0 до 36, где 0 - зеленый, 1-18 - красный, 19-36 - черный
+        var randomNumber = Math.floor(Math.random() * 37);
+        var result = "";
+        
+        if (randomNumber === 0) {
+          result = "Зеленый";
+          balance -= bet;
+        } else if (randomNumber % 2 === 1) {
+          result = "Красный";
+          balance -= bet;
+          bet *= 2;
+        } else {
+          result = "Черный";
+          balance += bet;
+          bet = parseInt(document.getElementById("bet").value);
+        }
+        
+        situationText += "Ставка: " + bet + " монет. Результат: " + result + ". Новый баланс: " + balance + " монет.<br>";
+        statsText += "Ставка: " + bet + " монет. Результат: " + result + ". Новый баланс: " + balance + " монет.<br>";
+        
+        if (balance >= 1000000) {
+          situationText += "Достигнут лимит в 1,000,000 монет. Игра окончена.";
+          break;
+        }
+      }
+      
+      situationElement.innerHTML = situationText;
+      statsElement.innerHTML = statsText;
+    }
+  </script>
+</body>
+</html>

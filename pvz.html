@@ -1,0 +1,3510 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Plants vs Zombies – 10 Уровней (Procedural HD + Mobile WebView)</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #1e241b;
+      font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+      overflow: hidden;
+      width: 100%;
+      height: 100%;
+      position: fixed;
+      top: 0;
+      left: 0;
+      touch-action: none;
+    }
+
+    /* Верхняя панель управления */
+    #topControls {
+      position: fixed;
+      top: 6px;
+      right: 8px;
+      z-index: 1000;
+      display: -webkit-box;
+      display: -webkit-flex;
+      display: flex;
+      -webkit-box-align: center;
+      -webkit-align-items: center;
+      align-items: center;
+    }
+
+    .hud-btn {
+      margin-left: 6px;
+      padding: 6px 11px;
+      background: #384531;
+      background: -webkit-linear-gradient(top, #44523d, #2b3527);
+      background: linear-gradient(180deg, #44523d, #2b3527);
+      color: #f0f4ec;
+      border: 2px solid #6c8062;
+      border-radius: 7px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 700;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.45);
+    }
+
+    .hud-btn:active {
+      -webkit-transform: translateY(1px);
+      transform: translateY(1px);
+    }
+
+    .hud-btn.active-speed {
+      border-color: #ffd700;
+      color: #ffd700;
+    }
+
+    /* Основной контейнер */
+    #gameContainer {
+      display: -webkit-box;
+      display: -webkit-flex;
+      display: flex;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Боковое меню с карточками растений */
+    #sidebar {
+      width: 82px;
+      min-width: 82px;
+      background: #2f1f14;
+      background: -webkit-linear-gradient(top, #3a2618 0%, #24170e 100%);
+      background: linear-gradient(180deg, #3a2618 0%, #24170e 100%);
+      border-right: 3px solid #5c3d28;
+      box-shadow: 4px 0 12px rgba(0,0,0,0.5);
+      padding: 6px 5px;
+      display: -webkit-box;
+      display: -webkit-flex;
+      display: flex;
+      -webkit-box-orient: vertical;
+      -webkit-box-direction: normal;
+      -webkit-flex-direction: column;
+      flex-direction: column;
+      overflow-y: auto;
+      overflow-x: hidden;
+      z-index: 10;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .plant-option {
+      position: relative;
+      background: #b5a486;
+      background: -webkit-linear-gradient(top, #c8b89a 0%, #9b8869 100%);
+      background: linear-gradient(180deg, #c8b89a 0%, #9b8869 100%);
+      border: 2px solid #54442f;
+      border-radius: 7px;
+      padding: 3px 2px 2px;
+      margin-bottom: 5px;
+      text-align: center;
+      cursor: pointer;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .plant-option.selected {
+      background: #f5df80;
+      background: -webkit-linear-gradient(top, #fff3b0 0%, #e6c55a 100%);
+      background: linear-gradient(180deg, #fff3b0 0%, #e6c55a 100%);
+      border-color: #ffae00;
+      box-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+    }
+
+    .plant-option.disabled {
+      opacity: 0.52;
+    }
+
+    .plant-option.locked {
+      display: none;
+    }
+
+    .plant-option[data-type="shovel"] {
+      margin-top: auto;
+      margin-bottom: 0;
+      background: #525e6b;
+      background: -webkit-linear-gradient(top, #687685 0%, #3d4752 100%);
+      background: linear-gradient(180deg, #687685 0%, #3d4752 100%);
+      border-color: #90a0b0;
+    }
+
+    .plant-option[data-type="shovel"].selected {
+      background: #e06040;
+      border-color: #ffddcc;
+    }
+
+    .plant-option canvas {
+      width: 44px;
+      height: 44px;
+      display: block;
+      margin: 0 auto;
+    }
+
+    .plant-option .cost-badge {
+      display: inline-block;
+      width: 94%;
+      background: rgba(25, 18, 10, 0.85);
+      color: #ffd700;
+      font-size: 10px;
+      font-weight: 800;
+      border-radius: 4px;
+      padding: 1px 0;
+      margin-top: 1px;
+    }
+
+    .plant-option .key-hint {
+      position: absolute;
+      top: 1px;
+      left: 3px;
+      font-size: 8px;
+      font-weight: 800;
+      color: rgba(0,0,0,0.55);
+      z-index: 2;
+    }
+
+    /* Шторка перезарядки карточки (Кулдаун) */
+    .cd-overlay {
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      width: 100%;
+      height: 0%;
+      background: rgba(10, 14, 10, 0.72);
+      pointer-events: none;
+      z-index: 3;
+      border-top: 1px solid rgba(255, 255, 255, 0.35);
+    }
+
+    /* Игровая область */
+    #gameArea {
+      -webkit-box-flex: 1;
+      -webkit-flex: 1;
+      flex: 1;
+      display: -webkit-box;
+      display: -webkit-flex;
+      display: flex;
+      -webkit-box-orient: vertical;
+      -webkit-box-direction: normal;
+      -webkit-flex-direction: column;
+      flex-direction: column;
+      position: relative;
+      background: #2d4c1e;
+      overflow: hidden;
+    }
+
+    #gameCanvas {
+      -webkit-box-flex: 1;
+      -webkit-flex: 1;
+      flex: 1;
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: crosshair;
+    }
+
+    /* Нижняя панель (Баланс + Прогресс-бар + Уровень) */
+    #bottomHUD {
+      height: 56px;
+      min-height: 56px;
+      background: #232c20;
+      background: -webkit-linear-gradient(top, #2d3829 0%, #1b2218 100%);
+      background: linear-gradient(180deg, #2d3829 0%, #1b2218 100%);
+      border-top: 3px solid #4d6145;
+      display: -webkit-box;
+      display: -webkit-flex;
+      display: flex;
+      -webkit-box-align: center;
+      -webkit-align-items: center;
+      align-items: center;
+      -webkit-box-pack: justify;
+      -webkit-justify-content: space-between;
+      justify-content: space-between;
+      padding: 0 12px;
+      color: #fff;
+      z-index: 10;
+    }
+
+    #balanceContainer {
+      display: -webkit-box;
+      display: -webkit-flex;
+      display: flex;
+      -webkit-box-align: center;
+      -webkit-align-items: center;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.45);
+      border: 2px solid #8a7020;
+      border-radius: 24px;
+      padding: 3px 14px 3px 8px;
+      margin-right: 12px;
+      min-width: 125px;
+    }
+
+    #sunIconHUD {
+      width: 28px;
+      height: 28px;
+      margin-right: 7px;
+      flex-shrink: 0;
+    }
+
+    .sun-label {
+      font-size: 10px;
+      color: #cbd5c0;
+      text-transform: uppercase;
+      font-weight: 700;
+      display: block;
+      line-height: 1;
+    }
+
+    #sunCount {
+      font-size: 19px;
+      font-weight: 900;
+      color: #ffe14d;
+      line-height: 1.1;
+    }
+
+    /* Прогресс-бар уровня */
+    #progressWrapper {
+      -webkit-box-flex: 1;
+      -webkit-flex: 1;
+      flex: 1;
+      max-width: 650px;
+      display: -webkit-box;
+      display: -webkit-flex;
+      display: flex;
+      -webkit-box-orient: vertical;
+      -webkit-box-direction: normal;
+      -webkit-flex-direction: column;
+      flex-direction: column;
+    }
+
+    #progressHeader {
+      display: -webkit-box;
+      display: -webkit-flex;
+      display: flex;
+      -webkit-box-pack: justify;
+      -webkit-justify-content: space-between;
+      justify-content: space-between;
+      font-size: 11px;
+      font-weight: 700;
+      color: #d5e2ce;
+      margin-bottom: 4px;
+    }
+
+    #progressContainer {
+      height: 18px;
+      background: #141a12;
+      border: 2px solid #596e50;
+      border-radius: 10px;
+      position: relative;
+      overflow: visible;
+    }
+
+    #progressBar {
+      height: 100%;
+      width: 0%;
+      background: #52b788;
+      background: -webkit-linear-gradient(left, #52b788 0%, #ffd166 75%, #ef476f 100%);
+      background: linear-gradient(90deg, #52b788 0%, #ffd166 75%, #ef476f 100%);
+      border-radius: 8px;
+      -webkit-transition: width 0.15s linear;
+      transition: width 0.15s linear;
+    }
+
+    .progressMarker {
+      position: absolute;
+      top: -3px;
+      bottom: -3px;
+      width: 3px;
+      background: #ff3333;
+      z-index: 3;
+    }
+
+    .progressMarker::after {
+      content: attr(data-label);
+      position: absolute;
+      top: -13px;
+      left: 50%;
+      -webkit-transform: translateX(-50%);
+      transform: translateX(-50%);
+      font-size: 9px;
+      font-weight: 800;
+      color: #ff9999;
+      white-space: nowrap;
+      text-shadow: 0 1px 2px #000;
+    }
+
+    /* Модальное окно выбора уровней (1 - 10) */
+    #levelModal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(10, 14, 9, 0.86);
+      z-index: 2000;
+      display: none;
+      -webkit-box-align: center;
+      -webkit-align-items: center;
+      align-items: center;
+      -webkit-box-pack: center;
+      -webkit-justify-content: center;
+      justify-content: center;
+      padding: 12px;
+    }
+
+    #levelModal.open {
+      display: -webkit-box;
+      display: -webkit-flex;
+      display: flex;
+    }
+
+    .modal-box {
+      background: #283323;
+      border: 3px solid #6c8062;
+      border-radius: 14px;
+      max-width: 540px;
+      width: 100%;
+      max-height: 90%;
+      overflow-y: auto;
+      padding: 16px;
+      color: #f0f4ec;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+    }
+
+    .modal-title {
+      margin: 0 0 6px;
+      font-size: 20px;
+      color: #ffd700;
+      text-align: center;
+    }
+
+    .modal-sub {
+      margin: 0 0 14px;
+      font-size: 12px;
+      color: #b8c9b0;
+      text-align: center;
+    }
+
+    .level-grid {
+      display: -webkit-box;
+      display: -webkit-flex;
+      display: flex;
+      -webkit-flex-wrap: wrap;
+      flex-wrap: wrap;
+      margin: -4px;
+    }
+
+    .lvl-btn {
+      width: calc(20% - 8px);
+      margin: 4px;
+      padding: 8px 4px;
+      background: #3d4d36;
+      border: 2px solid #758f68;
+      border-radius: 8px;
+      color: #fff;
+      font-weight: 800;
+      font-size: 13px;
+      cursor: pointer;
+      text-align: center;
+    }
+
+    .lvl-btn.current {
+      background: #6c8c32;
+      border-color: #ffd700;
+      color: #ffd700;
+    }
+
+    .lvl-btn.locked-lvl {
+      background: #1f261c;
+      border-color: #3a4535;
+      color: #677362;
+      cursor: not-allowed;
+    }
+
+    .lvl-btn small {
+      display: block;
+      font-size: 9px;
+      font-weight: 600;
+      color: #d0dfd0;
+      margin-top: 2px;
+    }
+
+    .modal-actions {
+      margin-top: 14px;
+      display: -webkit-box;
+      display: -webkit-flex;
+      display: flex;
+      -webkit-box-pack: justify;
+      -webkit-justify-content: space-between;
+      justify-content: space-between;
+    }
+
+    /* Адаптация под узкие экраны и мобильные телефоны */
+    @media (max-width: 700px), (max-height: 460px) {
+      #sidebar {
+        width: 66px;
+        min-width: 66px;
+        padding: 4px 3px;
+      }
+      .plant-option {
+        padding: 2px 1px;
+        margin-bottom: 4px;
+      }
+      .plant-option canvas {
+        width: 34px;
+        height: 34px;
+      }
+      .plant-option .cost-badge {
+        font-size: 9px;
+      }
+      #bottomHUD {
+        height: 44px;
+        min-height: 44px;
+        padding: 0 8px;
+      }
+      #balanceContainer {
+        min-width: 96px;
+        padding: 2px 10px 2px 6px;
+      }
+      #sunCount {
+        font-size: 15px;
+      }
+      .hud-btn {
+        padding: 4px 8px;
+        font-size: 11px;
+      }
+      .lvl-btn {
+        width: calc(33.33% - 8px);
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Верхние кнопки управления -->
+  <div id="topControls">
+    <button class="hud-btn" id="levelSelectBtn" title="Выбрать уровень">🏆 Ур. <span id="hudLevelNum">1</span>/10</button>
+    <button class="hud-btn" id="speedBtn" title="Ускорить время">1x</button>
+    <button class="hud-btn" id="pauseBtn" title="Пауза">⏸</button>
+    <button class="hud-btn" id="backButton" onclick="location.href='glist.html'">⬅ Назад</button>
+  </div>
+
+  <!-- Модальное окно кампании (10 уровней) -->
+  <div id="levelModal">
+    <div class="modal-box">
+      <h2 class="modal-title">КАМПАНИЯ: ЗАЩИТА ГАЗОНА</h2>
+      <p class="modal-sub">Прогресс автоматически сохраняется в LocalStorage (ключ: <b>PvZ level</b>)</p>
+      <div class="level-grid" id="levelGrid"></div>
+      <div class="modal-actions">
+        <button class="hud-btn" id="resetProgressBtn" style="border-color:#c0392b;color:#ffb8b8;">Сбросить прогресс</button>
+        <button class="hud-btn" id="closeModalBtn">Продолжить игру</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="gameContainer">
+    <!-- Боковая панель выбора растений -->
+    <div id="sidebar">
+      <div class="plant-option" data-type="sunflower" title="Подсолнух: даёт 25 солнца">
+        <span class="key-hint">1</span>
+        <canvas width="48" height="48" id="opt-sunflower"></canvas>
+        <span class="cost-badge">50 ☀</span>
+        <div class="cd-overlay" id="cd-sunflower"></div>
+      </div>
+      <div class="plant-option" data-type="peashooter" title="Горохострел: стреляет горохом">
+        <span class="key-hint">2</span>
+        <canvas width="48" height="48" id="opt-peashooter"></canvas>
+        <span class="cost-badge">100 ☀</span>
+        <div class="cd-overlay" id="cd-peashooter"></div>
+      </div>
+      <div class="plant-option" data-type="walnut" title="Стена-орех: крепкая броня">
+        <span class="key-hint">3</span>
+        <canvas width="48" height="48" id="opt-walnut"></canvas>
+        <span class="cost-badge">50 ☀</span>
+        <div class="cd-overlay" id="cd-walnut"></div>
+      </div>
+      <div class="plant-option" data-type="potatomine" title="Картофельная мина: взрывается после зарядки (Ур. 2)">
+        <span class="key-hint">4</span>
+        <canvas width="48" height="48" id="opt-potatomine"></canvas>
+        <span class="cost-badge">25 ☀</span>
+        <div class="cd-overlay" id="cd-potatomine"></div>
+      </div>
+      <div class="plant-option" data-type="snowpea" title="Морозный горох: замедляет зомби на 50% (Ур. 3)">
+        <span class="key-hint">5</span>
+        <canvas width="48" height="48" id="opt-snowpea"></canvas>
+        <span class="cost-badge">150 ☀</span>
+        <div class="cd-overlay" id="cd-snowpea"></div>
+      </div>
+      <div class="plant-option" data-type="boxercabbage" title="Капуста-боксёр: быстрые удары на 2 клетки (Ур. 4)">
+        <span class="key-hint">6</span>
+        <canvas width="48" height="48" id="opt-boxercabbage"></canvas>
+        <span class="cost-badge">125 ☀</span>
+        <div class="cd-overlay" id="cd-boxercabbage"></div>
+      </div>
+      <div class="plant-option" data-type="cherrybomb" title="Вишнёвая бомба: взрыв 3x3 клетки (Ур. 5)">
+        <span class="key-hint">7</span>
+        <canvas width="48" height="48" id="opt-cherrybomb"></canvas>
+        <span class="cost-badge">150 ☀</span>
+        <div class="cd-overlay" id="cd-cherrybomb"></div>
+      </div>
+      <div class="plant-option" data-type="repeater" title="Двойной горохострел: выпускает по 2 горошины (Ур. 6)">
+        <span class="key-hint">8</span>
+        <canvas width="48" height="48" id="opt-repeater"></canvas>
+        <span class="cost-badge">200 ☀</span>
+        <div class="cd-overlay" id="cd-repeater"></div>
+      </div>
+      <div class="plant-option" data-type="chomper" title="Зубастик: проглатывает зомби целиком (Ур. 8)">
+        <span class="key-hint">9</span>
+        <canvas width="48" height="48" id="opt-chomper"></canvas>
+        <span class="cost-badge">150 ☀</span>
+        <div class="cd-overlay" id="cd-chomper"></div>
+      </div>
+      <div class="plant-option" data-type="shovel" title="Лопата: выкопать растение с возвратом солнца">
+        <span class="key-hint">S</span>
+        <canvas width="48" height="48" id="opt-shovel"></canvas>
+        <span class="cost-badge">Лопата</span>
+      </div>
+    </div>
+
+    <!-- Игровое поле и нижний HUD -->
+    <div id="gameArea">
+      <canvas id="gameCanvas"></canvas>
+
+      <div id="bottomHUD">
+        <div id="balanceContainer">
+          <canvas id="sunIconHUD" width="28" height="28"></canvas>
+          <div>
+            <span class="sun-label">Солнца</span>
+            <span id="sunCount">50</span>
+          </div>
+        </div>
+
+        <div id="progressWrapper">
+          <div id="progressHeader">
+            <span id="waveStatusText">Уровень 1</span>
+            <span id="timerText">00:00 / 02:00</span>
+          </div>
+          <div id="progressContainer">
+            <div id="progressBar"></div>
+            <div id="waveMarkersHost"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  /**************************************************************
+   * 1. ПОЛИФИЛЛЫ ДЛЯ СТАРЫХ ANDROID WEBVIEW
+   **************************************************************/
+  (function() {
+    // Полифилл roundRect для Canvas (отсутствует в WebView < Chrome 99)
+    if (typeof CanvasRenderingContext2D !== 'undefined' && !CanvasRenderingContext2D.prototype.roundRect) {
+      CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+        var radius = typeof r === 'number' ? r : (Array.isArray(r) ? (r[0] || 0) : 0);
+        if (w < 2 * radius) radius = w / 2;
+        if (h < 2 * radius) radius = h / 2;
+        if (radius < 0) radius = 0;
+        this.moveTo(x + radius, y);
+        this.arcTo(x + w, y, x + w, y + h, radius);
+        this.arcTo(x + w, y + h, x, y + h, radius);
+        this.arcTo(x, y + h, x, y, radius);
+        this.arcTo(x, y, x + w, y, radius);
+        this.closePath();
+        return this;
+      };
+    }
+
+    // Полифилл performance.now и requestAnimationFrame
+    if (!window.performance) window.performance = {};
+    if (!window.performance.now) {
+      var startOffset = Date.now();
+      window.performance.now = function() { return Date.now() - startOffset; };
+    }
+    window.requestAnimationFrame = window.requestAnimationFrame ||
+      window.webkitRequestAnimationFrame ||
+      function(cb) { return setTimeout(function() { cb(window.performance.now()); }, 16); };
+  })();
+
+  // Безопасная работа с LocalStorage для ключа 'PvZ level'
+  var STORAGE_KEY = 'PvZ level';
+
+  function getSavedMaxLevel() {
+    try {
+      var raw = window.localStorage.getItem(STORAGE_KEY);
+      var parsed = parseInt(raw, 10);
+      if (!isNaN(parsed) && parsed >= 1 && parsed <= 10) return parsed;
+    } catch (e) {}
+    return 1;
+  }
+
+  function saveMaxLevel(lvl) {
+    var clamped = Math.max(1, Math.min(10, parseInt(lvl, 10) || 1));
+    try {
+      window.localStorage.setItem(STORAGE_KEY, String(clamped));
+    } catch (e) {}
+  }
+
+  /**************************************************************
+   * 2. БАЗА ДАННЫХ РАСТЕНИЙ, ЗОМБИ И КАЛИБРОВКА 10 УРОВНЕЙ
+   **************************************************************/
+  var GRID_ROWS = 5;
+  var GRID_COLS = 9;
+
+  // Характеристики всех 8 растений
+  var PLANT_DB = {
+    sunflower:    { name: 'Подсолнух',     cost: 50,  hp: 10, cd: 5000,  unlockLevel: 1 },
+    peashooter:   { name: 'Горохострел',   cost: 100, hp: 10, cd: 5000,  unlockLevel: 1 },
+    walnut:       { name: 'Стена-орех',    cost: 50,  hp: 70, cd: 18000, unlockLevel: 1 },
+    potatomine:   { name: 'Картоф. мина',  cost: 25,  hp: 10, cd: 16000, unlockLevel: 2 },
+    snowpea:      { name: 'Морозный горох',cost: 150, hp: 10, cd: 6500,  unlockLevel: 3 },
+    boxercabbage: { name: 'Капуста-боксёр',cost: 125, hp: 14, cd: 6500,  unlockLevel: 4 },
+    cherrybomb:   { name: 'Вишнёвая бомба',cost: 150, hp: 99, cd: 28000, unlockLevel: 5 },
+    repeater:     { name: 'Двойной горох', cost: 200, hp: 12, cd: 6500,  unlockLevel: 6 },
+    chomper:      { name: 'Зубастик',      cost: 150, hp: 16, cd: 12000, unlockLevel: 8 }
+  };
+
+  var ALL_PLANT_TYPES = [
+    'sunflower', 'peashooter', 'walnut', 'potatomine',
+    'snowpea', 'boxercabbage', 'cherrybomb', 'repeater', 'chomper'
+  ];
+
+  // Интервалы способностей растений (мс)
+  var sunflowerFirstDelay = 4500;
+  var sunflowerInterval = 19000;
+  var peashooterInterval = 1150;
+  var potatoArmTime = 13500; // Сбалансировано до 13.5 сек
+  var boxercabbageInterval = 333;
+  var chomperChewTime = 20000;
+  var zombieAttackInterval = 500;
+
+  // Характеристики 7 типов зомби
+  var ZOMBIE_DB = {
+    normal:    { hp: 18,  speed: 1 / 11000 },
+    hat:       { hp: 42,  speed: 1 / 11800 }, // Конус слетает при HP <= 18
+    bucket:    { hp: 82,  speed: 1 / 13000 }, // Ведро слетает при HP <= 18
+    newspaper: { hp: 36,  speed: 1 / 12000, rageSpeed: 1 / 4600 }, // Газета рвется при HP <= 18, ускоряется!
+    football:  { hp: 125, speed: 1 / 7200  }, // Быстрый бронированный танк
+    imp:       { hp: 12,  speed: 1 / 5800  }, // Шустрый чертёнок
+    giant:     { hp: 550, speed: 1 / 21000 }  // Босс Гаргантюа
+  };
+
+  // Конфигурация 10 сбалансированных уровней кампании
+  var LEVELS = [
+    {
+      level: 1,
+      title: 'Уровень 1: Первый рассвет',
+      durationSec: 120,
+      startSun: 100,
+      spawnGraceSec: 12,
+      normalInterval: 7.5,
+      waveInterval: 1.5,
+      speedMult: 0.92,
+      waves: [
+        { timeSec: 55, durationSec: 6, label: '🚩 Волна 1' },
+        { timeSec: 110, durationSec: 9, label: '🚩 Финал' }
+      ],
+      weights: {
+        normal:  { normal: 0.85, hat: 0.15 },
+        wave:    { normal: 0.65, hat: 0.35 }
+      },
+      unlockReward: 'Картофельная мина'
+    },
+    {
+      level: 2,
+      title: 'Уровень 2: Минное поле',
+      durationSec: 150,
+      startSun: 75,
+      spawnGraceSec: 10,
+      normalInterval: 6.5,
+      waveInterval: 1.2,
+      speedMult: 0.96,
+      waves: [
+        { timeSec: 70, durationSec: 6, label: '🚩 Волна 1' },
+        { timeSec: 138, durationSec: 10, label: '🚩 Финал' }
+      ],
+      weights: {
+        normal: { normal: 0.68, hat: 0.32 },
+        wave:   { normal: 0.45, hat: 0.55 }
+      },
+      unlockReward: 'Морозный горох'
+    },
+    {
+      level: 3,
+      title: 'Уровень 3: Холодный расчёт',
+      durationSec: 180,
+      startSun: 75,
+      spawnGraceSec: 9,
+      normalInterval: 5.8,
+      waveInterval: 1.0,
+      speedMult: 1.0,
+      waves: [
+        { timeSec: 80, durationSec: 6, label: '🚩 Волна 1' },
+        { timeSec: 168, durationSec: 10, label: '🚩 Финал' }
+      ],
+      weights: {
+        normal: { normal: 0.58, hat: 0.30, bucket: 0.12 },
+        wave:   { normal: 0.40, hat: 0.40, bucket: 0.20 }
+      },
+      unlockReward: 'Капуста-боксёр'
+    },
+    {
+      level: 4,
+      title: 'Уровень 4: Ближний бой и Пресса',
+      durationSec: 210,
+      startSun: 75,
+      spawnGraceSec: 9,
+      normalInterval: 5.3,
+      waveInterval: 0.9,
+      speedMult: 1.0,
+      waves: [
+        { timeSec: 90, durationSec: 6, label: '🚩 Волна 1' },
+        { timeSec: 150, durationSec: 6, label: '🚩 Волна 2' },
+        { timeSec: 198, durationSec: 10, label: '🚩 Финал' }
+      ],
+      weights: {
+        normal: { normal: 0.45, hat: 0.25, bucket: 0.12, newspaper: 0.18 },
+        wave:   { normal: 0.30, hat: 0.30, bucket: 0.18, newspaper: 0.22 }
+      },
+      unlockReward: 'Вишнёвая бомба'
+    },
+    {
+      level: 5,
+      title: 'Уровень 5: Взрывной экватор',
+      durationSec: 240,
+      startSun: 75,
+      spawnGraceSec: 8,
+      normalInterval: 4.8,
+      waveInterval: 0.75,
+      speedMult: 1.03,
+      waves: [
+        { timeSec: 100, durationSec: 7, label: '🚩 Волна 1' },
+        { timeSec: 175, durationSec: 7, label: '🚩 Волна 2' },
+        { timeSec: 228, durationSec: 11, label: '🚩 Финал' }
+      ],
+      weights: {
+        normal: { normal: 0.38, hat: 0.27, bucket: 0.17, newspaper: 0.18 },
+        wave:   { normal: 0.25, hat: 0.30, bucket: 0.25, newspaper: 0.20 }
+      },
+      unlockReward: 'Двойной горохострел'
+    },
+    {
+      level: 6,
+      title: 'Уровень 6: Двойной залп',
+      durationSec: 260,
+      startSun: 75,
+      spawnGraceSec: 8,
+      normalInterval: 4.4,
+      waveInterval: 0.68,
+      speedMult: 1.05,
+      waves: [
+        { timeSec: 110, durationSec: 7, label: '🚩 Волна 1' },
+        { timeSec: 190, durationSec: 7, label: '🚩 Волна 2' },
+        { timeSec: 248, durationSec: 11, label: '🚩 Финал' }
+      ],
+      weights: {
+        normal: { normal: 0.32, hat: 0.26, bucket: 0.18, newspaper: 0.14, imp: 0.10 },
+        wave:   { normal: 0.20, hat: 0.26, bucket: 0.24, newspaper: 0.16, imp: 0.14 }
+      },
+      unlockReward: 'Бонус +25 стартового солнца'
+    },
+    {
+      level: 7,
+      title: 'Уровень 7: Американский футбол',
+      durationSec: 290,
+      startSun: 100,
+      spawnGraceSec: 8,
+      normalInterval: 4.1,
+      waveInterval: 0.62,
+      speedMult: 1.07,
+      waves: [
+        { timeSec: 120, durationSec: 7, label: '🚩 Волна 1' },
+        { timeSec: 210, durationSec: 7, label: '🚩 Волна 2' },
+        { timeSec: 278, durationSec: 11, label: '🚩 Финал' }
+      ],
+      weights: {
+        normal: { normal: 0.28, hat: 0.25, bucket: 0.18, newspaper: 0.15, football: 0.14 },
+        wave:   { normal: 0.18, hat: 0.24, bucket: 0.22, newspaper: 0.16, football: 0.20 }
+      },
+      unlockReward: 'Зубастик (Chomper)'
+    },
+    {
+      level: 8,
+      title: 'Уровень 8: Хищный газон',
+      durationSec: 320,
+      startSun: 100,
+      spawnGraceSec: 7,
+      normalInterval: 3.8,
+      waveInterval: 0.55,
+      speedMult: 1.1,
+      waves: [
+        { timeSec: 130, durationSec: 8, label: '🚩 Волна 1' },
+        { timeSec: 230, durationSec: 8, label: '🚩 Волна 2' },
+        { timeSec: 306, durationSec: 12, label: '🚩 Финал' }
+      ],
+      weights: {
+        normal: { normal: 0.24, hat: 0.24, bucket: 0.20, newspaper: 0.14, football: 0.18 },
+        wave:   { normal: 0.15, hat: 0.22, bucket: 0.25, newspaper: 0.16, football: 0.22 }
+      },
+      unlockReward: 'Усиленная оборона'
+    },
+    {
+      level: 9,
+      title: 'Уровень 9: Генеральный штурм',
+      durationSec: 360,
+      startSun: 100,
+      spawnGraceSec: 7,
+      normalInterval: 3.5,
+      waveInterval: 0.48,
+      speedMult: 1.12,
+      bossCount: 1, // В финале 9-го уровня выходит разведчик-Гигант
+      waves: [
+        { timeSec: 140, durationSec: 8, label: '🚩 Волна 1' },
+        { timeSec: 250, durationSec: 8, label: '🚩 Волна 2' },
+        { timeSec: 346, durationSec: 12, label: '💀 Мини-Босс' }
+      ],
+      weights: {
+        normal: { normal: 0.20, hat: 0.24, bucket: 0.22, newspaper: 0.14, football: 0.20 },
+        wave:   { hat: 0.25, bucket: 0.28, newspaper: 0.17, football: 0.22, imp: 0.08 }
+      },
+      unlockReward: 'Доступ к 10 Уровню (БОСС)'
+    },
+    {
+      level: 10,
+      title: 'Уровень 10: БИТВА С БОССОМ ГИГАНТОМ',
+      durationSec: 420, // Классические 7 минут!
+      startSun: 125,
+      spawnGraceSec: 6,
+      normalInterval: 3.3,
+      waveInterval: 0.40,
+      speedMult: 1.15,
+      bossCount: 2, // Настоящий Босс-файт (Гигант на 2-й волне и Главный Босс в финале)
+      waves: [
+        { timeSec: 180, durationSec: 8,  label: '🚩 3:00' },
+        { timeSec: 300, durationSec: 9,  label: '🚩 5:00' },
+        { timeSec: 406, durationSec: 14, label: '💀 БОСС' }
+      ],
+      weights: {
+        normal: { normal: 0.18, hat: 0.24, bucket: 0.22, newspaper: 0.14, football: 0.16, imp: 0.06 },
+        wave:   { hat: 0.22, bucket: 0.28, newspaper: 0.16, football: 0.24, imp: 0.10 }
+      },
+      unlockReward: 'Абсолютный Чемпион Газона!'
+    }
+  ];
+
+/**************************************************************
+   * 3. ГЕОМЕТРИЯ ХОЛСТА, СОСТОЯНИЕ И МЕНЕДЖЕР УРОВНЕЙ
+   **************************************************************/
+  var canvas = document.getElementById('gameCanvas');
+  var ctx = canvas.getContext('2d');
+  var cellSize = 72;
+  var gridOffsetX = 42;
+  var gridOffsetY = 16;
+
+  function resizeCanvas() {
+    var sidebarEl = document.getElementById('sidebar');
+    var bottomEl = document.getElementById('bottomHUD');
+    var sidebarW = sidebarEl ? sidebarEl.offsetWidth : 75;
+    var bottomH = bottomEl ? bottomEl.offsetHeight : 52;
+    var winW = window.innerWidth || document.documentElement.clientWidth || 800;
+    var winH = window.innerHeight || document.documentElement.clientHeight || 480;
+
+    canvas.width = Math.max(240, winW - sidebarW);
+    canvas.height = Math.max(180, winH - bottomH);
+
+    // Оставляем 0.65 клетки слева под газонокосилки и отступ справа
+    var usableW = canvas.width - 16;
+    var usableH = canvas.height - 12;
+    cellSize = Math.floor(Math.min(usableW / (GRID_COLS + 0.68), usableH / GRID_ROWS));
+    if (cellSize < 28) cellSize = 28;
+
+    var totalBoardW = (GRID_COLS + 0.65) * cellSize;
+    var totalBoardH = GRID_ROWS * cellSize;
+    gridOffsetX = Math.floor((canvas.width - totalBoardW) / 2 + 0.65 * cellSize);
+    gridOffsetY = Math.floor((canvas.height - totalBoardH) / 2);
+  }
+
+  window.addEventListener('resize', resizeCanvas);
+  window.addEventListener('orientationchange', function() {
+    setTimeout(resizeCanvas, 150);
+  });
+  resizeCanvas();
+
+  // Декоративные пучки травы на газоне
+  var grassTufts = [];
+  (function initGrassTufts() {
+    for (var r = 0; r < GRID_ROWS; r++) {
+      for (var c = 0; c < GRID_COLS; c++) {
+        if ((r + c) % 2 === 0 || Math.random() < 0.6) {
+          grassTufts.push({
+            row: r,
+            col: c,
+            rx: 0.18 + Math.random() * 0.64,
+            ry: 0.22 + Math.random() * 0.60,
+            size: 0.06 + Math.random() * 0.05
+          });
+        }
+      }
+    }
+  })();
+
+  // Глобальное состояние игры
+  var maxUnlockedLevel = getSavedMaxLevel();
+  var currentLevelIdx = maxUnlockedLevel - 1; // 0..9
+  var currentLevelConfig = LEVELS[currentLevelIdx];
+
+  var sunCount = 75;
+  var gameTime = 0;
+  var lastTime = window.performance.now();
+  var timeScale = 1;
+  var isPaused = false;
+  var gameOver = false;
+  var win = false;
+  var bossesSpawnedInLevel = 0;
+
+  var currentWave = 0;
+  var waveTimer = 0;
+  var triggeredWaves = {};
+  var bannerAnnouncement = { text: '', subtext: '', alpha: 0, timer: 0, color: '#ff3333' };
+
+  // Коллекции игровых объектов
+  var plants = [];
+  var zombies = [];
+  var projectiles = [];
+  var boxerProjectiles = [];
+  var suns = [];
+  var lawnmowers = [];
+  var particles = [];
+
+  // Кулдауны карточек растений (мс)
+  var plantCooldowns = {};
+  for (var pIdx = 0; pIdx < ALL_PLANT_TYPES.length; pIdx++) {
+    plantCooldowns[ALL_PLANT_TYPES[pIdx]] = 0;
+  }
+
+  var selectedTool = null;
+  var hoverCell = { row: -1, col: -1, x: 0, y: 0, inside: false };
+
+  var sunSpawnTimer = 0;
+  var nextSunSpawn = 6000;
+  var zombieSpawnTimer = 0;
+
+  function showBanner(text, subtext, color, duration) {
+    bannerAnnouncement = {
+      text: text || '',
+      subtext: subtext || '',
+      alpha: 1,
+      timer: duration || 3200,
+      color: color || '#ff4d4d'
+    };
+  }
+
+  function formatMMSS(ms) {
+    var totalSec = Math.max(0, Math.floor(ms / 1000));
+    var m = Math.floor(totalSec / 60);
+    var s = totalSec % 60;
+    return (m < 10 ? '0' + m : '' + m) + ':' + (s < 10 ? '0' + s : '' + s);
+  }
+
+  // Обновление UI карточек, баланса солнца и доступности растений по уровню
+  function updateSunDisplay() {
+    var sunEl = document.getElementById('sunCount');
+    if (sunEl) sunEl.innerText = sunCount;
+
+    var cards = document.querySelectorAll('.plant-option');
+    for (var i = 0; i < cards.length; i++) {
+      var opt = cards[i];
+      var t = opt.getAttribute('data-type');
+      if (t === 'shovel') continue;
+      var info = PLANT_DB[t];
+      if (!info) continue;
+
+      // Открыто ли растение на текущем/максимальном уровне
+      var activeLvlNum = Math.max(currentLevelConfig.level, maxUnlockedLevel);
+      var isUnlocked = activeLvlNum >= info.unlockLevel;
+      if (!isUnlocked) {
+        opt.classList.add('locked');
+      } else {
+        opt.classList.remove('locked');
+      }
+
+      var onCooldown = (plantCooldowns[t] || 0) > 0;
+      if (sunCount < info.cost || onCooldown) {
+        opt.classList.add('disabled');
+      } else {
+        opt.classList.remove('disabled');
+      }
+    }
+  }
+
+  function updateCooldownOverlays(dt) {
+    var changed = false;
+    for (var i = 0; i < ALL_PLANT_TYPES.length; i++) {
+      var t = ALL_PLANT_TYPES[i];
+      if (plantCooldowns[t] > 0) {
+        plantCooldowns[t] = Math.max(0, plantCooldowns[t] - dt);
+        var cdEl = document.getElementById('cd-' + t);
+        if (cdEl) {
+          var pct = (plantCooldowns[t] / PLANT_DB[t].cd) * 100;
+          cdEl.style.height = pct.toFixed(1) + '%';
+        }
+        if (plantCooldowns[t] === 0) changed = true;
+      }
+    }
+    if (changed) updateSunDisplay();
+  }
+
+  // Отрисовка флажков волн на прогресс-баре под конкретный уровень
+  function renderWaveMarkers() {
+    var host = document.getElementById('waveMarkersHost');
+    if (!host) return;
+    host.innerHTML = '';
+    var totalSec = currentLevelConfig.durationSec;
+    var waves = currentLevelConfig.waves || [];
+    for (var i = 0; i < waves.length; i++) {
+      var w = waves[i];
+      var pct = Math.min(98.5, Math.max(2, (w.timeSec / totalSec) * 100));
+      var marker = document.createElement('div');
+      marker.className = 'progressMarker';
+      marker.style.left = pct.toFixed(2) + '%';
+      if (w.label.indexOf('БОСС') !== -1 || w.label.indexOf('Босс') !== -1) {
+        marker.style.background = '#ffae00';
+        marker.style.width = '4px';
+      }
+      marker.setAttribute('data-label', w.label);
+      host.appendChild(marker);
+    }
+  }
+
+  // Загрузка и старт выбранного уровня (index: 0..9)
+  function startLevel(levelIndex) {
+    currentLevelIdx = Math.max(0, Math.min(LEVELS.length - 1, levelIndex));
+    currentLevelConfig = LEVELS[currentLevelIdx];
+
+    sunCount = currentLevelConfig.startSun;
+    // Бонус +25 стартового солнца, если открыт 7+ уровень
+    if (maxUnlockedLevel >= 7 && currentLevelConfig.level < 7) {
+      sunCount += 25;
+    }
+
+    gameTime = 0;
+    gameOver = false;
+    win = false;
+    isPaused = false;
+    bossesSpawnedInLevel = 0;
+    currentWave = 0;
+    waveTimer = 0;
+    triggeredWaves = {};
+    sunSpawnTimer = 0;
+    nextSunSpawn = 5000 + Math.random() * 5000;
+    zombieSpawnTimer = 0;
+
+    plants.length = 0;
+    zombies.length = 0;
+    projectiles.length = 0;
+    boxerProjectiles.length = 0;
+    suns.length = 0;
+    particles.length = 0;
+
+    lawnmowers.length = 0;
+    for (var r = 0; r < GRID_ROWS; r++) {
+      lawnmowers.push({ row: r, pos: -0.52, active: true, moving: false });
+    }
+
+    for (var i = 0; i < ALL_PLANT_TYPES.length; i++) {
+      var t = ALL_PLANT_TYPES[i];
+      plantCooldowns[t] = 0;
+      var cdEl = document.getElementById('cd-' + t);
+      if (cdEl) cdEl.style.height = '0%';
+    }
+
+    selectTool(null);
+
+    var hudLvl = document.getElementById('hudLevelNum');
+    if (hudLvl) hudLvl.innerText = currentLevelConfig.level;
+
+    var pauseBtn = document.getElementById('pauseBtn');
+    if (pauseBtn) pauseBtn.innerText = '⏸';
+
+    renderWaveMarkers();
+    updateSunDisplay();
+
+    var subInfo = currentLevelConfig.level === 10
+      ? 'Финальное сражение с Боссом Гигантом (7:00)!'
+      : 'Длительность: ' + formatMMSS(currentLevelConfig.durationSec * 1000);
+    showBanner(currentLevelConfig.title, subInfo, '#ffd166', 3200);
+  }
+
+  // Построение сетки уровней в модальном окне
+  function renderLevelModal() {
+    var grid = document.getElementById('levelGrid');
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    for (var i = 0; i < LEVELS.length; i++) {
+      (function(idx) {
+        var lvlCfg = LEVELS[idx];
+        var isUnlocked = lvlCfg.level <= maxUnlockedLevel;
+        var isCurrent = idx === currentLevelIdx;
+
+        var btn = document.createElement('button');
+        btn.className = 'lvl-btn' + (isCurrent ? ' current' : '') + (!isUnlocked ? ' locked-lvl' : '');
+        var icon = lvlCfg.level === 10 ? '💀 ' : (isUnlocked ? '🌻 ' : '🔒 ');
+        btn.innerHTML = icon + 'Ур. ' + lvlCfg.level +
+          '<small>' + formatMMSS(lvlCfg.durationSec * 1000) + '</small>';
+
+        btn.addEventListener('click', function() {
+          if (!isUnlocked) return;
+          document.getElementById('levelModal').classList.remove('open');
+          startLevel(idx);
+        });
+        grid.appendChild(btn);
+      })(i);
+    }
+  }
+
+  /**************************************************************
+   * 4. ПРОЦЕДУРНАЯ ВЕКТОРНАЯ ГРАФИКА (9 РАСТЕНИЙ + 7 ЗОМБИ)
+   **************************************************************/
+  function drawProceduralSun(g, x, y, radius, angle) {
+    g.save();
+    g.translate(x, y);
+
+    var glow = g.createRadialGradient(0, 0, radius * 0.2, 0, 0, radius * 1.45);
+    glow.addColorStop(0, 'rgba(255, 240, 100, 0.95)');
+    glow.addColorStop(0.6, 'rgba(255, 180, 0, 0.45)');
+    glow.addColorStop(1, 'rgba(255, 140, 0, 0)');
+    g.fillStyle = glow;
+    g.beginPath();
+    g.arc(0, 0, radius * 1.45, 0, Math.PI * 2);
+    g.fill();
+
+    g.save();
+    g.rotate(angle || 0);
+    var rays = 12;
+    g.fillStyle = '#ffaa00';
+    g.strokeStyle = '#d46b00';
+    g.lineWidth = Math.max(1, radius * 0.06);
+    g.beginPath();
+    for (var i = 0; i < rays * 2; i++) {
+      var r = (i % 2 === 0) ? radius * 1.15 : radius * 0.78;
+      var a = (i * Math.PI) / rays;
+      var px = Math.cos(a) * r;
+      var py = Math.sin(a) * r;
+      if (i === 0) g.moveTo(px, py);
+      else g.lineTo(px, py);
+    }
+    g.closePath();
+    g.fill();
+    g.stroke();
+    g.restore();
+
+    var coreGrad = g.createRadialGradient(-radius * 0.2, -radius * 0.2, radius * 0.1, 0, 0, radius * 0.75);
+    coreGrad.addColorStop(0, '#ffffcc');
+    coreGrad.addColorStop(0.5, '#ffdd1a');
+    coreGrad.addColorStop(1, '#f08c00');
+    g.fillStyle = coreGrad;
+    g.beginPath();
+    g.arc(0, 0, radius * 0.72, 0, Math.PI * 2);
+    g.fill();
+
+    g.fillStyle = 'rgba(255,255,255,0.65)';
+    g.beginPath();
+    g.ellipse(-radius * 0.22, -radius * 0.25, radius * 0.22, radius * 0.12, -0.5, 0, Math.PI * 2);
+    g.fill();
+
+    g.restore();
+  }
+
+  function drawCabbageFist(g, x, y, r, fill, stroke) {
+    g.save();
+    g.translate(x, y);
+    g.fillStyle = fill;
+    g.strokeStyle = stroke;
+    g.lineWidth = Math.max(1.3, r * 0.2);
+    g.beginPath();
+    g.arc(0, 0, r, 0, Math.PI * 2);
+    g.fill();
+    g.stroke();
+    g.beginPath();
+    g.arc(-r * 0.3, -r * 0.2, r * 0.3, 0, Math.PI * 2);
+    g.arc(r * 0.3, -r * 0.2, r * 0.3, 0, Math.PI * 2);
+    g.stroke();
+    g.restore();
+  }
+
+  function drawPlantSprite(g, type, cx, cy, size, state) {
+    state = state || {};
+    g.save();
+    g.translate(cx, cy);
+    var t = state.time || 0;
+    var sway = state.isIcon ? 0 : Math.sin(t * 0.004 + (state.seed || 0)) * (size * 0.025);
+
+    if (!state.isIcon) {
+      g.fillStyle = 'rgba(0, 0, 0, 0.24)';
+      g.beginPath();
+      g.ellipse(0, size * 0.36, size * 0.34, size * 0.11, 0, 0, Math.PI * 2);
+      g.fill();
+    }
+
+    // 1. ПОДСОЛНУХ
+    if (type === 'sunflower') {
+      g.fillStyle = '#2d8a2d';
+      g.strokeStyle = '#195219';
+      g.lineWidth = Math.max(1.2, size * 0.03);
+      var sides = [-1, 1];
+      for (var sIdx = 0; sIdx < 2; sIdx++) {
+        var side = sides[sIdx];
+        g.beginPath();
+        g.ellipse(side * size * 0.18, size * 0.32, size * 0.18, size * 0.08, side * 0.35, 0, Math.PI * 2);
+        g.fill();
+        g.stroke();
+      }
+
+      g.strokeStyle = '#389c38';
+      g.lineWidth = size * 0.09;
+      g.lineCap = 'round';
+      g.beginPath();
+      g.moveTo(0, size * 0.32);
+      g.quadraticCurveTo(sway * 1.4, size * 0.12, sway, -size * 0.05);
+      g.stroke();
+
+      g.translate(sway, -size * 0.07);
+
+      var petals = 14;
+      for (var i = 0; i < petals; i++) {
+        g.save();
+        g.rotate((i * Math.PI * 2) / petals + Math.sin(t * 0.002) * 0.05);
+        g.fillStyle = i % 2 === 0 ? '#ffd000' : '#ffea00';
+        g.strokeStyle = '#cc8800';
+        g.lineWidth = Math.max(1, size * 0.02);
+        g.beginPath();
+        g.ellipse(size * 0.24, 0, size * 0.13, size * 0.065, 0, 0, Math.PI * 2);
+        g.fill();
+        g.stroke();
+        g.restore();
+      }
+
+      var faceGrad = g.createRadialGradient(-size * 0.04, -size * 0.04, size * 0.02, 0, 0, size * 0.21);
+      faceGrad.addColorStop(0, '#8c5326');
+      faceGrad.addColorStop(1, '#4d2a0d');
+      g.fillStyle = faceGrad;
+      g.strokeStyle = '#331a06';
+      g.lineWidth = Math.max(1.5, size * 0.03);
+      g.beginPath();
+      g.arc(0, 0, size * 0.2, 0, Math.PI * 2);
+      g.fill();
+      g.stroke();
+
+      g.fillStyle = '#111';
+      g.beginPath();
+      g.arc(-size * 0.065, -size * 0.03, size * 0.032, 0, Math.PI * 2);
+      g.arc(size * 0.065, -size * 0.03, size * 0.032, 0, Math.PI * 2);
+      g.fill();
+
+      g.strokeStyle = '#1a0d04';
+      g.lineWidth = Math.max(1.5, size * 0.025);
+      g.beginPath();
+      g.arc(0, size * 0.02, size * 0.085, 0.15 * Math.PI, 0.85 * Math.PI);
+      g.stroke();
+    }
+
+    // 2. ГОРОХОСТРЕЛ / МОРОЗНЫЙ ГОРОХ / ДВОЙНОЙ ГОРОХОСТРЕЛ
+    else if (type === 'peashooter' || type === 'snowpea' || type === 'repeater') {
+      var isSnow = type === 'snowpea';
+      var isRep = type === 'repeater';
+      var recoilOffset = (state.recoil || 0) * size * 0.12;
+
+      g.fillStyle = isSnow ? '#1f7a7a' : '#268c26';
+      g.strokeStyle = isSnow ? '#0e4242' : '#134d13';
+      g.lineWidth = Math.max(1.2, size * 0.03);
+      for (var s1 = -1; s1 <= 1; s1 += 2) {
+        g.beginPath();
+        g.ellipse(s1 * size * 0.17, size * 0.32, size * 0.17, size * 0.075, s1 * 0.4, 0, Math.PI * 2);
+        g.fill();
+        g.stroke();
+      }
+
+      g.strokeStyle = isSnow ? '#2ea3a3' : '#33ad33';
+      g.lineWidth = size * 0.095;
+      g.lineCap = 'round';
+      g.beginPath();
+      g.moveTo(0, size * 0.32);
+      g.quadraticCurveTo(-size * 0.05 + sway, size * 0.1, sway - recoilOffset, -size * 0.08);
+      g.stroke();
+
+      g.translate(sway - recoilOffset, -size * 0.1);
+
+      // Затылок (кристаллы льда у Морозного, двойной гребень у Двойного)
+      if (isSnow) {
+        g.fillStyle = '#a8f5ff';
+        g.strokeStyle = '#1d6b87';
+        g.lineWidth = 1.5;
+        g.beginPath();
+        g.moveTo(-size * 0.16, -size * 0.12);
+        g.lineTo(-size * 0.34, -size * 0.22);
+        g.lineTo(-size * 0.24, -size * 0.02);
+        g.lineTo(-size * 0.36, size * 0.06);
+        g.lineTo(-size * 0.16, size * 0.06);
+        g.closePath();
+        g.fill();
+        g.stroke();
+      } else {
+        g.fillStyle = '#2eb82e';
+        g.strokeStyle = '#145214';
+        g.lineWidth = Math.max(1, size * 0.025);
+        g.beginPath();
+        g.ellipse(-size * 0.23, -size * 0.12, size * 0.11, size * 0.055, -0.6, 0, Math.PI * 2);
+        g.fill();
+        g.stroke();
+        if (isRep) {
+          g.beginPath();
+          g.ellipse(-size * 0.19, -size * 0.22, size * 0.12, size * 0.055, -0.2, 0, Math.PI * 2);
+          g.fill();
+          g.stroke();
+        }
+      }
+
+      // Голова
+      var headGrad = g.createRadialGradient(-size * 0.06, -size * 0.08, size * 0.03, 0, 0, size * 0.25);
+      if (isSnow) {
+        headGrad.addColorStop(0, '#c4ffff');
+        headGrad.addColorStop(0.65, '#3ec2e6');
+        headGrad.addColorStop(1, '#146985');
+      } else {
+        headGrad.addColorStop(0, '#85f056');
+        headGrad.addColorStop(0.7, '#39b825');
+        headGrad.addColorStop(1, '#1d7512');
+      }
+      g.fillStyle = headGrad;
+      g.strokeStyle = isSnow ? '#0c4759' : '#134d0b';
+      g.lineWidth = Math.max(1.5, size * 0.032);
+      g.beginPath();
+      g.arc(-size * 0.04, 0, size * 0.21, 0, Math.PI * 2);
+      g.fill();
+      g.stroke();
+
+      // Ствол
+      g.fillStyle = isSnow ? '#3ec2e6' : '#39b825';
+      g.beginPath();
+      g.moveTo(size * 0.08, -size * 0.12);
+      g.lineTo(size * 0.32, -size * 0.15);
+      g.lineTo(size * 0.32, size * 0.13);
+      g.lineTo(size * 0.08, size * 0.10);
+      g.closePath();
+      g.fill();
+      g.stroke();
+
+      // Дуло
+      g.fillStyle = isSnow ? '#7ce8ff' : '#4ad134';
+      g.beginPath();
+      g.ellipse(size * 0.32, -size * 0.01, size * 0.055, size * 0.15, 0, 0, Math.PI * 2);
+      g.fill();
+      g.stroke();
+
+      g.fillStyle = '#0d2609';
+      g.beginPath();
+      g.ellipse(size * 0.32, -size * 0.01, size * 0.03, size * 0.10, 0, 0, Math.PI * 2);
+      g.fill();
+
+      // Глаз
+      g.fillStyle = '#111';
+      g.beginPath();
+      g.ellipse(size * 0.02, -size * 0.06, size * 0.038, size * 0.048, 0, 0, Math.PI * 2);
+      g.fill();
+      g.fillStyle = '#fff';
+      g.beginPath();
+      g.arc(size * 0.03, -size * 0.075, size * 0.014, 0, Math.PI * 2);
+      g.fill();
+
+      // Суровая бровь у Двойного горохострела
+      if (isRep) {
+        g.strokeStyle = '#0f3d09';
+        g.lineWidth = Math.max(2, size * 0.04);
+        g.beginPath();
+        g.moveTo(-size * 0.06, -size * 0.14);
+        g.lineTo(size * 0.10, -size * 0.09);
+        g.stroke();
+      }
+    }
+
+    // 3. СТЕНА-ОРЕХ
+    else if (type === 'walnut') {
+      var hpRatio = (state.hp !== undefined && state.maxHp) ? (state.hp / state.maxHp) : 1;
+      g.translate(sway * 0.4, size * 0.02);
+
+      var nutGrad = g.createRadialGradient(-size * 0.08, -size * 0.1, size * 0.04, 0, 0, size * 0.38);
+      nutGrad.addColorStop(0, '#d49b5d');
+      nutGrad.addColorStop(0.65, '#9e6329');
+      nutGrad.addColorStop(1, '#5e3610');
+      g.fillStyle = nutGrad;
+      g.strokeStyle = '#3b2007';
+      g.lineWidth = Math.max(1.8, size * 0.035);
+
+      g.beginPath();
+      g.ellipse(0, 0, size * 0.29, size * 0.35, 0, 0, Math.PI * 2);
+      g.fill();
+      g.stroke();
+
+      if (hpRatio < 0.67) {
+        g.strokeStyle = '#291504';
+        g.lineWidth = Math.max(1.5, size * 0.03);
+        g.beginPath();
+        g.moveTo(size * 0.16, -size * 0.26);
+        g.lineTo(size * 0.08, -size * 0.16);
+        g.lineTo(size * 0.15, -size * 0.10);
+        g.stroke();
+      }
+
+      for (var wSide = -1; wSide <= 1; wSide += 2) {
+        var eyeR = wSide === -1 ? size * 0.078 : size * 0.068;
+        g.fillStyle = '#fff';
+        g.strokeStyle = '#2e1805';
+        g.lineWidth = Math.max(1.2, size * 0.025);
+        g.beginPath();
+        g.arc(wSide * size * 0.095, -size * 0.04, eyeR, 0, Math.PI * 2);
+        g.fill();
+        g.stroke();
+
+        g.fillStyle = '#111';
+        g.beginPath();
+        g.arc(wSide * size * 0.10, -size * 0.04, size * 0.028, 0, Math.PI * 2);
+        g.fill();
+      }
+
+      g.strokeStyle = '#2e1805';
+      g.lineWidth = Math.max(1.6, size * 0.03);
+      g.beginPath();
+      if (hpRatio > 0.5) {
+        g.arc(0, size * 0.09, size * 0.08, 0.15 * Math.PI, 0.85 * Math.PI);
+      } else {
+        g.arc(0, size * 0.19, size * 0.08, 1.15 * Math.PI, 1.85 * Math.PI);
+      }
+      g.stroke();
+    }
+
+    // 4. КАРТОФЕЛЬНАЯ МИНА
+    else if (type === 'potatomine') {
+      var armed = state.isIcon ? true : !!state.armed;
+      var armProgress = state.armProgress || 0;
+
+      g.fillStyle = '#5c3a1e';
+      g.strokeStyle = '#382210';
+      g.lineWidth = Math.max(1.2, size * 0.025);
+      var mounds = [-0.22, -0.1, 0.04, 0.18, 0.25];
+      for (var mIdx = 0; mIdx < mounds.length; mIdx++) {
+        g.beginPath();
+        g.arc(mounds[mIdx] * size, size * 0.27 + (mIdx % 2) * size * 0.03, size * 0.1, 0, Math.PI * 2);
+        g.fill();
+        g.stroke();
+      }
+
+      if (!armed) {
+        g.strokeStyle = '#555';
+        g.lineWidth = Math.max(2, size * 0.04);
+        g.beginPath();
+        g.moveTo(0, size * 0.22);
+        g.lineTo(0, -size * 0.04);
+        g.stroke();
+
+        var blink = Math.sin(t * 0.012) > 0;
+        g.fillStyle = blink ? '#ffaa00' : '#7a5200';
+        g.beginPath();
+        g.arc(0, -size * 0.07, size * 0.065, 0, Math.PI * 2);
+        g.fill();
+
+        if (!state.isIcon) {
+          var bw = size * 0.56, bh = size * 0.08;
+          g.fillStyle = 'rgba(0,0,0,0.6)';
+          g.fillRect(-bw / 2, -size * 0.34, bw, bh);
+          g.fillStyle = '#ffd166';
+          g.fillRect(-bw / 2 + 1, -size * 0.34 + 1, (bw - 2) * Math.min(1, armProgress), bh - 2);
+        }
+      } else {
+        var potGrad = g.createRadialGradient(-size * 0.06, size * 0.02, size * 0.03, 0, size * 0.08, size * 0.32);
+        potGrad.addColorStop(0, '#d9a76c');
+        potGrad.addColorStop(1, '#8c5a2b');
+        g.fillStyle = potGrad;
+        g.strokeStyle = '#4a2c10';
+        g.lineWidth = Math.max(1.5, size * 0.03);
+        g.beginPath();
+        g.ellipse(0, size * 0.12, size * 0.27, size * 0.19, 0, 0, Math.PI * 2);
+        g.fill();
+        g.stroke();
+
+        g.strokeStyle = '#444';
+        g.lineWidth = Math.max(2, size * 0.04);
+        g.beginPath();
+        g.moveTo(0, -size * 0.07);
+        g.lineTo(0, -size * 0.25);
+        g.stroke();
+
+        var redBlink = Math.sin(t * 0.02) > -0.2;
+        g.fillStyle = redBlink ? '#ff1a1a' : '#800000';
+        g.beginPath();
+        g.arc(0, -size * 0.27, size * 0.075, 0, Math.PI * 2);
+        g.fill();
+
+        for (var pSide = -1; pSide <= 1; pSide += 2) {
+          g.fillStyle = '#fff';
+          g.beginPath();
+          g.arc(pSide * size * 0.10, size * 0.08, size * 0.05, 0, Math.PI * 2);
+          g.fill();
+          g.fillStyle = '#111';
+          g.beginPath();
+          g.arc(pSide * size * 0.10, size * 0.08, size * 0.022, 0, Math.PI * 2);
+          g.fill();
+        }
+      }
+    }
+
+    // 5. КАПУСТА-БОКСЁР
+    else if (type === 'boxercabbage') {
+      var punchAnim = state.punchAnim || 0;
+      var punchDir = state.punchDir || 1;
+      var bodyLean = punchAnim * punchDir * size * 0.08;
+
+      g.translate(sway * 0.6 + bodyLean, size * 0.03);
+
+      var backFistX = -punchDir * size * 0.26;
+      var backFistY = size * 0.04 + Math.sin(t * 0.015) * size * 0.03;
+      drawCabbageFist(g, backFistX, backFistY, size * 0.13, '#5cd65c', '#1f661f');
+
+      var cabGrad = g.createRadialGradient(-size * 0.05, -size * 0.05, size * 0.04, 0, 0, size * 0.32);
+      cabGrad.addColorStop(0, '#b8ff99');
+      cabGrad.addColorStop(0.6, '#52cc33');
+      cabGrad.addColorStop(1, '#247314');
+      g.fillStyle = cabGrad;
+      g.strokeStyle = '#164a0b';
+      g.lineWidth = Math.max(1.6, size * 0.032);
+
+      g.beginPath();
+      g.arc(0, size * 0.02, size * 0.25, 0, Math.PI * 2);
+      g.fill();
+      g.stroke();
+
+      g.fillStyle = '#e62e2e';
+      g.fillRect(-size * 0.24, -size * 0.11, size * 0.48, size * 0.075);
+
+      for (var bSide = -1; bSide <= 1; bSide += 2) {
+        g.fillStyle = '#fff';
+        g.beginPath();
+        g.arc(bSide * size * 0.09, -size * 0.01, size * 0.052, 0, Math.PI * 2);
+        g.fill();
+        g.fillStyle = '#111';
+        g.beginPath();
+        g.arc(bSide * size * 0.10, -size * 0.01, size * 0.024, 0, Math.PI * 2);
+        g.fill();
+      }
+
+      var frontFistX = punchDir * (size * 0.27 + punchAnim * size * 0.18);
+      var frontFistY = size * 0.06 - Math.sin(t * 0.015) * size * 0.03;
+      drawCabbageFist(g, frontFistX, frontFistY, size * 0.15, '#80ff66', '#1f661f');
+    }
+
+    // 6. ВИШНЁВАЯ БОМБА (Cherry Bomb)
+    else if (type === 'cherrybomb') {
+      var fuseScale = 1 + (state.fuseProgress || 0) * 0.32;
+      g.scale(fuseScale, fuseScale);
+
+      // Зелёные веточки к макушке
+      g.strokeStyle = '#2d8a2d';
+      g.lineWidth = Math.max(2, size * 0.045);
+      g.beginPath();
+      g.moveTo(-size * 0.15, size * 0.08);
+      g.quadraticCurveTo(-size * 0.05, -size * 0.24, 0, -size * 0.30);
+      g.moveTo(size * 0.16, size * 0.10);
+      g.quadraticCurveTo(size * 0.06, -size * 0.22, 0, -size * 0.30);
+      g.stroke();
+
+      // Две злые вишни
+      var cherries = [
+        { x: -size * 0.16, y: size * 0.12, r: size * 0.19 },
+        { x:  size * 0.16, y: size * 0.14, r: size * 0.175 }
+      ];
+      for (var cIdx = 0; cIdx < 2; cIdx++) {
+        var ch = cherries[cIdx];
+        var chGrad = g.createRadialGradient(ch.x - ch.r * 0.3, ch.y - ch.r * 0.3, ch.r * 0.1, ch.x, ch.y, ch.r);
+        chGrad.addColorStop(0, '#ff6666');
+        chGrad.addColorStop(0.6, '#d90429');
+        chGrad.addColorStop(1, '#690011');
+        g.fillStyle = chGrad;
+        g.strokeStyle = '#3d0008';
+        g.lineWidth = Math.max(1.4, size * 0.028);
+        g.beginPath();
+        g.arc(ch.x, ch.y, ch.r, 0, Math.PI * 2);
+        g.fill();
+        g.stroke();
+
+        // Глаза с прищуром
+        g.fillStyle = '#fff9db';
+        g.beginPath();
+        g.arc(ch.x - ch.r * 0.28, ch.y - ch.r * 0.08, ch.r * 0.22, 0, Math.PI * 2);
+        g.arc(ch.x + ch.r * 0.28, ch.y - ch.r * 0.08, ch.r * 0.22, 0, Math.PI * 2);
+        g.fill();
+        g.fillStyle = '#111';
+        g.beginPath();
+        g.arc(ch.x - ch.r * 0.25, ch.y - ch.r * 0.08, ch.r * 0.1, 0, Math.PI * 2);
+        g.arc(ch.x + ch.r * 0.25, ch.y - ch.r * 0.08, ch.r * 0.1, 0, Math.PI * 2);
+        g.fill();
+      }
+    }
+
+    // 7. ЗУБАСТИК (Chomper)
+    else if (type === 'chomper') {
+      var chewing = !!state.chewing;
+      var chewPulse = chewing ? Math.sin(t * 0.015) * 0.08 : 0;
+
+      // Листья у основания
+      g.fillStyle = '#2d8a2d';
+      g.strokeStyle = '#144514';
+      g.lineWidth = Math.max(1.2, size * 0.03);
+      for (var cSide = -1; cSide <= 1; cSide += 2) {
+        g.beginPath();
+        g.ellipse(cSide * size * 0.18, size * 0.32, size * 0.18, size * 0.08, cSide * 0.35, 0, Math.PI * 2);
+        g.fill();
+        g.stroke();
+      }
+
+      // Толстый изгибающийся стебель
+      g.strokeStyle = '#389c38';
+      g.lineWidth = size * 0.11;
+      g.lineCap = 'round';
+      g.beginPath();
+      g.moveTo(0, size * 0.32);
+      g.quadraticCurveTo(-size * 0.12, size * 0.10, sway, -size * 0.06);
+      g.stroke();
+
+      g.translate(sway, -size * 0.08);
+      g.scale(1 + chewPulse, 1 - chewPulse);
+
+      // Фиолетовая голова-ловушка
+      var chompGrad = g.createRadialGradient(-size * 0.05, -size * 0.06, size * 0.03, 0, 0, size * 0.28);
+      chompGrad.addColorStop(0, '#c77dff');
+      chompGrad.addColorStop(0.65, '#7b2cbf');
+      chompGrad.addColorStop(1, '#3c096c');
+      g.fillStyle = chompGrad;
+      g.strokeStyle = '#240046';
+      g.lineWidth = Math.max(1.6, size * 0.032);
+
+      g.beginPath();
+      g.arc(0, 0, size * 0.25, 0, Math.PI * 2);
+      g.fill();
+      g.stroke();
+
+      // Пятна на затылке
+      g.fillStyle = '#5a189a';
+      g.beginPath();
+      g.arc(-size * 0.12, -size * 0.08, size * 0.045, 0, Math.PI * 2);
+      g.arc(-size * 0.15, size * 0.06, size * 0.035, 0, Math.PI * 2);
+      g.fill();
+
+      // Пасть (открыта, если голоден; сомкнута, если пережёвывает)
+      if (!chewing) {
+        g.fillStyle = '#590d22';
+        g.beginPath();
+        g.moveTo(0, 0);
+        g.arc(0, 0, size * 0.25, -0.55, 0.55, false);
+        g.closePath();
+        g.fill();
+      }
+
+      // Острые белые зубы
+      g.fillStyle = '#fff';
+      for (var zt = -2; zt <= 2; zt++) {
+        g.beginPath();
+        g.arc(size * 0.14, zt * size * 0.055, size * 0.032, 0, Math.PI * 2);
+        g.fill();
+      }
+
+      // Полоска переваривания
+      if (chewing && !state.isIcon) {
+        var cbw = size * 0.62, cbh = size * 0.08;
+        g.fillStyle = 'rgba(0,0,0,0.65)';
+        g.fillRect(-cbw / 2, -size * 0.38, cbw, cbh);
+        g.fillStyle = '#c77dff';
+        g.fillRect(-cbw / 2 + 1, -size * 0.38 + 1, (cbw - 2) * Math.max(0, 1 - (state.chewProgress || 0)), cbh - 2);
+      }
+    }
+
+    // 8. ЛОПАТА
+    else if (type === 'shovel') {
+      g.rotate(-Math.PI / 4);
+      g.fillStyle = '#b87b3d';
+      g.strokeStyle = '#5c3814';
+      g.lineWidth = Math.max(1.5, size * 0.035);
+      g.fillRect(-size * 0.045, -size * 0.34, size * 0.09, size * 0.42);
+      g.strokeRect(-size * 0.045, -size * 0.34, size * 0.09, size * 0.42);
+
+      g.fillStyle = '#d94126';
+      g.fillRect(-size * 0.14, -size * 0.38, size * 0.28, size * 0.08);
+      g.strokeRect(-size * 0.14, -size * 0.38, size * 0.28, size * 0.08);
+
+      var bladeGrad = g.createLinearGradient(-size * 0.18, size * 0.05, size * 0.18, size * 0.38);
+      bladeGrad.addColorStop(0, '#eef5fa');
+      bladeGrad.addColorStop(0.5, '#99abb8');
+      bladeGrad.addColorStop(1, '#5d6d7a');
+      g.fillStyle = bladeGrad;
+      g.strokeStyle = '#2f3840';
+      g.beginPath();
+      g.moveTo(-size * 0.18, size * 0.04);
+      g.lineTo(size * 0.18, size * 0.04);
+      g.lineTo(size * 0.15, size * 0.25);
+      g.lineTo(0, size * 0.38);
+      g.lineTo(-size * 0.15, size * 0.25);
+      g.closePath();
+      g.fill();
+      g.stroke();
+    }
+
+    g.restore();
+  }
+
+  // Отрисовка всех видов зомби и Босса Гиганта
+  function drawZombieSprite(g, zombie) {
+    var baseCellX = gridOffsetX + zombie.pos * cellSize;
+    var baseCellY = gridOffsetY + zombie.row * cellSize;
+
+    g.save();
+    if (zombie.type === 'giant') {
+      drawGiantBoss(g, zombie, baseCellX, baseCellY);
+    } else {
+      drawStandardZombie(g, zombie, baseCellX, baseCellY);
+    }
+    g.restore();
+  }
+
+  function drawStandardZombie(g, zombie, cellX, cellY) {
+    var cx = cellX + cellSize * 0.5;
+    var bottomY = cellY + cellSize * 0.90;
+    var isImp = zombie.type === 'imp';
+    var s = isImp ? cellSize * 0.68 : cellSize;
+    var phase = zombie.walkPhase || 0;
+    var isAttacking = zombie.state === 'attacking';
+    var legSwing = isAttacking ? 0 : Math.sin(phase) * (s * 0.08);
+    var bodyBob = Math.abs(Math.sin(phase)) * (s * 0.032);
+    var chomp = isAttacking ? Math.sin(phase * 3.5) * 0.22 : 0;
+    var isChilled = (zombie.slowTimer || 0) > 0;
+
+    g.save();
+    g.translate(cx, bottomY - bodyBob);
+
+    // Тень
+    g.fillStyle = isChilled ? 'rgba(60, 180, 255, 0.35)' : 'rgba(0,0,0,0.28)';
+    g.beginPath();
+    g.ellipse(0, bodyBob, s * 0.25, s * 0.08, 0, 0, Math.PI * 2);
+    g.fill();
+
+    // Ноги
+    g.strokeStyle = zombie.type === 'football' ? '#d9d9d9' : '#2d3b55';
+    g.lineWidth = s * 0.095;
+    g.lineCap = 'round';
+    g.beginPath();
+    g.moveTo(-s * 0.05, -s * 0.28);
+    g.lineTo(-s * 0.06 - legSwing, -s * 0.03);
+    g.moveTo(s * 0.05, -s * 0.28);
+    g.lineTo(s * 0.06 + legSwing, -s * 0.03);
+    g.stroke();
+
+    // Ботинки
+    g.fillStyle = '#3b2416';
+    g.beginPath();
+    g.ellipse(-s * 0.09 - legSwing, -s * 0.02, s * 0.075, s * 0.038, 0, 0, Math.PI * 2);
+    g.ellipse(s * 0.03 + legSwing, -s * 0.02, s * 0.075, s * 0.038, 0, 0, Math.PI * 2);
+    g.fill();
+
+    // Торс
+    g.save();
+    g.rotate(-0.12 + chomp * 0.2);
+    if (zombie.type === 'football') {
+      // Красная регбийная форма с широкими наплечниками
+      g.fillStyle = '#c92a2a';
+      g.strokeStyle = '#660f0f';
+      g.lineWidth = Math.max(1.2, s * 0.025);
+      g.beginPath();
+      g.roundRect(-s * 0.18, -s * 0.58, s * 0.36, s * 0.32, s * 0.06);
+      g.fill();
+      g.stroke();
+    } else {
+      g.fillStyle = isChilled ? '#36586e' : '#4a3a2c';
+      g.strokeStyle = '#261d15';
+      g.lineWidth = Math.max(1.2, s * 0.025);
+      g.beginPath();
+      g.roundRect(-s * 0.13, -s * 0.56, s * 0.26, s * 0.30, s * 0.05);
+      g.fill();
+      g.stroke();
+    }
+    g.restore();
+
+    // Газета в руках у Газетчика (пока HP > 18)
+    if (zombie.type === 'newspaper' && zombie.hp > 18) {
+      g.save();
+      g.translate(-s * 0.24, -s * 0.44);
+      g.rotate(0.15);
+      g.fillStyle = '#f5f2eb';
+      g.strokeStyle = '#5c5852';
+      g.lineWidth = 1.5;
+      g.fillRect(-s * 0.08, -s * 0.16, s * 0.16, s * 0.28);
+      g.strokeRect(-s * 0.08, -s * 0.16, s * 0.16, s * 0.28);
+      // Строчки текста на газете
+      g.strokeStyle = '#8c867a';
+      g.beginPath();
+      g.moveTo(-s * 0.05, -s * 0.10);
+      g.lineTo(s * 0.05, -s * 0.10);
+      g.moveTo(-s * 0.05, -s * 0.03);
+      g.lineTo(s * 0.05, -s * 0.03);
+      g.moveTo(-s * 0.05, s * 0.04);
+      g.lineTo(s * 0.05, s * 0.04);
+      g.stroke();
+      g.restore();
+    }
+
+    // Передняя рука
+    var armWave = isAttacking ? Math.sin(phase * 3.2) * (s * 0.06) : Math.sin(phase) * (s * 0.03);
+    g.strokeStyle = zombie.type === 'football' ? '#c92a2a' : '#5c4635';
+    g.lineWidth = s * 0.08;
+    g.beginPath();
+    g.moveTo(s * 0.05, -s * 0.46);
+    g.lineTo(-s * 0.23, -s * 0.39 - armWave);
+    g.stroke();
+    g.fillStyle = isChilled ? '#6cb4d4' : '#85b372';
+    g.beginPath();
+    g.arc(-s * 0.25, -s * 0.39 - armWave, s * 0.045, 0, Math.PI * 2);
+    g.fill();
+
+    // Голова зомби
+    g.save();
+    g.translate(-s * 0.04, -s * 0.68);
+    g.rotate(chomp * 0.3);
+
+    g.fillStyle = isChilled ? '#7cc4e8' : (zombie.hitFlash > 0 ? '#d8f5c9' : '#8ab875');
+    g.strokeStyle = '#334a28';
+    g.lineWidth = Math.max(1.4, s * 0.025);
+    g.beginPath();
+    g.arc(0, 0, s * 0.16, 0, Math.PI * 2);
+    g.fill();
+    g.stroke();
+
+    // Глаза (красные, если Газетчик в ярости)
+    var enraged = zombie.type === 'newspaper' && zombie.hp <= 18;
+    g.fillStyle = enraged ? '#ff3333' : '#fff59d';
+    g.beginPath();
+    g.arc(-s * 0.09, -s * 0.02, s * 0.046, 0, Math.PI * 2);
+    g.arc(-s * 0.01, -s * 0.03, s * 0.035, 0, Math.PI * 2);
+    g.fill();
+
+    g.fillStyle = '#111';
+    g.beginPath();
+    g.arc(-s * 0.105, -s * 0.02, s * 0.018, 0, Math.PI * 2);
+    g.arc(-s * 0.02, -s * 0.03, s * 0.015, 0, Math.PI * 2);
+    g.fill();
+
+    // Шлемы
+    if (zombie.type === 'hat' && zombie.hp > 18) {
+      g.fillStyle = '#ff751a';
+      g.strokeStyle = '#803300';
+      g.lineWidth = Math.max(1.2, s * 0.022);
+      g.beginPath();
+      g.moveTo(-s * 0.15, -s * 0.11);
+      g.lineTo(0, -s * 0.39);
+      g.lineTo(s * 0.15, -s * 0.11);
+      g.closePath();
+      g.fill();
+      g.stroke();
+    } else if (zombie.type === 'bucket' && zombie.hp > 18) {
+      g.fillStyle = '#b0bec5';
+      g.strokeStyle = '#2b343b';
+      g.lineWidth = Math.max(1.4, s * 0.025);
+      g.beginPath();
+      g.moveTo(-s * 0.16, -s * 0.08);
+      g.lineTo(-s * 0.13, -s * 0.33);
+      g.lineTo(s * 0.13, -s * 0.33);
+      g.lineTo(s * 0.16, -s * 0.08);
+      g.closePath();
+      g.fill();
+      g.stroke();
+    } else if (zombie.type === 'football' && zombie.hp > 22) {
+      // Красный футбольный шлем с решёткой
+      g.fillStyle = '#d90429';
+      g.strokeStyle = '#59000f';
+      g.lineWidth = Math.max(1.5, s * 0.028);
+      g.beginPath();
+      g.arc(0, -s * 0.02, s * 0.18, -Math.PI * 0.9, Math.PI * 0.35);
+      g.fill();
+      g.stroke();
+      // Белая защитная маска
+      g.strokeStyle = '#e9ecef';
+      g.lineWidth = 2;
+      g.beginPath();
+      g.moveTo(-s * 0.17, 0);
+      g.lineTo(-s * 0.05, s * 0.06);
+      g.moveTo(-s * 0.17, s * 0.06);
+      g.lineTo(-s * 0.05, s * 0.09);
+      g.stroke();
+    }
+
+    g.restore(); // конец головы
+
+    // Полоска здоровья
+    if (zombie.hp < zombie.maxHp) {
+      var bw = s * 0.44;
+      var bh = 4;
+      g.fillStyle = 'rgba(0,0,0,0.65)';
+      g.fillRect(-bw / 2, -s * 0.98, bw, bh);
+      g.fillStyle = isChilled ? '#3ec2e6' : (zombie.hp / zombie.maxHp > 0.4 ? '#4cd137' : '#e84118');
+      g.fillRect(-bw / 2, -s * 0.98, bw * Math.max(0, zombie.hp / zombie.maxHp), bh);
+    }
+
+    g.restore();
+  }
+
+  // Отрисовка Босса-Гиганта (Гаргантюа)
+  function drawGiantBoss(g, zombie, cellX, cellY) {
+    var cx = cellX + cellSize * 0.5;
+    var bottomY = cellY + cellSize * 0.92;
+    var s = cellSize;
+    var phase = zombie.walkPhase || 0;
+    var isAttacking = zombie.state === 'attacking';
+    var stomp = isAttacking ? 0 : Math.sin(phase * 0.7) * (s * 0.12);
+    var bodyBob = Math.abs(Math.sin(phase * 0.7)) * (s * 0.06);
+    var isChilled = (zombie.slowTimer || 0) > 0;
+
+    g.save();
+    g.translate(cx, bottomY - bodyBob);
+
+    g.fillStyle = 'rgba(0,0,0,0.40)';
+    g.beginPath();
+    g.ellipse(0, bodyBob, s * 0.48, s * 0.15, 0, 0, Math.PI * 2);
+    g.fill();
+
+    // Ноги
+    g.strokeStyle = '#25334a';
+    g.lineWidth = s * 0.20;
+    g.lineCap = 'round';
+    g.beginPath();
+    g.moveTo(-s * 0.14, -s * 0.75);
+    g.lineTo(-s * 0.16 - stomp, -s * 0.06);
+    g.moveTo(s * 0.14, -s * 0.75);
+    g.lineTo(s * 0.16 + stomp, -s * 0.06);
+    g.stroke();
+
+    // Чертёнок в корзине за спиной
+    if (!zombie.split) {
+      g.save();
+      g.translate(s * 0.28, -s * 1.55);
+      g.fillStyle = '#8c5a2b';
+      g.strokeStyle = '#3d2510';
+      g.lineWidth = 2;
+      g.fillRect(-s * 0.14, -s * 0.10, s * 0.28, s * 0.30);
+      g.strokeRect(-s * 0.14, -s * 0.10, s * 0.28, s * 0.30);
+      g.fillStyle = '#99cc7a';
+      g.beginPath();
+      g.arc(0, -s * 0.18, s * 0.12, 0, Math.PI * 2);
+      g.fill();
+      g.stroke();
+      g.restore();
+    }
+
+    // Горбатый торс
+    g.fillStyle = isChilled ? '#34586e' : '#4a382b';
+    g.strokeStyle = '#17110d';
+    g.lineWidth = Math.max(2, s * 0.035);
+    g.beginPath();
+    g.ellipse(0, -s * 1.25, s * 0.44, s * 0.56, -0.1, 0, Math.PI * 2);
+    g.fill();
+    g.stroke();
+
+    // Голова Босса
+    g.save();
+    g.translate(-s * 0.22, -s * 1.72);
+    g.fillStyle = isChilled ? '#6cb4d4' : '#759e63';
+    g.strokeStyle = '#2d4024';
+    g.lineWidth = Math.max(2, s * 0.03);
+    g.beginPath();
+    g.arc(0, 0, s * 0.24, 0, Math.PI * 2);
+    g.fill();
+    g.stroke();
+
+    g.fillStyle = '#3b4248';
+    g.beginPath();
+    g.arc(0, -s * 0.04, s * 0.25, Math.PI, Math.PI * 2);
+    g.fill();
+    g.stroke();
+
+    g.fillStyle = '#ff1a1a';
+    g.beginPath();
+    g.arc(-s * 0.12, 0, s * 0.048, 0, Math.PI * 2);
+    g.arc(-s * 0.01, s * 0.01, s * 0.042, 0, Math.PI * 2);
+    g.fill();
+    g.restore();
+
+    // Рука со столбом-дубиной
+    g.save();
+    g.translate(-s * 0.05, -s * 1.42);
+    var clubAngle = -0.35;
+    if (isAttacking) {
+      var progress = Math.min(1, (zombie.attackTimer || 0) / (zombie.attackInterval || 2000));
+      clubAngle = progress < 0.8 ? (-0.35 + progress * 1.2) : (0.61 - (progress - 0.8) * 9.5);
+    } else {
+      clubAngle = -0.25 + Math.sin(phase * 0.7) * 0.18;
+    }
+    g.rotate(clubAngle);
+
+    g.strokeStyle = isChilled ? '#6cb4d4' : '#759e63';
+    g.lineWidth = s * 0.22;
+    g.lineCap = 'round';
+    g.beginPath();
+    g.moveTo(0, 0);
+    g.lineTo(-s * 0.45, s * 0.15);
+    g.stroke();
+
+    g.translate(-s * 0.48, s * 0.15);
+    g.fillStyle = '#633e1d';
+    g.strokeStyle = '#2e1b0a';
+    g.lineWidth = 2;
+    g.fillRect(-s * 0.10, -s * 1.25, s * 0.20, s * 1.55);
+    g.strokeRect(-s * 0.10, -s * 1.25, s * 0.20, s * 1.55);
+    g.restore();
+
+    // Полоска здоровья Босса
+    var bw = s * 0.85;
+    var bh = 8;
+    g.fillStyle = 'rgba(0,0,0,0.8)';
+    g.fillRect(-bw / 2, -s * 2.22, bw, bh);
+    g.strokeStyle = '#ffd700';
+    g.lineWidth = 1.5;
+    g.strokeRect(-bw / 2, -s * 2.22, bw, bh);
+    g.fillStyle = '#ff2e2e';
+    g.fillRect(-bw / 2 + 1, -s * 2.22 + 1, (bw - 2) * Math.max(0, zombie.hp / zombie.maxHp), bh - 2);
+
+    g.fillStyle = '#fff';
+    g.font = 'bold ' + Math.max(10, Math.floor(s * 0.15)) + 'px sans-serif';
+    g.textAlign = 'center';
+    g.fillText('БОСС: ' + Math.max(0, zombie.hp) + ' / ' + zombie.maxHp, 0, -s * 2.28);
+
+    g.restore();
+  }
+
+  function drawLawnmowerSprite(g, lm) {
+    if (!lm.active && !lm.moving) return;
+    var x = gridOffsetX + lm.pos * cellSize + cellSize * 0.18;
+    var y = gridOffsetY + lm.row * cellSize + cellSize * 0.52;
+    var s = cellSize;
+
+    g.save();
+    g.translate(x, y);
+
+    g.fillStyle = 'rgba(0,0,0,0.3)';
+    g.beginPath();
+    g.ellipse(0, s * 0.24, s * 0.28, s * 0.09, 0, 0, Math.PI * 2);
+    g.fill();
+
+    g.strokeStyle = '#cfd8dc';
+    g.lineWidth = Math.max(2, s * 0.045);
+    g.beginPath();
+    g.moveTo(-s * 0.16, 0);
+    g.lineTo(-s * 0.34, -s * 0.30);
+    g.lineTo(-s * 0.25, -s * 0.34);
+    g.stroke();
+
+    g.fillStyle = '#d62828';
+    g.strokeStyle = '#590000';
+    g.lineWidth = Math.max(1.5, s * 0.03);
+    g.beginPath();
+    g.roundRect(-s * 0.22, -s * 0.12, s * 0.44, s * 0.28, s * 0.07);
+    g.fill();
+    g.stroke();
+
+    var wheelPositions = [-s * 0.14, s * 0.14];
+    for (var w = 0; w < 2; w++) {
+      g.fillStyle = '#1c1c1c';
+      g.beginPath();
+      g.arc(wheelPositions[w], s * 0.16, s * 0.10, 0, Math.PI * 2);
+      g.fill();
+      g.fillStyle = '#eceff1';
+      g.beginPath();
+      g.arc(wheelPositions[w], s * 0.16, s * 0.045, 0, Math.PI * 2);
+      g.fill();
+    }
+
+    g.restore();
+  }
+
+  function initHUDIcons() {
+    var types = ALL_PLANT_TYPES.concat(['shovel']);
+    for (var i = 0; i < types.length; i++) {
+      var type = types[i];
+      var c = document.getElementById('opt-' + type);
+      if (c) {
+        var ictx = c.getContext('2d');
+        ictx.clearRect(0, 0, c.width, c.height);
+        drawPlantSprite(ictx, type, c.width / 2, c.height / 2 + 2, 40, { isIcon: true, armed: true });
+      }
+    }
+    var sunHudCanvas = document.getElementById('sunIconHUD');
+    if (sunHudCanvas) {
+      drawProceduralSun(sunHudCanvas.getContext('2d'), 14, 14, 10, 0.2);
+    }
+  }
+  initHUDIcons();
+
+/**************************************************************
+   * 5. УПРАВЛЕНИЕ (МЫШЬ + ТАЧСКРИН ДЛЯ МОБИЛЬНЫХ WEBVIEW)
+   **************************************************************/
+  function selectTool(type) {
+    if (type && type !== 'shovel') {
+      var info = PLANT_DB[type];
+      var activeLvlNum = Math.max(currentLevelConfig.level, maxUnlockedLevel);
+      if (!info || activeLvlNum < info.unlockLevel) return;
+      if ((plantCooldowns[type] || 0) > 0 || sunCount < info.cost) return;
+    }
+
+    if (selectedTool === type) {
+      selectedTool = null;
+    } else {
+      selectedTool = type;
+    }
+
+    var opts = document.querySelectorAll('.plant-option');
+    for (var i = 0; i < opts.length; i++) {
+      var el = opts[i];
+      if (el.getAttribute('data-type') === selectedTool) {
+        el.classList.add('selected');
+      } else {
+        el.classList.remove('selected');
+      }
+    }
+  }
+
+  // Привязка карточек растений с защитой от двойного клика на мобильных
+  var lastCardTouchTime = 0;
+  var plantCards = document.querySelectorAll('.plant-option');
+  for (var cIdx = 0; cIdx < plantCards.length; cIdx++) {
+    (function(card) {
+      card.addEventListener('touchstart', function(e) {
+        lastCardTouchTime = Date.now();
+        selectTool(card.getAttribute('data-type'));
+        if (e.cancelable) e.preventDefault();
+      }, false);
+
+      card.addEventListener('click', function() {
+        if (Date.now() - lastCardTouchTime < 450) return;
+        selectTool(card.getAttribute('data-type'));
+      }, false);
+    })(plantCards[cIdx]);
+  }
+
+  // Кнопки верхней панели и модального окна
+  var speedBtn = document.getElementById('speedBtn');
+  if (speedBtn) {
+    speedBtn.addEventListener('click', function() {
+      timeScale = timeScale === 1 ? 2 : (timeScale === 2 ? 3 : 1);
+      speedBtn.textContent = timeScale + 'x';
+      if (timeScale > 1) speedBtn.classList.add('active-speed');
+      else speedBtn.classList.remove('active-speed');
+    });
+  }
+
+  var pauseBtn = document.getElementById('pauseBtn');
+  if (pauseBtn) {
+    pauseBtn.addEventListener('click', function() {
+      if (gameOver || win) return;
+      isPaused = !isPaused;
+      pauseBtn.textContent = isPaused ? '▶' : '⏸';
+      if (isPaused) {
+        showBanner('ПАУЗА', 'Нажмите ▶ для продолжения', '#ffd166', 999999);
+      } else {
+        bannerAnnouncement.timer = 0;
+      }
+    });
+  }
+
+  var levelSelectBtn = document.getElementById('levelSelectBtn');
+  var levelModal = document.getElementById('levelModal');
+  var closeModalBtn = document.getElementById('closeModalBtn');
+  var resetProgressBtn = document.getElementById('resetProgressBtn');
+
+  if (levelSelectBtn && levelModal) {
+    levelSelectBtn.addEventListener('click', function() {
+      isPaused = true;
+      if (pauseBtn) pauseBtn.textContent = '▶';
+      renderLevelModal();
+      levelModal.classList.add('open');
+    });
+  }
+
+  if (closeModalBtn && levelModal) {
+    closeModalBtn.addEventListener('click', function() {
+      levelModal.classList.remove('open');
+      isPaused = false;
+      if (pauseBtn) pauseBtn.textContent = '⏸';
+      if (!gameOver && !win) bannerAnnouncement.timer = 0;
+    });
+  }
+
+  if (resetProgressBtn) {
+    resetProgressBtn.addEventListener('click', function() {
+      maxUnlockedLevel = 1;
+      saveMaxLevel(1);
+      renderLevelModal();
+      startLevel(0);
+      levelModal.classList.remove('open');
+    });
+  }
+
+  // Горячие клавиши для ПК
+  window.addEventListener('keydown', function(e) {
+    var keyMap = {
+      '1': 'sunflower',
+      '2': 'peashooter',
+      '3': 'walnut',
+      '4': 'potatomine',
+      '5': 'snowpea',
+      '6': 'boxercabbage',
+      '7': 'cherrybomb',
+      '8': 'repeater',
+      '9': 'chomper',
+      's': 'shovel',
+      'S': 'shovel',
+      'ы': 'shovel',
+      'Ы': 'shovel'
+    };
+    if (keyMap[e.key]) selectTool(keyMap[e.key]);
+    if (e.key === 'Escape') selectTool(null);
+  });
+
+  // Получение координат нажатия (мышь или тач)
+  function getCanvasCoords(e) {
+    var rect = canvas.getBoundingClientRect();
+    var clientX = e.clientX;
+    var clientY = e.clientY;
+    if (e.touches && e.touches.length > 0) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else if (e.changedTouches && e.changedTouches.length > 0) {
+      clientX = e.changedTouches[0].clientX;
+      clientY = e.changedTouches[0].clientY;
+    }
+    return {
+      x: clientX - rect.left,
+      y: clientY - rect.top
+    };
+  }
+
+  function tryCollectSunAt(px, py) {
+    var collectedAny = false;
+    var hitRadius = Math.max(34, cellSize * 0.44); // Увеличенный радиус под палец на телефоне
+    for (var i = suns.length - 1; i >= 0; i--) {
+      var sun = suns[i];
+      if (sun.collected) continue;
+      var sx = gridOffsetX + sun.colPos * cellSize;
+      var sy = gridOffsetY + sun.rowPos * cellSize;
+      var dx = px - sx;
+      var dy = py - sy;
+      if (dx * dx + dy * dy <= hitRadius * hitRadius) {
+        sunCount += sun.value;
+        sun.collected = true;
+        collectedAny = true;
+        updateSunDisplay();
+        spawnParticles(sx, sy, '#ffe600', 8, '+25');
+      }
+    }
+    return collectedAny;
+  }
+
+  function handleBoardPointerDown(px, py) {
+    // Если уровень завершён (Победа или Поражение) — переход дальше или рестарт
+    if (gameOver || win) {
+      if (win && currentLevelIdx + 1 < LEVELS.length) {
+        startLevel(currentLevelIdx + 1);
+      } else {
+        startLevel(currentLevelIdx);
+      }
+      return;
+    }
+
+    if (isPaused) return;
+
+    // 1. Сначала проверяем сбор солнышек
+    if (tryCollectSunAt(px, py)) return;
+
+    // 2. Определяем клетку газона
+    var col = Math.floor((px - gridOffsetX) / cellSize);
+    var row = Math.floor((py - gridOffsetY) / cellSize);
+    hoverCell = {
+      row: row,
+      col: col,
+      x: px,
+      y: py,
+      inside: col >= 0 && col < GRID_COLS && row >= 0 && row < GRID_ROWS
+    };
+    if (!hoverCell.inside) return;
+
+    // Выкапывание лопатой
+    if (selectedTool === 'shovel') {
+      var plantIndex = -1;
+      for (var i = 0; i < plants.length; i++) {
+        if (plants[i].row === row && plants[i].col === col) {
+          plantIndex = i;
+          break;
+        }
+      }
+      if (plantIndex !== -1) {
+        var pl = plants[plantIndex];
+        var baseCost = PLANT_DB[pl.type] ? PLANT_DB[pl.type].cost : 50;
+        var refund = (pl.type === 'sunflower') ? 15 : Math.floor(baseCost * 0.75);
+        sunCount += refund;
+        updateSunDisplay();
+        spawnParticles(
+          gridOffsetX + (col + 0.5) * cellSize,
+          gridOffsetY + (row + 0.5) * cellSize,
+          '#8b5a2b',
+          10,
+          '+' + refund
+        );
+        plants.splice(plantIndex, 1);
+      }
+      selectTool(null);
+      return;
+    }
+
+    // Посадка выбранного растения
+    if (selectedTool && selectedTool !== 'shovel') {
+      for (var j = 0; j < plants.length; j++) {
+        if (plants[j].row === row && plants[j].col === col) return;
+      }
+      var pInfo = PLANT_DB[selectedTool];
+      if (!pInfo || sunCount < pInfo.cost || (plantCooldowns[selectedTool] || 0) > 0) return;
+
+      sunCount -= pInfo.cost;
+      plantCooldowns[selectedTool] = pInfo.cd;
+      var cdEl = document.getElementById('cd-' + selectedTool);
+      if (cdEl) cdEl.style.height = '100%';
+      updateSunDisplay();
+
+      var newPlant = {
+        type: selectedTool,
+        row: row,
+        col: col,
+        hp: pInfo.hp,
+        maxHp: pInfo.hp,
+        timer: 0,
+        firstSunDone: false,
+        armed: false,
+        chewing: false,
+        chewTimer: 0,
+        burstPending: false,
+        burstDelay: 0,
+        recoil: 0,
+        punchDir: 1,
+        punchAnim: 0,
+        seed: Math.random() * 10
+      };
+
+      plants.push(newPlant);
+      spawnParticles(
+        gridOffsetX + (col + 0.5) * cellSize,
+        gridOffsetY + (row + 0.75) * cellSize,
+        '#68b836',
+        10
+      );
+      selectTool(null);
+    }
+  }
+
+  var lastCanvasTouchTime = 0;
+
+  canvas.addEventListener('touchstart', function(e) {
+    lastCanvasTouchTime = Date.now();
+    var pt = getCanvasCoords(e);
+    handleBoardPointerDown(pt.x, pt.y);
+    if (e.cancelable) e.preventDefault();
+  }, false);
+
+  canvas.addEventListener('touchmove', function(e) {
+    var pt = getCanvasCoords(e);
+    tryCollectSunAt(pt.x, pt.y);
+    var col = Math.floor((pt.x - gridOffsetX) / cellSize);
+    var row = Math.floor((pt.y - gridOffsetY) / cellSize);
+    hoverCell = {
+      row: row,
+      col: col,
+      x: pt.x,
+      y: pt.y,
+      inside: col >= 0 && col < GRID_COLS && row >= 0 && row < GRID_ROWS
+    };
+    if (e.cancelable) e.preventDefault();
+  }, false);
+
+  canvas.addEventListener('mousedown', function(e) {
+    if (Date.now() - lastCanvasTouchTime < 450) return;
+    var pt = getCanvasCoords(e);
+    handleBoardPointerDown(pt.x, pt.y);
+  }, false);
+
+  canvas.addEventListener('mousemove', function(e) {
+    var pt = getCanvasCoords(e);
+    var col = Math.floor((pt.x - gridOffsetX) / cellSize);
+    var row = Math.floor((pt.y - gridOffsetY) / cellSize);
+    hoverCell = {
+      row: row,
+      col: col,
+      x: pt.x,
+      y: pt.y,
+      inside: col >= 0 && col < GRID_COLS && row >= 0 && row < GRID_ROWS
+    };
+  }, false);
+
+  canvas.addEventListener('mouseleave', function() {
+    hoverCell.inside = false;
+  }, false);
+
+  /**************************************************************
+   * 6. ИГРОВАЯ ЛОГИКА, ВОЛНЫ, СПАВН И БОЕВАЯ СИСТЕМА
+   **************************************************************/
+  function spawnParticles(x, y, color, count, text) {
+    var num = count || 8;
+    for (var i = 0; i < num; i++) {
+      var angle = Math.random() * Math.PI * 2;
+      var spd = 0.04 + Math.random() * 0.14;
+      particles.push({
+        x: x,
+        y: y,
+        vx: Math.cos(angle) * spd,
+        vy: Math.sin(angle) * spd - 0.05,
+        radius: 3 + Math.random() * 4,
+        color: color,
+        alpha: 1,
+        life: 450 + Math.random() * 350,
+        maxLife: 800
+      });
+    }
+    if (text) {
+      particles.push({
+        x: x,
+        y: y - 14,
+        vx: 0,
+        vy: -0.04,
+        text: text,
+        color: color,
+        alpha: 1,
+        life: 1100,
+        maxLife: 1100
+      });
+    }
+  }
+
+  function spawnZombie(row, type) {
+    var zType = type || 'normal';
+    var baseStats = ZOMBIE_DB[zType] || ZOMBIE_DB.normal;
+    var hp = baseStats.hp;
+    var speed = baseStats.speed * (currentLevelConfig.speedMult || 1);
+
+    // На 10 уровне главный финальный Босс получает 650 HP
+    if (zType === 'giant' && currentLevelConfig.level === 10 && bossesSpawnedInLevel >= 1) {
+      hp = 650;
+    }
+
+    var zombie = {
+      type: zType,
+      row: row,
+      pos: GRID_COLS + 0.1,
+      speed: speed,
+      baseSpeed: speed,
+      hp: hp,
+      maxHp: hp,
+      state: 'moving',
+      attackTimer: 0,
+      attackInterval: zType === 'giant' ? 2000 : zombieAttackInterval,
+      split: false,
+      enraged: false,
+      slowTimer: 0,
+      walkPhase: Math.random() * Math.PI * 2,
+      hitFlash: 0
+    };
+    zombies.push(zombie);
+  }
+
+  function pickZombieTypeForCurrentLevel(isWave) {
+    var weightsObj = isWave ? currentLevelConfig.weights.wave : currentLevelConfig.weights.normal;
+    var r = Math.random();
+    var accum = 0;
+    for (var k in weightsObj) {
+      if (Object.prototype.hasOwnProperty.call(weightsObj, k)) {
+        accum += weightsObj[k];
+        if (r <= accum) return k;
+      }
+    }
+    return 'normal';
+  }
+
+  function updateWave(dt) {
+    if (currentWave > 0) {
+      waveTimer -= dt;
+      if (waveTimer <= 0) {
+        currentWave = 0;
+      }
+    }
+
+    var waves = currentLevelConfig.waves || [];
+    for (var i = 0; i < waves.length; i++) {
+      var w = waves[i];
+      if (!triggeredWaves[i] && gameTime >= w.timeSec * 1000) {
+        triggeredWaves[i] = true;
+        currentWave = i + 1;
+        waveTimer = (w.durationSec || 7) * 1000;
+
+        var isFinalWave = (i === waves.length - 1);
+        var bColor = isFinalWave ? '#ffae00' : '#ff5252';
+        var bTitle = isFinalWave ? 'ФИНАЛЬНАЯ ВОЛНА ЗОМБИ!' : 'ПРИБЛИЖАЕТСЯ ВОЛНА ЗОМБИ!';
+
+        // Проверка спавна Босса Гиганта (для 9 и 10 уровней)
+        var bossCount = currentLevelConfig.bossCount || 0;
+        if (bossCount >= 2 && i === 1 && bossesSpawnedInLevel === 0) {
+          spawnZombie(Math.floor(Math.random() * GRID_ROWS), 'giant');
+          bossesSpawnedInLevel++;
+          bTitle = 'ВНИМАНИЕ: ВЫШЕЛ ГИГАНТ!';
+        } else if (bossCount >= 1 && isFinalWave) {
+          spawnZombie(2, 'giant'); // Главный босс по центральной линии
+          bossesSpawnedInLevel++;
+          if (currentLevelConfig.level === 10) {
+            // Дополнительное прикрытие босса на 10 уровне
+            spawnZombie(0, 'football');
+            spawnZombie(4, 'bucket');
+            bTitle = '💀 ФИНАЛЬНЫЙ БОСС: ГИГАНТ!';
+          }
+        }
+
+        showBanner(bTitle, currentLevelConfig.title + ' — ' + w.label, bColor, 3600);
+      }
+    }
+  }
+
+  function hasZombieAheadInRow(row, col) {
+    for (var i = 0; i < zombies.length; i++) {
+      if (zombies[i].row === row && zombies[i].pos > col - 0.1) return true;
+    }
+    return false;
+  }
+
+  function spawnPea(plant, isSnow) {
+    plant.recoil = 1;
+    projectiles.push({
+      row: plant.row,
+      colPos: plant.col + 0.65,
+      speedCols: 1 / 460,
+      isSnow: !!isSnow
+    });
+  }
+
+  function spawnBoxerAttack(plant) {
+    var forward = false;
+    var backward = false;
+    for (var i = 0; i < zombies.length; i++) {
+      var z = zombies[i];
+      if (z.row === plant.row) {
+        if (z.pos > plant.col - 0.35 && z.pos <= plant.col + 2.25) forward = true;
+        else if (z.pos < plant.col && z.pos >= plant.col - 2.25) backward = true;
+      }
+    }
+    var direction = forward ? 1 : (backward ? -1 : 0);
+    if (direction !== 0) {
+      plant.punchDir = direction;
+      plant.punchAnim = 1;
+      var startCol = plant.col + 0.5;
+      boxerProjectiles.push({
+        row: plant.row,
+        startCol: startCol,
+        currentCol: startCol,
+        targetCol: startCol + direction * 2,
+        direction: direction,
+        speedCols: 2 / 200
+      });
+    }
+  }
+
+  function triggerCherryBomb(plant) {
+    var cx = gridOffsetX + (plant.col + 0.5) * cellSize;
+    var cy = gridOffsetY + (plant.row + 0.5) * cellSize;
+    for (var i = 0; i < zombies.length; i++) {
+      var z = zombies[i];
+      if (Math.abs(z.row - plant.row) <= 1 && Math.abs((z.pos + 0.35) - (plant.col + 0.5)) <= 1.85) {
+        z.hp -= 180;
+        z.hitFlash = 180;
+      }
+    }
+    spawnParticles(cx, cy, '#ff2a55', 32, 'БА-БАХ 3x3!');
+  }
+
+  function triggerChomperAttack(plant) {
+    var targetIdx = -1;
+    var bestPos = 999;
+    for (var i = 0; i < zombies.length; i++) {
+      var z = zombies[i];
+      if (z.row === plant.row && z.pos >= plant.col - 0.25 && z.pos <= plant.col + 1.55) {
+        if (z.pos < bestPos) {
+          bestPos = z.pos;
+          targetIdx = i;
+        }
+      }
+    }
+    if (targetIdx !== -1) {
+      var victim = zombies[targetIdx];
+      var vx = gridOffsetX + (victim.pos + 0.4) * cellSize;
+      var vy = gridOffsetY + (victim.row + 0.5) * cellSize;
+      if (victim.type === 'giant') {
+        // Босса нельзя проглотить целиком, но Зубастик наносит ему 100 урона
+        victim.hp -= 100;
+        victim.hitFlash = 140;
+        plant.chewing = true;
+        plant.chewTimer = 7000;
+        spawnParticles(vx, vy, '#c77dff', 14, 'УКУС -100!');
+      } else {
+        zombies.splice(targetIdx, 1);
+        plant.chewing = true;
+        plant.chewTimer = chomperChewTime;
+        spawnParticles(vx, vy, '#c77dff', 18, 'АМ!');
+      }
+    }
+  }
+
+  function spawnSun(colPos, rowPos, fromSky) {
+    suns.push({
+      colPos: colPos,
+      rowPos: fromSky ? -0.35 : rowPos,
+      targetRowPos: rowPos,
+      value: 25,
+      angle: Math.random() * Math.PI,
+      collected: false
+    });
+  }
+
+  function updateLawnmowers(dt) {
+    for (var i = 0; i < lawnmowers.length; i++) {
+      var lm = lawnmowers[i];
+      if (lm.moving) {
+        lm.pos += (1 / 450) * dt;
+        for (var j = zombies.length - 1; j >= 0; j--) {
+          var z = zombies[j];
+          if (z.row === lm.row && z.pos < lm.pos + 0.55) {
+            spawnParticles(
+              gridOffsetX + (z.pos + 0.4) * cellSize,
+              gridOffsetY + (z.row + 0.5) * cellSize,
+              '#7ba668',
+              12
+            );
+            zombies.splice(j, 1);
+          }
+        }
+        if (lm.pos > GRID_COLS + 0.3) {
+          lm.moving = false;
+          lm.active = false;
+        }
+      } else if (lm.active) {
+        for (var k = 0; k < zombies.length; k++) {
+          if (zombies[k].row === lm.row && zombies[k].pos < 0.38) {
+            lm.moving = true;
+            lm.pos = -0.5;
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  function completeLevelVictory() {
+    win = true;
+    var nextLvl = Math.min(10, currentLevelConfig.level + 1);
+    if (nextLvl > maxUnlockedLevel) {
+      maxUnlockedLevel = nextLvl;
+      saveMaxLevel(maxUnlockedLevel);
+    } else {
+      saveMaxLevel(maxUnlockedLevel);
+    }
+    updateSunDisplay();
+
+    var title = currentLevelConfig.level === 10
+      ? '🏆 КАМПАНИЯ ПРОЙДЕНА! БОСС ПОВЕРЖЕН!'
+      : 'ПОБЕДА! УРОВЕНЬ ' + currentLevelConfig.level + ' ПРОЙДЕН!';
+    var sub = currentLevelConfig.level < 10
+      ? 'Награда: ' + currentLevelConfig.unlockReward + ' • Нажмите для Ур. ' + nextLvl
+      : 'Вы защитили газон на всех 10 уровнях! Нажмите, чтобы сыграть ещё раз';
+    showBanner(title, sub, '#52b788', 999999);
+  }
+
+  function update(dt) {
+    if (gameOver || win || isPaused) return;
+
+    gameTime += dt;
+    var levelDurationMs = currentLevelConfig.durationSec * 1000;
+
+    updateCooldownOverlays(dt);
+    updateWave(dt);
+
+    if (bannerAnnouncement.timer > 0) {
+      bannerAnnouncement.timer -= dt;
+    }
+
+    // 1. Обновление растений
+    for (var pIdx = plants.length - 1; pIdx >= 0; pIdx--) {
+      var plant = plants[pIdx];
+      plant.timer += dt;
+      if (plant.recoil > 0) plant.recoil = Math.max(0, plant.recoil - dt * 0.006);
+      if (plant.punchAnim > 0) plant.punchAnim = Math.max(0, plant.punchAnim - dt * 0.008);
+
+      if (plant.type === 'sunflower') {
+        var delayNeeded = plant.firstSunDone ? sunflowerInterval : sunflowerFirstDelay;
+        if (plant.timer >= delayNeeded) {
+          spawnSun(
+            plant.col + 0.5 + (Math.random() - 0.5) * 0.25,
+            plant.row + 0.55 + (Math.random() - 0.5) * 0.2,
+            false
+          );
+          plant.timer -= delayNeeded;
+          plant.firstSunDone = true;
+        }
+      } else if (plant.type === 'peashooter' || plant.type === 'snowpea') {
+        if (plant.timer >= peashooterInterval) {
+          if (hasZombieAheadInRow(plant.row, plant.col)) {
+            spawnPea(plant, plant.type === 'snowpea');
+          }
+          plant.timer -= peashooterInterval;
+        }
+      } else if (plant.type === 'repeater') {
+        if (plant.burstPending) {
+          plant.burstDelay -= dt;
+          if (plant.burstDelay <= 0) {
+            plant.burstPending = false;
+            spawnPea(plant, false);
+          }
+        }
+        if (plant.timer >= peashooterInterval) {
+          if (hasZombieAheadInRow(plant.row, plant.col)) {
+            spawnPea(plant, false);
+            plant.burstPending = true;
+            plant.burstDelay = 175;
+          }
+          plant.timer -= peashooterInterval;
+        }
+      } else if (plant.type === 'potatomine') {
+        if (!plant.armed && plant.timer >= potatoArmTime) {
+          plant.armed = true;
+          spawnParticles(
+            gridOffsetX + (plant.col + 0.5) * cellSize,
+            gridOffsetY + (plant.row + 0.5) * cellSize,
+            '#ffd166',
+            10,
+            'ГОТОВА!'
+          );
+        }
+      } else if (plant.type === 'boxercabbage') {
+        if (plant.timer >= boxercabbageInterval) {
+          spawnBoxerAttack(plant);
+          plant.timer -= boxercabbageInterval;
+        }
+      } else if (plant.type === 'cherrybomb') {
+        if (plant.timer >= 1150) {
+          triggerCherryBomb(plant);
+          plants.splice(pIdx, 1);
+        }
+      } else if (plant.type === 'chomper') {
+        if (plant.chewing) {
+          plant.chewTimer -= dt;
+          if (plant.chewTimer <= 0) {
+            plant.chewing = false;
+            plant.chewTimer = 0;
+          }
+        } else {
+          triggerChomperAttack(plant);
+        }
+      }
+    }
+
+    // 2. Обновление горошин (обычных и морозных)
+    for (var i = projectiles.length - 1; i >= 0; i--) {
+      var proj = projectiles[i];
+      proj.colPos += proj.speedCols * dt;
+      var hit = false;
+      for (var zIdx = 0; zIdx < zombies.length; zIdx++) {
+        var z = zombies[zIdx];
+        if (z.row === proj.row && proj.colPos > (z.pos + 0.12) && proj.colPos < (z.pos + 0.85)) {
+          z.hp -= 1;
+          z.hitFlash = 90;
+          if (proj.isSnow) {
+            z.slowTimer = 5500; // Замедление на 5.5 сек
+          }
+          hit = true;
+          spawnParticles(
+            gridOffsetX + proj.colPos * cellSize,
+            gridOffsetY + (proj.row + 0.45) * cellSize,
+            proj.isSnow ? '#7ce8ff' : '#73e64d',
+            5
+          );
+          break;
+        }
+      }
+      if (hit || proj.colPos > GRID_COLS + 0.5) {
+        projectiles.splice(i, 1);
+      }
+    }
+
+    // 3. Обновление ударов Капусты-боксёра
+    for (var bIdx = boxerProjectiles.length - 1; bIdx >= 0; bIdx--) {
+      var bProj = boxerProjectiles[bIdx];
+      bProj.currentCol += bProj.speedCols * dt * bProj.direction;
+      if ((bProj.direction === 1 && bProj.currentCol >= bProj.targetCol) ||
+          (bProj.direction === -1 && bProj.currentCol <= bProj.targetCol)) {
+        var minCol = Math.min(bProj.startCol, bProj.targetCol);
+        var maxCol = Math.max(bProj.startCol, bProj.targetCol);
+        for (var k = 0; k < zombies.length; k++) {
+          var zb = zombies[k];
+          if (zb.row === bProj.row) {
+            var zLeft = zb.pos + 0.18;
+            var zRight = zb.pos + 0.82;
+            if (zRight >= minCol && zLeft <= maxCol) {
+              zb.hp -= 1;
+              zb.hitFlash = 80;
+            }
+          }
+        }
+        spawnParticles(
+          gridOffsetX + bProj.targetCol * cellSize,
+          gridOffsetY + (bProj.row + 0.5) * cellSize,
+          '#80ff66',
+          4
+        );
+        boxerProjectiles.splice(bIdx, 1);
+      }
+    }
+
+    // 4. Обновление зомби
+    for (var zi = zombies.length - 1; zi >= 0; zi--) {
+      var zombie = zombies[zi];
+      if (zombie.hitFlash > 0) zombie.hitFlash -= dt;
+      if (zombie.slowTimer > 0) zombie.slowTimer = Math.max(0, zombie.slowTimer - dt);
+
+      // Ярость Газетчика при потере газеты
+      if (zombie.type === 'newspaper' && !zombie.enraged && zombie.hp <= 18 && zombie.hp > 0) {
+        zombie.enraged = true;
+        zombie.baseSpeed = ZOMBIE_DB.newspaper.rageSpeed * (currentLevelConfig.speedMult || 1);
+        spawnParticles(
+          gridOffsetX + (zombie.pos + 0.4) * cellSize,
+          gridOffsetY + (zombie.row + 0.4) * cellSize,
+          '#ff4d4d',
+          10,
+          'ЯРОСТЬ!'
+        );
+      }
+
+      // Бросок чертёнка Боссом-Гигантом при падении HP <= 50%
+      if (zombie.type === 'giant' && !zombie.split && zombie.hp <= zombie.maxHp * 0.5 && zombie.hp > 0) {
+        var impPos = Math.max(zombie.pos - 2.2, 0.5);
+        spawnZombie(zombie.row, 'imp');
+        zombies[zombies.length - 1].pos = impPos;
+        zombie.split = true;
+        spawnParticles(
+          gridOffsetX + (impPos + 0.4) * cellSize,
+          gridOffsetY + (zombie.row + 0.5) * cellSize,
+          '#ffae00',
+          14,
+          'БРОСОК ЧЕРТЁНКА!'
+        );
+      }
+
+      // Проверка подрыва на заряженной Картофельной мине
+      var armedMineIdx = -1;
+      for (var mi = 0; mi < plants.length; mi++) {
+        var mp = plants[mi];
+        if (mp.type === 'potatomine' && mp.armed && mp.row === zombie.row &&
+            (zombie.pos + 0.75) >= mp.col && (zombie.pos + 0.15) <= (mp.col + 1)) {
+          armedMineIdx = mi;
+          break;
+        }
+      }
+
+      if (armedMineIdx !== -1) {
+        var mine = plants[armedMineIdx];
+        var mx = gridOffsetX + (mine.col + 0.5) * cellSize;
+        var my = gridOffsetY + (mine.row + 0.5) * cellSize;
+        for (var zj = 0; zj < zombies.length; zj++) {
+          var zz = zombies[zj];
+          if (zz.row === mine.row && Math.abs((zz.pos + 0.4) - (mine.col + 0.5)) <= 1.15) {
+            zz.hp -= 180;
+            zz.hitFlash = 150;
+          }
+        }
+        spawnParticles(mx, my, '#ff5722', 24, 'БУМ!');
+        plants.splice(armedMineIdx, 1);
+      }
+
+      // Смерть зомби
+      if (zombie.hp <= 0) {
+        spawnParticles(
+          gridOffsetX + (zombie.pos + 0.45) * cellSize,
+          gridOffsetY + (zombie.row + 0.5) * cellSize,
+          zombie.type === 'giant' ? '#ff3333' : '#7ba668',
+          zombie.type === 'giant' ? 28 : 12,
+          zombie.type === 'giant' ? 'БОСС ПОВЕРЖЕН!' : null
+        );
+        zombies.splice(zi, 1);
+        continue;
+      }
+
+      var slowMult = zombie.slowTimer > 0 ? 0.5 : 1.0;
+      zombie.walkPhase += dt * 0.006 * slowMult * (zombie.enraged ? 1.8 : 1);
+
+      // Поиск растения в клетке перед зомби
+      var targetPlantIdx = -1;
+      for (var pi = 0; pi < plants.length; pi++) {
+        var pl = plants[pi];
+        if (pl.row === zombie.row && (zombie.pos + 0.75) >= pl.col && (zombie.pos + 0.2) < (pl.col + 0.9)) {
+          targetPlantIdx = pi;
+          break;
+        }
+      }
+
+      if (targetPlantIdx === -1) {
+        zombie.state = 'moving';
+        zombie.pos -= zombie.baseSpeed * slowMult * dt;
+      } else {
+        zombie.state = 'attacking';
+        zombie.attackTimer += dt * slowMult;
+        var atkInt = zombie.attackInterval;
+
+        if (zombie.attackTimer >= atkInt) {
+          zombie.attackTimer -= atkInt;
+          var targetPlant = plants[targetPlantIdx];
+          if (targetPlant) {
+            var dmg = (zombie.type === 'giant') ? 100 : (zombie.enraged ? 2 : 1);
+            targetPlant.hp -= dmg;
+            spawnParticles(
+              gridOffsetX + (targetPlant.col + 0.5) * cellSize,
+              gridOffsetY + (targetPlant.row + 0.5) * cellSize,
+              zombie.type === 'giant' ? '#ff9800' : '#52b788',
+              zombie.type === 'giant' ? 16 : 4,
+              zombie.type === 'giant' ? 'КРУШЕНИЕ!' : null
+            );
+            if (targetPlant.hp <= 0) {
+              plants.splice(targetPlantIdx, 1);
+              zombie.state = 'moving';
+            }
+          }
+        }
+      }
+
+      // Проверка прорыва к дому
+      if (zombie.pos < -0.35) {
+        var rowLm = null;
+        for (var li = 0; li < lawnmowers.length; li++) {
+          if (lawnmowers[li].row === zombie.row) {
+            rowLm = lawnmowers[li];
+            break;
+          }
+        }
+        if (!rowLm || (!rowLm.active && !rowLm.moving)) {
+          gameOver = true;
+          showBanner('ЗОМБИ СЪЕЛИ ВАШИ МОЗГИ!', 'Нажмите на экран, чтобы переиграть Уровень ' + currentLevelConfig.level, '#ff2e2e', 999999);
+        }
+      }
+    }
+
+    // 5. Газонокосилки
+    updateLawnmowers(dt);
+
+    // 6. Небесные солнышки
+    sunSpawnTimer += dt;
+    if (sunSpawnTimer >= nextSunSpawn) {
+      sunSpawnTimer = 0;
+      nextSunSpawn = 6500 + Math.random() * 8500;
+      var randCol = 0.5 + Math.random() * (GRID_COLS - 1);
+      var randRow = 0.5 + Math.random() * (GRID_ROWS - 1);
+      spawnSun(randCol, randRow, true);
+    }
+
+    for (var si = suns.length - 1; si >= 0; si--) {
+      var sun = suns[si];
+      sun.angle += dt * 0.0015;
+      if (sun.rowPos < sun.targetRowPos) {
+        sun.rowPos = Math.min(sun.targetRowPos, sun.rowPos + dt * 0.0009);
+      }
+      if (sun.collected) {
+        suns.splice(si, 1);
+      }
+    }
+
+    // 7. Спавн зомби по таймингам текущего уровня
+    if (gameTime >= (currentLevelConfig.spawnGraceSec || 8) * 1000 && gameTime < levelDurationMs) {
+      zombieSpawnTimer += dt;
+      var spawnIntervalSec = currentWave > 0 ? currentLevelConfig.waveInterval : currentLevelConfig.normalInterval;
+      if (zombieSpawnTimer >= spawnIntervalSec * 1000) {
+        zombieSpawnTimer = 0;
+        var spawnRow = Math.floor(Math.random() * GRID_ROWS);
+        var zTypeToSpawn = pickZombieTypeForCurrentLevel(currentWave > 0);
+        spawnZombie(spawnRow, zTypeToSpawn);
+      }
+    }
+
+    // 8. Частицы
+    for (var ptIdx = particles.length - 1; ptIdx >= 0; ptIdx--) {
+      var pt = particles[ptIdx];
+      pt.x += pt.vx * dt;
+      pt.y += pt.vy * dt;
+      pt.life -= dt;
+      pt.alpha = Math.max(0, pt.life / pt.maxLife);
+      if (pt.life <= 0) particles.splice(ptIdx, 1);
+    }
+
+    // 9. Прогресс-бар, таймер и проверка Победы
+    var clampedTime = Math.min(gameTime, levelDurationMs);
+    var pct = (clampedTime / levelDurationMs) * 100;
+    var progBar = document.getElementById('progressBar');
+    if (progBar) progBar.style.width = pct.toFixed(2) + '%';
+
+    var timerEl = document.getElementById('timerText');
+    if (timerEl) {
+      timerEl.innerText = formatMMSS(clampedTime) + ' / ' + formatMMSS(levelDurationMs);
+    }
+
+    var statusEl = document.getElementById('waveStatusText');
+    if (statusEl) {
+      if (currentWave > 0) {
+        statusEl.innerText = '🚩 ' + currentLevelConfig.title + ' (ШТУРМ!)';
+        statusEl.style.color = '#ffd166';
+      } else {
+        statusEl.innerText = currentLevelConfig.title;
+        statusEl.style.color = '#d5e2ce';
+      }
+    }
+
+    // Условие победы: время уровня вышло и все зомби уничтожены
+    if (gameTime >= levelDurationMs && zombies.length === 0) {
+      completeLevelVictory();
+    }
+  }
+
+  /**************************************************************
+   * 7. ОТРИСОВКА ИГРОВОГО ПОЛЯ И ЭФФЕКТОВ
+   **************************************************************/
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Фон вокруг газона
+    ctx.fillStyle = '#2d4c1e';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Тротуар слева для газонокосилок
+    var sidewalkW = 0.62 * cellSize;
+    ctx.fillStyle = '#7f8c8d';
+    ctx.strokeStyle = '#4f5a5b';
+    ctx.lineWidth = 2;
+    for (var r = 0; r < GRID_ROWS; r++) {
+      var sy = gridOffsetY + r * cellSize;
+      ctx.fillRect(gridOffsetX - sidewalkW, sy, sidewalkW, cellSize);
+      ctx.strokeRect(gridOffsetX - sidewalkW, sy, sidewalkW, cellSize);
+    }
+
+    // Шахматные клетки газона
+    for (var row = 0; row < GRID_ROWS; row++) {
+      for (var col = 0; col < GRID_COLS; col++) {
+        var x = gridOffsetX + col * cellSize;
+        var y = gridOffsetY + row * cellSize;
+        var isEven = (row + col) % 2 === 0;
+        ctx.fillStyle = isEven ? '#5eb038' : '#519e2e';
+        ctx.fillRect(x, y, cellSize, cellSize);
+
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.08)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x, y, cellSize, cellSize);
+      }
+    }
+
+    // Декоративные травинки
+    ctx.strokeStyle = '#3b7a1f';
+    ctx.lineWidth = 2;
+    for (var ti = 0; ti < grassTufts.length; ti++) {
+      var tuft = grassTufts[ti];
+      var tx = gridOffsetX + (tuft.col + tuft.rx) * cellSize;
+      var ty = gridOffsetY + (tuft.row + tuft.ry) * cellSize;
+      var h = tuft.size * cellSize;
+      ctx.beginPath();
+      ctx.moveTo(tx, ty);
+      ctx.lineTo(tx - h * 0.4, ty - h);
+      ctx.moveTo(tx, ty);
+      ctx.lineTo(tx + h * 0.4, ty - h * 0.9);
+      ctx.stroke();
+    }
+
+    // Подсветка выбранной клетки (и зоны 3x3 для Вишнёвой бомбы)
+    if (hoverCell.inside && selectedTool && !gameOver && !win) {
+      var hx = gridOffsetX + hoverCell.col * cellSize;
+      var hy = gridOffsetY + hoverCell.row * cellSize;
+      ctx.save();
+
+      if (selectedTool === 'cherrybomb') {
+        ctx.fillStyle = 'rgba(255, 60, 60, 0.22)';
+        for (var dr = -1; dr <= 1; dr++) {
+          for (var dc = -1; dc <= 1; dc++) {
+            var nr = hoverCell.row + dr;
+            var nc = hoverCell.col + dc;
+            if (nr >= 0 && nr < GRID_ROWS && nc >= 0 && nc < GRID_COLS) {
+              ctx.fillRect(gridOffsetX + nc * cellSize, gridOffsetY + nr * cellSize, cellSize, cellSize);
+            }
+          }
+        }
+      }
+
+      ctx.fillStyle = selectedTool === 'shovel'
+        ? 'rgba(255, 80, 80, 0.28)'
+        : 'rgba(255, 255, 180, 0.25)';
+      ctx.strokeStyle = selectedTool === 'shovel' ? '#ff4d4d' : '#ffe066';
+      ctx.lineWidth = 2.5;
+      ctx.fillRect(hx + 1, hy + 1, cellSize - 2, cellSize - 2);
+      ctx.strokeRect(hx + 1, hy + 1, cellSize - 2, cellSize - 2);
+
+      ctx.globalAlpha = 0.65;
+      drawPlantSprite(
+        ctx,
+        selectedTool,
+        hx + cellSize * 0.5,
+        hy + cellSize * 0.54,
+        cellSize * 0.82,
+        { isIcon: true, armed: true }
+      );
+      ctx.restore();
+    }
+
+    // Отрисовка растений
+    for (var pi = 0; pi < plants.length; pi++) {
+      var plant = plants[pi];
+      var px = gridOffsetX + (plant.col + 0.5) * cellSize;
+      var py = gridOffsetY + (plant.row + 0.54) * cellSize;
+      var delayNeeded = plant.firstSunDone ? sunflowerInterval : sunflowerFirstDelay;
+      drawPlantSprite(ctx, plant.type, px, py, cellSize * 0.84, {
+        time: gameTime,
+        seed: plant.seed,
+        hp: plant.hp,
+        maxHp: plant.maxHp,
+        armed: plant.armed,
+        armProgress: plant.timer / potatoArmTime,
+        fuseProgress: plant.type === 'cherrybomb' ? (plant.timer / 1150) : 0,
+        chewing: plant.chewing,
+        chewProgress: plant.chewing ? (1 - plant.chewTimer / chomperChewTime) : 0,
+        sunCharge: plant.type === 'sunflower' ? (plant.timer / delayNeeded) : 0,
+        recoil: plant.recoil,
+        punchDir: plant.punchDir,
+        punchAnim: plant.punchAnim
+      });
+    }
+
+    // Отрисовка газонокосилок
+    for (var li = 0; li < lawnmowers.length; li++) {
+      drawLawnmowerSprite(ctx, lawnmowers[li]);
+    }
+
+    // Отрисовка ударных волн Капусты-боксёра
+    for (var bi = 0; bi < boxerProjectiles.length; bi++) {
+      var bProj = boxerProjectiles[bi];
+      var bx = gridOffsetX + bProj.currentCol * cellSize;
+      var by = gridOffsetY + (bProj.row + 0.5) * cellSize;
+      ctx.save();
+      ctx.translate(bx, by);
+      ctx.strokeStyle = 'rgba(180, 255, 130, 0.85)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(0, 0, cellSize * 0.22, -Math.PI * 0.4, Math.PI * 0.4, bProj.direction < 0);
+      ctx.stroke();
+      drawCabbageFist(ctx, 0, 0, cellSize * 0.14, '#80ff66', '#1f661f');
+      ctx.restore();
+    }
+
+    // Отрисовка горошин (обычных и морозных)
+    for (var prIdx = 0; prIdx < projectiles.length; prIdx++) {
+      var proj = projectiles[prIdx];
+      var prX = gridOffsetX + proj.colPos * cellSize;
+      var prY = gridOffsetY + (proj.row + 0.38) * cellSize;
+      var rad = cellSize * 0.12;
+
+      ctx.save();
+      ctx.fillStyle = 'rgba(0,0,0,0.22)';
+      ctx.beginPath();
+      ctx.ellipse(prX, prY + cellSize * 0.35, rad * 0.9, rad * 0.4, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      var pGrad = ctx.createRadialGradient(prX - rad * 0.3, prY - rad * 0.3, rad * 0.1, prX, prY, rad);
+      if (proj.isSnow) {
+        pGrad.addColorStop(0, '#e0ffff');
+        pGrad.addColorStop(0.6, '#3ec2e6');
+        pGrad.addColorStop(1, '#115c75');
+        ctx.strokeStyle = '#0a3a4a';
+      } else {
+        pGrad.addColorStop(0, '#b8ff99');
+        pGrad.addColorStop(0.6, '#4ce626');
+        pGrad.addColorStop(1, '#1c7308');
+        ctx.strokeStyle = '#114705';
+      }
+      ctx.fillStyle = pGrad;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(prX, prY, rad, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Сортировка зомби по ряду для корректного перекрытия Босса
+    var sortedZombies = zombies.slice().sort(function(a, b) {
+      return (a.row - b.row) || (a.pos - b.pos);
+    });
+    for (var zi = 0; zi < sortedZombies.length; zi++) {
+      drawZombieSprite(ctx, sortedZombies[zi]);
+    }
+
+    // Отрисовка солнышек
+    for (var si = 0; si < suns.length; si++) {
+      var sun = suns[si];
+      if (sun.collected) continue;
+      var sx = gridOffsetX + sun.colPos * cellSize;
+      var sy = gridOffsetY + sun.rowPos * cellSize;
+      drawProceduralSun(ctx, sx, sy, cellSize * 0.25, sun.angle);
+    }
+
+    // Отрисовка частиц и текста
+    for (var pti = 0; pti < particles.length; pti++) {
+      var p = particles[pti];
+      ctx.save();
+      ctx.globalAlpha = p.alpha;
+      if (p.text) {
+        ctx.font = '900 ' + Math.max(12, Math.floor(cellSize * 0.22)) + 'px "Segoe UI", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 3;
+        ctx.strokeText(p.text, p.x, p.y);
+        ctx.fillStyle = p.color;
+        ctx.fillText(p.text, p.x, p.y);
+      } else {
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    // Баннеры волн, паузы, победы и поражения
+    if (bannerAnnouncement.timer > 0 || gameOver || win || isPaused) {
+      ctx.save();
+      if (gameOver || win || isPaused) {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+      var cy = canvas.height / 2;
+      var boxH = Math.max(82, Math.min(116, canvas.height * 0.28));
+      ctx.fillStyle = 'rgba(15, 20, 14, 0.88)';
+      ctx.fillRect(0, cy - boxH / 2, canvas.width, boxH);
+      ctx.strokeStyle = bannerAnnouncement.color;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(0, cy - boxH / 2);
+      ctx.lineTo(canvas.width, cy - boxH / 2);
+      ctx.moveTo(0, cy + boxH / 2);
+      ctx.lineTo(canvas.width, cy + boxH / 2);
+      ctx.stroke();
+
+      var mainFontPx = Math.max(16, Math.min(28, Math.floor(canvas.width * 0.038)));
+      var subFontPx = Math.max(11, Math.min(16, Math.floor(canvas.width * 0.022)));
+
+      ctx.textAlign = 'center';
+      ctx.font = '900 ' + mainFontPx + 'px "Segoe UI", sans-serif';
+      ctx.fillStyle = bannerAnnouncement.color;
+      ctx.fillText(bannerAnnouncement.text, canvas.width / 2, cy - 4);
+
+      if (bannerAnnouncement.subtext) {
+        ctx.font = '700 ' + subFontPx + 'px "Segoe UI", sans-serif';
+        ctx.fillStyle = '#f1f5f9';
+        ctx.fillText(bannerAnnouncement.subtext, canvas.width / 2, cy + subFontPx + 8);
+      }
+      ctx.restore();
+    }
+  }
+
+  /**************************************************************
+   * 8. СТАРТ КАМПАНИИ И ГЛАВНЫЙ ИГРОВОЙ ЦИКЛ
+   **************************************************************/
+  startLevel(currentLevelIdx);
+
+  function gameLoop(now) {
+    var rawDt = Math.min(now - lastTime, 100);
+    if (rawDt < 0) rawDt = 16;
+    lastTime = now;
+    update(rawDt * timeScale);
+    draw();
+    window.requestAnimationFrame(gameLoop);
+  }
+
+  window.requestAnimationFrame(gameLoop);
+  </script>
+  
+  <script>
+/**************************************************************
+ * АВТО-МАСШТАБИРОВАНИЕ КАРТОЧЕК РАСТЕНИЙ И ЛОПАТЫ ПОД ЭКРАН
+ * (Полная совместимость со старыми Android WebView / ES5)
+ **************************************************************/
+(function() {
+  var sidebar = document.getElementById('sidebar');
+  if (!sidebar) return;
+
+  function fitSidebarCards() {
+    var allCards = sidebar.querySelectorAll('.plant-option');
+    var visibleCards = [];
+
+    for (var i = 0; i < allCards.length; i++) {
+      if (!allCards[i].classList.contains('locked')) {
+        visibleCards.push(allCards[i]);
+      }
+    }
+
+    var count = visibleCards.length;
+    if (count === 0) return;
+
+    // Высота экрана (с фоллбэком для старых WebView)
+    var vh = window.innerHeight || document.documentElement.clientHeight || 480;
+    var vw = window.innerWidth || document.documentElement.clientWidth || 800;
+    var isLandscapeShort = vh < 500;
+
+    // Отступы контейнера и зазор между кнопками
+    var padV = isLandscapeShort ? 3 : 6;
+    var gap = isLandscapeShort ? 2 : (vh < 640 ? 4 : 6);
+
+    sidebar.style.paddingTop = padV + 'px';
+    sidebar.style.paddingBottom = padV + 'px';
+
+    // Доступная высота на одну карточку
+    var totalAvailableH = vh - (padV * 2) - (gap * (count - 1));
+    var cardH = Math.floor(totalAvailableH / count);
+
+    // Ограничиваем максимальную высоту карточки на больших мониторах
+    if (cardH > 72) cardH = 72;
+    if (cardH < 22) cardH = 22;
+
+    // Если высота карточки меньше 48px (например, в горизонтальном режиме),
+    // включаем компактную горизонтальную раскладку внутри самой карточки
+    var compactRowMode = cardH < 48;
+
+    // Подбираем оптимальную ширину боковой панели
+    var sidebarW = compactRowMode ? (vw < 560 ? 74 : 82) : (vw < 700 ? 68 : 82);
+    sidebar.style.width = sidebarW + 'px';
+    sidebar.style.minWidth = sidebarW + 'px';
+
+    for (var j = 0; j < visibleCards.length; j++) {
+      var card = visibleCards[j];
+      var isShovel = card.getAttribute('data-type') === 'shovel';
+      var cvs = card.querySelector('canvas');
+      var badge = card.querySelector('.cost-badge');
+      var hint = card.querySelector('.key-hint');
+
+      card.style.height = cardH + 'px';
+      card.style.marginBottom = (j === count - 1) ? '0px' : gap + 'px';
+      // Лопата всегда прижата к низу панели
+      card.style.marginTop = isShovel ? 'auto' : '0px';
+
+      if (compactRowMode) {
+        // Компактный режим для альбомной ориентации: иконка слева, цена справа
+        card.style.display = '-webkit-flex';
+        card.style.display = 'flex';
+        card.style.webkitAlignItems = 'center';
+        card.style.alignItems = 'center';
+        card.style.webkitJustifyContent = 'space-between';
+        card.style.justifyContent = 'space-between';
+        card.style.padding = '1px 4px';
+
+        var iconSz = Math.max(18, Math.min(36, cardH - 4));
+        if (cvs) {
+          cvs.style.width = iconSz + 'px';
+          cvs.style.height = iconSz + 'px';
+          cvs.style.margin = '0';
+          cvs.style.flexShrink = '0';
+        }
+        if (badge) {
+          badge.style.width = 'auto';
+          badge.style.marginTop = '0';
+          badge.style.padding = '1px 3px';
+          badge.style.fontSize = (cardH < 30 ? 8 : 9) + 'px';
+          badge.style.lineHeight = '1.1';
+        }
+        if (hint) {
+          hint.style.display = cardH < 32 ? 'none' : 'block';
+          hint.style.fontSize = '7px';
+        }
+      } else {
+        // Стандартный вертикальный режим: иконка сверху, цена снизу
+        card.style.display = 'block';
+        card.style.padding = '3px 2px 2px';
+
+        var badgeH = 15;
+        var stdIconSz = Math.max(24, Math.min(46, cardH - badgeH - 6));
+        if (cvs) {
+          cvs.style.width = stdIconSz + 'px';
+          cvs.style.height = stdIconSz + 'px';
+          cvs.style.margin = '0 auto';
+        }
+        if (badge) {
+          badge.style.width = '94%';
+          badge.style.marginTop = '1px';
+          badge.style.padding = '1px 0';
+          badge.style.fontSize = (cardH < 56 ? 9 : 10) + 'px';
+          badge.style.lineHeight = '1.15';
+        }
+        if (hint) {
+          hint.style.display = 'block';
+          hint.style.fontSize = '8px';
+        }
+      }
+    }
+
+    // Пересчитываем размер игрового поля с учётом новой ширины панели
+    if (typeof resizeCanvas === 'function') {
+      resizeCanvas();
+    }
+  }
+
+  // Перехватываем обновление интерфейса (при переходе на новый уровень и открытии растений)
+  if (typeof window.updateSunDisplay === 'function') {
+    var origUpdateSunDisplay = window.updateSunDisplay;
+    var lastVisibleCount = -1;
+
+    window.updateSunDisplay = function() {
+      origUpdateSunDisplay.apply(this, arguments);
+      var currentVisible = sidebar.querySelectorAll('.plant-option:not(.locked)').length;
+      if (currentVisible !== lastVisibleCount) {
+        lastVisibleCount = currentVisible;
+        fitSidebarCards();
+      }
+    };
+  }
+
+  // Реагируем на поворот экрана и изменение размеров окна
+  window.addEventListener('resize', fitSidebarCards, false);
+  window.addEventListener('orientationchange', function() {
+    setTimeout(fitSidebarCards, 100);
+    setTimeout(fitSidebarCards, 300);
+  }, false);
+
+  // Первый запуск сразу после загрузки
+  fitSidebarCards();
+})();
+</script>
+
+
+</body>
+</html>

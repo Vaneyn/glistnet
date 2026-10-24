@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta name="viewport" content="width=device-width">
+    <script src='file:///android_asset/app.js'></script>
+    <style>
+        body { background-color: #ffffff; }
+        .hello { 
+            font-size: 42px; 
+            width: 100%;
+            margin-top: 2em;
+            text-align: center;
+            color: blue;
+        }
+    </style>
+</head>
+<body onload="OnStart()">
+
+    <div class="hello"> Глистомания </div>
+
+    <script>
+  var phrases = [
+            "Помнишь меня?)",
+            "Остерегайся Серёг",
+            "Какие же красивые писюны китов",
+            "Кто. Украл. Мои. Трусы.",
+            "Ты лох   : D",
+            "НЕУСЫПНАЯ БДИТЕЛЬНОСТЬ",
+            "Павидлападла",
+            "Ой, сломал бипку...",
+            "Работай. Жить будут другие.",
+     "Я не слежу, я подсматриваю",
+     "Слышишь? Кто-то пукнул.",
+     "Я сам эти фразы писал",
+"шлакоблокунь",
+"ФРАНЦУЗКАЯ КОЛБАСНЯЯЯЯ",
+"А я ещё и дебил конченый)",
+"Глист: 50 оттенков серого",
+"Ъ",
+"Автор жив!",
+"Я люблю свои коленки",
+"Батон, братан",
+"Неведомая оказия...",
+"Как же устал...",
+"Внутри меня взойдет солнце",
+"Обрыхнись",
+"Оплопнись",
+"Автор жив?..",
+"G-list это вам не Veles 😈",
+"2rbina 2rista.",
+"Пукать нужно до хруста в шее",
+"Время быстро летит",
+"У тебя Глист в телефоне ", 
+"I love yogurt",
+"Пупысная хрыпа",
+"Упячка!",
+"Вы кто такие? Я вас не звал",
+"https://t.me/glist_channel",
+"Пакеты в пакетах", 
+"Поразительно похрен",
+"Кинь в меня булочкой",
+"Я чувствую боль",
+"Я ищу её, потерявши",
+"Текущее время...",
+"Автор чувствует",
+"Подарите автору девочку)",
+            "Не подпускай его сзади.."
+        ];
+
+        function sendNotification() {
+            var randomIndex = Math.floor(Math.random() * phrases.length);
+            var message = phrases[randomIndex];
+
+            // Создание уведомления
+            var notify = app.CreateNotification();
+            notify.SetMessage("Ticker", "", message);
+            notify.Notify("testID");
+
+            // Устанавливаем случайный интервал от 1 до 500 секунд
+            var nextInterval = Math.floor(Math.random() * 500000) + 1000;
+            setTimeout(sendNotification, nextInterval);
+        }
+
+        function OnStart() {
+            app.ShowPopup("Папёрли :)");
+            sendNotification(); // Первое уведомление сразу
+        }
+    </script>
+	<script>
+		function runTool(toolName) {
+			var url = toolName + ".html";
+			window.open(url, "_blank");
+		}
+	</script>
+			<button onclick="runTool('glist')">НАЗАД</button>
+
+</body>
+</html>

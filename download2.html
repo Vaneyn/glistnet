@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Glist OS</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Roboto,sans-serif;-webkit-tap-highlight-color:transparent}
+:root{--ac:#0a84ff}
+html,body{height:100%;overflow:hidden;background:#000;color:#e8e8e8;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+#wall{position:fixed;top:0;left:0;right:0;bottom:0;transition:background .4s}
+#pn{position:fixed;top:0;left:0;right:0;height:48px;display:flex;align-items:center;gap:6px;padding:0 8px;background:rgba(14,14,14,.94);border-bottom:1px solid #333;z-index:5000;overflow-x:auto;scrollbar-width:none}
+#pn::-webkit-scrollbar{display:none}
+.pb{flex:none;min-width:42px;height:36px;padding:0 8px;border:none;border-radius:9px;background:#262626;color:#eee;font-size:19px}
+.pb:active{background:#3a3a3a}
+.pb.on{background:#383838;box-shadow:inset 0 -3px 0 var(--ac)}
+.pb.min{opacity:.5}
+.pb.red{background:#b3261e}
+.chip{font-size:13px}
+.sep{flex:none;width:1px;height:26px;background:#444;margin:0 2px}
+#desk{position:fixed;top:48px;left:0;right:0;bottom:0;overflow-y:auto;padding:12px;display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:104px;gap:10px}
+#emp{grid-column:1/-1;text-align:center;color:#888;font-size:14px;padding-top:40px}
+.ic{display:flex;flex-direction:column;align-items:center;justify-content:center;border:2px solid transparent;border-radius:12px;padding:6px 3px;text-align:center}
+.ic:active{background:rgba(255,255,255,.1)}
+.ic .g{font-size:34px;line-height:42px}
+.ic .l{font-size:12px;margin-top:4px;line-height:1.2;max-width:100%;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word;text-shadow:0 1px 3px #000}
+.del .ic{border-color:#ff3b30;background:rgba(255,59,48,.14)}
+.win{position:fixed;background:#1c1c1c;border:1px solid #484848;border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.7);display:flex;flex-direction:column;overflow:hidden;min-width:240px;min-height:160px}
+.win.max{top:48px!important;left:0!important;right:0!important;bottom:0!important;width:auto!important;height:auto!important;border-radius:0}
+.win.top{border-color:var(--ac)}
+.wh{height:38px;flex:none;display:flex;align-items:center;padding:0 6px 0 12px;background:#262626;touch-action:none;gap:6px}
+.wt{flex:1;font-size:14px;font-weight:600;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.wb{min-width:32px;height:30px;border:none;border-radius:6px;background:none;color:#ccc;font-size:16px}
+.wb:active{background:#444}
+.wb.x:active{background:#b22}
+.wb.run{background:var(--ac);color:#fff;font-size:12px;font-weight:600;padding:0 10px;margin-right:4px}
+.wc{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column}
+.wc input,.wc textarea,.dl input{width:100%;padding:10px;margin-bottom:8px;background:#121212;border:1px solid #444;border-radius:7px;color:#eee;font-size:14px;-webkit-user-select:text;user-select:text}
+.wc textarea{flex:1;min-height:160px;font-family:monospace;resize:none}
+.gr{position:absolute;bottom:0;width:26px;height:26px;touch-action:none;z-index:3}
+.gr:after{content:"";position:absolute;bottom:4px;width:10px;height:10px;border-bottom:3px solid var(--ac);opacity:.7}
+.gr.se{right:0}.gr.se:after{right:4px;border-right:3px solid var(--ac)}
+.gr.sw{left:0}.gr.sw:after{left:4px;border-left:3px solid var(--ac)}
+.btn{padding:10px 14px;background:#383838;color:#eee;border:none;border-radius:7px;font-size:14px;margin:0 6px 8px 0}
+.btn:active{background:#4a4a4a}.btn.p{background:var(--ac)}.btn.d{background:#8a2020}
+.row{display:flex;flex-wrap:wrap}
+.fi{display:flex;align-items:center;gap:10px;padding:10px;border-radius:8px;border-bottom:1px solid #2a2a2a;font-size:14px}
+.fi:active{background:#2e2e2e}
+.fi .n{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fi .s,.dim{color:#888;font-size:12px}
+.dim{margin:4px 0 8px}
+.sw,.wp{display:inline-block;margin:0 8px 8px 0;border:2px solid transparent}
+.sw{width:36px;height:36px;border-radius:50%}
+.wp{width:64px;height:44px;border-radius:8px}
+.sw.on,.wp.on{border-color:#fff}
+#menu{position:fixed;z-index:8100;background:#262626;border:1px solid #555;border-radius:10px;min-width:210px;box-shadow:0 8px 24px #000;overflow:hidden}
+#menu .mt{padding:9px 14px;font-size:12px;color:#999;background:#1a1a1a}
+#menu .mi{padding:13px 14px;font-size:15px}
+#menu .mi:active{background:#3a3a3a}
+.ov{position:fixed;top:0;left:0;right:0;bottom:0;z-index:8000}
+.ov.dk{background:rgba(0,0,0,.6);z-index:9000;display:flex;align-items:center;justify-content:center}
+.dl{background:#222;border:1px solid #555;border-radius:12px;padding:18px;width:min(320px,90%);font-size:15px}
+.dl>div:first-child{margin-bottom:14px;word-break:break-word}
+#toast{position:fixed;top:56px;left:50%;transform:translateX(-50%);background:#333;border:1px solid var(--ac);padding:9px 16px;border-radius:20px;font-size:13px;z-index:9500;display:none;max-width:90%}
+.rain{position:fixed;top:-40px;font-size:28px;z-index:9800;pointer-events:none;animation:fall 2.6s linear forwards}
+@keyframes fall{to{transform:translateY(110vh) rotate(540deg)}}
+</style>
+</head>
+<body>
+<div id="wall"></div>
+<div id="pn"></div>
+<div id="desk"></div>
+<div id="toast"></div>
+
+<script>
+const CK = 'glistos_cfg';
+const S = Object.assign({accent: '#0a84ff', wall: 0, hide: true, full: true}, JSON.parse(localStorage.getItem(CK) || '{}'));
+const WALLS = [
+  'linear-gradient(135deg,#0a0a0a,#1c1c2b)',
+  'linear-gradient(135deg,#0f2027,#2c5364)',
+  'linear-gradient(135deg,#200122,#6f0000)',
+  'radial-gradient(circle at 30% 20%,#1b3a2b,#050505)'
+];
+const ACCENTS = ['#0a84ff', '#30d158', '#ff9f0a', '#ff375f', '#bf5af2'];
+const W = {};
+const desk = document.getElementById('desk');
+const pn = document.getElementById('pn');
+let zTop = 100, edN = 0, delMode = false, eggTaps = 0;
+
+const el = (tag, cls, txt) => {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (txt != null) e.textContent = txt;
+  return e;
+};
+const isSys = n => /^[A-Za-z]/.test(n);
+const saveCfg = () => localStorage.setItem(CK, JSON.stringify(S));
+const applyCfg = () => {
+  document.documentElement.style.setProperty('--ac', S.accent);
+  document.getElementById('wall').style.background = WALLS[S.wall];
+};
+function codes() {
+  const r = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (!S.hide || !isSys(k)) r.push(k);
+  }
+  return r.sort();
+}
+let toastT;
+function toast(t) {
+  const x = document.getElementById('toast');
+  x.textContent = t; x.style.display = 'block';
+  clearTimeout(toastT);
+  toastT = setTimeout(() => { x.style.display = 'none'; }, 2200);
+}
+function sync() {
+  renderDesk();
+  for (const id in W) if (W[id].refresh) W[id].refresh();
+}
+function rain(ch) {
+  const f = document.createDocumentFragment(), list = [];
+  for (let i = 0; i < 26; i++) {
+    const s = el('div', 'rain', ch);
+    s.style.left = Math.random() * 95 + '%';
+    s.style.animationDelay = Math.random() * 1.2 + 's';
+    f.appendChild(s); list.push(s);
+  }
+  document.body.appendChild(f);
+  setTimeout(() => list.forEach(n => n.remove()), 4200);
+}
+
+/* ---------- диалог Да/Нет и ввод ---------- */
+function dlg(text, cb, val) {
+  const input = val != null;
+  const o = el('div', 'ov dk'), b = el('div', 'dl'), row = el('div', 'row');
+  const y = el('button', 'btn p', input ? 'ОК' : 'Да'), n = el('button', 'btn', input ? 'Отмена' : 'Нет');
+  b.appendChild(el('div', null, text));
+  let i;
+  if (input) { i = el('input'); i.value = val; b.appendChild(i); }
+  row.appendChild(y); row.appendChild(n); b.appendChild(row); o.appendChild(b);
+  document.body.appendChild(o);
+  y.onclick = () => { o.remove(); cb(input ? i.value.trim() : true); };
+  n.onclick = () => o.remove();
+  if (i) i.focus();
+}
+
+/* ---------- контекстное меню ---------- */
+function closeMenu() {
+  const a = document.getElementById('menu'), b = document.getElementById('mo');
+  if (a) a.remove();
+  if (b) b.remove();
+}
+function menu(title, items, x, y) {
+  closeMenu();
+  const o = el('div', 'ov'), m = el('div'), f = document.createDocumentFragment();
+  o.id = 'mo'; m.id = 'menu';
+  o.onclick = closeMenu;
+  m.appendChild(el('div', 'mt', title));
+  items.forEach(it => {
+    const d = el('div', 'mi', it[0]);
+    d.onclick = () => { closeMenu(); it[1](); };
+    f.appendChild(d);
+  });
+  m.appendChild(f);
+  document.body.appendChild(o); document.body.appendChild(m);
+  m.style.left = Math.max(8, Math.min(x, innerWidth - m.offsetWidth - 8)) + 'px';
+  m.style.top = Math.max(52, Math.min(y, innerHeight - m.offsetHeight - 8)) + 'px';
+}
+
+/* ---------- операции с кодами ---------- */
+function codeMenu(name, x, y) {
+  menu(name, [
+    ['▶ Запустить в окне', () => runWin(name)],
+    ['⛶ Выполнить (на весь экран)', () => runFull(name)],
+    ['✏️ Редактировать', () => openEditor(name)],
+    ['🏷 Переименовать', () => renameCode(name)],
+    ['📋 Копировать код', () => copyText(localStorage.getItem(name))],
+    ['🗑 Удалить', () => delCode(name)]
+  ], x, y);
+}
+function delCode(name) {
+  dlg('Удалить "' + name + '"?', () => {
+    localStorage.removeItem(name); sync(); toast('Удалено: ' + name);
+  });
+}
+function renameCode(name) {
+  dlg('Новое имя:', n => {
+    if (!n || n === name) return;
+    const go = () => {
+      localStorage.setItem(n, localStorage.getItem(name));
+      localStorage.removeItem(name); sync();
+    };
+    if (localStorage.getItem(n) !== null) dlg('"' + n + '" уже есть. Перезаписать?', go); else go();
+  }, name);
+}
+function copyText(t) {
+  const fb = () => {
+    const a = document.createElement('textarea'); a.value = t;
+    document.body.appendChild(a); a.select();
+    try { document.execCommand('copy'); toast('Скопировано'); } catch (e) { toast('Не вышло скопировать'); }
+    a.remove();
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(t).then(() => toast('Скопировано'), fb);
+  } else fb();
+}
+function runFull(name) {
+  const code = localStorage.getItem(name);
+  document.open(); document.write(code); document.close();
+}
+function runWin(name) {
+  win('run:' + name, name, '📄', b => {
+    b.style.padding = '0';
+    const f = document.createElement('iframe');
+    f.style.cssText = 'flex:1;border:none;background:#fff;width:100%';
+    f.srcdoc = localStorage.getItem(name) || '';
+    b.appendChild(f);
+  }, {max: true, run: () => runFull(name)});
+}
+
+const isHtml = c => /<!doctype\s+html/i.test(c) || /<\/?[a-z][\w-]*[\s>\/]/i.test(c);
+function openCode(name) {
+  if (S.full && isHtml(localStorage.getItem(name) || '')) runFull(name); else runWin(name);
+}
+
+/* ---------- оконный менеджер ---------- */
+function focusWin(w) {
+  for (const id in W) { W[id].el.classList.remove('top'); W[id].tb.classList.remove('on'); }
+  w.el.style.zIndex = ++zTop; w.el.classList.add('top'); w.tb.classList.add('on');
+}
+function showWin(w) {
+  w.el.style.display = 'flex'; w.tb.classList.remove('min'); focusWin(w);
+}
+function grip(e, d) {
+  const g = el('div', 'gr ' + d);
+  let s = null;
+  e.appendChild(g);
+  g.addEventListener('pointerdown', ev => {
+    const r = e.getBoundingClientRect();
+    e.classList.remove('max');
+    e.style.left = r.left + 'px'; e.style.top = r.top + 'px';
+    e.style.width = r.width + 'px'; e.style.height = r.height + 'px';
+    s = {x: ev.clientX, y: ev.clientY, l: r.left, w: r.width, h: r.height};
+    try { g.setPointerCapture(ev.pointerId); } catch (x) {}
+    ev.stopPropagation();
+  });
+  g.addEventListener('pointermove', ev => {
+    if (!s) return;
+    const dx = ev.clientX - s.x, dy = ev.clientY - s.y;
+    const w = Math.min(innerWidth, Math.max(240, d === 'se' ? s.w + dx : s.w - dx));
+    e.style.width = w + 'px';
+    if (d === 'sw') e.style.left = (s.l + s.w - w) + 'px';
+    e.style.height = Math.max(160, s.h + dy) + 'px';
+  });
+  const end = () => { s = null; };
+  g.addEventListener('pointerup', end);
+  g.addEventListener('pointercancel', end);
+}
+function win(id, title, glyph, build, o) {
+  o = o || {};
+  if (W[id]) { showWin(W[id]); return W[id]; }
+  const n = Object.keys(W).length % 4;
+  const ww = Math.min(innerWidth - 12, o.w || 440), hh = Math.min(innerHeight - 110, o.h || 480);
+  const e = el('div', 'win');
+  e.style.cssText = 'width:' + ww + 'px;height:' + hh + 'px;left:' + ((innerWidth - ww) / 2 + n * 12) + 'px;top:' + (58 + n * 16) + 'px';
+  if (o.max) e.classList.add('max');
+  const h = el('div', 'wh'), t = el('div', 'wt', title), c = el('div', 'wc');
+  const bm = el('button', 'wb', '–'), bx = el('button', 'wb', '▢'), bc = el('button', 'wb x', '✕');
+  h.appendChild(el('span', null, glyph)); h.appendChild(t);
+  if (o.run) {
+    const br = el('button', 'wb run', 'Выполнить');
+    br.onclick = o.run; h.appendChild(br);
+  }
+  h.appendChild(bm); h.appendChild(bx); h.appendChild(bc);
+  e.appendChild(h); e.appendChild(c);
+  grip(e, 'sw'); grip(e, 'se');
+  document.body.appendChild(e);
+  const tb = el('button', 'pb chip', glyph + ' ' + title.slice(0, 8));
+  pn.appendChild(tb);
+  const w = {el: e, tb: tb, title: t};
+  W[id] = w;
+  build(c, w);
+  bm.onclick = () => { e.style.display = 'none'; tb.classList.add('min'); tb.classList.remove('on', 'top'); e.classList.remove('top'); };
+  bx.onclick = () => e.classList.toggle('max');
+  bc.onclick = () => { e.remove(); tb.remove(); delete W[id]; };
+  tb.onclick = () => {
+    if (e.style.display === 'none') showWin(w);
+    else if (e.classList.contains('top')) bm.onclick();
+    else focusWin(w);
+  };
+  e.addEventListener('pointerdown', () => focusWin(w));
+  let sx, sy, ox, oy, drag = false;
+  h.addEventListener('pointerdown', ev => {
+    if (ev.target.tagName === 'BUTTON' || e.classList.contains('max')) return;
+    drag = true; sx = ev.clientX; sy = ev.clientY; ox = e.offsetLeft; oy = e.offsetTop;
+    try { h.setPointerCapture(ev.pointerId); } catch (x) {}
+  });
+  h.addEventListener('pointermove', ev => {
+    if (!drag) return;
+    e.style.left = (ox + ev.clientX - sx) + 'px';
+    e.style.top = Math.max(48, oy + ev.clientY - sy) + 'px';
+  });
+  const end = () => { drag = false; };
+  h.addEventListener('pointerup', end);
+  h.addEventListener('pointercancel', end);
+  h.addEventListener('dblclick', () => e.classList.toggle('max'));
+  showWin(w);
+  return w;
+}
+
+/* ---------- приложения ---------- */
+function openFiles() {
+  win('files', 'Файлы', '📁', (b, w) => {
+    const bar = el('div', 'row'), bn = el('button', 'btn p', '➕ Новый'), bi = el('button', 'btn', '📥 Импорт файла');
+    const fi = document.createElement('input'); fi.type = 'file'; fi.style.display = 'none';
+    const info = el('div', 'dim'), list = el('div');
+    [bn, bi, fi].forEach(x => bar.appendChild(x));
+    [bar, info, list].forEach(x => b.appendChild(x));
+    bn.onclick = () => openEditor();
+    bi.onclick = () => fi.click();
+    fi.onchange = () => {
+      const f = fi.files[0]; if (!f) return;
+      const r = new FileReader();
+      r.onload = () => { localStorage.setItem(f.name.replace(/\.[^.]+$/, ''), r.result); sync(); toast('Импортировано: ' + f.name); };
+      r.readAsText(f); fi.value = '';
+    };
+    w.refresh = () => {
+      const cs = codes(), f = document.createDocumentFragment();
+      let total = 0;
+      cs.forEach(n => {
+        const sz = (localStorage.getItem(n) || '').length; total += sz;
+        const r = el('div', 'fi');
+        r.appendChild(el('span', null, '📄')); r.appendChild(el('span', 'n', n));
+        r.appendChild(el('span', 's', (sz / 1024).toFixed(1) + ' КБ'));
+        r.onclick = ev => codeMenu(n, ev.clientX, ev.clientY);
+        f.appendChild(r);
+      });
+      if (!cs.length) f.appendChild(el('div', 'dim', 'Пусто. Нажми «Новый» или импортируй файл.'));
+      list.innerHTML = ''; list.appendChild(f);
+      info.textContent = 'Файлов: ' + cs.length + ' · ' + (total / 1024).toFixed(1) + ' КБ';
+    };
+    w.refresh();
+  });
+}
+
+function openEditor(name) {
+  win('ed:' + (name || 'new' + (++edN)), name ? 'Правка: ' + name : 'Новый код', '📝', (b, w) => {
+    const inName = el('input'), inUrl = el('input'), ta = el('textarea'), row = el('div', 'row');
+    inName.placeholder = 'Название'; inName.value = name || '';
+    inUrl.placeholder = 'Ссылка (https://...) — загрузить код по URL';
+    ta.placeholder = 'Код здесь'; ta.value = name ? localStorage.getItem(name) || '' : '';
+    const bf = el('button', 'btn', '⬇ По ссылке'), bs = el('button', 'btn p', '💾 Сохранить'), br = el('button', 'btn', '▶ Сохранить и запустить');
+    [bf, bs, br].forEach(x => row.appendChild(x));
+    [inName, inUrl, ta, row].forEach(x => b.appendChild(x));
+    bf.onclick = () => {
+      if (!inUrl.value) { toast('Введи ссылку'); return; }
+      fetch(inUrl.value).then(r => r.text()).then(t => {
+        ta.value = t;
+        if (!inName.value) inName.value = inUrl.value.split('/').pop().replace(/\.[^.]+$/, '');
+        toast('Код загружен, осталось сохранить');
+      }).catch(() => toast('Ошибка загрузки. Проверь ссылку'));
+    };
+    const save = () => {
+      const n = inName.value.trim();
+      if (!n) { toast('Введи название'); return null; }
+      if (name && n !== name) localStorage.removeItem(name);
+      localStorage.setItem(n, ta.value);
+      name = n; w.title.textContent = 'Правка: ' + n; sync(); toast('Сохранено: ' + n);
+      return n;
+    };
+    bs.onclick = save;
+    br.onclick = () => { const n = save(); if (n) openCode(n); };
+  }, {h: 520});
+}
+
+function openSettings() {
+  win('set', 'Настройки', '⚙️', b => {
+    const sec = t => { const d = el('div', 'dim', t); d.style.marginTop = '10px'; b.appendChild(d); };
+    const pick = (list, cls, cur, paint, set) => {
+      const nodes = list.map((v, i) => {
+        const s = el('span', cls + (cur(v, i) ? ' on' : ''));
+        paint(s, v);
+        s.onclick = () => { set(v, i); saveCfg(); applyCfg(); nodes.forEach(x => x.classList.remove('on')); s.classList.add('on'); };
+        b.appendChild(s);
+        return s;
+      });
+    };
+    sec('Цвет акцента');
+    pick(ACCENTS, 'sw', v => v === S.accent, (s, v) => { s.style.background = v; }, v => { S.accent = v; });
+    sec('Обои');
+    pick(WALLS, 'wp', (v, i) => i === S.wall, (s, v) => { s.style.background = v; }, (v, i) => { S.wall = i; });
+    sec('Система');
+    const chk = (text, key, after) => {
+      const lab = el('label'), cb = document.createElement('input');
+      lab.style.cssText = 'display:flex;gap:10px;align-items:center;font-size:14px;margin-bottom:12px';
+      cb.type = 'checkbox'; cb.checked = S[key]; cb.style.cssText = 'width:20px;margin:0;flex:none';
+      cb.onchange = () => { S[key] = cb.checked; saveCfg(); if (after) after(); };
+      lab.appendChild(cb); lab.appendChild(el('span', null, text));
+      b.appendChild(lab);
+    };
+    chk('Выполнять валидный html сразу во весь экран при открытии', 'full');
+    chk('Скрывать системные файлы (имена с латиницы)', 'hide', sync);
+    const rb = el('button', 'btn d', 'Сбросить настройки ОС');
+    rb.onclick = () => dlg('Сбросить цвет и обои?', () => { localStorage.removeItem(CK); location.reload(); });
+    b.appendChild(rb);
+    const v = el('div', 'dim', 'Glist OS 2');
+    v.onclick = () => { if (++eggTaps >= 7) { eggTaps = 0; rain('🥔'); toast('Картофельный протокол активирован'); } };
+    b.appendChild(v);
+  }, {h: 420});
+}
+
+/* ---------- рабочий стол ---------- */
+function renderDesk() {
+  const f = document.createDocumentFragment(), cs = codes();
+  cs.forEach(n => {
+    const d = el('div', 'ic');
+    d.dataset.name = n;
+    d.appendChild(el('div', 'g', '📄')); d.appendChild(el('div', 'l', n));
+    f.appendChild(d);
+  });
+  if (!cs.length) f.appendChild(el('div', null, '')).id = 'emp';
+  desk.innerHTML = ''; desk.appendChild(f);
+  const emp = document.getElementById('emp');
+  if (emp) emp.textContent = 'Пусто. Жми ➕ сверху, чтобы добавить код.';
+}
+function toggleDel() {
+  delMode = !delMode;
+  desk.classList.toggle('del', delMode);
+  trashBtn.classList.toggle('red', delMode);
+  if (delMode) toast('Режим удаления: тапни по файлу');
+}
+desk.addEventListener('click', e => {
+  const ic = e.target.closest('.ic');
+  if (!ic) return;
+  if (lf) { lf = false; return; }
+  if (delMode) delCode(ic.dataset.name); else openCode(ic.dataset.name);
+});
+let lp = 0, lx = 0, ly = 0, lf = false;
+desk.addEventListener('pointerdown', e => {
+  const ic = e.target.closest('.ic');
+  if (!ic || delMode) return;
+  lx = e.clientX; ly = e.clientY; lf = false;
+  clearTimeout(lp);
+  lp = setTimeout(() => {
+    lf = true; lp = 0;
+    if (navigator.vibrate) navigator.vibrate(25);
+    codeMenu(ic.dataset.name, lx, ly);
+  }, 450);
+});
+desk.addEventListener('pointermove', e => {
+  if (lp && Math.abs(e.clientX - lx) + Math.abs(e.clientY - ly) > 12) { clearTimeout(lp); lp = 0; }
+});
+['pointerup', 'pointercancel'].forEach(ev => desk.addEventListener(ev, () => { clearTimeout(lp); lp = 0; }));
+desk.addEventListener('contextmenu', e => e.preventDefault());
+
+/* ---------- системная панель ---------- */
+function pbtn(g, t, f) {
+  const b = el('button', 'pb', g);
+  b.title = t; b.onclick = f; pn.appendChild(b);
+  return b;
+}
+pbtn('🔙', 'Назад', () => { location.href = 'glist.html'; });
+pbtn('📁', 'Файлы', openFiles);
+pbtn('➕', 'Новый код', () => openEditor());
+pbtn('⚙️', 'Настройки', openSettings);
+const trashBtn = pbtn('🗑️', 'Удаление', toggleDel);
+pn.appendChild(el('span', 'sep'));
+
+applyCfg();
+renderDesk();
+</script>
+</body>
+</html>

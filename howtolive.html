@@ -1,0 +1,1243 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+<meta name="format-detection" content="telephone=no">
+<title>Читалка — Выжить.txt</title>
+<style>
+  /* ============ RESET / BASE ============ */
+  * { -webkit-box-sizing: border-box; box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
+
+  :root {
+    --bg:#fdfcf9; --fg:#23262b; --muted:#8a8f98; --border:#e6e3dc;
+    --panel:#ffffff; --panel-fg:#23262b; --hl:#ffe066; --hl-fg:#23262b;
+    --hl-active:#ff9f43; --accent:#2f6fed; --bar:#2f6fed;
+  }
+  html[data-theme="sepia"] {
+    --bg:#f6ecd9; --fg:#463a28; --muted:#9a8b73; --border:#e3d6bd;
+    --panel:#fffaf0; --panel-fg:#463a28; --hl:#ffd97a; --hl-fg:#3a3020;
+    --hl-active:#e0952e; --accent:#a5733a; --bar:#a5733a;
+  }
+  html[data-theme="dark"] {
+    --bg:#191c21; --fg:#d5d8dd; --muted:#7c828c; --border:#2b3038;
+    --panel:#22262d; --panel-fg:#d5d8dd; --hl:#6b5a1f; --hl-fg:#ffe9a8;
+    --hl-active:#c9882a; --accent:#6ea8ff; --bar:#6ea8ff;
+  }
+  html[data-theme="night"] {
+    --bg:#000000; --fg:#9a9a9a; --muted:#555555; --border:#1a1a1a;
+    --panel:#0d0d0d; --panel-fg:#9a9a9a; --hl:#3a3200; --hl-fg:#d8c98a;
+    --hl-active:#7a6000; --accent:#5b87c4; --bar:#5b87c4;
+  }
+
+  body {
+    background: #fdfcf9;
+    background: var(--bg);
+    color: #23262b;
+    color: var(--fg);
+    font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-transition: background-color .25s ease, color .25s ease;
+    transition: background-color .25s ease, color .25s ease;
+  }
+
+  /* ============ CONTENT ============ */
+  #content {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    overflow-y: auto; overflow-x: hidden;
+    padding: 88px 20px 140px;
+    -webkit-transition: padding-top .3s ease;
+    transition: padding-top .3s ease;
+    -webkit-overflow-scrolling: touch;
+  }
+  body.hide-header #content { padding-top: 28px; }
+
+  #text {
+    max-width: 820px;
+    margin: 0 auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    font-size: 19px;
+    line-height: 1.7;
+    font-family: Georgia, "Times New Roman", serif;
+  }
+  .heading-line {
+    font-weight: 700;
+    color: #2f6fed;
+    color: var(--accent);
+  }
+
+  /* ============ HIGHLIGHTS ============ */
+  .highlight {
+    background: #ffe066;
+    background: var(--hl);
+    color: #23262b;
+    color: var(--hl-fg);
+    border-radius: 3px;
+  }
+  .highlight.current {
+    background: #ff9f43;
+    background: var(--hl-active);
+    color: #ffffff;
+    -webkit-box-shadow: 0 0 0 2px rgba(255,159,67,.45);
+    box-shadow: 0 0 0 2px rgba(255,159,67,.45);
+  }
+
+  /* ============ HEADER ============ */
+  #header {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 30;
+    display: -webkit-box;
+    display: -webkit-flex;
+    display: flex;
+    -webkit-box-align: center;
+    -webkit-align-items: center;
+    align-items: center;
+    -webkit-flex-wrap: wrap;
+    flex-wrap: wrap;
+    padding: 8px 12px 8px 58px;
+    background: rgba(18,20,24,.94);
+    color: #ffffff;
+    -webkit-box-shadow: 0 2px 14px rgba(0,0,0,.18);
+    box-shadow: 0 2px 14px rgba(0,0,0,.18);
+    -webkit-transform: translateY(0);
+    transform: translateY(0);
+    -webkit-transition: -webkit-transform .3s cubic-bezier(.4,0,.2,1);
+    transition: transform .3s cubic-bezier(.4,0,.2,1);
+  }
+  /* отступы вместо flex gap */
+  #header > * { margin: 3px; }
+  #header.hidden {
+    -webkit-transform: translateY(-110%);
+    transform: translateY(-110%);
+  }
+
+  #header button,
+  #header .file-label {
+    background: rgba(255,255,255,.09);
+    color: #ffffff;
+    border: 1px solid rgba(255,255,255,.15);
+    border-radius: 9px;
+    padding: 6px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+    line-height: 1.3;
+    -webkit-transition: background-color .15s;
+    transition: background-color .15s;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  #header button:hover,
+  #header .file-label:hover { background: rgba(255,255,255,.2); }
+  #header button:active {
+    -webkit-transform: translateY(1px);
+    transform: translateY(1px);
+  }
+  #header .file-label input { display: none; }
+
+  .search-wrap {
+    display: -webkit-box;
+    display: -webkit-flex;
+    display: flex;
+    -webkit-box-align: center;
+    -webkit-align-items: center;
+    align-items: center;
+    background: rgba(255,255,255,.09);
+    border: 1px solid rgba(255,255,255,.15);
+    border-radius: 9px;
+    padding: 2px 4px 2px 10px;
+    -webkit-box-flex: 1;
+    -webkit-flex: 1 1 240px;
+    flex: 1 1 240px;
+    max-width: 420px;
+    min-width: 0;
+  }
+  .search-wrap input {
+    -webkit-box-flex: 1;
+    -webkit-flex: 1;
+    flex: 1;
+    min-width: 60px;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #ffffff;
+    font-size: 14px;
+    font-family: inherit;
+    padding: 5px 0;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  .search-wrap input::-webkit-input-placeholder { color: rgba(255,255,255,.45); }
+  .search-wrap input::-moz-placeholder { color: rgba(255,255,255,.45); }
+  .search-wrap input:-ms-input-placeholder { color: rgba(255,255,255,.45); }
+  .search-wrap input::placeholder { color: rgba(255,255,255,.45); }
+
+  .search-wrap button {
+    background: transparent !important;
+    border: none !important;
+    padding: 4px 7px !important;
+    font-size: 14px !important;
+    border-radius: 6px !important;
+    opacity: .85;
+    margin: 0 !important;
+  }
+  .search-wrap button:hover {
+    background: rgba(255,255,255,.16) !important;
+    opacity: 1;
+  }
+
+  #searchCount {
+    font-size: 12px;
+    color: rgba(255,255,255,.6);
+    min-width: 44px;
+    text-align: center;
+    display: inline-block;
+  }
+
+  /* ============ MENU TOGGLE ============ */
+  #menuToggle {
+    position: fixed;
+    top: 9px; left: 10px;
+    z-index: 40;
+    width: 38px; height: 38px;
+    border-radius: 10px;
+    background: rgba(18,20,24,.94);
+    color: #ffffff;
+    border: 1px solid rgba(255,255,255,.14);
+    font-size: 16px;
+    line-height: 36px;
+    text-align: center;
+    padding: 0;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+    -webkit-transition: background-color .2s;
+    transition: background-color .2s;
+  }
+  #menuToggle:hover { background: rgba(45,50,60,.97); }
+
+  /* ============ PROGRESS ============ */
+  #progressWrap {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    height: 3px;
+    background: rgba(128,128,128,.18);
+    z-index: 45;
+    pointer-events: none;
+  }
+  #progressBar {
+    height: 100%;
+    width: 0%;
+    background: #2f6fed;
+    background: var(--bar);
+    -webkit-transition: width .1s linear;
+    transition: width .1s linear;
+  }
+
+  /* ============ OVERLAY ============ */
+  #overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 55;
+    background: rgba(0,0,0,.45);
+    opacity: 0;
+    pointer-events: none;
+    -webkit-transition: opacity .25s;
+    transition: opacity .25s;
+  }
+  #overlay.show { opacity: 1; pointer-events: auto; }
+
+  /* ============ PANELS ============ */
+  .panel {
+    position: fixed;
+    top: 0; bottom: 0;
+    z-index: 60;
+    width: 350px;
+    width: 88vw;
+    max-width: 350px;
+    background: #ffffff;
+    background: var(--panel);
+    color: #23262b;
+    color: var(--panel-fg);
+    -webkit-box-shadow: 0 0 44px rgba(0,0,0,.3);
+    box-shadow: 0 0 44px rgba(0,0,0,.3);
+    display: -webkit-box;
+    display: -webkit-flex;
+    display: flex;
+    -webkit-box-orient: vertical;
+    -webkit-box-direction: normal;
+    -webkit-flex-direction: column;
+    flex-direction: column;
+    -webkit-transition: -webkit-transform .28s cubic-bezier(.4,0,.2,1);
+    transition: transform .28s cubic-bezier(.4,0,.2,1);
+  }
+  .panel.left {
+    left: 0;
+    -webkit-transform: translateX(-103%);
+    transform: translateX(-103%);
+  }
+  .panel.right {
+    right: 0;
+    -webkit-transform: translateX(103%);
+    transform: translateX(103%);
+  }
+  .panel.open {
+    -webkit-transform: translateX(0);
+    transform: translateX(0);
+  }
+
+  .panel-head {
+    display: -webkit-box;
+    display: -webkit-flex;
+    display: flex;
+    -webkit-box-align: center;
+    -webkit-align-items: center;
+    align-items: center;
+    -webkit-box-pack: justify;
+    -webkit-justify-content: space-between;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid #e6e3dc;
+    border-bottom: 1px solid var(--border);
+    -webkit-box-flex: 0;
+    -webkit-flex: 0 0 auto;
+    flex: 0 0 auto;
+  }
+  .panel-head h3 { margin: 0; font-size: 16px; font-weight: 600; }
+  .panel-head button {
+    background: transparent;
+    border: none;
+    color: #8a8f98;
+    color: var(--muted);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 6px;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  .panel-head button:hover {
+    background: rgba(128,128,128,.15);
+    color: #23262b;
+    color: var(--fg);
+  }
+
+  .panel-body {
+    -webkit-box-flex: 1;
+    -webkit-flex: 1;
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 14px 30px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* ============ TOC ============ */
+  #tocList a {
+    display: block;
+    padding: 8px 10px;
+    margin-bottom: 2px;
+    color: #23262b;
+    color: var(--panel-fg);
+    text-decoration: none;
+    font-size: 14px;
+    line-height: 1.35;
+    border-radius: 8px;
+    border-left: 3px solid transparent;
+    -webkit-transition: background-color .12s;
+    transition: background-color .12s;
+    cursor: pointer;
+  }
+  #tocList a:hover {
+    background: rgba(128,128,128,.13);
+    border-left-color: #2f6fed;
+    border-left-color: var(--accent);
+  }
+  #tocList a.lvl2 { padding-left: 24px; font-size: 13px; opacity: .82; }
+  #tocList a.lvl3 { padding-left: 38px; font-size: 13px; opacity: .7; }
+
+  /* ============ SETTINGS ============ */
+  .setting { margin-bottom: 20px; }
+  .setting > label {
+    display: block;
+    font-size: 13px;
+    margin-bottom: 8px;
+    color: #8a8f98;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    font-weight: 600;
+  }
+  .setting .val {
+    color: #2f6fed;
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  .row {
+    display: -webkit-box;
+    display: -webkit-flex;
+    display: flex;
+    -webkit-flex-wrap: wrap;
+    flex-wrap: wrap;
+    margin: -3px;
+  }
+  .row button {
+    -webkit-box-flex: 1;
+    -webkit-flex: 1 1 auto;
+    flex: 1 1 auto;
+    margin: 3px;
+    padding: 8px 10px;
+    cursor: pointer;
+    background: transparent;
+    color: #23262b;
+    color: var(--panel-fg);
+    border: 1px solid #e6e3dc;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+    font-family: inherit;
+    -webkit-appearance: none;
+    appearance: none;
+    -webkit-transition: border-color .15s, background-color .15s, color .15s;
+    transition: border-color .15s, background-color .15s, color .15s;
+  }
+  .row button:hover {
+    border-color: #2f6fed;
+    border-color: var(--accent);
+  }
+  .row button.active {
+    background: #2f6fed;
+    background: var(--accent);
+    border-color: #2f6fed;
+    border-color: var(--accent);
+    color: #ffffff;
+  }
+
+  /* Рендж-слайдер (совместимый с WebKit) */
+  input[type="range"] {
+    width: 100%;
+    height: 22px;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    padding: 0;
+    margin: 0;
+  }
+  input[type="range"]::-webkit-slider-runnable-track {
+    height: 4px;
+    background: #e6e3dc;
+    background: var(--border);
+    border-radius: 2px;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    background: #2f6fed;
+    background: var(--accent);
+    border-radius: 50%;
+    margin-top: -7px;
+    border: none;
+  }
+  input[type="range"]::-moz-range-track {
+    height: 4px;
+    background: #e6e3dc;
+    border-radius: 2px;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    background: #2f6fed;
+    border-radius: 50%;
+    border: none;
+  }
+
+  #resetSettings {
+    width: 100%;
+    padding: 10px;
+    margin-top: 8px;
+    cursor: pointer;
+    background: transparent;
+    color: #23262b;
+    color: var(--panel-fg);
+    border: 1px solid #e6e3dc;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    font-size: 14px;
+    font-family: inherit;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  #resetSettings:hover { border-color: #e05555; color: #e05555; }
+
+  /* ============ TO TOP ============ */
+  #toTop {
+    position: fixed;
+    right: 16px;
+    bottom: 22px;
+    z-index: 44;
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    background: #ffffff;
+    background: var(--panel);
+    color: #23262b;
+    color: var(--fg);
+    border: 1px solid #e6e3dc;
+    border: 1px solid var(--border);
+    -webkit-box-shadow: 0 4px 16px rgba(0,0,0,.18);
+    box-shadow: 0 4px 16px rgba(0,0,0,.18);
+    font-size: 17px;
+    line-height: 40px;
+    text-align: center;
+    padding: 0;
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    -webkit-transform: translateY(10px);
+    transform: translateY(10px);
+    -webkit-transition: opacity .25s, -webkit-transform .25s;
+    transition: opacity .25s, transform .25s;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  #toTop.show {
+    opacity: .95;
+    pointer-events: auto;
+    -webkit-transform: translateY(0);
+    transform: translateY(0);
+  }
+  #toTop:hover {
+    background: #2f6fed;
+    background: var(--accent);
+    color: #ffffff;
+    border-color: #2f6fed;
+    border-color: var(--accent);
+  }
+
+  /* ============ MOBILE ============ */
+  @media (max-width: 640px) {
+    #header { padding: 8px 10px 8px 56px; }
+    #header button, #header .file-label { padding: 6px 9px; font-size: 13px; }
+    .search-wrap {
+      -webkit-flex-basis: 100%;
+      flex-basis: 100%;
+      max-width: none;
+      -webkit-box-ordinal-group: 6;
+      -webkit-order: 5;
+      order: 5;
+    }
+    #content { padding: 96px 14px 120px; }
+    #text { font-size: 17px; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- Шапка -->
+  <header id="header">
+    <button id="backBtn" type="button" title="Вернуться в библиотеку">← Библиотека</button>
+
+    <label class="file-label" title="Открыть .txt файл">
+      📂 Открыть
+      <input type="file" id="fileInput" accept=".txt,.md,text/plain">
+    </label>
+
+    <div class="search-wrap">
+      <input type="text" id="searchInput" placeholder="Поиск по тексту…" autocomplete="off">
+      <span id="searchCount"></span>
+      <button id="prevMatch" type="button" title="Предыдущее (Shift+Enter)">↑</button>
+      <button id="nextMatch" type="button" title="Следующее (Enter)">↓</button>
+      <button id="clearSearchBtn" type="button" title="Сбросить поиск (Esc)">✕</button>
+    </div>
+
+    <button id="tocBtn" type="button" title="Содержание">☰ Главы</button>
+    <button id="settingsBtn" type="button" title="Настройки чтения">⚙</button>
+    <button id="fullscreenBtn" type="button" title="Во весь экран">⛶</button>
+  </header>
+
+  <button id="menuToggle" type="button" title="Показать/скрыть меню (M)">≡</button>
+
+  <!-- Контент -->
+  <main id="content">
+    <div id="text">Загрузка…</div>
+  </main>
+
+  <!-- Прогресс -->
+  <div id="progressWrap"><div id="progressBar"></div></div>
+
+  <button id="toTop" type="button" title="Наверх">↑</button>
+
+  <!-- Затемнение -->
+  <div id="overlay"></div>
+
+  <!-- Содержание -->
+  <aside class="panel left" id="tocPanel">
+    <div class="panel-head">
+      <h3>Содержание</h3>
+      <button class="closePanel" type="button">✕</button>
+    </div>
+    <div class="panel-body" id="tocList"></div>
+  </aside>
+
+  <!-- Настройки -->
+  <aside class="panel right" id="settingsPanel">
+    <div class="panel-head">
+      <h3>Настройки чтения</h3>
+      <button class="closePanel" type="button">✕</button>
+    </div>
+    <div class="panel-body">
+
+      <div class="setting">
+        <label>Тема оформления</label>
+        <div class="row" id="themeRow">
+          <button type="button" data-theme="light">Светлая</button>
+          <button type="button" data-theme="sepia">Сепия</button>
+          <button type="button" data-theme="dark">Тёмная</button>
+          <button type="button" data-theme="night">Ночь</button>
+        </div>
+      </div>
+
+      <div class="setting">
+        <label>Размер текста — <span class="val" id="fontSizeVal">19</span> px</label>
+        <input type="range" id="fontSize" min="12" max="42" step="1">
+      </div>
+
+      <div class="setting">
+        <label>Межстрочный интервал — <span class="val" id="lineHeightVal">1.70</span></label>
+        <input type="range" id="lineHeight" min="1.2" max="2.8" step="0.05">
+      </div>
+
+      <div class="setting">
+        <label>Ширина колонки — <span class="val" id="colWidthVal">820</span> px</label>
+        <input type="range" id="colWidth" min="420" max="1500" step="20">
+      </div>
+
+      <div class="setting">
+        <label>Шрифт</label>
+        <div class="row" id="fontRow">
+          <button type="button" data-font="serif">С засечками</button>
+          <button type="button" data-font="sans">Без засечек</button>
+        </div>
+      </div>
+
+      <div class="setting">
+        <label>Выравнивание</label>
+        <div class="row" id="alignRow">
+          <button type="button" data-align="left">По левому</button>
+          <button type="button" data-align="justify">По ширине</button>
+        </div>
+      </div>
+
+      <button id="resetSettings" type="button">Сбросить настройки</button>
+    </div>
+  </aside>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ==================== ПОЛИФИЛЛЫ ДЛЯ СТАРЫХ WEBVIEW ==================== */
+
+  // Element.matches
+  if (!Element.prototype.matches) {
+    Element.prototype.matches =
+      Element.prototype.matchesSelector ||
+      Element.prototype.webkitMatchesSelector ||
+      Element.prototype.mozMatchesSelector ||
+      Element.prototype.msMatchesSelector ||
+      Element.prototype.oMatchesSelector ||
+      function (s) {
+        var m = (this.document || this.ownerDocument).querySelectorAll(s);
+        var i = m.length;
+        while (--i >= 0 && m[i] !== this) {}
+        return i > -1;
+      };
+  }
+
+  // Element.closest
+  if (!Element.prototype.closest) {
+    Element.prototype.closest = function (s) {
+      var el = this;
+      while (el && el.nodeType === 1) {
+        if (el.matches(s)) return el;
+        el = el.parentElement || el.parentNode;
+      }
+      return null;
+    };
+  }
+
+  // NodeList.forEach
+  if (window.NodeList && !NodeList.prototype.forEach) {
+    NodeList.prototype.forEach = function (fn, thisArg) {
+      for (var i = 0; i < this.length; i++) fn.call(thisArg, this[i], i, this);
+    };
+  }
+
+  // Array.from
+  if (!Array.prototype.from) {
+    // Не патчим прототип; используем утилиту
+  }
+
+  // Object.assign
+  if (!Object.assign) {
+    Object.assign = function (target) {
+      if (target == null) throw new TypeError("Cannot convert undefined or null to object");
+      var to = Object(target);
+      for (var i = 1; i < arguments.length; i++) {
+        var src = arguments[i];
+        if (src != null) {
+          for (var k in src) {
+            if (Object.prototype.hasOwnProperty.call(src, k)) to[k] = src[k];
+          }
+        }
+      }
+      return to;
+    };
+  }
+
+  /* ==================== КОНСТАНТЫ ==================== */
+  var POS_KEY = "BookReadStopped_v2";
+  var SET_KEY = "ReaderSettings_v2";
+
+  var DEFAULTS = {
+    theme: "light",
+    fontSize: 19,
+    lineHeight: 1.7,
+    colWidth: 820,
+    font: "serif",
+    align: "left"
+  };
+
+  function safeParse(s) {
+    try { return s ? JSON.parse(s) : null; } catch (e) { return null; }
+  }
+
+  var settings = Object.assign({}, DEFAULTS, safeParse(localStorage.getItem(SET_KEY)) || {});
+  var state = safeParse(localStorage.getItem(POS_KEY)) || {};
+
+  var currentFile = "Выжить.txt";
+  var rawText = "";
+  var toc = [];
+  var matches = [];
+  var matchIndex = -1;
+  var searchTimer = null;
+  var saveTimer = null;
+
+  /* ==================== УТИЛИТЫ ==================== */
+  function $(id) { return document.getElementById(id); }
+
+  function emptyEl(el) {
+    while (el.firstChild) el.removeChild(el.firstChild);
+  }
+
+  function toArray(nodeList) {
+    var arr = [];
+    for (var i = 0; i < nodeList.length; i++) arr.push(nodeList[i]);
+    return arr;
+  }
+
+  /* Плавная прокрутка (совместимая) */
+  function smoothScroll(el, targetTop, duration) {
+    duration = duration || 350;
+    var start = el.scrollTop;
+    var change = targetTop - start;
+    if (Math.abs(change) < 1) { el.scrollTop = targetTop; return; }
+    var startTime = new Date().getTime();
+    var raf = window.requestAnimationFrame ||
+              window.webkitRequestAnimationFrame ||
+              window.mozRequestAnimationFrame ||
+              function (cb) { return setTimeout(cb, 16); };
+
+    function step() {
+      var now = new Date().getTime();
+      var t = (now - startTime) / duration;
+      if (t > 1) t = 1;
+      // ease-out quad
+      var eased = t * (2 - t);
+      el.scrollTop = start + change * eased;
+      if (t < 1) raf(step);
+    }
+    raf(step);
+  }
+
+  /* ==================== ЭЛЕМЕНТЫ ==================== */
+  var content = $("content");
+  var textEl = $("text");
+  var header = $("header");
+  var menuToggle = $("menuToggle");
+  var fileInput = $("fileInput");
+  var searchInput = $("searchInput");
+  var searchCount = $("searchCount");
+  var progressBar = $("progressBar");
+  var overlay = $("overlay");
+  var tocPanel = $("tocPanel");
+  var settingsPanel = $("settingsPanel");
+  var tocList = $("tocList");
+  var toTop = $("toTop");
+
+  /* ==================== НАСТРОЙКИ ==================== */
+  function applySettings() {
+    document.documentElement.setAttribute("data-theme", settings.theme);
+
+    textEl.style.fontSize = settings.fontSize + "px";
+    textEl.style.lineHeight = String(settings.lineHeight);
+    textEl.style.maxWidth = settings.colWidth + "px";
+    textEl.style.fontFamily = settings.font === "serif"
+      ? 'Georgia, "Times New Roman", "PT Serif", serif'
+      : '"Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+    textEl.style.textAlign = settings.align;
+
+    $("fontSize").value = settings.fontSize;
+    $("lineHeight").value = settings.lineHeight;
+    $("colWidth").value = settings.colWidth;
+    $("fontSizeVal").textContent = String(settings.fontSize);
+    $("lineHeightVal").textContent = String(settings.lineHeight.toFixed(2));
+    $("colWidthVal").textContent = String(settings.colWidth);
+
+    var themeBtns = document.querySelectorAll("#themeRow button");
+    for (var i = 0; i < themeBtns.length; i++) {
+      var b = themeBtns[i];
+      if (b.getAttribute("data-theme") === settings.theme) b.className = "active";
+      else b.className = "";
+    }
+    var fontBtns = document.querySelectorAll("#fontRow button");
+    for (var j = 0; j < fontBtns.length; j++) {
+      var fb = fontBtns[j];
+      if (fb.getAttribute("data-font") === settings.font) fb.className = "active";
+      else fb.className = "";
+    }
+    var alignBtns = document.querySelectorAll("#alignRow button");
+    for (var k = 0; k < alignBtns.length; k++) {
+      var ab = alignBtns[k];
+      if (ab.getAttribute("data-align") === settings.align) ab.className = "active";
+      else ab.className = "";
+    }
+
+    try { localStorage.setItem(SET_KEY, JSON.stringify(settings)); } catch (e) {}
+  }
+
+  /* ==================== ПОЗИЦИЯ ==================== */
+  function savePosition() {
+    if (!currentFile) return;
+    state[currentFile] = content.scrollTop;
+    try { localStorage.setItem(POS_KEY, JSON.stringify(state)); } catch (e) {}
+  }
+
+  function restorePosition() {
+    var pos = state[currentFile] || 0;
+    setTimeout(function () {
+      content.scrollTop = pos;
+      updateProgress();
+    }, 30);
+  }
+
+  function updateProgress() {
+    var max = content.scrollHeight - content.clientHeight;
+    var p = max > 0 ? Math.min(1, Math.max(0, content.scrollTop / max)) : 0;
+    progressBar.style.width = (p * 100).toFixed(2) + "%";
+    if (content.scrollTop > 600) {
+      toTop.className = "show";
+    } else {
+      toTop.className = "";
+    }
+  }
+
+  /* ==================== РЕНДЕР ==================== */
+  function isHeading(lines, i) {
+    var t = lines[i].replace(/^\s+|\s+$/g, "");
+    if (!t || t.length > 90) return false;
+    if (/^Глава\s+\d/i.test(t)) return true;
+    if (/^\*\*\s*\d+(\.\d+)*/.test(t)) return true;
+    if (/^\d+\.\d+(\.\d+)?\s+\S/.test(t)) return true;
+    if (/^#{1,6}\s/.test(t)) return true;
+    if (t.length >= 4 && t.length <= 50 &&
+        /[А-ЯA-Z]/.test(t) && t === t.toUpperCase() &&
+        !/[.!?]$/.test(t)) return true;
+    var prevEmpty = (i === 0) || (lines[i - 1].replace(/^\s+|\s+$/g, "") === "");
+    if (prevEmpty && t.length >= 3 && t.length <= 50 &&
+        !/[.,;:!?]$/.test(t) && !/^[-\d*•#>]/.test(t)) return true;
+    return false;
+  }
+
+  function renderContent(text) {
+    rawText = text;
+    emptyEl(textEl);
+    var lines = text.split("\n");
+    toc = [];
+    var ti = 0;
+    var frag = document.createDocumentFragment();
+
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+      if (isHeading(lines, i)) {
+        var span = document.createElement("span");
+        span.className = "heading-line";
+        span.id = "toc-" + ti;
+        span.appendChild(document.createTextNode(line));
+        frag.appendChild(span);
+
+        var clean = line.replace(/^\s+|\s+$/g, "")
+                        .replace(/^\*+|\*+$/g, "")
+                        .replace(/^#+\s*/, "")
+                        .replace(/^\s+|\s+$/g, "");
+        var lvl = 1;
+        if (/^\*\*\s*\d+\.\d+/.test(line)) lvl = 2;
+        if (/^\d+\.\d+\.\d+/.test(clean)) lvl = 3;
+        toc.push({ id: "toc-" + ti, title: clean, lvl: lvl });
+        ti++;
+      } else {
+        frag.appendChild(document.createTextNode(line));
+      }
+      if (i < lines.length - 1) frag.appendChild(document.createTextNode("\n"));
+    }
+
+    textEl.appendChild(frag);
+    buildToc();
+  }
+
+  function buildToc() {
+    emptyEl(tocList);
+    if (!toc.length) {
+      var p = document.createElement("p");
+      p.style.color = "#8a8f98";
+      p.style.fontSize = "14px";
+      p.appendChild(document.createTextNode("Заголовки не найдены."));
+      tocList.appendChild(p);
+      return;
+    }
+    var frag = document.createDocumentFragment();
+    for (var i = 0; i < toc.length; i++) {
+      var item = toc[i];
+      var a = document.createElement("a");
+      a.appendChild(document.createTextNode(item.title));
+      a.setAttribute("data-target", item.id);
+      if (item.lvl > 1) a.className = "lvl" + item.lvl;
+      frag.appendChild(a);
+    }
+    tocList.appendChild(frag);
+  }
+
+  /* ==================== ЗАГРУЗКА ФАЙЛА ==================== */
+  function loadText(name, text) {
+    savePosition();
+    currentFile = name;
+    document.title = "Читалка — " + name;
+    clearSearch(true);
+    searchInput.value = "";
+    renderContent(text);
+    restorePosition();
+  }
+
+  /* ==================== ПОИСК ==================== */
+  function clearHighlights() {
+    var spans = textEl.querySelectorAll("span.highlight");
+    for (var i = 0; i < spans.length; i++) {
+      var span = spans[i];
+      var parent = span.parentNode;
+      var txt = document.createTextNode(span.textContent);
+      parent.replaceChild(txt, span);
+    }
+    // склеиваем смежные текстовые узлы (если normalize поддерживается)
+    if (textEl.normalize) textEl.normalize();
+    matches = [];
+    matchIndex = -1;
+  }
+
+  function clearSearch(silent) {
+    clearHighlights();
+    if (!silent) {
+      searchInput.value = "";
+      searchCount.textContent = "";
+    }
+  }
+
+  function performSearch(query) {
+    clearHighlights();
+    searchCount.textContent = "";
+    if (!query || query.length < 1) return;
+
+    var needle = query.toLowerCase();
+
+    // Собираем текстовые узлы
+    var walker = document.createTreeWalker(textEl, NodeFilter.SHOW_TEXT, null, false);
+    var nodes = [];
+    var n;
+    while ((n = walker.nextNode())) nodes.push(n);
+
+    for (var ni = 0; ni < nodes.length; ni++) {
+      var node = nodes[ni];
+      var value = node.nodeValue;
+      var hay = value.toLowerCase();
+      var idx = hay.indexOf(needle);
+      if (idx === -1) continue;
+
+      var frag = document.createDocumentFragment();
+      var last = 0;
+      while (idx !== -1) {
+        if (idx > last) frag.appendChild(document.createTextNode(value.substring(last, idx)));
+        var span = document.createElement("span");
+        span.className = "highlight";
+        span.appendChild(document.createTextNode(value.substring(idx, idx + needle.length)));
+        frag.appendChild(span);
+        last = idx + needle.length;
+        idx = hay.indexOf(needle, last);
+      }
+      if (last < value.length) frag.appendChild(document.createTextNode(value.substring(last)));
+      node.parentNode.replaceChild(frag, node);
+    }
+
+    matches = toArray(textEl.querySelectorAll("span.highlight"));
+    matchIndex = matches.length ? 0 : -1;
+    if (matchIndex >= 0) focusMatch(true);
+    updateSearchCount();
+  }
+
+  function focusMatch(scroll) {
+    for (var i = 0; i < matches.length; i++) {
+      matches[i].className = "highlight";
+    }
+    if (matchIndex < 0 || !matches[matchIndex]) return;
+    var m = matches[matchIndex];
+    m.className = "highlight current";
+    if (scroll) {
+      var top = m.getBoundingClientRect().top + content.scrollTop - content.clientHeight / 2;
+      smoothScroll(content, top, 300);
+    }
+  }
+
+  function updateSearchCount() {
+    if (!matches.length) {
+      searchCount.textContent = searchInput.value ? "0" : "";
+      return;
+    }
+    searchCount.textContent = (matchIndex + 1) + "/" + matches.length;
+  }
+
+  function gotoMatch(delta) {
+    if (!matches.length) return;
+    matchIndex = (matchIndex + delta + matches.length) % matches.length;
+    focusMatch(true);
+    updateSearchCount();
+  }
+
+  /* ==================== ПАНЕЛИ ==================== */
+  function openPanel(panel) {
+    closePanels();
+    panel.className = panel.className.replace(/\s*open/, "") + " open";
+    overlay.className = "show";
+  }
+  function closePanels() {
+    tocPanel.className = tocPanel.className.replace(/\s*open/, "");
+    settingsPanel.className = settingsPanel.className.replace(/\s*open/, "");
+    overlay.className = "";
+  }
+
+  /* ==================== СОБЫТИЯ ==================== */
+  menuToggle.addEventListener("click", function () {
+    var hidden = header.className.indexOf("hidden") !== -1;
+    if (hidden) {
+      header.className = header.className.replace(/\s*hidden/, "");
+      document.body.className = document.body.className.replace(/\s*hide-header/, "");
+      menuToggle.innerHTML = "✕";
+    } else {
+      header.className += " hidden";
+      document.body.className += " hide-header";
+      menuToggle.innerHTML = "≡";
+    }
+  });
+
+  $("backBtn").addEventListener("click", function () { location.href = "glist.html"; });
+  $("tocBtn").addEventListener("click", function () { openPanel(tocPanel); });
+  $("settingsBtn").addEventListener("click", function () { openPanel(settingsPanel); });
+  overlay.addEventListener("click", closePanels);
+
+  var closeBtns = document.querySelectorAll(".closePanel");
+  for (var ci = 0; ci < closeBtns.length; ci++) {
+    closeBtns[ci].addEventListener("click", closePanels);
+  }
+
+  $("fullscreenBtn").addEventListener("click", function () {
+    var docEl = document.documentElement;
+    var fsEl = document.fullscreenElement ||
+               document.webkitFullscreenElement ||
+               document.mozFullScreenElement ||
+               document.msFullscreenElement;
+    if (!fsEl) {
+      if (docEl.requestFullscreen) docEl.requestFullscreen();
+      else if (docEl.webkitRequestFullscreen) docEl.webkitRequestFullscreen();
+      else if (docEl.mozRequestFullScreen) docEl.mozRequestFullScreen();
+      else if (docEl.msRequestFullscreen) docEl.msRequestFullscreen();
+    } else {
+      if (document.exitFullscreen) document.exitFullscreen();
+      else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+      else if (document.mozCancelFullScreen) document.mozCancelFullScreen();
+      else if (document.msExitFullscreen) document.msExitFullscreen();
+    }
+  });
+
+  fileInput.addEventListener("change", function (e) {
+    var file = e.target.files && e.target.files[0];
+    if (!file) return;
+    if (!/\.(txt|md|text)$/i.test(file.name)) {
+      alert("Можно открывать только текстовые файлы (.txt, .md)");
+      fileInput.value = "";
+      return;
+    }
+    var reader = new FileReader();
+    reader.onload = function () { loadText(file.name, String(reader.result)); };
+    reader.readAsText(file, "UTF-8");
+    fileInput.value = "";
+  });
+
+  // Drag & drop
+  window.addEventListener("dragover", function (e) { e.preventDefault(); });
+  window.addEventListener("drop", function (e) {
+    e.preventDefault();
+    var file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function () { loadText(file.name, String(reader.result)); };
+    reader.readAsText(file, "UTF-8");
+  });
+
+  /* --- Поиск --- */
+  searchInput.addEventListener("input", function () {
+    clearTimeout(searchTimer);
+    var q = searchInput.value.replace(/^\s+|\s+$/g, "");
+    if (q.length < 2) { clearHighlights(); updateSearchCount(); return; }
+    searchTimer = setTimeout(function () { performSearch(q); }, 280);
+  });
+
+  searchInput.addEventListener("keydown", function (e) {
+    var key = e.key || e.keyCode;
+    if (key === "Enter" || key === 13) {
+      e.preventDefault();
+      if (!matches.length) performSearch(searchInput.value.replace(/^\s+|\s+$/g, ""));
+      else gotoMatch(e.shiftKey ? -1 : 1);
+    } else if (key === "Escape" || key === 27) {
+      clearSearch();
+      searchInput.blur();
+    }
+  });
+
+  $("nextMatch").addEventListener("click", function () { gotoMatch(1); });
+  $("prevMatch").addEventListener("click", function () { gotoMatch(-1); });
+  $("clearSearchBtn").addEventListener("click", function () { clearSearch(); });
+
+  /* --- Содержание --- */
+  tocList.addEventListener("click", function (e) {
+    var a = e.target.closest("a[data-target]");
+    if (!a) return;
+    var el = document.getElementById(a.getAttribute("data-target"));
+    if (el) {
+      var top = el.getBoundingClientRect().top + content.scrollTop - 30;
+      smoothScroll(content, top, 350);
+    }
+    closePanels();
+  });
+
+  /* --- Настройки --- */
+  $("themeRow").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-theme]");
+    if (!b) return;
+    settings.theme = b.getAttribute("data-theme");
+    applySettings();
+  });
+  $("fontRow").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-font]");
+    if (!b) return;
+    settings.font = b.getAttribute("data-font");
+    applySettings();
+  });
+  $("alignRow").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-align]");
+    if (!b) return;
+    settings.align = b.getAttribute("data-align");
+    applySettings();
+  });
+
+  $("fontSize").addEventListener("input", function (e) {
+    settings.fontSize = parseInt(e.target.value, 10);
+    applySettings();
+  });
+  $("lineHeight").addEventListener("input", function (e) {
+    settings.lineHeight = parseFloat(e.target.value);
+    applySettings();
+  });
+  $("colWidth").addEventListener("input", function (e) {
+    settings.colWidth = parseInt(e.target.value, 10);
+    applySettings();
+  });
+
+  $("resetSettings").addEventListener("click", function () {
+    settings = Object.assign({}, DEFAULTS);
+    applySettings();
+  });
+
+  /* --- Прокрутка --- */
+  content.addEventListener("scroll", function () {
+    updateProgress();
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(savePosition, 250);
+  }, false);
+
+  toTop.addEventListener("click", function () {
+    smoothScroll(content, 0, 400);
+  });
+
+  window.addEventListener("beforeunload", savePosition);
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "hidden") savePosition();
+  });
+
+  /* --- Горячие клавиши --- */
+  document.addEventListener("keydown", function (e) {
+    var tag = (document.activeElement && document.activeElement.tagName) || "";
+    var typing = /^(INPUT|TEXTAREA)$/.test(tag);
+
+    if ((e.ctrlKey || e.metaKey) && (e.key === "f" || e.keyCode === 70)) {
+      e.preventDefault();
+      if (header.className.indexOf("hidden") !== -1) menuToggle.click();
+      searchInput.focus();
+      searchInput.select();
+      return;
+    }
+    if (typing) return;
+
+    if ((e.ctrlKey || e.metaKey) && (e.key === "=" || e.key === "+" || e.keyCode === 187)) {
+      e.preventDefault();
+      settings.fontSize = Math.min(42, settings.fontSize + 1);
+      applySettings();
+    } else if ((e.ctrlKey || e.metaKey) && (e.key === "-" || e.keyCode === 189)) {
+      e.preventDefault();
+      settings.fontSize = Math.max(12, settings.fontSize - 1);
+      applySettings();
+    } else if ((e.ctrlKey || e.metaKey) && (e.key === "0" || e.keyCode === 48)) {
+      e.preventDefault();
+      settings.fontSize = DEFAULTS.fontSize;
+      applySettings();
+    } else if (e.key === "m" || e.key === "M" || e.key === "ь") {
+      menuToggle.click();
+    } else if (e.key === "Escape" || e.keyCode === 27) {
+      closePanels();
+    }
+  });
+
+  /* ==================== ПРЕДУСТАНОВЛЕННЫЙ ТЕКСТ ==================== */
+  var predefinedText = "КАК ВЫЖИТЬ В ЛЮБЫХ УСЛОВИЯХ \n\n\nЭто пособие поможет вам выжить в любых условиях, а если не поможет, то во всяком случае даст надежду.\n\n\n{_________}\n📘 Содержание\nВступление\n— Для чего книга, кого спасёт\n\n\n1. No internet connection… worldwide\n— Обрыв связи, крах систем, автономное выживание\n\n\n2. Ядерная война\n— Типы взрывов, укрытие, радиация, эвакуация, смерть и жизнь после\n\n\n3. Прочие ЧС\n— Пожары, наводнения, землетрясения, эпидемии, беспорядки, химия\n\n\n4. Сборник информации\n— Электричество, вода, лекарства, еда, навигация, инструменты, связь\n\n\n5. Военные риски\n— Поведение гражданских и военных, фронт, укрытие, мораль, закон\n{_________}\n\n\nВступление\nЖизнь хороша, пока вы можете выйти в интернет и полистать мемы. Но реальность не спрашивает о ваших планах — она может внезапно обрушиться цепью кризисов, лишив связи, еды и даже надежды на завтрашний день. Это руководство не обещает комфорта и сигурности, но даст конкретные рецепты поведения, которые сохранят вашу шкуру и позволят смотреть в лицо хаосу без слёз (или хотя бы с минимальным их запасом). Здесь нет воды: только проверенные идеи, грубые, но действенные. Берите на вооружение сразу — чем раньше, тем выше шансы. P.S. Не всё может быть проверенной инфой, но это лучше, чем вообще ничего.  :)\n\n\n* Почему выживание — это не романтика.\n  Кино показывает сурвивалистов, превращающих дикую природу в курорт. Реальность — холод мокрой одежды, голод, когтистые мысли и страх. Задача не красота кадра, а базовая цель: остаться в живых.\n\n\n* От практичности к выживанию.\n  В любых условиях действует три базовых столпа: безопасность, вода и еда. Всё остальное — бонус. Освойте их, прежде чем мечтать о фильтрах для сигарет из подручных материалов.\n\n\n* Психология кризиса.\n  Паника — главный враг. Страх вызывает тупик. Ваш мозг должен быть инструментом, а не атакуемым войском. Привыкайте к мысли: ожидать можно лишь худшего, а готовиться — ко всему, что есть под рукой.\n\n\nГотовы? Тогда поехали в самую гущу тревог нашего времени.\n\n\n* Глава 1: Сценарий “No internet connection… worldwide”\n\n\nОписание ситуации\nПредставьте: по планете прокатился вирус, кибератака или мощнейшая солнечная буря парализовала все каналы связи. Мгновенно прекратилось функционирование банков, электронной коммерции, GPS‑сервисов, мессенджеров и социальных сетей. Кофе в автомате не варится; кассы не принимают карты; котики и интернет‑мемы ушли в категорию “древнее эпохи тьмы”.\n\n\nПотенциальные риски\n\n\n1. Социальный коллапс. Без связи люди дезориентируются. Начинаются слухи: что-то упало, где-то стреляют. Паника рождает агрессию: мародёры, уличные банды, произвольные “патрули” своими правилами.\n2. Дефицит ресурсов. Вы не узнаете, когда отвезут топливо, привезут лекарства или привязанные к интернету системы очистки воды. Цепи поставок рвутся мгновенно.\n3. Политический кризис. Государство может рухнуть: отключены коммуникации, объявлены чрезвычайные положения; губернаторы разбрелись по кабинетам без связи с Москвой (или Белым домом, где угодно). Региональные власти вводят комендантский час и жёсткие меры.\n\n\nПриоритетные задачи\n\n\n1. Оценка своей зоны ответственности.\n\n\n   * Вы — дома или в поездке? С кем рядом? Сверьтесь с бумажными картами и простейшими радио приёмниками (FM всё ещё работает иногда).\n   * Определите ближайший “центр порядка” — военкомат, полицейский участок, пожарная часть. Там могут выдавать воду, пищу или приют.\n\n\n2. Обеспечение связи на локальном уровне.\n\n\n   * Рации (UHF/VHF) — мастхэв для групп из 2–5 человек. Радиус 1–2 км в городской застройке, до 10 км на открытой местности.\n   * Мобильные телефоны: сохраняйте их выключенными до необходимости, чтобы не разряжать батарею. Не пытайтесь “ловить” 3G — бесполезно.\n   * Бумажные доски объявлений в подъездах или возле магазинов — старый, но порой единственный канал обмена информацией.\n\n\n3. Финансовая “подушка” в офлайне.\n\n\n   * Наличные. Держите минимум на неделю–две основные суммы дома и при себе (купюры младших номиналов — пригодятся в торговле всё равно).\n   * Бартер. Заранее договаривайтесь с соседями или знакомыми: сигареты, медикаменты, топливо — всё это может стать валютой первой необходимости.\n\n\n4. Энергетическая автономность.\n\n\n   * Фонари на батарейках и запасное питание (АА, ААА, 9 В).\n   * Динамо‑генераторы (велосипедные или ручные) для экстренной подпитки телефона или рации.\n   * Солнечные зарядки: вариант, если облаков мало, но они тоже хрупкие и дорогие.\n\n\n5. Продовольственная безопасность.\n\n\n   * Запас консервов, круп, сухарей на 2–4 недели с учётом поломки интернета.\n   * Питьевая вода: минимум 3 л на человека в день. Храните в герметичных ёмкостях (бутылки из‑под воды, канистры).\n   * Охота и собирательство: нож, леска, крючки, сети. Если вы в лесу — гриб, ягода, рыба, мелкий зверь. В городе — голуби, вши, парковые птицы (крайний, но рабочий вариант).\n\n\n6. Безопасность и оборона.\n\n\n   * Групповая самооборона. Сплочённость выдержит первые критические дни.\n   * Оружие и средства защиты. Газовый баллончик, электрошокер  в качестве крайней меры. Юридические риски пока второстепенны — важнее жизнь.\n   * Узнайте “мёртвые зоны” (подвалы, заброшки), куда можно отступить и переждать самые острые моменты.\n\n\nДействия в условиях отсутствия связи\n\n\n1. Не паникуйте. Даже если кажется, что мир рушится — вы всё ещё живы (пока что).\n2. Составьте простейший план: точка сбора, время, группа людей. Запишите на бумаге, приклейте у входа.\n3. Разделите обязанности: кто отвечает за воду, кто за еду, кто за охрану и разведку.\n4. Ежедневно собирайтесь на планёрку: свежая информация от каждого — залог выживания группы.\n\n\nЧто будет дорого\n\n\n* Любые высокотехнологичные гаджеты сразу подорожают. Люди готовы платить за связь, за свет, за тёплый кофе.\n* Топливо: цена растёт на глазах. Учите навигировать по карте и недельки на велосипеде сможете вытянуть.\n* Медикаменты: антибиотики, обезболивающие, перевязочные материалы — дефицит. Закупайте заранее.\n\n\nКак действовать, когда государство “зависло”\n\n\n1. Сформируйте “микро‑государство” внутри группы: свои правила, смены дежурств, правила распределения ресурсов.\n2. Избегайте открытых конфронтаций с незнакомцами — лучше обменяться товаром или информацией.\n3. Не стройте иллюзий о скорой помощи извне. Готовьтесь рассчитывать только на себя и соседей по подъезду.\n\n\nИтог\nСценарий без интернета — первый звонок сирены. Если вы не успеете подготовиться до полного обвала систем, дорога к выживанию усложнится многократно. Но даже в этом мраке есть свет: грамотная организация, ресурсное планирование и жёсткая дисциплина помогут вам продержаться до восстановления хоть каких‑то коммуникаций. Главное — не забывать: паника — это проигрыш, план и бумага — ваш лучший друг.\n***\n\n\nГлава 2: Ядерная война\n\n\n**2.1 Введение**\nЯдерная война — худший кошмар человечества. За секунды взрывом и радиацией могут быть уничтожены города и миллионы жизней. Но даже в таких условиях вы можете повысить шансы на выживание, если заранее знаете, как оценивать опасность, какие действия предпринимать и какие ресурсы искать. Эта глава создана для тех, кто никогда не сталкивался с темой радиации и ядерных рисков: без воды, только факты и инструкции.\n\n\n---\n\n\n**2.2 Предупреждающие сигналы и оценка угрозы**\n\n\n1. **Системы раннего оповещения**\n\n\n   * **Государственные сирены**. В зависимости от страны в случае угрозы включаются воздушные или гражданские сирены. Они звучат протяжно и регулярно.\n   * **Радио- и телепередачи по чрезвычайным ситуациям**. Даже если передача потеряна, попытайтесь поймать частоту ЧС‑служб на УКВ.\n   * **Мобильные оповещения**. Пуш‑уведомления государственного приложения (если интернет ещё остался), SMS‑рассылки экстренных служб.\n2. **Внешние признаки**\n\n\n   * **Блеск в небе**. Ранний световой импульс (моментальный яркий «всплеск»), сопровождаемый ультрафиолетовым излучением.\n   * **Ударная волна**. Звуковая волна приходит через секунды—минуты после вспышки. Если вы вдалеке, сначала увидите мощный свет, потом — грохот и удар.\n   * **Горящее небо и облако грибовидной формы**. Если вы это видите поблизости — значит, вы слишком близко.\n3. **Определение расстояния до взрыва**\n\n\n   * ЗАСЕЧЬ: засечь время между вспышкой и ударной волной.\n\n\n     * Δt в секундах → расстояние во km ≈ Δt / 3.\n     * Пример: Δt = 15 с → 5 км.\n   * Чем ближе вы — тем выше доза гамма‑излучения и тепловая нагрузка.\n\n\n---\n\n\n**2.3 Оценка радиационной обстановки и дозиметрия**\n\n\n1. **Приборы для измерения радиации**\n\n\n   * **Примитивный счетчик Гейгера–Мюллера (СГМ‑прибор)**. Показывает значение в мкЗв/ч или Р/ч.\n   * **Ионизационные камеры и сцинтилляторы** — более точные, но дороги и хрупки.\n   * **Самодельные индикаторы** (радиационные пакеты с фотоплёнкой) — крайняя мера, малоинформативна.\n2. **Критические уровни**\n\n\n   * < 0,3 мкЗв/ч — фон, безопасно.\n   * 0,3–10 мкЗв/ч — лёгкое превышение, минимальный риск при кратковременном воздействии.\n   * 10–100 мкЗв/ч — высокий фон, сократите время на улице.\n   * > 100 мкЗв/ч — опасно, немедленно ищите укрытие.\n3. **Расчёт допустимого времени**\n\n\n   * Цель: не получить дозу свыше 100 мЗв (острая лучевая болезнь начинается около 500–1000 мЗв).\n   * Время безопасного пребывания (сутки): 100 мЗв / (доза в мЗв/ч).\n\n\n     * Пример: 50 мЗв/ч → 2 ч (100/50) безопасного пребывания.\n\n\n---\n\n\n**2.4 Защитные меры «3 T»: Time, Distance, Shielding**\n\n\n1. **Time (Время)**\n\n\n   * Ограничьте пребывание в зоне повышенного излучения. Планируйте «заходы» за ресурсами строго по расписанию.\n   * Используйте дозиметр для оценки остаточного излучения в укрытии и на пути к нему.\n2. **Distance (Расстояние)**\n\n\n   * Каждый метр дистанции уменьшает дозу: правило обратного квадрата.\n   * Отходите за естественные (или искусственные) преграды: холмы, здания, толстые стены.\n3. **Shielding (Экранирование)**\n\n\n   * **Тяжёлые материалы**: бетон (1 м ≈ 500 кг/м³) блокирует до 97 % гамма‑лучей; стена из земли и гравия 1,5 м — аналогично.\n   * **Вода**: танки, бочки; 1 м воды поглощает часть нейтронов и гаммы.\n   * **Металл**: листы свинца или стальные конструкции в экстренных подвалах.\n\n\n---\n\n\n**2.5 Выбор укрытия**\n\n\n1. **Подвалы и бомбоубежища**\n\n\n   * Лучший вариант: специально построенные сооружения с вентиляцией через фильтры HEPA и активированный уголь.\n   * Альтернатива: глубокие подвалы с минимумом окон и дверей.\n2. **Импровизированные укрытия**\n\n\n   * Внутренние комнаты с минимальным выходом наружу (коридоры, кладовки).\n   * Завалы из мешков с песком, мебели, ящиков с песком перед оконными проёмами.\n3. **Вентиляция и фильтрация**\n\n\n   * Простые масляные фильтры: ткань, пропитанная машинным маслом, задерживает радиоактивную пыль.\n   * Если есть противогаз — используйте. Если нет — наденьте как минимум марлевую повязку и влажную ткань.\n\n\n---\n\n\n**2.6 Экстренные инструкции по фазам**\n\n\n1. **До взрыва (предупреждение)**\n\n\n   * Немедленно идите в укрытие.\n   * Возьмите «бумажный» набор: вода, сухпайok, аптечка, дозиметр, фонари, запасные батарейки, радиостанция, документы, немного наличных.\n2. **Момент взрыва**\n\n\n   * Если внутри — отпрыгните в центр комнаты, накройте голову руками, лицом в пол.\n   * Если снаружи и далеко — отвернитесь, присядьте, закройте лицо и затычки в уши (пыль, осколки).\n3. **После взрыва (первичная фаза)**\n\n\n   * Откройте дозиметр: зафиксируйте пиковые значения.\n   * Закройте двери укрытия, перекройте вентиляцию — дождитесь падения ударной волны.\n4. **Фаза выпадения радиоактивного осадка**\n\n\n   * Не выходите из укрытия минимум 24–48 ч, пока уровень не снизится (проверяйте дозиметром каждые 6 ч).\n   * Обработка: снимите верхнюю одежду, стряхните пыль, вымойтесь в тёплой воде с мылом. Загрязнённую одежду запечатайте.\n5. **Долгосрочная фаза**\n\n\n   * Планируйте «выходы» по строго согласованному графику и маршрутам.\n   * Следите за изменениями фона: территория через неделю может стать более безопасной, но не надейтесь на чудо.\n\n\n---\n\n\n**2.7 «Не паникуйте, мысленно подготовьтесь к смерти.»**\nЕсли вы близко к эпицентру — можно получить смертельную дозу за секунды.\n\n\n* **Не паникуйте**: паника ускоряет ошибки и необдуманные выходы на поверхность.\n* **Мысленно подготовьтесь к смерти**: примите, что риски очень велики, но терпение и дисциплина могут прибавить вам часы или дни.\n\n\n---\n\n\n**2.8 Медикаменты и первая помощь**\n\n\n1. **Калий йодид (KI)**\n\n\n   * Приём не позднее 2 ч после взрыва блокирует радиоактивный йод‑131 в щитовидке.\n   * Дозировка: взрослым 130 мг однократно (точно по инструкции).\n2. **Антирадиационные препараты**\n\n\n   * Препараты на основе диэтилентриаминпентаацетата (ДТПА) для связывания стронция и плутония.\n   * Медпрепараты для профилактики инфекций: антибиотики широкого спектра.\n3. **Аптечка**\n\n\n   * Перевязочные материалы, обезболивающие, антисептики, противорвотные.\n   * Разделите аптечку на «внутреннюю» (в укрытии) и «карманную» (для экстренного выхода).\n\n\n---\n\n\n**2.9 Эвакуация и перемещение**\n\n\n1. **Решение об эвакуации**\n\n\n   * Только при снижении фонового излучения до < 0,5 мкЗв/ч.\n   * Если укрытие разрушено или ресурсы исчерпаны — риски выхода могут оказаться ниже рисков остаться.\n2. **Маршруты и транспорт**\n\n\n   * Избегайте прямых дорог — зоны с максимальным осадком вдоль ветров.\n   * Пешком оптимально: в транспорте радиоактивная пыль оседает на поверхности.\n3. **Прибытие в «безпечную зону»**\n\n\n   * Сдача на контроль ОСМ и дозиметрия.\n   * Дезактивация: душевая с мылом, смена одежды.\n\n\n---\n\n\n**2.10 Психологические аспекты**\n\n\n* **Контроль страха**. Регулярные смены дежурств, взаимная поддержка.\n* **Информация**. Записывайте все показания приборов и время — хронология событий поможет сохранить логику и снизить уровень стресса.\n* **Принятие риска**. Вы в зоне критической опасности — но даже пара часов в укрытии может дать шанс.\n\n\n---\n\n\n**Итог главы**\nЯдерная война сама по себе не даёт шансов, но ваше выживание зависит от знаний и дисциплины. Уметь засечь время до ударной волны, правильно оценить радиацию, выбрать укрытие и строго следовать протоколам — это ваша единственная защита. “Не паникуйте, мысленно подготовьтесь к смерти.” И всё же — держите пульс на измерителе и не отступайте: иногда тьма отступает, когда выражаешь готовность встретить её лицом к лицу.\nP.S. Ядерная зима убьёт ≈99% населения. Может чуть больше :)\n***\n\n\nГлава 3: Прочие чрезвычайные ситуации\n\n\nВ этой главе мы пробежимся по всем остальным угрозам, которые могут внезапно сорвать привычную жизнь. Здесь нет разжигающего драматизма — только практические инструкции, как держать марку, когда вокруг рушатся дома, затапливает улицы или неведомые газы разносятся ветром.\n\n\n**3.1 Природные катастрофы**\n\n\n**3.1.1 Землетрясение**\n\n\n* **Раннее предупреждение:** в сейсмоактивных зонах установите приложение‑сирену или простейший бытовой сейсмометр.\n* **Во время толчков:**\n\n\n  1. Защити голову и шею (под стол, в дверной проём несущей стены).\n  2. Держись подальше от окон, стеллажей и тяжелых предметов сверху.\n  3. Если ты на улице — держись вдалеке от фасадов и линий электропередач.\n* **После:** проверь самочувствие группы, быстренько осмотри жильё на трещины, утечки газа и воды, держи фонарь и аптечку под рукой.\n\n\n**3.1.2 Наводнение**\n\n\n* **Профилактика:** если ты в зоне затопления — заранее запланируй безопасный эвакуационный маршрут в высоту. Храни документы и электронику в герметичных пакетах.\n* **При подъёме воды:** не игнорируй локальные оповещения; двигайся по крышам, мостовым переходам и вдоль возвышенностей.\n* **Вода поднимается быстро:** оставь машину, не пытайся проехать вброд. Лучше пешком — вода несёт сильнее.\n* **После спада:** используй защиту органов дыхания (патогены, мусор), кипяти воду или фильтруй.\n\n\n**3.1.3 Ураганы, бури и сильные ветры**\n\n\n* **Подготовка:** укрепи окна ставнями или фанерой, убери на балконе всё, что может улететь.\n* **Когда шторм на подходе:** отключи электричество, перекрой газ, запасись светом, водой и едой на 3–5 дней.\n* **Во время ветра:** держись в самой внутренней комнате без окон, под столом или в противопожарной лестнице (если безопасно).\n* **После:** остерегайся оборванных проводов и заражённой сточными водами луж.\n\n\n**3.1.4 Лесной пожар**\n\n\n* **Сигнал:** оранжево‑красный дым, запах гари, оповещения.\n* **Эвакуация:** иди перпендикулярно ветру и направлению огня, не дыши дымом (простая маска и влажная ткань спасают).\n* **Если отрезан:** найди прогалины без растительности, укройся в низине, лежи лицом в землю.\n* **Одежда:** хлопок или плотный синтетический слой; без свободных лоскутов, которые могут загореться.\n\n\n**3.1.5 Экстремальные температуры**\n\n\n* **Тепловая волна:**\n\n\n  * Пей минимум 0,5 л воды в час, избегай кофеиновых напитков.\n  * Охлаждай шею, запястья мокрыми платками.\n  * Не выходи без нужды с 11:00 до 16:00.\n* **Сильный мороз:**\n\n\n  * Одевайся «слоями»: термобельё, флис, ветро- и влагозащита.\n  * Не оставляй на голодный при входе в помещение: теплый воздух конденсируется и продувает швы.\n  * Распознавай первые симптомы обморожения (онемение, боль) и возвращайся к теплу.\n\n\n---\n\n\n**3.2 Техногенные аварии**\n\n\n**3.2.1 Химические утечки и задымления**\n\n\n* **Распознавание:** резкий запах (хлор, аммиак, сероводород), горящее пятно, мгновенное раздражение глаз и кожи.\n* **Действия:**\n\n\n  1. Прикрыть носоглотку марлей, смоченной в содовом растворе.\n  2. Уйти вверх по ветру (противоположный его направлению).\n  3. По возможности принять душ и сменить одежду.\n* **Аптечка:** активированный уголь, сорбенты, глазные капли.\n\n\n**3.2.2 Обрушения и обвалы**\n\n\n* **Признаки:** треск стен, неровности пола, осыпание штукатурки.\n* **Во время обвала:**\n\n\n  1. Займи позу «бронированного щита»: ляг лицом вниз под столом или на ровном прочном участке.\n  2. Защити голову руками или рюкзаком.\n* **Выбраться:** слушай шумы спасателей, постукивай по трубам или стенам, кричи через короткие интервалы.\n\n\n---\n\n\n**3.3 Эпидемии и биологических угрозы**\n\n\n**3.3.1 Пандемия**\n\n\n* **Профилактика:** базовая гигиена, антисептики, маски (N95/FFP2). Держи дистанцию, минимизируй контакты.\n* **Лекарства:** аптечка с противовирусными (по назначению), базовой антибиотической защитой и витамином D.\n* **Карантин:** домашний блок‑пакет на 14 дней (еда, вода, медикаменты, развлечения офлайн).\n\n\n**3.3.2 Биохимические атаки**\n\n\n* **Распознавание:** вещество без видимого источника, множественные схожие симптомы в группе.\n* **Действия:** надеть противогаз/респиратор, уйти на минимум 100 м от очага, вызвать экстренные службы (если связь работает).\n\n\n---\n\n\n**3.4 Террористические акты и массовые беспорядки**\n\n\n* **Оценка ситуации:** оцени дистанцию до угрозы (стрельба, взрыв, толпа).\n* **Уход:** «принцип треугольника» — двигайся под углом 45 ° от угрозы, меняй направление и скорость.\n* **Скрытость:** маскировка одежды под местную среду, без броских деталей.\n* **Группа:** движемся «в дозоре»: разведчик спереди, «тыловой» сзади, основная группа между ними.\n\n\n---\n\n\n**3.5 Планирование, экипировка и тренировки**\n\n\n* **Багаж для всех случаев жизни:**\n\n\n  * **Многомодульная аптечка:** базовый набор + редкие специфические препараты (кислотные ингалянты, йод).\n  * **Мультиинструмент:** нож, плоскогубцы, пила, отвертки.\n  * **Осветительные приборы:** налобник и ручной фонарь с липучками для одежды.\n  * **Навигация офлайн:** бумажная карта, компас, простейший GPS‑приёмник на батарейках.\n* **Тренировка навыков:** хотя бы раз в квартал отрабатывай «пробежку» до укрытия, учи детей и соседей.\n* **Психологическая готовность:** короткие установки перед сном: «Если что – я знаю, что делать».\n\n\n---\n\n\n**Итог главы 3**\nРазнообразие угроз может сбить с толку, но твоя задача — абстрагироваться от драматургии и запомнить ключевые алгоритмы: распознавание, укрытие, эвакуация, восстановление. Чем раньше ты поставишь на автомат свои действия, тем выше шанс встретить ЧС с минимальными потерями. Не ждёшь, пока «это случится с тобой» — тренируешься уже сегодня.\nP.S. Скорее ты ты читаешь это уже тогда, когда стало херово. Ведь пока было хорошо, зачем было надо, ага?)\n\n\n***\nГлава 4: Сборник информации\n\n\nЭто самая объёмная часть — здесь собраны технологии выживания в кустарных условиях, рецепты “самоделок” и хитрости от опытных практиков. Читай внимательно, сохраняй копию на бумаге и в голове: когда связь и инфраструктура рухнут, именно эти знания будут твоей опорой.\n\n\n---\n\n\n**4.1 Электричество в полевых условиях**\n\n\n**4.1.1 Динамо-генераторы**\n\n\n* **Ручной привод**: моторчик от старого… ну чего угодно + зубчатый редуктор + ручка. 1 – 2 Вт на 100 об/мин хватит для LED-фонаря и зарядки телефона (через повышающий DC–DC конвертер). P.S. Для зарядки телефона не хватит, скорее всего. Попробуй через плату зарядить повербанк, а там уже телефон. Если повезёт. \n* **Велогенератор**: велосипедная втулка с динамо + инвертор 12 В→220 В. На средней нагрузке (60 Вт) педалить придётся активно, но можно поддерживать освещение и зарядку.\n\n\n**4.1.2 Солнечная энергетика**\n\n\n* **Панель 10–20 Вт**: складная, лёгкая. При ярком солнце генерирует 0,5–1 А⎓12 В. Используй контроллер зарядки с защитой и аккумулятор 12 В/7 А·ч.\n* **Хранение**: свинцово-кислотные AGM-аккумуляторы дешевы, но тяжёлые; литий-ионные — компактнее, но дороже и требуют BMS.\n\n\n**4.1.3 Энергия из биомассы**\n\n\n* **Пиролизная печь**: из стального барабана и трубы; сжигает щепу и листву, выдаёт газ для горения. КПД низкое, но топливо в лесу всегда под ногами.\n\n\n* **Микрогидроэлектростанция**: колодезный насос в ручейке превращают вращение в электричество через генератор от старой бензопилы.\n\n\n---\n\n\n**4.2 Вода и её очистка**\n\n\n**4.2.1 Источники**\n\n\n* Подземные родники (по карте и признакам — сгущению растительности).\n* Конденсат на полиэтиленовом листе (подождать 6–8 ч).\n* Сбор дождевой воды в брезентовые ёмкости.\n\n\n**4.2.2 Физическая фильтрация**\n\n\n* **Многослойный фильтр**: гравий → песок → древесный уголь → хлопок. Снижает мутность, удерживает большую часть механических примесей.\n* **Пресс-фильтр**: металлический резервуар + пористый керамический картридж (самодельный из глины и опилок).\n\n\n**4.2.3 Химическая и термическая очистка**\n\n\n* **Кипячение**: самый надёжный способ — не менее 1 мин на сильном кипении.\n* **Химия**:\n\n\n  * Таблетки йода: 5 мг/л, выдержать 30 мин.\n  * Хлор (домашний отбеливатель): 2 мл на 1 л, 30 мин.\n* **УФ-очистка**: бутылка PET на солнце 6 ч; эффективно при ярком свете и прозрачной воде.\n\n\n---\n\n\n**4.3 Пища и её заготовка**\n\n\n**4.3.1 Сбор дикоросов**\n\n\n* **Грибы**: собирать только проверенные виды (лисички, опята); не брать белые и боровики без опыта.\n* **Ягоды**: земляника, шиповник, черника; шиповник богат витамином C, но требует кипячения для удаления волосков.\n* **Съедобные растения**: крапива (бланшировать 1 мин), будра плющевидная (только верхушки).\n\n\n**4.3.2 Охота и рыбалка**\n\n\n* **Ловушки-петли**: прочная леска + пружинящий крюк из проволоки; ставить на тропах мелких зверей.\n* **Самодельные сети**: леска 0,2–0,5 мм, ячейка 5–10 мм; бросать в неглубокую заводь.\n* **Рыбацкие крючки**: из старых вилок/ножей вырезать зазубренный крюк, зафиксировать леской.\n\n\n**4.3.3 Консервация и хранение**\n\n\n* **Сушка**: тонкие ломтики мяса/рыбы над огнём или под солнцем (5–10 дней).\n* **Соление**: 200 г соли на 1 кг мяса, выдержать 7–14 дней, упаковать в мешочек.\n* **Копчение**: костёр на щепе хвойных пород, провесить мясо в дыме 4–6 ч.\n\n\n---\n\n\n**4.4 Медикаменты и базовая фармацевтика**\n\n\n**4.4.1 Аптечка «Про»**\n\n\n* **Антибактериальные**: амоксициллин 500 мг × 5 дн; ципролет 500 мг × 3 дн.\n* **Противовирусные**: озельтамивир 75 мг × 5 дн.\n* **Обезболивающие**: ибупрофен 200 мг, кетанов 10 мг.\n* **Противогазы и фильтры**: марки FFP2/3 или самодельная “маска-угольник”.\n\n\n**4.4.2 Самодельные лекарственные растения**\n\n\n* **Календула**: антисептик; настой 1:10, 30 мин.\n* **Ромашка**: противовоспалительное; настой 1 ст. л. на 200 мл кипятка.\n* **Чистотел**: наружное применение для удаления бородавок.\n\n\n**4.4.3 Производство простых ремедий**\n\n\n* **Йодная настойка**: 5 г йода + 10 г K I + 100 мл спирта 70 % (приготовить дома).\n* **Сульфат цинка**: против грибка; 10 г/л воды.\n* **Активированный уголь**: из скорлупы кокоса или древесины (выжечь в печи, прокалить в духовке).\n\n\n---\n\n\n**4.5 Оборудование и инструменты**\n\n\n**4.5.1 Многозарядный мультитул**\n\n\n* Мини-пила, надфиль, кусачки, отвертки, линейка, шило.\n\n\n**4.5.2 Самодельные приспособления**\n\n\n* **Лебёдка-скрутка**: стальной трос, редуктор от старой дрели, рычаг. Поднимает до 200 кг на 10 об/мин.\n* **Ручной насос**: цилиндр от амортизатора + уплотнения из резины.\n\n\n**4.5.3 Материалы**\n\n\n* **Паракорд**: нагрузка 250 кг; внутренние нити — леска, швейный “банк” под мелочёвку.\n* **Изолента и хомуты**: армированная лента, пластиковые стяжки — незаменимы для быстрых ремонтов.\n\n\n---\n\n\n**4.6 Связь и навигация**\n\n\n**4.6.1 Радиостанции и антенны**\n\n\n* **Рации**: UHF/VHF, минимум 2–5 Вт. Запас аккумуляторов + солнечная подзарядка.\n* **Антенна**: проволока ¼ λ (примерно 75 см для 100 МГц), подвешенная на дерево.\n\n\n**4.6.2 Бумажные карты и компас**\n\n\n* **Карта масштаба 1:50 000** — оптимальный баланс деталей и охвата.\n* **Компас с зеркалом**: для сигналов и точных азимутов.\n\n\n**4.6.3 Навигация по природным признакам**\n\n\n* Солнце: в полдень тень самая короткая — на север в северном полушарии.\n* Мох на деревьях растёт с северной стороны.\n\n\n---\n\n\n**4.7 Жильё и одежда**\n\n\n**4.7.1 Экстренные укрытия**\n\n\n* **Каркас-гамак из паракорда** + ткань → навес от дождя.\n* **Шалаш «пирамида»**: 6 штырей или шестов, полиэтилен сверху. Быстро собирается, отводит воду по сторонам.\n\n\n**4.7.2 Теплоизоляция**\n\n\n* **Сухой лист, трава, мох** внутри укрытия — подпушка между полом и спальным мешком.\n* **Куртка-слойка**: фольгированный спас-плед внутри обычной куртки отражает 80 % тепла.\n\n\n**4.7.3 Одежда**\n\n\n* **Система «3 слоя»**:\n\n\n  1. Отводящий пот (термобельё).\n  2. Утепление (флис, пух).\n  3. Ветрозащита/дождевик.\n* **Туристические ботинки** с хорошим протектором и сменными стельками.\n\n\n---\n\n\n**4.8 Санитария и гигиена**\n\n\n**4.8.1 Укрытая канализация**\n\n\n* **Латрины-ямы** на удалении 30 м от жилья и водоисточников. Засыпать мелкой землёй после каждой смены.\n* **Простейший био-туалет**: ведро + мешок + наполнитель (опилки, известь).\n\n\n**4.8.2 Гигиена**\n\n\n* Мыло (в том числе самодельное из гидроксида натрия и растительного масла).\n* Антисептик из спирта 60 % + эфирных масел (лаванда, чайное дерево).\n\n\n---\n\n\n**4.9 Огонь и тепло**\n\n\n**4.9.1 Розжиг**\n\n\n* **Тёрка-огнивка**: стальной стержень (ферроцериум) + нож. Одно движение → искры при 3000 °C.\n* **Ледяная линза**: прозрачный лёд, выточенный в виде линзы, концентрирует солнечные лучи.\n\n\n**4.9.2 Контроль горения**\n\n\n* **Печь «Ракета»**: из кирпичей и стальной трубы; минимальный расход дров, высокая температура.\n* **Теплоаккумуляция**: кирпичные стенки удерживают тепло 6–8 ч после гашения.\n\n\n---\n\n\n**4.10 Ремонт и изготовление**\n\n\n**4.10.1 Сварка в полевых условиях**\n\n\n* **Электродуговая сварка**: генератор 3 кВт + сварочный аппарат. Электроды 2–3 мм.\n* **Газовая сварка**: бутан-пропан + кислород из баллона.\n\n\n**4.10.2 Склейка и герметизация**\n\n\n* **Эпоксидка**: двукомпонентная, прочность до 40 МПа.\n* **Силиконовый герметик**: для водонепроницаемых швов.\n\n\n**4.10.3 Изготовление инструментов**\n\n\n* **Кузница-на-углях**: старая бочка + глиняный вкладыш + вентилятор от компьютера. Простейший молот и наковальня из рельсового полотна.\n\n\n---\n\n\n**4.11 Психология выживания и поддержка знаний**\n\n\n**4.11.1 Ментальные техники**\n\n\n* **Техника “5–4–3–2–1”** для снятия паники: назови 5 вещей вокруг, 4 звука, 3 прикосновения, 2 запаха, 1 вкус.\n* **Журнал выживания**: фиксируй все решения и результаты — учись на собственных ошибках в режиме реального времени.\n\n\n**4.11.2 Библиотека офлайн**\n\n\n* **Самоучители**: “Маленькая механика”, “Полевая медсестра”, “Навигация без карт”.\n* **Карманные инструкции**: дублируй ключевые разделы на карточках: дозировки, пропорции, азимуты.\n\n\n---\n\n\n**Итог главы 4**\nЭто свод всех наиболее полезных навыков и знаний в одном месте. Переведи их в привычку — тренируй каждый пункт, настраивай свое «поле» под эти задачи, обновляй запасы и протоколы. Когда придёт настоящий кризис, бумага и чернила будут прочнее любых гаджетов, а ты — вооружён самым ценным ресурсом: информацией. Удачи и держи голову холодной.\n\n\n\n\nГлава 5: Военные риски\n\n\nЗона боевых действий — это особое пространство, где действуют суровые правила: как для военных, так и для гражданских. Здесь нет места иллюзиям. \n---\n\n\n## 5.1 Для гражданских: безопасность в зоне боевых действий\n\n\n### 🛡 Правила поведения\n\n\n1. **Оповещение и соблюдение приказов власти**\n\n\n   * Реагируйте на сирены, местное радио и телепередачи.\n   * Строго соблюдайте комендантский час, приказы военных и ЧС служб: не выходите без крайней необходимости.\n\n\n2. **Укрытие и разведка**\n\n\n   * Оставайтесь в оборудованном убежище: подвалах, с мешками, укреплённой мебелью .\n   * Не подходите к окнам и дверям, не открывайте их без осмотра, избегайте любопытства.\n\n\n3. **Эвакуация**\n\n\n   * Подготовьте «на выход»: документы, СИЗ, воду, аптечку, маленький запас еды и наличности.\n   * Следуйте заранее согласованному маршруту или указаниям экстренных служб .\n\n\n4. **Самопомощь при ранении**\n\n\n   * Используйте жгуты, бинты, первичные перевязки: жгут накладывается 5–10 см выше раны.\n5. **Избегайте риска**\n\n\n   * Не снимайте на камеру обстрелы, оставайтесь скрытными .\n   * Не приближайтесь к военной технике, не трогайте боеприпасы.\n   * Не носите значков или одежды, похожей на военную .\n\n\n6. **Гигиена и санитария**\n\n\n   * При отсутствии связи организуйте канал для медицинской помощи.\n\n\n### ⚖ Правовая защита\n\n\n* Гражданские лица и объекты не должны становиться целями \n* Запрещается использовать население как живые щиты.\n* Есть иммунитет у медицинского персонала, больниц и знаков Красного Креста/Полумесяца.\n\n\n---\n\n\n## 5.2 Для военных (и мобилизованных): выживаем на передовой\n\n\n### 1. Тактика поведения на линии фронта\n\n\n* Распределите ответственность: командиры контролируют, бойцы слушают. В отсутствие командира многие боятся без приказа действовать.\n* «Занимай позицию, не жди приказа» — но без командования никуда .\n\n\n### 2. Психология и стресс\n\n\n* **Боевой стресс** — нормальная реакция: страх, усталость, снижение эффективности.\n **Снятие напряжения**: смена обстановки каждые 30–45 дней, режим сна и питания.\n* **Работа командира**: поддержка, доверие, патриотические ритуалы — повышают устойчивость .\n\n\n### 3. Личные и групповые правила\n\n\n* **Маскировка**: без яркой формы, светящихся нашивок.\n* **Ориентация и движение**: двигаться под углом от угрозы, менять маршруты .\n* **Правила огня**: стреляйте из прикрытия, сокращайте время пребывания в опасной зоне.\n\n\n### 4. Медицинская помощь на линии\n\n\n* Наличие базовых аптечек с жгутами, бинтами, антисептиками.\n* Обученные бойцы должны оказывать первую помощь до скорой.\n\n\n### 5. Закон и мораль\n\n\n* Военные обязаны различать комбатантов и гражданских и действовать императивно \n* Запрещены нападения с чрезмерным ущербом, использование мирных как прикрытие .\n* Сдавшиеся в плен бойцы, раненые и медицинские — получают защиту \n---\n\n\n## 5.3 Обзор: гражданские vs военные\n\n\nГражданские - Не высовываться \nВоенные - Делать, что говорят.\n\n\n## 5.4 Практические советы \n\n\n1. **Передвижение группой**:\n\n\n   * Разведчики и прикрытие впереди/сзади; основные — внутри колонны.\n2. **КПП и блокпосты**:\n\n\n   * Заранее согласуйте сигналы, документы наготове. Не останавливайтесь резко, действуйте медленно и с документами в руках.\n\n\n3. **Маскировочный распорядок**:\n\n\n   * Никаких блестящих шнурков, отражающих плёнок и тд\n4. **Взаимопомощь**:\n\n\n   * В группе назначьте медиков, командиров, менторов — и тренируйте алгоритмы: при ранении — помощь, при стрессе — психологическая помощь.\n\n\n5. **Психологическая готовность**:\n\n\n   * Ожидайте моральные испытания. Именно они становятся решающим фактором. Помните — ты не один, держите строй.\n\n\n---\n\n\n## Итог главы 5\n\n\nВоенные риски — это поле, где баланс между эффективностью, моралью и правом — жизнь или смерть. Гражданским важно сохранять нейтралитет, осторожность и следовать командам. Военным — действовать дисциплинированно, психически подготовлено и по закону. Главное: знать правила и не терять голову.\n\n\nОбновляйте знания и тренируйтесь — это разница между тем, кто выжил, и тем, кто стал жертвой.";
+
+  /* ==================== СТАРТ ==================== */
+  applySettings();
+  loadText(currentFile, predefinedText);
+
+})();
+</script>
+</body>
+</html>

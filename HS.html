@@ -1,0 +1,3288 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Hungry Glist: Abyssal Evolution</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+        body, html { width: 100%; height: 100%; overflow: hidden; background: #010409; font-family: 'Segoe UI', Roboto, Helvetica, sans-serif; color: #fff; touch-action: none; }
+        canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+
+        /* HUD */
+        #hud { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 10; display: none; }
+        .hud-top { display: flex; justify-content: space-between; align-items: flex-start; padding: 14px 20px; width: 100%; }
+
+        .bars-panel { background: rgba(4, 15, 30, 0.75); border: 1px solid rgba(0, 210, 255, 0.3); border-radius: 16px; padding: 12px 16px; width: 310px; box-shadow: 0 8px 25px rgba(0,0,0,0.6); }
+        .bar-label { display: flex; justify-content: space-between; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; color: #bde0fe; }
+        .bar-wrap { width: 100%; height: 16px; background: rgba(0,0,0,0.75); border: 2px solid rgba(255,255,255,0.25); border-radius: 10px; overflow: hidden; margin-bottom: 8px; position: relative; }
+        .bar-wrap:last-child { margin-bottom: 0; }
+        #hp-bar { width: 100%; height: 100%; background: linear-gradient(90deg, #ff1e56, #ffac41, #2ec4b6); }
+        #boost-bar { width: 100%; height: 100%; background: linear-gradient(90deg, #0077b6, #00f5d4); }
+        #gold-bar { width: 0%; height: 100%; background: linear-gradient(90deg, #ff9e00, #ffea00, #fff); box-shadow: 0 0 12px #ffea00; }
+
+        .score-panel { text-align: right; background: rgba(4, 15, 30, 0.75); border: 1px solid rgba(255, 215, 0, 0.3); border-radius: 16px; padding: 10px 18px; box-shadow: 0 8px 25px rgba(0,0,0,0.6); }
+        .score-main { font-size: 28px; font-weight: 900; color: #fff; text-shadow: 0 0 12px rgba(0, 225, 255, 0.7); line-height: 1.1; }
+        .currency-row { display: flex; justify-content: flex-end; font-size: 15px; font-weight: 800; margin-top: 6px; }
+        .currency-row > span { margin-left: 14px; }
+        .coin-txt { color: #ffd700; text-shadow: 0 2px 4px #000; }
+        .gem-txt { color: #ff4dff; text-shadow: 0 2px 4px #000; }
+        .stats-sub { font-size: 12px; color: #90e0ef; margin-top: 4px; font-weight: 700; }
+
+        #combo-box { position: absolute; top: 135px; left: 24px; font-size: 26px; font-weight: 900; color: #ffbe0b; text-shadow: 0 4px 12px rgba(255, 0, 85, 0.9); transform: scale(0); transition: transform 0.15s; }
+        #combo-box.active { transform: scale(1); }
+        #banner-msg { position: absolute; top: 22%; width: 100%; text-align: center; font-size: 34px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; color: #ffea00; text-shadow: 0 0 20px #ff0055, 0 4px 10px #000; opacity: 0; transition: opacity 0.3s ease; padding: 0 10px; }
+        #banner-msg.show { opacity: 1; }
+
+        #boss-hud { position: absolute; top: 18px; left: 50%; transform: translateX(-50%); width: 380px; max-width: 42vw; text-align: center; display: none; }
+        .boss-title { font-size: 14px; font-weight: 900; color: #ff2a85; text-transform: uppercase; letter-spacing: 1.5px; text-shadow: 0 2px 6px #000; margin-bottom: 4px; }
+        .boss-bar-wrap { width: 100%; height: 18px; background: rgba(20, 0, 15, 0.85); border: 2px solid #ff2a85; border-radius: 9px; overflow: hidden; box-shadow: 0 0 18px rgba(255, 42, 133, 0.5); }
+        #boss-bar { width: 100%; height: 100%; background: linear-gradient(90deg, #7209b7, #f72585, #ff9e00); }
+
+        #btn-pause { pointer-events: auto; cursor: pointer; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.3); color: #fff; border-radius: 10px; padding: 6px 12px; font-weight: 800; font-size: 13px; margin-top: 8px; }
+
+        #quest-panel { position: absolute; top: 150px; right: 20px; width: 270px; background: rgba(4,15,30,0.8); border: 1px solid rgba(0,245,212,0.4); border-radius: 14px; padding: 10px 14px; box-shadow: 0 6px 20px rgba(0,0,0,0.5); pointer-events: none; }
+        #quest-panel .q-h { font-size: 11px; font-weight: 900; color: #00f5d4; letter-spacing: 1px; text-transform: uppercase; }
+        #quest-title { font-size: 14px; font-weight: 800; color: #fff; margin: 3px 0; }
+        #quest-bar { width: 0%; height: 100%; background: linear-gradient(90deg,#00f5d4,#ffbe0b); }
+        #quest-reward { font-size: 11px; color: #ffd700; font-weight: 700; }
+
+        /* Управление */
+        #touch-controls { position: absolute; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; display: none; }
+        #joystick-zone { position: absolute; bottom: 30px; left: 30px; width: 140px; height: 140px; border-radius: 50%; background: rgba(255,255,255,0.08); border: 2px solid rgba(0, 225, 255, 0.35); pointer-events: none; opacity: 0.55; }
+        #joystick-zone.on { opacity: 1; }
+        #joystick-knob { position: absolute; top: 50%; left: 50%; width: 58px; height: 58px; margin-left: -29px; margin-top: -29px; border-radius: 50%; background: radial-gradient(circle, #00f5d4, #0077b6); box-shadow: 0 0 15px rgba(0,245,212,0.7); }
+        #touch-boost { position: absolute; bottom: 40px; right: 30px; width: 100px; height: 100px; border-radius: 50%; background: radial-gradient(circle, #ffbe0b, #fb5607); border: 4px solid #fff; box-shadow: 0 0 25px rgba(251, 86, 7, 0.8); color: #fff; font-weight: 900; font-size: 15px; display: flex; align-items: center; justify-content: center; text-transform: uppercase; pointer-events: auto; }
+        #btn-emp-skill { position: absolute; bottom: 45px; right: 150px; width: 80px; height: 80px; border-radius: 50%; background: radial-gradient(circle,#00f5d4,#7209b7); border: 3px solid #fff; box-shadow: 0 0 22px rgba(0,245,212,0.8); color: #fff; font-weight: 900; font-size: 12px; text-transform: uppercase; pointer-events: auto; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 20; }
+        #emp-cd-txt { font-size: 10px; color: #ffea00; }
+
+        /* Меню */
+        .modal-screen { position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 30; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at center, rgba(0, 40, 85, 0.78), rgba(1, 5, 15, 0.95)); }
+        .menu-card { width: 920px; max-width: 95vw; max-height: 94vh; overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y; background: linear-gradient(145deg, rgba(8, 24, 48, 0.97), rgba(3, 10, 22, 0.98)); border: 2px solid rgba(0, 210, 255, 0.4); border-radius: 24px; padding: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.85), 0 0 40px rgba(0, 180, 255, 0.2); text-align: center; }
+        .game-title { font-size: 46px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; color: #ffbe0b; background: linear-gradient(90deg, #ff2a85, #ffbe0b, #00f5d4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 4px; }
+        .game-subtitle { font-size: 14px; color: #90e0ef; margin-bottom: 14px; font-weight: 600; }
+        #death-msg { display: none; color: #ff4d6d; font-weight: 900; font-size: 18px; margin-bottom: 12px; }
+
+        .wallet-bar { display: inline-block; background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.18); padding: 10px 22px; border-radius: 50px; font-size: 16px; font-weight: 900; margin-bottom: 18px; }
+        .wallet-bar > span { margin: 0 10px; display: inline-block; }
+        .shop-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); grid-gap: 12px; margin-bottom: 20px; text-align: left; }
+        .shop-item { background: rgba(255,255,255,0.05); border: 1px solid rgba(0, 210, 255, 0.25); border-radius: 16px; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; }
+        .shop-item h4 { font-size: 15px; color: #fff; margin-bottom: 4px; }
+        .shop-item p { font-size: 12px; color: #adb5bd; margin-bottom: 10px; line-height: 1.35; }
+        .lvl-dots { display: flex; margin-bottom: 10px; }
+        .lvl-dot { flex: 1; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.15); margin-right: 4px; }
+        .lvl-dot.filled { background: #00f5d4; box-shadow: 0 0 8px #00f5d4; }
+
+        .btn-buy { cursor: pointer; width: 100%; padding: 9px; border-radius: 10px; border: none; font-weight: 800; font-size: 14px; background: linear-gradient(90deg, #00b4d8, #0077b6); color: #fff; }
+        .btn-buy:disabled { background: #2b3a4a; color: #6c757d; cursor: not-allowed; }
+
+        .skins-row { display: flex; justify-content: center; flex-wrap: wrap; margin-bottom: 20px; }
+        .skin-btn { cursor: pointer; padding: 9px 16px; margin: 5px; border-radius: 14px; border: 2px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.5); color: #fff; font-weight: 800; font-size: 13px; display: flex; align-items: center; }
+        .skin-btn.selected { border-color: #ffbe0b; background: rgba(255, 190, 11, 0.18); box-shadow: 0 0 15px rgba(255, 190, 11, 0.4); }
+        .skin-swatch { width: 18px; height: 18px; border-radius: 50%; display: inline-block; border: 2px solid #fff; margin-right: 8px; }
+
+        .btn-play { cursor: pointer; padding: 15px 52px; font-size: 22px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; color: #001219; background: linear-gradient(90deg, #00f5d4, #ffbe0b); border: none; border-radius: 50px; box-shadow: 0 10px 30px rgba(0, 245, 212, 0.5); }
+
+        @media (max-width: 900px) {
+            .game-title { font-size: 28px; }
+            .game-subtitle { font-size: 12px; }
+            .hud-top { padding: 8px 10px; }
+            .bars-panel { width: 170px; padding: 6px 8px; border-radius: 10px; }
+            .bar-wrap { height: 12px; margin-bottom: 4px; }
+            .bar-label { font-size: 10px; margin-bottom: 2px; }
+            .score-panel { padding: 6px 10px; border-radius: 10px; }
+            .score-main { font-size: 18px; }
+            .currency-row { font-size: 12px; margin-top: 2px; }
+            .currency-row > span { margin-left: 8px; }
+            .stats-sub { font-size: 10px; }
+            #btn-pause { padding: 4px 8px; font-size: 10px; margin-top: 4px; }
+            #boss-hud { top: 8px; width: 200px; }
+            .boss-title { font-size: 11px; }
+            .boss-bar-wrap { height: 12px; }
+            #quest-panel { top: 146px; left: 10px; right: auto; width: 175px; padding: 6px 9px; border-radius: 10px; }
+            #quest-title { font-size: 11px; }
+            #quest-reward { display: none; }
+            #combo-box { top: 216px; left: 12px; font-size: 20px; }
+            #banner-msg { font-size: 20px; }
+            #joystick-zone { width: 120px; height: 120px; bottom: 20px; left: 20px; }
+            #joystick-knob { width: 48px; height: 48px; margin-left: -24px; margin-top: -24px; }
+            #touch-boost { width: 82px; height: 82px; bottom: 26px; right: 18px; font-size: 12px; }
+            #btn-emp-skill { width: 68px; height: 68px; bottom: 30px; right: 112px; font-size: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="hud">
+        <div class="hud-top">
+            <div class="bars-panel">
+                <div class="bar-label"><span>Здоровье / Сытость</span><span id="hp-txt">100%</span></div>
+                <div class="bar-wrap"><div id="hp-bar"></div></div>
+                <div class="bar-label"><span>Турбо-Рывок (ЛКМ / Пробел)</span><span id="boost-txt">100%</span></div>
+                <div class="bar-wrap"><div id="boost-bar"></div></div>
+                <div class="bar-label"><span style="color:#ffea00;">Золотая Лихорадка</span><span id="gold-txt">0%</span></div>
+                <div class="bar-wrap"><div id="gold-bar"></div></div>
+            </div>
+
+            <div id="boss-hud">
+                <div class="boss-title" id="boss-name">ЛЕВИАФАН БЕЗДНЫ</div>
+                <div class="boss-bar-wrap"><div id="boss-bar"></div></div>
+            </div>
+
+            <div class="score-panel">
+                <div class="score-main" id="score-val">0</div>
+                <div class="currency-row">
+                    <span class="coin-txt">🪙 <span id="coin-val">0</span></span>
+                    <span class="gem-txt">💎 <span id="gem-val">0</span></span>
+                </div>
+                <div class="stats-sub">
+                    Длина: <span id="mass-val">14</span>м | Глубина: <span id="depth-val">0</span>м
+                    <div id="zone-val" style="color:#00f5d4; margin-top:2px;">Солнечный Риф</div>
+                </div>
+                <button id="btn-pause" tabindex="-1">⚙ ЭВОЛЮЦИЯ / ПАУЗА</button>
+            </div>
+        </div>
+
+        <div id="quest-panel">
+            <div class="q-h">⚡ Текущая Миссия</div>
+            <div id="quest-title">Охота начинается</div>
+            <div class="bar-wrap" style="height:10px; margin-bottom:4px;"><div id="quest-bar"></div></div>
+            <div id="quest-reward">Награда: +100 🪙</div>
+        </div>
+
+        <div id="combo-box">КОМБО x2!</div>
+        <div id="banner-msg">ЗОЛОТАЯ ЛИХОРАДКА!</div>
+
+        <button id="btn-emp-skill" tabindex="-1">
+            <span>ИМПУЛЬС</span>
+            <span id="emp-cd-txt">ГОТОВ (E)</span>
+        </button>
+
+        <div id="touch-controls">
+            <div id="joystick-zone"><div id="joystick-knob"></div></div>
+            <div id="touch-boost">РЫВОК</div>
+        </div>
+    </div>
+
+    <div id="menu-modal" class="modal-screen">
+        <div class="menu-card">
+            <div class="game-title">Hungry Glist: Evolution</div>
+            <div class="game-subtitle">На сушу не заползти — только запрыгнуть и скатиться. Берегись солдат с автоматами и хищников: кусают всем телом!</div>
+            <div id="death-msg"></div>
+
+            <div class="wallet-bar">
+                <span class="coin-txt">🪙 Монеты: <span id="menu-coins">0</span></span>
+                <span class="gem-txt">💎 Кристаллы: <span id="menu-gems">0</span></span>
+                <span style="color:#00f5d4;">🏆 Рекорд: <span id="menu-best">0</span></span>
+            </div>
+
+            <div class="skins-row" id="skins-container"></div>
+            <div class="shop-grid" id="shop-container"></div>
+
+            <button class="btn-play" id="btn-start">В ОКЕАН!</button>
+        </div>
+    </div>
+
+    <canvas id="game"></canvas>
+
+    <script>
+// ============================================================================
+// ЧАСТЬ 1: НАСТРОЙКИ, СОХРАНЕНИЯ, УТИЛИТЫ, АУДИО
+// ============================================================================
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+let W = canvas.width = window.innerWidth;
+let H = canvas.height = window.innerHeight;
+let VW = W, VH = H;           // размер видимой области МИРА (с учётом зума)
+let camX = 0, camY = 0;
+let camZoom = 0.7;
+
+function onResize() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', onResize);
+window.addEventListener('orientationchange', function () { setTimeout(onResize, 250); });
+
+const WORLD_W = 14000;
+const WORLD_H = 33000;        // дно в 5 раз ниже (было 7200)
+const SURFACE_Y = 750;
+const TWILIGHT_Y = 4200;      // Сумеречная зона
+const ABYSS_Y = 9000;         // Полуночная бездна
+const CAVE_Y = 15000;         // здесь начинается скала с пещерной системой
+const CAVE2_Y = 21000;        // грибные чертоги
+const CAVE3_Y = 27000;        // магматические недра
+
+// ---- утилиты ----
+function rnd(a, b) { return a + Math.random() * (b - a); }
+function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
+function normAngle(a) {
+    while (a > Math.PI) a -= Math.PI * 2;
+    while (a < -Math.PI) a += Math.PI * 2;
+    return a;
+}
+function hexA(hex, a) {
+    const h = hex.replace('#', '');
+    return 'rgba(' + parseInt(h.substr(0, 2), 16) + ',' + parseInt(h.substr(2, 2), 16) + ',' + parseInt(h.substr(4, 2), 16) + ',' + a + ')';
+}
+function vis(x, y, pad) {
+    return x > camX - pad && x < camX + VW + pad && y > camY - pad && y < camY + VH + pad;
+}
+function islandGround(isl, x) {
+    const nx = (x - isl.x) / isl.r;
+    if (Math.abs(nx) >= 1) return null;
+    return isl.y + 28 - 68 * Math.sqrt(1 - nx * nx);
+}
+
+// ---- сохранения ----
+const SAVE_KEY = 'hungry_glist_save_v2';
+let saveData = null;
+try { saveData = JSON.parse(localStorage.getItem(SAVE_KEY)); } catch (err) { saveData = null; }
+if (!saveData || typeof saveData !== 'object') saveData = {};
+saveData = Object.assign({ coins: 150, gems: 5, bestScore: 0, skin: 0 }, saveData);
+if (!Array.isArray(saveData.unlockedSkins)) saveData.unlockedSkins = [0];
+saveData.upgrades = Object.assign({ bite: 1, speed: 1, boost: 1, stomach: 1, pets: 1, emp: 1 }, saveData.upgrades || {});
+
+function saveGame() {
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(saveData)); } catch (err) {}
+}
+
+const SKINS = [
+    { id: 0, name: 'Кровавый Паразит', c1: '#e63946', c2: '#780000', jaw: '#2b0912', glow: '#ff4d6d', cost: 0, currency: 'coins' },
+    { id: 1, name: 'Неоновый Удильщик', c1: '#00f5d4', c2: '#00509d', jaw: '#03045e', glow: '#00f5d4', cost: 500, currency: 'coins' },
+    { id: 2, name: 'Император Бездны', c1: '#ffbe0b', c2: '#9d0208', jaw: '#370617', glow: '#ffea00', cost: 1500, currency: 'coins' },
+    { id: 3, name: 'Кибер-Левиафан', c1: '#f72585', c2: '#3a0ca3', jaw: '#10002b', glow: '#4cc9f0', cost: 25, currency: 'gems' }
+];
+
+const UPGRADE_DEFS = [
+    { key: 'bite', title: 'Мощь Челюстей', desc: 'Позволяет пожирать более крупную добычу и быстрее крушить лодки', baseCost: 100 },
+    { key: 'speed', title: 'Гидродинамика', desc: 'Увеличивает скорость плавания и высоту прыжков над водой', baseCost: 200 },
+    { key: 'boost', title: 'Турбо-Мускулы', desc: 'Увеличивает запас ускорения и скорость его регенерации', baseCost: 220 },
+    { key: 'stomach', title: 'Метаболизм', desc: 'Замедляет потерю здоровья от голода и увеличивает лечение', baseCost: 420 },
+    { key: 'pets', title: 'Стая Симбиотов', desc: 'Призывает боевых мальков-паразитов, которые сами атакуют добычу', baseCost: 400 },
+    { key: 'emp', title: 'Био-Импульс (ПКМ / E)', desc: 'Электро-выброс: оглушает хищников, взрывает торпеды и мины вокруг', baseCost: 280 }
+];
+
+// ---- ввод ----
+const isTouchDevice = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+if (isTouchDevice) document.getElementById('touch-controls').style.display = 'block';
+
+const input = {
+    mouseX: W / 2, mouseY: H / 2,
+    worldX: WORLD_W / 2, worldY: SURFACE_Y + 300,
+    boost: false,
+    joyActive: false, joyDX: 0, joyDY: 0
+};
+
+// ---- аудио ----
+const bgMusic = new Audio('deep.mp3');
+bgMusic.loop = true;
+bgMusic.volume = 0.55;
+
+const SFX = {
+    ctx: null,
+    started: false,
+    droneOn: false,
+    startDrone() {
+        if (this.droneOn || !this.ctx) return;
+        this.droneOn = true;
+        const osc1 = this.ctx.createOscillator();
+        const osc2 = this.ctx.createOscillator();
+        const filter = this.ctx.createBiquadFilter();
+        const gain = this.ctx.createGain();
+        osc1.type = 'sawtooth'; osc1.frequency.value = 46;
+        osc2.type = 'sine'; osc2.frequency.value = 69;
+        filter.type = 'lowpass'; filter.frequency.value = 140;
+        gain.gain.value = 0.07;
+        osc1.connect(filter); osc2.connect(filter);
+        filter.connect(gain); gain.connect(this.ctx.destination);
+        osc1.start(0); osc2.start(0);
+    },
+    init() {
+        if (this.started) return;
+        this.started = true;
+        try {
+            const AC = window.AudioContext || window.webkitAudioContext;
+            if (AC) this.ctx = new AC();
+        } catch (err) {}
+        const self = this;
+        bgMusic.addEventListener('error', function () { self.startDrone(); });
+        try {
+            const p = bgMusic.play();
+            // на старых WebView play() ничего не возвращает
+            if (p && typeof p.catch === 'function') p.catch(function () { self.startDrone(); });
+        } catch (err) { this.startDrone(); }
+    },
+    tone(type, f1, f2, dur, vol, ramp) {
+        const c = this.ctx;
+        const now = c.currentTime;
+        const osc = c.createOscillator();
+        const gain = c.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(f1, now);
+        if (f2) {
+            if (ramp === 'exp') osc.frequency.exponentialRampToValueAtTime(f2, now + dur);
+            else osc.frequency.linearRampToValueAtTime(f2, now + dur);
+        }
+        gain.gain.setValueAtTime(vol, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + dur);
+        osc.connect(gain); gain.connect(c.destination);
+        osc.start(now); osc.stop(now + dur);
+    },
+    play(type) {
+        if (!this.ctx) return;
+        if (this.ctx.state === 'suspended') { try { this.ctx.resume(); } catch (err) {} }
+        try {
+            if (type === 'bite') this.tone('triangle', 190, 55, 0.11, 0.22, 'exp');
+            else if (type === 'coin') {
+                this.tone('sine', 880, 1320, 0.18, 0.14, 'lin');
+            }
+            else if (type === 'splash') this.tone('sawtooth', 140, 38, 0.25, 0.15, 'exp');
+            else if (type === 'boom') this.tone('square', 110, 22, 0.45, 0.32, 'exp');
+            else if (type === 'goldrush') this.tone('triangle', 440, 880, 0.35, 0.25, 'exp');
+            else if (type === 'emp') this.tone('sawtooth', 520, 42, 0.55, 0.28, 'exp');
+            else if (type === 'laser') this.tone('square', 980, 260, 0.22, 0.15, 'lin');
+        } catch (err) {}
+    }
+};
+
+// ============================================================================
+// ЧАСТЬ 2: МИР (ОСТРОВА, ПЕЩЕРЫ, ПОДВОДНЫЕ ЛОКАЦИИ)
+// ============================================================================
+// ---- ПЕЩЕРНАЯ СИСТЕМА: сетка клеток (1 = скала, 0 = проход) ----
+const CAVE_TIERS = [
+    { name: 'Кристальные Пещеры', fill: '#0a1524', edge: '#2a9dc8', crystals: ['#00f5d4', '#4cc9f0'] },
+    { name: 'Грибные Чертоги',    fill: '#150c24', edge: '#9d4edd', crystals: ['#f72585', '#c77dff'] },
+    { name: 'Магматические Недра', fill: '#240c0c', edge: '#ff5d2a', crystals: ['#ffbe0b', '#ff6d00'] }
+];
+function caveTierIdx(y) { return y < CAVE2_Y ? 0 : (y < CAVE3_Y ? 1 : 2); }
+
+const cave = {
+    cs: 50,
+    cols: Math.ceil(WORLD_W / 50),
+    rows: Math.ceil((WORLD_H - CAVE_Y) / 50),
+    grid: null,
+
+    cellSolid(cx, cy) {
+        if (cy < 0) return false;                                   // над скалой — открытая вода
+        if (cx < 0 || cx >= this.cols || cy >= this.rows) return true;
+        return this.grid[cy * this.cols + cx] === 1;
+    },
+    solidAt(x, y) { return this.cellSolid(Math.floor(x / this.cs), Math.floor((y - CAVE_Y) / this.cs)); },
+
+    gen() {
+        const cols = this.cols, rows = this.rows;
+        const g = this.grid = new Uint8Array(cols * rows);
+        g.fill(1);
+
+        function carve(cx, cy, r) {
+            const x0 = Math.max(1, Math.floor(cx - r)), x1 = Math.min(cols - 2, Math.ceil(cx + r));
+            const y0 = Math.max(0, Math.floor(cy - r)), y1 = Math.min(rows - 3, Math.ceil(cy + r));
+            for (let y = y0; y <= y1; y++) {
+                for (let x = x0; x <= x1; x++) {
+                    const dx = x + 0.5 - cx, dy = y + 0.5 - cy;
+                    if (dx * dx + dy * dy <= r * r) g[y * cols + x] = 0;
+                }
+            }
+        }
+
+        // «червяки-проходчики»: прорывают шахты от поверхности скалы вглубь и боковые ходы
+        const pts = [];
+        const walkers = [];
+        const entrances = 7;
+        for (let i = 0; i < entrances; i++) {
+            walkers.push({ x: (i + 0.5) * cols / entrances + rnd(-8, 8), y: 0, a: Math.PI / 2 + rnd(-0.25, 0.25), steps: Math.floor(rnd(330, 400)), r0: rnd(4, 6), pull: 0.05 });
+        }
+        let spawned = 0;
+        while (walkers.length) {
+            const w = walkers.pop();
+            for (let s = 0; s < w.steps; s++) {
+                carve(w.x, w.y, w.r0 + Math.sin(s * 0.13 + w.x) * 0.9);
+                w.a += rnd(-0.38, 0.38);
+                w.a += normAngle(Math.PI / 2 - w.a) * w.pull;
+                w.x = clamp(w.x + Math.cos(w.a) * 1.4, 4, cols - 5);
+                w.y = Math.max(0, w.y + Math.sin(w.a) * 1.4);
+                if (w.y > rows - 8) break;
+                if (s % 6 === 0) pts.push({ x: w.x, y: w.y });
+                if (spawned < 36 && Math.random() < 0.010) {
+                    spawned++;
+                    walkers.push({ x: w.x, y: w.y, a: (Math.random() < 0.5 ? 0 : Math.PI) + rnd(-0.5, 0.5), steps: Math.floor(rnd(40, 120)), r0: w.r0 * rnd(0.7, 0.95), pull: 0.01 });
+                }
+            }
+        }
+        // большие залы на глубине (всегда на ходах, значит достижимы)
+        const deepPts = pts.filter(function (p) { return p.y > 40; });
+        for (let k = 0; k < 18 && deepPts.length; k++) {
+            const p = deepPts[Math.floor(Math.random() * deepPts.length)];
+            carve(p.x, p.y, rnd(9, 16));
+        }
+    },
+
+    // случайная точка в проходе с запасом по размеру (clear — клеток вокруг)
+    openSpot(minY, maxY, clear) {
+        const r0 = Math.max(0, Math.ceil((minY - CAVE_Y) / this.cs));
+        const r1 = Math.min(this.rows - 3, Math.floor((maxY - CAVE_Y) / this.cs));
+        if (r1 <= r0) return null;
+        const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+        for (let t = 0; t < 160; t++) {
+            const cx = 3 + Math.floor(Math.random() * (this.cols - 6));
+            const cy = r0 + Math.floor(Math.random() * (r1 - r0));
+            if (this.cellSolid(cx, cy)) continue;
+            let ok = true;
+            for (let d = 0; d < dirs.length && ok; d++) {
+                if (this.cellSolid(cx + Math.round(dirs[d][0] * clear), cy + Math.round(dirs[d][1] * clear))) ok = false;
+                else if (this.cellSolid(cx + Math.round(dirs[d][0] * clear * 0.5), cy + Math.round(dirs[d][1] * clear * 0.5))) ok = false;
+            }
+            if (ok) return { x: (cx + 0.5) * this.cs, y: CAVE_Y + (cy + 0.5) * this.cs };
+        }
+        return null;
+    },
+
+    // проход, примыкающий к стене: возвращает точку на стене и направление «от стены»
+    wallSpot(minY, maxY) {
+        const r0 = Math.max(0, Math.ceil((minY - CAVE_Y) / this.cs));
+        const r1 = Math.min(this.rows - 3, Math.floor((maxY - CAVE_Y) / this.cs));
+        if (r1 <= r0) return null;
+        const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+        for (let t = 0; t < 200; t++) {
+            const cx = 3 + Math.floor(Math.random() * (this.cols - 6));
+            const cy = r0 + Math.floor(Math.random() * (r1 - r0));
+            if (this.cellSolid(cx, cy)) continue;
+            for (let d = 0; d < 4; d++) {
+                if (this.cellSolid(cx + dirs[d][0], cy + dirs[d][1])) {
+                    return {
+                        x: (cx + 0.5 + dirs[d][0] * 0.5) * this.cs,
+                        y: CAVE_Y + (cy + 0.5 + dirs[d][1] * 0.5) * this.cs,
+                        angle: Math.atan2(-dirs[d][1], -dirs[d][0])
+                    };
+                }
+            }
+        }
+        return null;
+    },
+
+    // пол пещеры: проход с твёрдой клеткой под ним
+    floorSpot(minY, maxY) {
+        const r0 = Math.max(0, Math.ceil((minY - CAVE_Y) / this.cs));
+        const r1 = Math.min(this.rows - 3, Math.floor((maxY - CAVE_Y) / this.cs));
+        if (r1 <= r0) return null;
+        for (let t = 0; t < 300; t++) {
+            const cx = 3 + Math.floor(Math.random() * (this.cols - 6));
+            const cy = r0 + Math.floor(Math.random() * (r1 - r0));
+            if (!this.cellSolid(cx, cy) && !this.cellSolid(cx, cy - 1) && this.cellSolid(cx, cy + 1)) {
+                return { x: (cx + 0.5) * this.cs, y: CAVE_Y + (cy + 1) * this.cs };
+            }
+        }
+        return null;
+    }
+};
+
+const world = {
+    waves: [], clouds: [], islands: [], corals: [], kelps: [], shipwrecks: [],
+    crystals: [], vents: [], mines: [], chests: [], schools: [],
+
+    init() {
+        this.waves = [];
+        for (let x = 0; x <= WORLD_W; x += 70) {
+            this.waves.push({ x: x, y: SURFACE_Y, vy: 0 });
+        }
+
+        this.clouds = [];
+        for (let i = 0; i < 45; i++) {
+            this.clouds.push({ x: Math.random() * WORLD_W, y: 80 + Math.random() * (SURFACE_Y - 240), w: 140 + Math.random() * 220, speed: 0.15 + Math.random() * 0.35 });
+        }
+
+        this.islands = [];
+        for (let i = 0; i < 11; i++) {
+            const ix = 900 + i * 1180 + (Math.random() - 0.5) * 280;
+            const ir = 250 + Math.random() * 170;
+            const trees = [];
+            const numTrees = 2 + Math.floor(Math.random() * 3);
+            for (let t = 0; t < numTrees; t++) {
+                trees.push({ offsetX: (t - (numTrees - 1) / 2) * (ir * 0.45) + (Math.random() - 0.5) * 30, height: 85 + Math.random() * 55, lean: (Math.random() - 0.5) * 0.45 });
+            }
+            this.islands.push({
+                x: ix, y: SURFACE_Y, r: ir, trees: trees,
+                hasUmbrella: Math.random() > 0.25,
+                umbrellaColor: ['#ff0055', '#00b4d8', '#ffbe0b', '#7209b7'][i % 4],
+                hasHut: Math.random() > 0.4
+            });
+        }
+
+        cave.gen();
+
+        this.corals = [];
+        const coralColors = ['#ff4d6d', '#ff9e00', '#b5179e', '#00f5d4', '#f72585', '#4cc9f0'];
+        for (let i = 0; i < 420; i++) {
+            this.corals.push({
+                x: 200 + Math.random() * (WORLD_W - 400),
+                y: SURFACE_Y + 350 + Math.random() * (TWILIGHT_Y - SURFACE_Y + 500),
+                r: 18 + Math.random() * 34,
+                branches: 3 + Math.floor(Math.random() * 4),
+                color: coralColors[Math.floor(Math.random() * coralColors.length)]
+            });
+        }
+
+        this.kelps = [];
+        for (let i = 0; i < 260; i++) {
+            this.kelps.push({
+                x: 150 + Math.random() * (WORLD_W - 300),
+                y: SURFACE_Y + 500 + Math.random() * (TWILIGHT_Y - SURFACE_Y + 1000),
+                segments: 7 + Math.floor(Math.random() * 7),
+                segLen: 18 + Math.random() * 10,
+                color: Math.random() > 0.5 ? '#2d6a4f' : '#40916c',
+                phase: Math.random() * Math.PI * 2
+            });
+        }
+
+        this.shipwrecks = [];
+        for (let i = 0; i < 10; i++) {
+            this.shipwrecks.push({ x: 900 + i * 1250 + Math.random() * 500, y: rnd(TWILIGHT_Y - 800, ABYSS_Y + 2000), w: 320 + Math.random() * 120, tilt: (Math.random() - 0.5) * 0.35 });
+        }
+
+        // стаи мелочи в верхних слоях (мелкая рыба держится у своего «дома»)
+        this.schools = [];
+        for (let i = 0; i < 130; i++) {
+            this.schools.push({ x: rnd(300, WORLD_W - 300), y: rnd(SURFACE_Y + 120, TWILIGHT_Y - 400) });
+        }
+
+        // кристаллы в стенах пещер
+        this.crystals = [];
+        for (let i = 0; i < 190; i++) {
+            const sp = cave.wallSpot(CAVE_Y + 100, WORLD_H - 300);
+            if (!sp) continue;
+            const tc = CAVE_TIERS[caveTierIdx(sp.y)].crystals;
+            this.crystals.push({ x: sp.x, y: sp.y, angle: sp.angle, size: 22 + Math.random() * 30, color: tc[Math.floor(Math.random() * tc.length)], broken: false, respawn: 0 });
+        }
+
+        // гидротермальные жерла на полу магматических недр
+        this.vents = [];
+        for (let i = 0; i < 40; i++) {
+            const sp = cave.floorSpot(CAVE3_Y - 2000, WORLD_H - 200);
+            if (!sp) continue;
+            this.vents.push({ x: sp.x, y: sp.y, w: 75 + Math.random() * 55, h: 110 + Math.random() * 90, timer: Math.random() * 100 });
+        }
+
+        // мины: в открытой воде и в пещерах
+        this.mines = [];
+        for (let i = 0; i < 90; i++) {
+            this.mines.push({ x: 400 + Math.random() * (WORLD_W - 800), y: SURFACE_Y + 450 + Math.random() * (CAVE_Y - SURFACE_Y - 800), r: 22, active: true, respawn: 0, bobPhase: Math.random() * Math.PI * 2 });
+        }
+        for (let i = 0; i < 40; i++) {
+            const sp = cave.openSpot(CAVE_Y + 200, WORLD_H - 300, 2);
+            if (!sp) continue;
+            this.mines.push({ x: sp.x, y: sp.y, r: 22, active: true, respawn: 0, bobPhase: Math.random() * Math.PI * 2 });
+        }
+
+        // сундуки: чем глубже, тем богаче
+        this.chests = [];
+        for (let i = 0; i < 18; i++) {
+            this.chests.push({ x: 400 + Math.random() * (WORLD_W - 800), y: TWILIGHT_Y + Math.random() * (CAVE_Y - TWILIGHT_Y - 300), opened: false, respawn: 0 });
+        }
+        for (let i = 0; i < 40; i++) {
+            const sp = cave.openSpot(CAVE_Y + 200, WORLD_H - 300, 1);
+            if (!sp) continue;
+            this.chests.push({ x: sp.x, y: sp.y, opened: false, respawn: 0 });
+        }
+    },
+
+    splash(x, force) {
+        const idx = Math.floor(x / 70);
+        for (let i = Math.max(0, idx - 3); i <= Math.min(this.waves.length - 1, idx + 3); i++) {
+            this.waves[i].vy += force / (1 + Math.abs(i - idx) * 0.9);
+        }
+    },
+
+    update(time) {
+        for (let i = 0; i < this.waves.length; i++) {
+            const w = this.waves[i];
+            const off = Math.sin(time * 0.003 + i * 0.35) * 8;
+            w.vy += ((SURFACE_Y + off) - w.y) * 0.045;
+            w.vy *= 0.91;
+            w.y += w.vy;
+        }
+        for (let i = 1; i < this.waves.length - 1; i++) {
+            this.waves[i].vy += (this.waves[i - 1].y + this.waves[i + 1].y - 2 * this.waves[i].y) * 0.06;
+        }
+        for (const c of this.clouds) {
+            c.x += c.speed;
+            if (c.x - c.w > WORLD_W) c.x = -c.w;
+        }
+        for (const m of this.mines) { if (!m.active && --m.respawn <= 0) m.active = true; }
+        for (const ch of this.chests) { if (ch.opened && --ch.respawn <= 0) ch.opened = false; }
+        for (const cr of this.crystals) { if (cr.broken && --cr.respawn <= 0) cr.broken = false; }
+    }
+};
+
+// ---- твёрдые тела: стены пещер (сетка) и острова ----
+function resolveCave(obj, radius, isPlayer) {
+    if (obj.y + radius < CAVE_Y) return;
+    if (radius > 100) radius = 100;                 // огромные мобы «мнут» стены, а не застревают
+    const cs = cave.cs;
+    for (let iter = 0; iter < 3; iter++) {
+        const cx0 = Math.floor((obj.x - radius) / cs), cx1 = Math.floor((obj.x + radius) / cs);
+        const cy0 = Math.floor((obj.y - radius - CAVE_Y) / cs), cy1 = Math.floor((obj.y + radius - CAVE_Y) / cs);
+        let moved = false;
+        for (let cy = cy0; cy <= cy1; cy++) {
+            for (let cx = cx0; cx <= cx1; cx++) {
+                if (!cave.cellSolid(cx, cy)) continue;
+                const rx = cx * cs, ry = CAVE_Y + cy * cs;
+                const nx = obj.x < rx ? rx : (obj.x > rx + cs ? rx + cs : obj.x);
+                const ny = obj.y < ry ? ry : (obj.y > ry + cs ? ry + cs : obj.y);
+                const dx = obj.x - nx, dy = obj.y - ny;
+                const d2 = dx * dx + dy * dy;
+                if (d2 >= radius * radius) continue;
+                let ux, uy, push;
+                if (d2 > 0.0001) {
+                    const d = Math.sqrt(d2);
+                    ux = dx / d; uy = dy / d; push = radius - d;
+                } else {
+                    // центр внутри клетки — выходим через ближайшую открытую сторону
+                    const l = obj.x - rx, r = rx + cs - obj.x, t = obj.y - ry, b = ry + cs - obj.y;
+                    let best = 1e9; ux = 0; uy = -1;
+                    if (!cave.cellSolid(cx - 1, cy) && l < best) { best = l; ux = -1; uy = 0; }
+                    if (!cave.cellSolid(cx + 1, cy) && r < best) { best = r; ux = 1; uy = 0; }
+                    if (!cave.cellSolid(cx, cy - 1) && t < best) { best = t; ux = 0; uy = -1; }
+                    if (!cave.cellSolid(cx, cy + 1) && b < best) { best = b; ux = 0; uy = 1; }
+                    if (best === 1e9) best = t;
+                    push = best + radius;
+                }
+                obj.x += ux * push;
+                obj.y += uy * push;
+                moved = true;
+                if (!isPlayer) obj.angle = Math.atan2(uy, ux) + (Math.random() - 0.5) * 0.6;
+            }
+        }
+        if (!moved) break;
+    }
+}
+
+function resolveWorld(obj, radius, isPlayer) {
+    // 1. Стены пещер
+    resolveCave(obj, radius, isPlayer);
+
+    // 2. Острова
+    let grounded = false;
+    for (let i = 0; i < world.islands.length; i++) {
+        const isl = world.islands[i];
+        const dx = obj.x - isl.x;
+        if (dx > isl.r * 1.05 + radius + 6 || dx < -(isl.r * 1.05 + radius + 6)) continue;
+        if (obj.y < isl.y - 130 || obj.y > isl.y + isl.r * 0.62 + 28 + radius + 6) continue;
+
+        const baseY = isl.y + 28;
+        const ground = islandGround(isl, obj.x);
+
+        if (obj.y <= baseY) {
+            // зона «купола» песка
+            if (ground !== null) {
+                const restY = ground - radius * 0.5;
+                const above = obj.y <= SURFACE_Y + 4;
+                const snap = (isPlayer && obj.grounded) ? 12 : 0;
+                if (obj.y > restY - snap) {
+                    if (isPlayer && above) {
+                        obj.y = restY;        // приземлились на пляж — дальше только скатываемся
+                        grounded = true;
+                        obj.groundIsl = isl;
+                    } else if (!isPlayer || !above) {
+                        // под водой / рыбы — выталкиваем вбок
+                        const sgn = dx >= 0 ? 1 : -1;
+                        obj.x = isl.x + sgn * (isl.r + radius * 0.6);
+                        if (!isPlayer) obj.angle = sgn > 0 ? 0 : Math.PI;
+                    }
+                }
+            }
+        } else {
+            // подводное основание острова (нижняя половина эллипса)
+            const rx = isl.r * 1.05 + radius;
+            const ry = isl.r * 0.62 + radius;
+            const ex = dx / rx;
+            const ey = (obj.y - baseY) / ry;
+            const d2 = ex * ex + ey * ey;
+            if (d2 < 1) {
+                const d = Math.sqrt(d2) || 0.0001;
+                obj.x = isl.x + (ex / d) * rx;
+                obj.y = baseY + (ey / d) * ry;
+                if (!isPlayer) obj.angle = Math.atan2(ey, ex) + (Math.random() - 0.5) * 0.5;
+            }
+        }
+    }
+    if (isPlayer) obj.grounded = grounded;
+}
+
+// ============================================================================
+// ЧАСТЬ 3: ЭФФЕКТЫ, ИГРОК, КВЕСТЫ
+// ============================================================================
+let gameState = 'menu';   // 'menu' | 'playing'
+let runActive = false;    // идёт ли забег (пауза != смерть)
+let gameTime = 0;
+let screenShake = 0;
+let bannerTimeout = null;
+let blindTimer = 0;
+let empCooldown = 0;
+let hurtFlash = 0;        // красная вспышка при получении урона
+
+// ---- урон всем телом: быстрая коробка вокруг червя + проверка по сегментам ----
+let wormBox = { x0: 0, y0: 0, x1: 0, y1: 0 };
+function updateWormBox() {
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    const segs = worm.segments;
+    for (let i = 0; i < segs.length; i++) {
+        const s = segs[i];
+        if (s.x < x0) x0 = s.x;
+        if (s.x > x1) x1 = s.x;
+        if (s.y < y0) y0 = s.y;
+        if (s.y > y1) y1 = s.y;
+    }
+    const p = worm.radius + 4;
+    wormBox = { x0: x0 - p, y0: y0 - p, x1: x1 + p, y1: y1 + p };
+}
+// возвращает индекс первого задетого сегмента (0 = голова) или -1
+function hitWormAt(x, y, rad) {
+    if (x < wormBox.x0 - rad || x > wormBox.x1 + rad || y < wormBox.y0 - rad || y > wormBox.y1 + rad) return -1;
+    const segs = worm.segments;
+    const n = segs.length;
+    for (let i = 0; i < n; i++) {
+        const s = segs[i];
+        const r = worm.radius * (1 - (i / n) * 0.68) + rad;
+        const dx = x - s.x, dy = y - s.y;
+        if (dx * dx + dy * dy < r * r) return i;
+    }
+    return -1;
+}
+function hurtWorm(amount, x, y, color) {
+    if (worm.goldRushTimer > 0) return;
+    worm.hp -= amount;
+    hurtFlash = Math.min(14, hurtFlash + 8);
+    screenShake = Math.max(screenShake, 5);
+    addParticles(x, y, 6, color || '#ff0055', 4, 4);
+    addFloatText(x, y - 22, '-' + Math.round(amount), color || '#ff1e56', 20);
+}
+
+const particles = [];
+const floatTexts = [];
+const bubbles = [];
+const projectiles = [];
+const shockwaves = [];
+const pets = [];
+const entities = [];
+
+function showBanner(text, color) {
+    const el = document.getElementById('banner-msg');
+    el.innerText = text;
+    el.style.color = color || '#ffea00';
+    el.classList.add('show');
+    if (bannerTimeout) clearTimeout(bannerTimeout);
+    bannerTimeout = setTimeout(function () { el.classList.remove('show'); }, 2200);
+}
+
+function addParticles(x, y, count, color, speed, size, decay) {
+    speed = speed || 5; size = size || 5; decay = decay || 0.025;
+    if (particles.length > 450) return;
+    for (let i = 0; i < count; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const s = (0.2 + Math.random() * 0.8) * speed;
+        particles.push({ x: x, y: y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, r: size * (0.5 + Math.random() * 0.7), alpha: 1, decay: decay, color: color });
+    }
+}
+
+function addFloatText(x, y, text, color, size) {
+    if (floatTexts.length > 40) floatTexts.shift();
+    floatTexts.push({ x: x, y: y, text: text, color: color || '#ffd700', size: size || 20, alpha: 1, vy: -1.8 });
+}
+
+function addExplosion(x, y, radius, dmg) {
+    radius = radius || 140;
+    SFX.play('boom');
+    screenShake = 18;
+    addParticles(x, y, 36, '#ff9e00', 9, 8, 0.02);
+    addParticles(x, y, 24, '#ff1e56', 6, 10, 0.018);
+    addParticles(x, y, 18, '#ffffff', 11, 4, 0.035);
+    if (hitWormAt(x, y, radius * 0.6) !== -1) hurtWorm(dmg || 28, worm.x, worm.y, '#ff1e56');
+    for (let i = entities.length - 1; i >= 0; i--) {
+        const e = entities[i];
+        if (e.isBoss || ENTITY_CATALOG[e.type].isAir) continue;
+        if (Math.hypot(e.x - x, e.y - y) < radius * 1.1) {
+            addParticles(e.x, e.y, 12, '#d90429', 5, 5);
+            entities.splice(i, 1);
+            spawnEntity(e.type);
+        }
+    }
+}
+
+// ---- квесты ----
+const quest = {
+    type: 'eat_any', title: 'Съешьте 15 морских существ', progress: 0, target: 15, rewardCoins: 120, rewardGems: 1,
+    reset() {
+        this.type = 'eat_any'; this.title = 'Съешьте 15 морских существ'; this.progress = 0; this.target = 15;
+        this.rewardCoins = 120; this.rewardGems = 1; this.updateUI();
+    },
+    next() {
+        const pool = [
+            { type: 'eat_any', title: 'Поглотите 20 любых существ', target: 20, rewardCoins: 140, rewardGems: 1 },
+            { type: 'eat_human', title: 'Паника на пляже: съешьте 8 людей', target: 8, rewardCoins: 180, rewardGems: 1 },
+            { type: 'sink_boat', title: 'Потопите 3 катера или вертолёта', target: 3, rewardCoins: 240, rewardGems: 2 },
+            { type: 'eat_air', title: 'Воздушный охотник: поймайте 5 птиц', target: 5, rewardCoins: 200, rewardGems: 2 },
+            { type: 'deep_dive', title: 'Спуститесь глубже 1000м', target: 1000, rewardCoins: 160, rewardGems: 1 }
+        ];
+        const pick = pool[Math.floor(Math.random() * pool.length)];
+        Object.assign(this, pick, { progress: 0 });
+        this.updateUI();
+    },
+    add(type, amount) {
+        if (this.type !== type) return;
+        this.progress += (amount === undefined ? 1 : amount);
+        if (this.progress >= this.target) {
+            saveData.coins += this.rewardCoins;
+            saveData.gems += this.rewardGems;
+            saveGame();
+            SFX.play('goldrush');
+            showBanner('⚡ МИССИЯ ВЫПОЛНЕНА! +' + this.rewardCoins + ' 🪙 +' + this.rewardGems + ' 💎', '#00f5d4');
+            this.next();
+        } else {
+            this.updateUI();
+        }
+    },
+    updateUI() {
+        document.getElementById('quest-title').innerText = this.title + ' (' + Math.min(this.target, Math.floor(this.progress)) + '/' + this.target + ')';
+        document.getElementById('quest-bar').style.width = Math.min(100, (this.progress / this.target) * 100) + '%';
+        document.getElementById('quest-reward').innerText = 'Награда: +' + this.rewardCoins + ' 🪙 +' + this.rewardGems + ' 💎';
+    }
+};
+
+// ============================================================================
+// ИГРОК: HUNGRY GLIST
+// ============================================================================
+const worm = {
+    x: WORLD_W / 2, y: SURFACE_Y + 280, vx: 0, vy: 0, angle: 0,
+    radius: 15, baseRadius: 15, score: 0,
+    hp: 100, maxHp: 100, boost: 100, maxBoost: 100,
+    goldCharge: 0, goldRushTimer: 0, combo: 1, comboTimer: 0,
+    jawPhase: 0, inWater: true, grounded: false, wasGrounded: false, groundIsl: null, slideV: 0, segments: [],
+
+    applyUpgrades() {
+        const upg = saveData.upgrades;
+        const hpRatio = this.maxHp > 0 ? this.hp / this.maxHp : 1;
+        this.maxHp = 100 + (upg.stomach - 1) * 20;
+        this.hp = Math.min(this.maxHp, Math.max(1, hpRatio * this.maxHp));
+        this.maxBoost = 100 + (upg.boost - 1) * 20;
+        this.boost = Math.min(this.boost, this.maxBoost);
+    },
+
+    reset() {
+        const upg = saveData.upgrades;
+        this.baseRadius = 6 + (upg.bite - 1) * 0.8;      // старт: совсем крошечный червь
+        this.radius = this.baseRadius;
+        this.maxHp = 100 + (upg.stomach - 1) * 20;
+        this.hp = this.maxHp;
+        this.maxBoost = 100 + (upg.boost - 1) * 20;
+        this.boost = this.maxBoost;
+        this.score = 0;
+        this.goldCharge = 0;
+        this.goldRushTimer = 0;
+        this.combo = 1;
+        this.comboTimer = 0;
+        this.x = WORLD_W / 2;
+        this.y = SURFACE_Y + 260;
+        this.vx = 0; this.vy = 0; this.angle = 0;
+        this.inWater = true;
+        this.grounded = false;
+        this.wasGrounded = false;
+        this.groundIsl = null;
+        this.slideV = 0;
+        hurtFlash = 0;
+        this.segments = [];
+        for (let i = 0; i < 22; i++) this.segments.push({ x: this.x - i * 4, y: this.y, angle: 0 });
+        document.getElementById('combo-box').classList.remove('active');
+    },
+
+    triggerGoldRush() {
+        this.goldCharge = 0;
+        this.goldRushTimer = 480;
+        this.hp = this.maxHp;
+        this.boost = this.maxBoost;
+        SFX.play('goldrush');
+        showBanner('🔥 ЗОЛОТАЯ ЛИХОРАДКА! ВСЁ СЪЕДОБНО! 🔥', '#ffea00');
+    },
+
+    addCombo() {
+        this.comboTimer = 190;
+        this.combo = Math.min(12, this.combo + 1);
+        if (this.combo >= 2) {
+            const box = document.getElementById('combo-box');
+            box.innerText = 'КОМБО x' + this.combo + '!';
+            box.classList.add('active');
+        }
+    },
+
+    die(msg) {
+        saveGame();
+        runActive = false;
+        openMenu(msg);
+    },
+
+    isBoosting() {
+        return (input.boost && this.boost > 1) || this.goldRushTimer > 0;
+    },
+
+    moveSegments() {
+        const segDist = this.radius * 0.62;
+        this.segments[0].x = this.x;
+        this.segments[0].y = this.y;
+        this.segments[0].angle = this.angle;
+        for (let i = 1; i < this.segments.length; i++) {
+            const prev = this.segments[i - 1], cur = this.segments[i];
+            const dx = prev.x - cur.x, dy = prev.y - cur.y;
+            const d = Math.hypot(dx, dy);
+            if (d > 0.001) {
+                cur.angle = Math.atan2(dy, dx);
+                cur.x = prev.x - (dx / d) * segDist;
+                cur.y = prev.y - (dy / d) * segDist;
+            }
+        }
+    },
+
+    update() {
+        const upg = saveData.upgrades;
+
+        if (this.goldRushTimer > 0) {
+            this.goldRushTimer--;
+            this.hp = this.maxHp;
+            this.boost = this.maxBoost;
+            if (gameTime % 3 === 0) addParticles(this.x, this.y, 1, '#ffea00', 2.5, 4, 0.05);
+        }
+        if (this.comboTimer > 0) {
+            this.comboTimer--;
+            if (this.comboTimer === 0) {
+                this.combo = 1;
+                document.getElementById('combo-box').classList.remove('active');
+            }
+        }
+
+        // голод
+        if (this.goldRushTimer <= 0) {
+            const drain = Math.max(0.018, 0.046 - (upg.stomach - 1) * 0.005);
+            // маленькому червю нужно меньше еды
+            const hungerK = this.radius < 14 ? 0.55 + (this.radius - 6) / 8 * 0.43 : 1 + (this.radius - 14) * 0.015;
+            this.hp -= drain * Math.max(0.5, hungerK);
+            if (this.radius > 32) this.hp = Math.min(this.maxHp, this.hp + 0.022);
+        }
+        if (this.hp <= 0) { this.die('ЧЕРВЬ ПОГИБ ОТ ГОЛОДА! РЕКОРД СОХРАНЁН'); return; }
+
+        // рывок
+        const boosting = this.isBoosting();
+        if (boosting && this.goldRushTimer <= 0) {
+            this.boost = Math.max(0, this.boost - 0.55);
+        } else if (!input.boost) {
+            this.boost = Math.min(this.maxBoost, this.boost + 0.28 + (upg.boost - 1) * 0.06);
+        }
+
+        const baseSpd = 4.0 + (upg.speed - 1) * 0.45 + clamp((this.radius - 6) * 0.045, 0, 3.6);
+        const speed = baseSpd * (boosting ? 1.85 : 1.0);
+
+        let targetAngle = this.angle;
+        if (input.joyActive) targetAngle = Math.atan2(input.joyDY, input.joyDX);
+        else targetAngle = Math.atan2(input.worldY - this.y, input.worldX - this.x);
+
+        // вода / воздух / пляж
+        const wIdx = clamp(Math.floor(this.x / 70), 0, world.waves.length - 1);
+        const localSurfaceY = world.waves[wIdx].y;
+        const onGround = this.grounded;
+
+        const wasInWater = this.inWater;
+        this.inWater = this.y >= localSurfaceY;
+        if (wasInWater !== this.inWater) {
+            world.splash(this.x, this.inWater ? 34 : -28);
+            SFX.play('splash');
+            addParticles(this.x, localSurfaceY, 18, '#caf0f8', 6, 5, 0.03);
+        }
+
+        let sliding = false;
+        if (onGround && this.groundIsl) {
+            // СУША: ползти нельзя — только скатываться вниз по склону острова
+            const isl = this.groundIsl;
+            if (!this.wasGrounded) this.slideV = clamp(this.vx * 0.5, -5, 5);   // сохраняем часть импульса прыжка
+            const dxi = this.x - isl.x;
+            const dir = dxi >= 0 ? 1 : -1;
+            const nx = Math.min(1, Math.abs(dxi) / isl.r);
+            const slideSpd = 1.8 + nx * nx * 5.5;                  // чем круче склон — тем быстрее
+            this.slideV += (dir * slideSpd - this.slideV) * 0.12;
+            this.vx = this.slideV;
+            this.vy = 0;
+            this.angle += normAngle((this.vx >= 0 ? 0 : Math.PI) - this.angle) * 0.1;
+            sliding = true;
+            if (gameTime % 4 === 0) addParticles(this.x, this.y + this.radius * 0.5, 2, '#ffea9f', 2.5, 3, 0.05);
+        } else if (!this.inWater) {
+            this.vy += 0.27;
+            this.vx *= 0.992;
+            this.angle = Math.atan2(this.vy, this.vx);
+        } else {
+            const diff = normAngle(targetAngle - this.angle);
+            this.angle += diff * 0.14;
+            this.vx = Math.cos(this.angle) * speed;
+            this.vy = Math.sin(this.angle) * speed;
+        }
+        this.wasGrounded = sliding;
+
+        this.x = clamp(this.x + this.vx, 60, WORLD_W - 60);
+        this.y = clamp(this.y + this.vy, 40, WORLD_H - 60);
+
+        if (sliding) {
+            // следуем за поверхностью песка; дошли до воды/края — отпускаем в свободное падение
+            const gy = islandGround(this.groundIsl, this.x);
+            const restY = gy === null ? null : gy - this.radius * 0.85 * 0.5;
+            if (restY === null || restY > SURFACE_Y + 2) {
+                this.grounded = false;
+                this.wasGrounded = false;
+            } else {
+                this.y = restY;
+            }
+        }
+
+        resolveWorld(this, this.radius * 0.85, true);
+
+        this.jawPhase += boosting ? 0.35 : 0.14;
+        if (this.inWater && boosting && gameTime % 2 === 0 && bubbles.length < 120) {
+            bubbles.push({ x: this.x - Math.cos(this.angle) * this.radius, y: this.y - Math.sin(this.angle) * this.radius, r: 2 + Math.random() * 5, vy: -1 - Math.random() * 2, alpha: 0.8 });
+        }
+
+        this.moveSegments();
+
+        // вакуум пастью при рывке
+        if (boosting && this.inWater) {
+            const mouthX = this.x + Math.cos(this.angle) * (this.radius * 1.4);
+            const mouthY = this.y + Math.sin(this.angle) * (this.radius * 1.4);
+            const suckR = this.radius * 3.6;
+            const biteBonus = (upg.bite - 1) * 0.08;
+            for (let i = 0; i < entities.length; i++) {
+                const e = entities[i];
+                const def = ENTITY_CATALOG[e.type];
+                if (e.isBoss || def.isAir || e.type === 'boat' || e.type === 'human_beach' || e.type === 'human_gunner') continue;
+                if (!(this.goldRushTimer > 0 || this.radius * (1.08 + biteBonus) >= e.r)) continue;
+                const dx = mouthX - e.x, dy = mouthY - e.y;
+                if (dx > suckR || dx < -suckR || dy > suckR || dy < -suckR) continue;
+                const d = Math.hypot(dx, dy);
+                if (d < suckR && d > 1) {
+                    const pull = (1 - d / suckR) * 4.8;
+                    e.x += ((this.x - e.x) / d) * pull;
+                    e.y += ((this.y - e.y) / d) * pull;
+                }
+            }
+        }
+
+        if (quest.type === 'deep_dive') {
+            const depth = Math.max(0, Math.round((this.y - SURFACE_Y) / 8));
+            if (depth > quest.progress) quest.add('deep_dive', depth - quest.progress);
+        }
+    }
+};
+
+// ============================================================================
+// ЧАСТЬ 4: ЭКОСИСТЕМА
+// ============================================================================
+const ENTITY_CATALOG = {
+    human_beach:  { rMin: 11, rMax: 13, speed: 0.8, score: 120, coins: 3, hp: 14, minY: 0, maxY: SURFACE_Y },
+    human_gunner: { rMin: 11, rMax: 13, speed: 0.55, score: 260, coins: 8, hp: 18, minY: 0, maxY: SURFACE_Y },
+    human_swim:   { rMin: 11, rMax: 13, speed: 1.1, score: 150, coins: 4, hp: 16, minY: SURFACE_Y, maxY: SURFACE_Y + 90 },
+    boat:         { rMin: 36, rMax: 48, speed: 1.5, score: 650, coins: 18, hp: 35, minY: SURFACE_Y - 8, maxY: SURFACE_Y + 5 },
+
+    // --- мелочь: для маленького червя, исчезает с карты (fadeR — радиус червя, с которого пропадает) ---
+    plankton:     { rMin: 1.6, rMax: 2.4, speed: 0.9, score: 6,  coins: 0, hp: 3,  minY: SURFACE_Y + 40, maxY: TWILIGHT_Y - 600, fadeR: 8.5, school: true, color: '#e0fbfc', glow: '#90e0ef' },
+    krill:        { rMin: 2.8, rMax: 3.8, speed: 1.5, score: 12, coins: 0, hp: 5,  minY: SURFACE_Y + 60, maxY: TWILIGHT_Y - 300, fadeR: 11, school: true, color: '#ffb4a2', glow: '#ff8fab' },
+    minnow:       { rMin: 4.0, rMax: 5.2, speed: 2.1, score: 24, coins: 1, hp: 8,  minY: SURFACE_Y + 80, maxY: TWILIGHT_Y, fadeR: 14.5, school: true, color: '#a9def9' },
+    fry:          { rMin: 5.4, rMax: 6.4, speed: 2.3, score: 40, coins: 1, hp: 11, minY: SURFACE_Y + 100, maxY: TWILIGHT_Y + 200, fadeR: 19, school: true, color: '#ffd6a5' },
+    sardine:      { rMin: 6,  rMax: 9,  speed: 2.6, score: 60,  coins: 1, hp: 9,  minY: SURFACE_Y + 60, maxY: TWILIGHT_Y, fadeR: 27, school: true },
+    clownfish:    { rMin: 9,  rMax: 13, speed: 2.3, score: 90,  coins: 2, hp: 11, minY: SURFACE_Y + 150, maxY: TWILIGHT_Y + 600, fadeR: 36 },
+
+    // --- открытая вода ---
+    jellyfish:    { rMin: 14, rMax: 22, speed: 0.7, score: 140, coins: 4, hp: 10, minY: SURFACE_Y + 700, maxY: ABYSS_Y, drifter: true },
+    puffer:       { rMin: 15, rMax: 21, speed: 1.9, score: 210, coins: 6, hp: 16, minY: SURFACE_Y + 800, maxY: TWILIGHT_Y + 1500 },
+    turtle:       { rMin: 20, rMax: 27, speed: 1.8, score: 280, coins: 8, hp: 22, minY: SURFACE_Y + 400, maxY: TWILIGHT_Y + 1200 },
+    manta:        { rMin: 26, rMax: 35, speed: 2.7, score: 420, coins: 11, hp: 28, minY: TWILIGHT_Y - 600, maxY: ABYSS_Y },
+    swordfish:    { rMin: 24, rMax: 32, speed: 4.6, score: 520, coins: 14, hp: 26, minY: TWILIGHT_Y - 400, maxY: ABYSS_Y + 1000, aggressive: true },
+    shark_white:  { rMin: 34, rMax: 48, speed: 3.6, score: 800, coins: 22, hp: 38, minY: TWILIGHT_Y - 200, maxY: ABYSS_Y + 2000, aggressive: true },
+    shark_hammer: { rMin: 38, rMax: 52, speed: 3.8, score: 950, coins: 26, hp: 42, minY: TWILIGHT_Y + 800, maxY: CAVE_Y - 300, aggressive: true },
+    squid_giant:  { rMin: 46, rMax: 62, speed: 3.3, score: 1400, coins: 38, hp: 50, minY: ABYSS_Y - 400, maxY: CAVE_Y - 250, aggressive: true },
+    angler:       { rMin: 32, rMax: 46, speed: 3.1, score: 1100, coins: 30, hp: 40, minY: ABYSS_Y + 600, maxY: CAVE_Y - 250, aggressive: true },
+    leviathan:    { rMin: 82, rMax: 98, speed: 3.9, score: 5000, coins: 120, hp: 80, minY: 11500, maxY: CAVE_Y - 300, aggressive: true, isBoss: true, name: 'ЛЕВИАФАН БЕЗДНЫ' },
+    // воздух
+    seagull:      { rMin: 10, rMax: 13, speed: 2.8, score: 180, coins: 5, hp: 14, minY: 160, maxY: SURFACE_Y - 90, isAir: true },
+    pelican:      { rMin: 15, rMax: 19, speed: 2.3, score: 290, coins: 8, hp: 22, minY: 120, maxY: SURFACE_Y - 110, isAir: true },
+    heli_patrol:  { rMin: 48, rMax: 56, speed: 2.6, score: 1800, coins: 55, hp: 50, minY: 140, maxY: 340, isAir: true },
+    // мега-боссы открытой воды
+    boss_kraken:  { rMin: 86, rMax: 100, speed: 3.4, score: 6500, coins: 160, hp: 90, minY: ABYSS_Y, maxY: CAVE_Y - 400, aggressive: true, isBoss: true, name: 'КОРОЛЬ-КРАКЕН' },
+    boss_meg:     { rMin: 92, rMax: 108, speed: 4.3, score: 8000, coins: 200, hp: 100, minY: TWILIGHT_Y + 400, maxY: ABYSS_Y + 3000, aggressive: true, isBoss: true, name: 'КИБЕР-МЕГАЛОДОН' },
+    rival_worm:   { rMin: 45, rMax: 68, speed: 4.4, score: 3500, coins: 85, hp: 65, minY: ABYSS_Y - 1500, maxY: CAVE_Y - 400, aggressive: true, isBoss: true, name: 'ЧЕРВЬ-СОПЕРНИК' },
+
+    // --- ПЕЩЕРЫ: своя фауна. Чем глубже — тем крупнее и опаснее; обычные мобы тут сильнее боссов у поверхности ---
+    glowworm:     { rMin: 9,   rMax: 15,  speed: 1.4, score: 90,   coins: 3,   hp: 18, minY: CAVE_Y + 100,  maxY: CAVE3_Y,       cave: true, color: '#00f5d4', glow: '#00f5d4' },
+    cave_shrimp:  { rMin: 16,  rMax: 24,  speed: 2.3, score: 220,  coins: 7,   hp: 26, minY: CAVE_Y + 300,  maxY: WORLD_H - 300, cave: true, color: '#ff8fab', glow: '#ff4d6d' },
+    blind_fish:   { rMin: 28,  rMax: 42,  speed: 2.0, score: 480,  coins: 13,  hp: 40, minY: CAVE_Y + 1500, maxY: WORLD_H - 300, cave: true, color: '#dee2e6' },
+    // Кристальные пещеры
+    cave_bat:     { rMin: 32,  rMax: 42,  speed: 4.4, score: 1300, coins: 36,  hp: 38,  minY: CAVE_Y + 300,  maxY: CAVE2_Y + 2000, aggressive: true, cave: true, color: '#5e548e', glow: '#9f86c0', wings: true },
+    lamprey:      { rMin: 54,  rMax: 70,  speed: 3.8, score: 2200, coins: 60,  hp: 55,  minY: CAVE_Y + 1500, maxY: CAVE3_Y,        aggressive: true, cave: true, color: '#6d597a', glow: '#b56576', maw: true },
+    // Грибные чертоги
+    crystal_pike: { rMin: 84,  rMax: 104, speed: 4.2, score: 3800, coins: 95,  hp: 70,  minY: CAVE2_Y - 1500, maxY: CAVE3_Y + 1500, aggressive: true, cave: true, color: '#4cc9f0', glow: '#90e0ef' },
+    spore_jelly:  { rMin: 100, rMax: 130, speed: 1.1, score: 4200, coins: 110, hp: 80,  minY: CAVE2_Y - 800,  maxY: CAVE3_Y + 800,  aggressive: true, cave: true, color: '#80ed99', glow: '#38b000', drifter: true },
+    ghost_whale:  { rMin: 125, rMax: 150, speed: 2.9, score: 6000, coins: 150, hp: 90,  minY: CAVE2_Y,         maxY: CAVE3_Y + 2000, aggressive: true, cave: true, color: '#cdb4db', glow: '#e0aaff' },
+    // Магматические недра
+    magma_ray:    { rMin: 140, rMax: 170, speed: 3.7, score: 9000,  coins: 220, hp: 110, minY: CAVE3_Y - 500,  maxY: WORLD_H - 300, aggressive: true, cave: true, color: '#c1121f', glow: '#ff6d00', wings: true },
+    void_angler:  { rMin: 170, rMax: 200, speed: 3.3, score: 12000, coins: 300, hp: 140, minY: CAVE3_Y + 500,  maxY: WORLD_H - 300, aggressive: true, cave: true, color: '#10002b', glow: '#7b2cbf', maw: true },
+    hollow_maw:   { rMin: 210, rMax: 250, speed: 3.0, score: 20000, coins: 500, hp: 200, minY: CAVE3_Y + 1500, maxY: WORLD_H - 400, aggressive: true, cave: true, color: '#03071e', glow: '#d00000', maw: true }
+};
+
+// Обычные мобы кусают редко: dmg — урон за укус, cd — перезарядка (кадров, 60 = 1 с),
+// chase — сколько кадров гонятся за червём, retreat — сколько кадров уплывают после укуса.
+// Чем сильнее рыбина — тем больше урон и короче перезарядка.
+const BITE = {
+    swordfish:    { dmg: 6,  cd: 250, chase: 170, retreat: 70 },
+    shark_white:  { dmg: 11, cd: 220, chase: 210, retreat: 80 },
+    shark_hammer: { dmg: 13, cd: 195, chase: 220, retreat: 80 },
+    angler:       { dmg: 15, cd: 180, chase: 230, retreat: 90 },
+    squid_giant:  { dmg: 18, cd: 160, chase: 250, retreat: 90 },
+    puffer:       { dmg: 6,  cd: 90,  chase: 0,   retreat: 0 },     // колется, только когда раздулась
+    jellyfish:    { dmg: 5,  cd: 55,  chase: 0,   retreat: 0 },     // жалит при касании
+    // пещеры: урон растёт, перезарядка падает с глубиной
+    cave_bat:     { dmg: 16, cd: 150, chase: 230, retreat: 70 },
+    lamprey:      { dmg: 24, cd: 140, chase: 270, retreat: 80 },
+    crystal_pike: { dmg: 34, cd: 125, chase: 290, retreat: 90 },
+    spore_jelly:  { dmg: 30, cd: 100, chase: 0,   retreat: 0 },
+    ghost_whale:  { dmg: 42, cd: 120, chase: 310, retreat: 100 },
+    magma_ray:    { dmg: 46, cd: 110, chase: 290, retreat: 110 },
+    void_angler:  { dmg: 55, cd: 100, chase: 300, retreat: 120 },
+    hollow_maw:   { dmg: 65, cd: 90,  chase: 320, retreat: 120 }
+};
+
+// Особые атаки глубинных мобов (кроме укуса)
+const SPECIAL = {
+    spore_jelly: { kind: 'ink_cloud', every: 210, range: 650 },     // облако спор: слепит
+    magma_ray:   { kind: 'torpedo',   every: 250, range: 1000 },    // самонаводящийся магматический заряд
+    void_angler: { kind: 'vortex',    every: 320, range: 850 }      // воронка: затягивает к пасти
+};
+function trySpecial(e, dx, dy, dist) {
+    const sp = SPECIAL[e.type];
+    if (!sp || dist > sp.range || dist < 1) return;
+    if (++e.attackTimer < sp.every) return;
+    e.attackTimer = 0;
+    const ux = dx / dist, uy = dy / dist;
+    if (sp.kind === 'torpedo') {
+        SFX.play('laser');
+        projectiles.push({ type: 'torpedo', x: e.x + ux * e.r, y: e.y + uy * e.r, vx: 0, vy: 0, angle: Math.atan2(dy, dx), r: 16, timer: 340, dmg: 45 });
+    } else if (sp.kind === 'ink_cloud') {
+        projectiles.push({ type: 'ink_cloud', x: e.x, y: e.y, vx: ux * 2.4, vy: uy * 2.4, r: 110, timer: 300 });
+    } else {
+        projectiles.push({ type: 'vortex', x: e.x + ux * e.r * 1.2, y: e.y + uy * e.r * 1.2, vx: ux * 3, vy: uy * 3, r: 95, timer: 300 });
+    }
+}
+
+function spawnEntity(type) {
+    const def = ENTITY_CATALOG[type];
+    const r = rnd(def.rMin, def.rMax);
+    const e = {
+        type: type, r: r, baseR: r, x: 0, y: 0, vx: 0, vy: 0,
+        angle: rnd(-Math.PI, Math.PI),
+        speed: def.speed * rnd(0.9, 1.15),
+        dir: Math.random() < 0.5 ? 1 : -1,
+        animPhase: Math.random() * Math.PI * 2,
+        puffed: false,
+        bossHp: def.isBoss ? 300 : 100, bossMaxHp: 300, isBoss: !!def.isBoss,
+        stunTimer: 0, attackTimer: 0, fireTimer: 0, laserAim: false,
+        state: 'idle', stateTimer: 0, biteTimer: Math.floor(Math.random() * 120),
+        burstLeft: 0, burstGap: 0, aim: 0, flash: 0,
+        suitColor: ['#ff0055', '#00f5d4', '#ffbe0b', '#8338ec', '#3a86ff'][Math.floor(Math.random() * 5)]
+    };
+
+    // мелочь для маленького червя не появляется, когда червь уже вырос
+    if (def.fadeR && runActive && worm.radius >= def.fadeR) return;
+
+    e.x = 0;
+    for (let t = 0; t < 8; t++) {
+        if (def.cave) {
+            const clear = Math.ceil(Math.min(r * 0.6, 100) / cave.cs) + 1;
+            const sp = cave.openSpot(def.minY, def.maxY, clear);
+            if (!sp) continue;
+            e.x = sp.x; e.y = sp.y;
+        } else if (def.school) {
+            const h = world.schools[Math.floor(Math.random() * world.schools.length)];
+            e.home = h;
+            e.x = clamp(h.x + rnd(-200, 200), 200, WORLD_W - 200);
+            e.y = clamp(h.y + rnd(-160, 160), def.minY, def.maxY);
+        } else {
+            e.x = rnd(200, WORLD_W - 200);
+            e.y = rnd(def.minY, Math.max(def.minY + 10, def.maxY));
+        }
+        if (!runActive || Math.hypot(e.x - worm.x, e.y - worm.y) > 700) break;
+    }
+    if (def.cave && e.x === 0) return;
+
+    if (type === 'human_beach' || type === 'human_gunner') {
+        let isl = world.islands[Math.floor(Math.random() * world.islands.length)];
+        // не появляемся прямо перед червём
+        for (let t = 0; t < 6 && runActive && Math.abs(isl.x - worm.x) < 700; t++) {
+            isl = world.islands[Math.floor(Math.random() * world.islands.length)];
+        }
+        e.island = isl;
+        e.fireTimer = 40 + Math.floor(Math.random() * 100);
+        e.x = isl.x + (Math.random() - 0.5) * isl.r * 1.1;
+        const g = islandGround(isl, e.x);
+        e.y = (g === null ? SURFACE_Y : g) - 13;
+    } else if (type === 'human_swim' || type === 'boat') {
+        e.y = SURFACE_Y;
+        for (let k = 0; k < world.islands.length; k++) {
+            const isl = world.islands[k];
+            if (Math.abs(e.x - isl.x) < isl.r * 1.1 + e.r) e.x = isl.x + isl.r * 1.3 + e.r;
+        }
+    } else if (type === 'rival_worm') {
+        e.segments = [];
+        for (let s = 0; s < 22; s++) e.segments.push({ x: e.x - s * 16, y: e.y, angle: 0 });
+    }
+
+    entities.push(e);
+}
+
+function initEcosystem() {
+    entities.length = 0;
+    const counts = {
+        human_beach: 40, human_gunner: 30, human_swim: 32, boat: 14,
+        plankton: 300, krill: 260, minnow: 220, fry: 160, sardine: 200, clownfish: 130,
+        jellyfish: 70, puffer: 55, turtle: 45, manta: 40, swordfish: 40,
+        shark_white: 36, shark_hammer: 28, squid_giant: 22,
+        angler: 36, leviathan: 6,
+        seagull: 28, pelican: 14, heli_patrol: 5,
+        boss_kraken: 3, boss_meg: 3, rival_worm: 4,
+        glowworm: 130, cave_shrimp: 100, blind_fish: 70,
+        cave_bat: 60, lamprey: 40, crystal_pike: 36, spore_jelly: 24, ghost_whale: 20,
+        magma_ray: 22, void_angler: 16, hollow_maw: 10
+    };
+    for (const type in counts) {
+        for (let i = 0; i < counts[type]; i++) spawnEntity(type);
+    }
+}
+
+// ---- Био-Импульс ----
+function triggerBioEMP() {
+    if (empCooldown > 0 || gameState !== 'playing') return;
+    const lvl = saveData.upgrades.emp || 1;
+    const maxRadius = 340 + lvl * 55;
+    empCooldown = Math.max(180, 420 - lvl * 35);
+
+    SFX.play('emp');
+    screenShake = 14;
+    shockwaves.push({ x: worm.x, y: worm.y, r: worm.radius, maxR: maxRadius, alpha: 1 });
+
+    for (let i = 0; i < entities.length; i++) {
+        const e = entities[i];
+        if (Math.hypot(e.x - worm.x, e.y - worm.y) < maxRadius) {
+            e.stunTimer = 180 + lvl * 35;
+            if (e.isBoss) {
+                const dmg = 35 + lvl * 12;
+                e.bossHp -= dmg;
+                addFloatText(e.x, e.y - 30, '-' + dmg + ' ИМПУЛЬС!', '#00f5d4', 22);
+            }
+            addParticles(e.x, e.y, 8, '#00f5d4', 5, 4);
+        }
+    }
+    for (const m of world.mines) {
+        if (m.active && Math.hypot(m.x - worm.x, m.y - worm.y) < maxRadius) {
+            m.active = false;
+            m.respawn = 900;
+            SFX.play('boom');
+            addParticles(m.x, m.y, 24, '#00f5d4', 8, 6);
+            worm.score += 250;
+        }
+    }
+    for (let i = projectiles.length - 1; i >= 0; i--) {
+        const pr = projectiles[i];
+        if (Math.hypot(pr.x - worm.x, pr.y - worm.y) < maxRadius) {
+            addParticles(pr.x, pr.y, 16, '#ffbe0b', 6, 5);
+            projectiles.splice(i, 1);
+        }
+    }
+}
+
+function syncPets() {
+    const desired = saveData.upgrades.pets - 1;
+    while (pets.length < desired) {
+        const segs = [];
+        for (let s = 0; s < 8; s++) segs.push({ x: worm.x, y: worm.y });
+        pets.push({ x: worm.x, y: worm.y, angle: 0, orbitOffset: pets.length * 1.3, segs: segs });
+    }
+    if (pets.length > desired) pets.length = desired;
+}
+
+function clampEntity(e, def) {
+    if (e.x < 80) { e.x = 80; if (Math.cos(e.angle) < 0) e.angle = Math.PI - e.angle; }
+    if (e.x > WORLD_W - 80) { e.x = WORLD_W - 80; if (Math.cos(e.angle) > 0) e.angle = Math.PI - e.angle; }
+    if (e.y < def.minY) { e.y = def.minY; if (Math.sin(e.angle) < 0) e.angle = -e.angle; }
+    if (e.y > def.maxY) { e.y = def.maxY; if (Math.sin(e.angle) > 0) e.angle = -e.angle; }
+    e.angle = normAngle(e.angle);
+}
+
+function updateEcosystem() {
+    if (empCooldown > 0) empCooldown--;
+    if (blindTimer > 0) blindTimer--;
+
+    const biteBonus = (saveData.upgrades.bite - 1) * 0.08;
+    let closestBoss = null;
+    let closestBossDist = 1100;
+    // далёкие существа «спят» (не двигаются) — иначе тысячи мобов в огромном мире тормозили бы телефон
+    const sleepDist = Math.max(VW, VH) * 0.9 + 800;
+    const farLimit = sleepDist;
+    if (hurtFlash > 0) hurtFlash--;
+    updateWormBox();
+
+    // мины (задеть можно любой частью тела)
+    for (const m of world.mines) {
+        if (!m.active) continue;
+        if (hitWormAt(m.x, m.y, m.r) !== -1) {
+            m.active = false;
+            m.respawn = 900;
+            addExplosion(m.x, m.y, 160);
+        }
+    }
+
+    // сундуки
+    for (const ch of world.chests) {
+        if (ch.opened) continue;
+        if (Math.abs(worm.x - ch.x) > 120 || Math.abs(worm.y - ch.y) > 120) continue;
+        if (Math.hypot(worm.x - ch.x, worm.y - ch.y) < worm.radius + 28) {
+            ch.opened = true;
+            ch.respawn = 1800;
+            const coinGain = 45 + Math.floor(Math.random() * 40) + Math.floor(Math.max(0, ch.y - SURFACE_Y) / 3000) * 25;
+            const gemGain = Math.random() < 0.45 ? 1 : 0;
+            saveData.coins += coinGain;
+            saveData.gems += gemGain;
+            worm.score += 500;
+            worm.goldCharge = Math.min(100, worm.goldCharge + 25);
+            SFX.play('coin');
+            addParticles(ch.x, ch.y, 24, '#ffd700', 6, 5);
+            addFloatText(ch.x, ch.y - 20, '+' + coinGain + ' 🪙 ' + (gemGain ? '+1 💎' : ''), '#ffea00', 24);
+        }
+    }
+
+    // кристаллы (таран на рывке)
+    if (worm.isBoosting()) {
+        for (const cr of world.crystals) {
+            if (cr.broken) continue;
+            if (Math.abs(worm.x - cr.x) > 120 || Math.abs(worm.y - cr.y) > 120) continue;
+            if (Math.hypot(worm.x - cr.x, worm.y - cr.y) < worm.radius + cr.size) {
+                cr.broken = true;
+                cr.respawn = 1500;
+                saveData.gems += 1;
+                worm.score += 300;
+                SFX.play('coin');
+                addParticles(cr.x, cr.y, 18, cr.color, 6, 5);
+                addFloatText(cr.x, cr.y, '+1 💎 КРИСТАЛЛ!', cr.color, 20);
+            }
+        }
+    }
+
+    // гидротермальные пузыри
+    for (const v of world.vents) {
+        v.timer++;
+        if (v.timer % 8 === 0 && Math.abs(v.x - worm.x) < VW && bubbles.length < 120) {
+            bubbles.push({ x: v.x + (Math.random() - 0.5) * v.w * 0.5, y: v.y - v.h, r: 4 + Math.random() * 7, vy: -2.2 - Math.random() * 2, alpha: 0.75 });
+        }
+    }
+
+    // ----- существа -----
+    for (let i = entities.length - 1; i >= 0; i--) {
+        const e = entities[i];
+        const def = ENTITY_CATALOG[e.type];
+        e.animPhase += 0.12;
+
+        const stunned = e.stunTimer > 0;
+        if (stunned) e.stunTimer--;
+        if (e.biteTimer > 0) e.biteTimer--;
+        if (e.flash > 0) e.flash--;
+
+        const dx = worm.x - e.x;
+        const dy = worm.y - e.y;
+        const dist = Math.hypot(dx, dy);
+
+        if (e.isBoss && dist < closestBossDist) { closestBoss = e; closestBossDist = dist; }
+
+        // мелкая рыба исчезает с карты, когда червь подрос (рядом — плавно, вдали — сразу)
+        if (def.fadeR && worm.radius >= def.fadeR) {
+            if (dist > Math.max(VW, VH) * 0.6) { entities.splice(i, 1); continue; }
+            e.fadeOut = (e.fadeOut || 0) + 1;
+            if (e.fadeOut > 50) { entities.splice(i, 1); continue; }
+            e.x += Math.cos(e.angle) * e.speed * 0.5;
+            e.y += Math.sin(e.angle) * e.speed * 0.5;
+            continue;
+        }
+        // далёкие спят
+        if (dist > sleepDist && !e.isBoss) continue;
+
+        const canEat =(worm.goldRushTimer > 0) || (worm.radius * (1.08 + biteBonus) >= e.r);
+        const rage = e.isBoss && e.bossHp < e.bossMaxHp * 0.4;
+
+        if (!stunned) {
+            if (e.type === 'human_beach') {
+                const isl = e.island;
+                if (dist < 240 && worm.y < SURFACE_Y + 120) {
+                    e.dir = dx > 0 ? -1 : 1;
+                    e.x += e.dir * e.speed * 2.2;
+                } else {
+                    e.x += e.dir * e.speed;
+                }
+                const maxOff = isl.r * 0.72;
+                if (e.x > isl.x + maxOff) { e.x = isl.x + maxOff; e.dir = -1; }
+                if (e.x < isl.x - maxOff) { e.x = isl.x - maxOff; e.dir = 1; }
+                const g = islandGround(isl, e.x);
+                e.y = (g === null ? SURFACE_Y : g) - 13;
+            } else if (e.type === 'human_gunner') {
+                // солдат с автоматом: патрулирует остров, стреляет очередями по червю у поверхности
+                const isl = e.island;
+                const seesWorm = dist < 640 && worm.y < SURFACE_Y + 40;
+                if (seesWorm) {
+                    e.dir = dx >= 0 ? 1 : -1;
+                    // упреждение по скорости червя
+                    const lead = dist / 9;
+                    const tx = worm.x + worm.vx * lead * 0.7;
+                    const ty = worm.y + worm.vy * lead * 0.7;
+                    e.aim = Math.atan2(ty - (e.y - 4), tx - e.x);
+                    if (e.burstLeft > 0) {
+                        if (--e.burstGap <= 0) {
+                            e.burstLeft--;
+                            e.burstGap = 7;
+                            e.flash = 3;
+                            const a = e.aim + (Math.random() - 0.5) * 0.22;
+                            projectiles.push({
+                                type: 'bullet',
+                                x: e.x + Math.cos(e.aim) * 16, y: e.y - 4 + Math.sin(e.aim) * 16,
+                                vx: Math.cos(a) * 9.5, vy: Math.sin(a) * 9.5, r: 3, timer: 90
+                            });
+                            if (Math.random() < 0.5) SFX.play('laser');
+                        }
+                    } else if (--e.fireTimer <= 0) {
+                        e.burstLeft = 4;
+                        e.burstGap = 0;
+                        e.fireTimer = 140 + Math.floor(Math.random() * 70);
+                        if (Math.random() < 0.16) {
+                            const shouts = ['ОТПУСК ПОРТИШЬ!', 'Я ВЕГАН!', 'ЭТО НЕ ПО ГРАФИКУ!', 'ОН НЕ ИЗ НАШЕЙ СМЕНЫ!', 'КТО ВЫПУСТИЛ ЛАПШУ?!'];
+                            addFloatText(e.x, e.y - 32, shouts[Math.floor(Math.random() * shouts.length)], '#ffffff', 14);
+                        }
+                    }
+                } else {
+                    e.burstLeft = 0;
+                    if (e.fireTimer < 30) e.fireTimer = 30;      // небольшая задержка перед первой очередью
+                    e.x += e.dir * e.speed;
+                    e.aim = e.dir > 0 ? 0 : Math.PI;
+                }
+                const maxOff = isl.r * 0.72;
+                if (e.x > isl.x + maxOff) { e.x = isl.x + maxOff; e.dir = -1; }
+                if (e.x < isl.x - maxOff) { e.x = isl.x - maxOff; e.dir = 1; }
+                const g = islandGround(isl, e.x);
+                e.y = (g === null ? SURFACE_Y : g) - 13;
+            } else if (e.type === 'human_swim' || e.type === 'boat') {
+                const wIdx = clamp(Math.floor(e.x / 70), 0, world.waves.length - 1);
+                e.y = world.waves[wIdx].y + (e.type === 'boat' ? -6 : 6);
+                if (dist < 280 && e.type === 'human_swim') e.dir = dx > 0 ? -1 : 1;
+                e.x += e.dir * e.speed;
+                if (e.x < 100) { e.x = 100; e.dir = 1; }
+                if (e.x > WORLD_W - 100) { e.x = WORLD_W - 100; e.dir = -1; }
+                for (let k = 0; k < world.islands.length; k++) {
+                    const isl = world.islands[k];
+                    const lim = isl.r * 1.05 + e.r * 0.5;
+                    if (Math.abs(e.x - isl.x) < lim) {
+                        const sgn = e.x < isl.x ? -1 : 1;
+                        e.x = isl.x + sgn * (lim + 1);
+                        e.dir = sgn;
+                    }
+                }
+            } else if (def.isAir) {
+                e.x += e.dir * e.speed;
+                e.y += Math.sin(e.animPhase * 0.7) * 0.65;
+                if (e.x < 150) e.dir = 1;
+                if (e.x > WORLD_W - 150) e.dir = -1;
+                e.y = clamp(e.y, def.minY, def.maxY);
+                e.angle = e.dir > 0 ? 0 : Math.PI;
+
+                if (e.type === 'heli_patrol' && Math.abs(dx) < 340 && worm.y < SURFACE_Y + 400) {
+                    e.fireTimer++;
+                    if (e.fireTimer > 135) {
+                        e.fireTimer = 0;
+                        projectiles.push({ type: 'depth_charge', x: e.x, y: e.y + 20, vx: e.dir * 1.2, vy: 2.5, r: 14, timer: 260 });
+                    }
+                }
+            } else if (def.drifter) {
+                // медузы: дрейфуют; споровая медуза из пещер ещё и пускает ослепляющие споры
+                e.y += Math.sin(e.animPhase * 0.4) * e.speed;
+                e.x += Math.cos(e.animPhase * 0.2) * 0.4 * Math.max(1, e.r / 40);
+                e.y = clamp(e.y, def.minY, def.maxY);
+                if (worm.inWater) trySpecial(e, dx, dy, dist);
+                if (dist < farLimit) resolveWorld(e, e.r * 0.7, false);
+            } else {
+                // рыбы, акулы, кальмары, боссы
+                if (e.type === 'puffer') {
+                    e.puffed = dist < 210;
+                    e.r = e.puffed ? e.baseR * 1.55 : e.baseR;
+                }
+                const wormInSea = worm.inWater;
+                const bs = BITE[e.type];
+                const hostile = !!def.aggressive && !e.isBoss && !canEat && !!bs;   // обычный хищник
+                let acted = false;
+                let curSpeed = e.speed;
+
+                if (hostile) {
+                    // кусачий моб: нашёл -> гонится пару секунд -> кусает -> уплывает -> перезарядка
+                    if (e.state === 'chase') {
+                        const diff = normAngle(Math.atan2(dy, dx) - e.angle);
+                        e.angle += diff * 0.07;
+                        curSpeed = e.speed * 1.3;
+                        acted = true;
+                        if (--e.stateTimer <= 0 || !wormInSea || dist > 700) {
+                            e.state = 'retreat';
+                            e.stateTimer = Math.floor(bs.retreat * 0.7);
+                            e.biteTimer = Math.max(e.biteTimer, 120);      // отдышка, если не догнал
+                        }
+                    } else if (e.state === 'retreat') {
+                        const diff = normAngle(Math.atan2(-dy, -dx) - e.angle);
+                        e.angle += diff * 0.08;
+                        curSpeed = e.speed * 1.1;
+                        acted = true;
+                        if (--e.stateTimer <= 0) e.state = 'idle';
+                    } else if (wormInSea && dist < 480 && e.biteTimer <= 0) {
+                        e.state = 'chase';
+                        e.stateTimer = bs.chase;
+                    }
+                } else {
+                    if (e.state !== 'idle') e.state = 'idle';
+                    if (dist < 440 && wormInSea) {
+                        if (e.isBoss) {
+                            const diff = normAngle(Math.atan2(dy, dx) - e.angle);
+                            e.angle += diff * 0.06;
+                            acted = true;
+                        } else if (canEat) {
+                            const diff = normAngle(Math.atan2(-dy, -dx) - e.angle);
+                            e.angle += diff * 0.09;
+                            acted = true;
+                        }
+                    }
+                    if (dist < 380 && wormInSea && (e.isBoss || canEat)) curSpeed = e.speed * 1.35;
+                }
+                // стайная мелочь держится возле своего «дома»
+                if (!acted && e.home) {
+                    const hd = Math.hypot(e.x - e.home.x, e.y - e.home.y);
+                    if (hd > 420) e.angle += normAngle(Math.atan2(e.home.y - e.y, e.home.x - e.x) - e.angle) * 0.06;
+                }
+                if (!acted && Math.random() < 0.025) e.angle += rnd(-0.55, 0.55);
+                if (rage) curSpeed *= 1.2;
+                e.x += Math.cos(e.angle) * curSpeed;
+                e.y += Math.sin(e.angle) * curSpeed;
+
+                // особые атаки глубинных мобов (магматический заряд, воронка)
+                if (hostile && wormInSea) trySpecial(e, dx, dy, dist);
+
+                // спец-атаки боссов
+                if (e.type === 'boss_meg' && dist < 850) {
+                    e.attackTimer++;
+                    e.laserAim = (e.attackTimer > 110 && e.attackTimer < 160);
+                    if (e.attackTimer >= 160) {
+                        e.attackTimer = 0;
+                        SFX.play('laser');
+                        const a = Math.atan2(dy, dx);
+                        projectiles.push({ type: 'torpedo', x: e.x + Math.cos(e.angle) * e.r, y: e.y + Math.sin(e.angle) * e.r, vx: 0, vy: 0, angle: a, r: 13, timer: 260 });
+                    }
+                } else if (e.type === 'boss_meg') { e.laserAim = false; }
+
+                if (e.type === 'boss_kraken' && dist < 720) {
+                    e.attackTimer++;
+                    if (e.attackTimer > 180) {
+                        e.attackTimer = 0;
+                        const inv = 1 / Math.max(1, dist);
+                        projectiles.push({
+                            type: Math.random() < 0.5 ? 'ink_cloud' : 'vortex',
+                            x: e.x + (Math.random() - 0.5) * 120, y: e.y + (Math.random() - 0.5) * 120,
+                            vx: dx * inv * 3.2, vy: dy * inv * 3.2, r: 75, timer: 260
+                        });
+                    }
+                }
+
+                clampEntity(e, def);
+
+                if (e.type === 'rival_worm' && e.segments) {
+                    e.segments[0].x = e.x; e.segments[0].y = e.y; e.segments[0].angle = e.angle;
+                    const sd = e.r * 0.55;
+                    for (let s = 1; s < e.segments.length; s++) {
+                        const pr = e.segments[s - 1], cu = e.segments[s];
+                        const a = Math.atan2(pr.y - cu.y, pr.x - cu.x);
+                        cu.angle = a;
+                        cu.x = pr.x - Math.cos(a) * sd;
+                        cu.y = pr.y - Math.sin(a) * sd;
+                    }
+                }
+
+                // коллизии со скалами / островами — только рядом с игроком
+                if (dist < farLimit) resolveWorld(e, e.r * 0.7, false);
+            }
+        }
+
+        // ----- столкновение: ест только пасть, а кусают и жалят — всем телом -----
+        const hitSeg = hitWormAt(e.x, e.y, e.r * 0.85);
+        if (hitSeg !== -1) {
+            const mouth = hitSeg === 0;
+            const hs = worm.segments[hitSeg];
+            const bossAlive = e.isBoss && e.bossHp > 0;
+            const bs2 = BITE[e.type];
+
+            if (def.drifter && !canEat) {
+                if (!stunned && e.biteTimer <= 0) {
+                    e.biteTimer = bs2.cd;
+                    hurtWorm(bs2.dmg, hs.x, hs.y, '#00f5d4');
+                }
+            } else if (bossAlive && worm.goldRushTimer <= 0 && worm.radius < e.r * 0.85) {
+                if (mouth && worm.isBoosting()) {
+                    e.bossHp -= 4.5 + saveData.upgrades.bite * 1.5;
+                    addParticles(e.x, e.y, 5, '#f72585', 6, 5);
+                } else if (!stunned) {
+                    worm.hp -= 0.9;
+                    hurtFlash = Math.max(hurtFlash, 4);
+                    addParticles(hs.x, hs.y, 3, '#ff0055', 4, 4);
+                }
+            } else if (mouth && (canEat || (e.isBoss && e.bossHp <= 0))) {
+                SFX.play('bite');
+                worm.addCombo();
+
+                const isGold = worm.goldRushTimer > 0;
+                const scoreGain = def.score * worm.combo * (isGold ? 2 : 1);
+                const coinGain = def.coins * (isGold ? 2 : 1);
+
+                worm.score += scoreGain;
+                saveData.coins += coinGain;
+                if (worm.score > saveData.bestScore) saveData.bestScore = worm.score;
+
+                if (e.isBoss || (e.r >= 34 && Math.random() < 0.25)) {
+                    const gems = e.isBoss ? 5 : 1;
+                    saveData.gems += gems;
+                    addFloatText(e.x, e.y - 28, '+' + gems + ' 💎', '#ff4dff', 22);
+                }
+
+                // рост медленный; пока червь крошечный — чуть быстрее, чтобы набрать первые размеры
+                const growK = 0.01 + 0.03 * clamp((14 - worm.radius) / 8, 0, 1);
+                worm.radius = Math.min(80, worm.radius + e.r * growK);
+                worm.hp = Math.min(worm.maxHp, worm.hp + def.hp * (1 + (saveData.upgrades.stomach - 1) * 0.15));
+
+                if (worm.goldRushTimer <= 0) {
+                    worm.goldCharge = Math.min(100, worm.goldCharge + Math.min(18, Math.max(1.5, e.r * 0.35)));
+                    if (worm.goldCharge >= 100) worm.triggerGoldRush();
+                }
+
+                if (worm.segments.length < 78 && Math.random() < 0.12) {
+                    const tail = worm.segments[worm.segments.length - 1];
+                    worm.segments.push({ x: tail.x, y: tail.y, angle: tail.angle });
+                }
+
+                if (e.type === 'boat' || e.type === 'heli_patrol') {
+                    screenShake = 10;
+                    SFX.play('boom');
+                    addParticles(e.x, e.y, 26, '#bc6c25', 7, 6);
+                    addParticles(e.x, e.y, 16, '#d90429', 6, 5);
+                } else {
+                    addParticles(e.x, e.y, 18, isGold ? '#ffea00' : '#d90429', 5.5, 5);
+                }
+                addFloatText(e.x, e.y, '+' + scoreGain, isGold ? '#ffea00' : '#ffffff', 18);
+
+                // квесты
+                quest.add('eat_any', 1);
+                if (e.type.indexOf('human') === 0) quest.add('eat_human', 1);
+                if (e.type === 'boat' || e.type === 'heli_patrol') quest.add('sink_boat', 1);
+                if (def.isAir && e.type !== 'heli_patrol') quest.add('eat_air', 1);
+
+                const respawnType = e.type;
+                entities.splice(i, 1);
+                spawnEntity(respawnType);
+            } else if (e.isBoss && !stunned && worm.goldRushTimer <= 0) {
+                // боссы не отпускают: давят постоянно
+                worm.hp -= 0.75;
+                hurtFlash = Math.max(hurtFlash, 4);
+                screenShake = Math.max(screenShake, 4);
+                addParticles(hs.x, hs.y, 3, '#ff0055', 4, 4);
+            } else if (!stunned && !canEat && bs2 && e.biteTimer <= 0 && (def.aggressive || (e.type === 'puffer' && e.puffed))) {
+                // обычный моб: один укус -> уплывает -> перезарядка
+                e.biteTimer = bs2.cd;
+                if (bs2.retreat > 0) { e.state = 'retreat'; e.stateTimer = bs2.retreat; }
+                SFX.play('bite');
+                hurtWorm(bs2.dmg, hs.x, hs.y, '#ff0055');
+            }
+        }
+    }
+
+    // полоска босса
+    const bossHud = document.getElementById('boss-hud');
+    if (closestBoss) {
+        bossHud.style.display = 'block';
+        document.getElementById('boss-name').innerText = ENTITY_CATALOG[closestBoss.type].name || 'БОСС';
+        document.getElementById('boss-bar').style.width = Math.max(0, (closestBoss.bossHp / closestBoss.bossMaxHp) * 100) + '%';
+    } else {
+        bossHud.style.display = 'none';
+    }
+
+    // ----- снаряды -----
+    for (let i = projectiles.length - 1; i >= 0; i--) {
+        const pr = projectiles[i];
+        pr.timer--;
+
+        if (pr.type === 'torpedo') {
+            const targetA = Math.atan2(worm.y - pr.y, worm.x - pr.x);
+            pr.angle += normAngle(targetA - pr.angle) * 0.045;
+            pr.vx = Math.cos(pr.angle) * 6.4;
+            pr.vy = Math.sin(pr.angle) * 6.4;
+            pr.x += pr.vx; pr.y += pr.vy;
+            if (gameTime % 2 === 0 && bubbles.length < 120) bubbles.push({ x: pr.x, y: pr.y, r: 3, vy: -1, alpha: 0.7 });
+            if (hitWormAt(pr.x, pr.y, pr.r) !== -1) {
+                addExplosion(pr.x, pr.y, 130, pr.dmg);
+                projectiles.splice(i, 1);
+                continue;
+            }
+        } else if (pr.type === 'depth_charge') {
+            pr.x += pr.vx; pr.y += pr.vy;
+            if (pr.y > SURFACE_Y) { pr.vx *= 0.95; pr.vy = 1.9; }
+            else pr.vy += 0.22;
+            if (hitWormAt(pr.x, pr.y, pr.r) !== -1 || pr.timer <= 0) {
+                addExplosion(pr.x, pr.y, 145);
+                projectiles.splice(i, 1);
+                continue;
+            }
+        } else if (pr.type === 'bullet') {
+            pr.x += pr.vx; pr.y += pr.vy;
+            // попали в червя (любой частью тела)?
+            if (hitWormAt(pr.x, pr.y, pr.r) !== -1) {
+                hurtWorm(2.5, pr.x, pr.y, '#ffbe0b');
+                projectiles.splice(i, 1);
+                continue;
+            }
+            // вода гасит пули — нырнуть = спастись
+            const bw = world.waves[clamp(Math.floor(pr.x / 70), 0, world.waves.length - 1)];
+            if (pr.y > bw.y) {
+                addParticles(pr.x, bw.y, 3, '#caf0f8', 2.5, 3, 0.06);
+                projectiles.splice(i, 1);
+                continue;
+            }
+            // склон острова прикрывает от пуль
+            let blocked = false;
+            for (let k = 0; k < world.islands.length; k++) {
+                const isl = world.islands[k];
+                if (Math.abs(pr.x - isl.x) > isl.r) continue;
+                const g = islandGround(isl, pr.x);
+                if (g !== null && pr.y > g + 2 && pr.y < isl.y + 28) { blocked = true; break; }
+            }
+            if (blocked) {
+                addParticles(pr.x, pr.y, 2, '#ffea9f', 2, 3, 0.06);
+                projectiles.splice(i, 1);
+                continue;
+            }
+        } else if (pr.type === 'ink_cloud') {
+            pr.x += pr.vx; pr.y += pr.vy;
+            pr.vx *= 0.96; pr.vy *= 0.96;
+            if (Math.hypot(worm.x - pr.x, worm.y - pr.y) < worm.radius + pr.r * 0.8) blindTimer = 180;
+        } else if (pr.type === 'vortex') {
+            pr.x += pr.vx * 0.5; pr.y += pr.vy * 0.5;
+            const d = Math.hypot(worm.x - pr.x, worm.y - pr.y);
+            if (d < pr.r * 2.5 && d > 5) {
+                worm.x = clamp(worm.x - ((worm.x - pr.x) / d) * 3.6, 60, WORLD_W - 60);
+                worm.y = clamp(worm.y - ((worm.y - pr.y) / d) * 3.6, 40, WORLD_H - 60);
+            }
+        }
+        if (pr.timer <= 0) projectiles.splice(i, 1);
+    }
+
+    for (let i = shockwaves.length - 1; i >= 0; i--) {
+        const sw = shockwaves[i];
+        sw.r += (sw.maxR - sw.r) * 0.16;
+        sw.alpha -= 0.032;
+        if (sw.alpha <= 0) shockwaves.splice(i, 1);
+    }
+
+    // ----- питомцы -----
+    syncPets();
+    for (let p = 0; p < pets.length; p++) {
+        const pet = pets[p];
+        let tx = worm.x + Math.cos(gameTime * 0.04 + pet.orbitOffset) * (worm.radius * 1.9 + 35);
+        let ty = worm.y + Math.sin(gameTime * 0.04 + pet.orbitOffset) * (worm.radius * 1.9 + 35);
+
+        let bestPrey = null, bestDist = 280;
+        for (let k = 0; k < entities.length; k++) {
+            const e = entities[k];
+            if (e.r <= 22 && !e.isBoss && e.type !== 'jellyfish' && !ENTITY_CATALOG[e.type].isAir) {
+                const ddx = e.x - pet.x, ddy = e.y - pet.y;
+                if (ddx > bestDist || ddx < -bestDist || ddy > bestDist || ddy < -bestDist) continue;
+                const d = Math.hypot(ddx, ddy);
+                if (d < bestDist) { bestDist = d; bestPrey = e; }
+            }
+        }
+        if (bestPrey) { tx = bestPrey.x; ty = bestPrey.y; }
+
+        pet.angle = Math.atan2(ty - pet.y, tx - pet.x);
+        pet.x += Math.cos(pet.angle) * 6.8;
+        pet.y += Math.sin(pet.angle) * 6.8;
+
+        pet.segs[0].x = pet.x; pet.segs[0].y = pet.y;
+        for (let s = 1; s < pet.segs.length; s++) {
+            const pr = pet.segs[s - 1], cu = pet.segs[s];
+            const a = Math.atan2(pr.y - cu.y, pr.x - cu.x);
+            cu.x = pr.x - Math.cos(a) * 7;
+            cu.y = pr.y - Math.sin(a) * 7;
+        }
+
+        if (bestPrey && bestDist < 18) {
+            SFX.play('bite');
+            worm.score += 50;
+            saveData.coins += 2;
+            worm.hp = Math.min(worm.maxHp, worm.hp + 4);
+            addParticles(bestPrey.x, bestPrey.y, 8, '#d90429', 4, 3);
+            const idx = entities.indexOf(bestPrey);
+            if (idx !== -1) {
+                const t = bestPrey.type;
+                entities.splice(idx, 1);
+                spawnEntity(t);
+            }
+        }
+    }
+
+    // ----- частицы, пузыри, текст -----
+    for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx; p.y += p.vy;
+        p.vx *= 0.96; p.vy *= 0.96;
+        p.alpha -= p.decay;
+        if (p.alpha <= 0) particles.splice(i, 1);
+    }
+    for (let i = bubbles.length - 1; i >= 0; i--) {
+        const b = bubbles[i];
+        b.y += b.vy;
+        b.x += Math.sin(gameTime * 0.08 + i) * 0.4;
+        b.alpha -= 0.012;
+        if (b.y < SURFACE_Y || b.alpha <= 0) bubbles.splice(i, 1);
+    }
+    for (let i = floatTexts.length - 1; i >= 0; i--) {
+        const ft = floatTexts[i];
+        ft.y += ft.vy;
+        ft.alpha -= 0.022;
+        if (ft.alpha <= 0) floatTexts.splice(i, 1);
+    }
+}
+
+// ============================================================================
+// ЧАСТЬ 5: ОТРИСОВКА МИРА
+// ============================================================================
+// ---- отрисовка пещер: заливка сериями клеток + светящиеся края стен ----
+function drawCave() {
+    if (camY + VH < CAVE_Y) return;
+    const cs = cave.cs, cols = cave.cols, rows = cave.rows, g = cave.grid;
+    const c0 = Math.max(0, Math.floor(camX / cs) - 1);
+    const c1 = Math.min(cols - 1, Math.floor((camX + VW) / cs) + 1);
+    const r0 = Math.max(0, Math.floor((camY - CAVE_Y) / cs) - 1);
+    const r1 = Math.min(rows - 1, Math.floor((camY + VH - CAVE_Y) / cs) + 1);
+
+    // 1) сплошная скала
+    for (let r = r0; r <= r1; r++) {
+        const y = CAVE_Y + r * cs;
+        ctx.fillStyle = CAVE_TIERS[caveTierIdx(y)].fill;
+        let run = -1;
+        for (let c = c0; c <= c1 + 1; c++) {
+            const solid = c <= c1 && g[r * cols + c] === 1;
+            if (solid && run < 0) run = c;
+            if (!solid && run >= 0) {
+                ctx.fillRect(run * cs, y, (c - run) * cs + 0.6, cs + 0.6);
+                run = -1;
+            }
+        }
+    }
+
+    // 2) подсвеченные края стен (только открытые грани), одна линия на строку
+    ctx.lineWidth = 5;
+    ctx.lineCap = 'round';
+    for (let r = r0; r <= r1; r++) {
+        const y = CAVE_Y + r * cs;
+        ctx.strokeStyle = CAVE_TIERS[caveTierIdx(y)].edge;
+        ctx.beginPath();
+        for (let c = c0; c <= c1; c++) {
+            if (g[r * cols + c] !== 1) continue;
+            const x = c * cs;
+            if (r === 0 || g[(r - 1) * cols + c] !== 1) { ctx.moveTo(x, y); ctx.lineTo(x + cs, y); }
+            if (r < rows - 1 && g[(r + 1) * cols + c] !== 1) { ctx.moveTo(x, y + cs); ctx.lineTo(x + cs, y + cs); }
+            if (c > 0 && g[r * cols + c - 1] !== 1) { ctx.moveTo(x, y); ctx.lineTo(x, y + cs); }
+            if (c < cols - 1 && g[r * cols + c + 1] !== 1) { ctx.moveTo(x + cs, y); ctx.lineTo(x + cs, y + cs); }
+        }
+        ctx.stroke();
+    }
+}
+
+function drawWorld() {
+    // 1. Небо — теперь залито целиком от y=0 до воды (раньше был чёрный провал)
+    if (camY < SURFACE_Y + 100) {
+        const skyGrad = ctx.createLinearGradient(0, 0, 0, SURFACE_Y + 60);
+        skyGrad.addColorStop(0, '#0077b6');
+        skyGrad.addColorStop(0.55, '#48cae4');
+        skyGrad.addColorStop(1, '#caf0f8');
+        ctx.fillStyle = skyGrad;
+        ctx.fillRect(camX - 4, Math.min(0, camY) - 4, VW + 8, SURFACE_Y + 110 - Math.min(0, camY));
+
+        const sunX = camX * 0.88 + VW * 0.75;
+        const sunY = 170;
+        const sunGlow = ctx.createRadialGradient(sunX, sunY, 20, sunX, sunY, 220);
+        sunGlow.addColorStop(0, 'rgba(255, 250, 200, 1)');
+        sunGlow.addColorStop(0.3, 'rgba(255, 214, 10, 0.45)');
+        sunGlow.addColorStop(1, 'rgba(255, 214, 10, 0)');
+        ctx.fillStyle = sunGlow;
+        ctx.beginPath();
+        ctx.arc(sunX, sunY, 220, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.78)';
+        for (const c of world.clouds) {
+            if (c.x + c.w < camX || c.x - c.w > camX + VW) continue;
+            ctx.beginPath();
+            ctx.arc(c.x, c.y, c.w * 0.25, 0, Math.PI * 2);
+            ctx.arc(c.x + c.w * 0.22, c.y - c.w * 0.08, c.w * 0.3, 0, Math.PI * 2);
+            ctx.arc(c.x + c.w * 0.48, c.y, c.w * 0.24, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    // 2. Море
+    const seaGrad = ctx.createLinearGradient(0, SURFACE_Y, 0, WORLD_H);
+    seaGrad.addColorStop(0, '#0096c7');
+    seaGrad.addColorStop(0.04, '#0077b6');
+    seaGrad.addColorStop(0.11, '#023e8a');
+    seaGrad.addColorStop(0.256, '#03045e');
+    seaGrad.addColorStop(0.44, '#02021a');
+    seaGrad.addColorStop(1, '#010008');
+    ctx.fillStyle = seaGrad;
+
+    const startIdx = Math.max(0, Math.floor(camX / 70) - 1);
+    const endIdx = Math.min(world.waves.length - 1, Math.ceil((camX + VW) / 70) + 1);
+    ctx.beginPath();
+    ctx.moveTo(world.waves[startIdx].x, world.waves[startIdx].y);
+    for (let i = startIdx + 1; i <= endIdx; i++) ctx.lineTo(world.waves[i].x, world.waves[i].y);
+    ctx.lineTo(world.waves[endIdx].x, WORLD_H);
+    ctx.lineTo(world.waves[startIdx].x, WORLD_H);
+    ctx.closePath();
+    ctx.fill();
+
+    // 3. Лучи
+    if (camY < TWILIGHT_Y + 300) {
+        for (let i = startIdx; i < endIdx; i += 2) {
+            const rx = i * 70 + Math.sin(gameTime * 0.01 + i) * 35;
+            const rayGrad = ctx.createLinearGradient(rx, SURFACE_Y, rx + 140, SURFACE_Y + 1100);
+            rayGrad.addColorStop(0, 'rgba(144, 224, 239, 0.16)');
+            rayGrad.addColorStop(1, 'rgba(144, 224, 239, 0)');
+            ctx.fillStyle = rayGrad;
+            ctx.beginPath();
+            ctx.moveTo(rx - 30, SURFACE_Y);
+            ctx.lineTo(rx + 45, SURFACE_Y);
+            ctx.lineTo(rx + 210, SURFACE_Y + 1100);
+            ctx.lineTo(rx + 30, SURFACE_Y + 1100);
+            ctx.closePath();
+            ctx.fill();
+        }
+    }
+
+    // 4. Острова
+    for (const isl of world.islands) {
+        if (isl.x + isl.r < camX - 100 || isl.x - isl.r > camX + VW + 100) continue;
+        if (camY > isl.y + isl.r) continue;
+
+        // подводное основание (теперь стыкуется с песком без щели)
+        ctx.fillStyle = '#3d2c1e';
+        ctx.beginPath();
+        ctx.ellipse(isl.x, isl.y + 28, isl.r * 1.05, isl.r * 0.62, 0, 0, Math.PI);
+        ctx.fill();
+
+        const sandGrad = ctx.createLinearGradient(isl.x, isl.y - 60, isl.x, isl.y + 50);
+        sandGrad.addColorStop(0, '#ffea9f');
+        sandGrad.addColorStop(1, '#ddb892');
+        ctx.fillStyle = sandGrad;
+        ctx.beginPath();
+        ctx.ellipse(isl.x, isl.y + 28, isl.r, 68, 0, Math.PI, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#40916c';
+        ctx.beginPath();
+        ctx.ellipse(isl.x, isl.y + 18, isl.r * 0.75, 48, 0, Math.PI * 1.08, Math.PI * 1.92);
+        ctx.fill();
+
+        if (isl.hasHut) {
+            const hx = isl.x - isl.r * 0.25;
+            const hy = (islandGround(isl, hx) || isl.y) + 2;
+            ctx.fillStyle = '#9c6644';
+            ctx.fillRect(hx - 22, hy - 28, 44, 28);
+            ctx.fillStyle = '#e09f3e';
+            ctx.beginPath();
+            ctx.moveTo(hx - 32, hy - 26);
+            ctx.lineTo(hx, hy - 54);
+            ctx.lineTo(hx + 32, hy - 26);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        if (isl.hasUmbrella) {
+            const ux = isl.x + isl.r * 0.35;
+            const uy = (islandGround(isl, ux) || isl.y) + 2;
+            ctx.strokeStyle = '#e9ecef';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(ux, uy);
+            ctx.lineTo(ux + 5, uy - 36);
+            ctx.stroke();
+            ctx.fillStyle = isl.umbrellaColor;
+            ctx.beginPath();
+            ctx.arc(ux + 5, uy - 24, 24, Math.PI * 1.05, Math.PI * 1.95);
+            ctx.fill();
+        }
+
+        for (const t of isl.trees) {
+            const tx = isl.x + t.offsetX;
+            const ty = (islandGround(isl, tx) || isl.y) + 4;
+            const sway = Math.sin(gameTime * 0.025 + tx) * 6;
+            const topX = tx + t.lean * t.height + sway;
+            const topY = ty - t.height;
+
+            ctx.strokeStyle = '#7f4f24';
+            ctx.lineWidth = 9;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(tx, ty);
+            ctx.quadraticCurveTo(tx + t.lean * t.height * 0.4, ty - t.height * 0.5, topX, topY);
+            ctx.stroke();
+
+            ctx.fillStyle = '#432818';
+            ctx.beginPath();
+            ctx.arc(topX - 4, topY + 5, 4.5, 0, Math.PI * 2);
+            ctx.arc(topX + 4, topY + 6, 4.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = '#2d6a4f';
+            ctx.lineWidth = 5;
+            for (let f = 0; f < 5; f++) {
+                const fa = -Math.PI * 0.85 + (f / 4) * Math.PI * 0.7 + sway * 0.015;
+                const fx = topX + Math.cos(fa) * 38;
+                const fy = topY + Math.sin(fa) * 24 + 14;
+                ctx.beginPath();
+                ctx.moveTo(topX, topY);
+                ctx.quadraticCurveTo((topX + fx) * 0.5, topY - 12, fx, fy);
+                ctx.stroke();
+            }
+        }
+    }
+
+    // пена
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(world.waves[startIdx].x, world.waves[startIdx].y);
+    for (let i = startIdx + 1; i <= endIdx; i++) ctx.lineTo(world.waves[i].x, world.waves[i].y);
+    ctx.stroke();
+
+    // 5. Затонувшие корабли
+    for (const sh of world.shipwrecks) {
+        if (!vis(sh.x, sh.y, 300)) continue;
+        ctx.save();
+        ctx.translate(sh.x, sh.y);
+        ctx.rotate(sh.tilt);
+        ctx.fillStyle = '#2b1d12';
+        ctx.strokeStyle = '#160e08';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(-sh.w * 0.5, -35);
+        ctx.lineTo(sh.w * 0.55, -35);
+        ctx.lineTo(sh.w * 0.4, 42);
+        ctx.lineTo(-sh.w * 0.42, 42);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.strokeStyle = '#3d2817';
+        ctx.lineWidth = 8;
+        ctx.beginPath();
+        ctx.moveTo(-40, -35); ctx.lineTo(-30, -170);
+        ctx.moveTo(50, -35); ctx.lineTo(75, -135);
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(0, 245, 212, 0.35)';
+        for (let p = -sh.w * 0.3; p <= sh.w * 0.3; p += 55) {
+            ctx.beginPath();
+            ctx.arc(p, 4, 8, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.restore();
+    }
+
+    // 6. Пещерная система (скала со сквозными ходами)
+    drawCave();
+
+    // кристаллы
+    for (const cr of world.crystals) {
+        if (cr.broken || !vis(cr.x, cr.y, 80)) continue;
+        ctx.save();
+        ctx.translate(cr.x, cr.y);
+        ctx.rotate(cr.angle);
+        ctx.shadowColor = cr.color;
+        ctx.shadowBlur = 18;
+        ctx.fillStyle = cr.color;
+        ctx.beginPath();
+        ctx.moveTo(0, -cr.size * 0.3);
+        ctx.lineTo(cr.size, 0);
+        ctx.lineTo(0, cr.size * 0.3);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+    }
+
+    // жерла
+    for (const v of world.vents) {
+        if (!vis(v.x, v.y - v.h / 2, 200)) continue;
+        ctx.fillStyle = '#11151c';
+        ctx.beginPath();
+        ctx.moveTo(v.x - v.w * 0.6, v.y + 40);
+        ctx.lineTo(v.x - v.w * 0.3, v.y - v.h);
+        ctx.lineTo(v.x + v.w * 0.3, v.y - v.h);
+        ctx.lineTo(v.x + v.w * 0.6, v.y + 40);
+        ctx.closePath();
+        ctx.fill();
+        const g = ctx.createRadialGradient(v.x, v.y - v.h, 4, v.x, v.y - v.h, 55);
+        g.addColorStop(0, 'rgba(255, 84, 0, 0.85)');
+        g.addColorStop(1, 'rgba(255, 84, 0, 0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(v.x, v.y - v.h, 55, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // 7. Водоросли и кораллы
+    for (const k of world.kelps) {
+        if (!vis(k.x, k.y - k.segments * k.segLen / 2, k.segments * k.segLen)) continue;
+        ctx.strokeStyle = k.color;
+        ctx.lineWidth = 7;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        let kx = k.x, ky = k.y;
+        ctx.moveTo(kx, ky);
+        for (let s = 1; s <= k.segments; s++) {
+            kx += Math.sin(gameTime * 0.03 + k.phase + s * 0.5) * 8;
+            ky -= k.segLen;
+            ctx.lineTo(kx, ky);
+        }
+        ctx.stroke();
+    }
+    for (const col of world.corals) {
+        if (!vis(col.x, col.y, 80)) continue;
+        ctx.fillStyle = col.color;
+        for (let b = 0; b < col.branches; b++) {
+            const ang = -Math.PI * 0.8 + (b / (col.branches - 1)) * Math.PI * 0.6;
+            ctx.beginPath();
+            ctx.arc(col.x + Math.cos(ang) * col.r, col.y + Math.sin(ang) * col.r, col.r * 0.38, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    // 8. Мины и сундуки
+    for (const m of world.mines) {
+        if (!m.active || !vis(m.x, m.y, 150)) continue;
+        const my = m.y + Math.sin(gameTime * 0.04 + m.bobPhase) * 8;
+        ctx.strokeStyle = '#343a40';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([5, 4]);
+        ctx.beginPath();
+        ctx.moveTo(m.x, my);
+        ctx.lineTo(m.x, my + 120);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.strokeStyle = '#adb5bd';
+        ctx.lineWidth = 4;
+        for (let a = 0; a < Math.PI * 2; a += Math.PI / 4) {
+            ctx.beginPath();
+            ctx.moveTo(m.x, my);
+            ctx.lineTo(m.x + Math.cos(a) * (m.r + 9), my + Math.sin(a) * (m.r + 9));
+            ctx.stroke();
+        }
+        ctx.fillStyle = '#212529';
+        ctx.beginPath();
+        ctx.arc(m.x, my, m.r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = Math.sin(gameTime * 0.15 + m.bobPhase) > 0 ? '#ff0055' : '#590d22';
+        ctx.beginPath();
+        ctx.arc(m.x, my, 6, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    for (const ch of world.chests) {
+        if (ch.opened || !vis(ch.x, ch.y, 60)) continue;
+        ctx.save();
+        ctx.translate(ch.x, ch.y);
+        ctx.shadowColor = '#ffd700';
+        ctx.shadowBlur = 18;
+        ctx.fillStyle = '#7f4f24';
+        ctx.fillRect(-18, -12, 36, 24);
+        ctx.strokeStyle = '#ffd700';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(-18, -12, 36, 24);
+        ctx.fillStyle = '#ffea00';
+        ctx.fillRect(-4, -3, 8, 8);
+        ctx.restore();
+    }
+}
+
+function drawEntities() {
+    const biteBonus = (saveData.upgrades.bite - 1) * 0.08;
+    const isGoldRush = worm.goldRushTimer > 0;
+
+    for (const e of entities) {
+        if (!vis(e.x, e.y, e.r * 2 + 40)) continue;
+        const def = ENTITY_CATALOG[e.type];
+        const canEat = isGoldRush || (worm.radius * (1.08 + biteBonus) >= e.r);
+        const dangerous = !!def.aggressive || e.isBoss;
+
+        // лазерный прицел мегалодона
+        if (e.type === 'boss_meg' && e.laserAim) {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(255, 0, 85, 0.85)';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([12, 8]);
+            ctx.beginPath();
+            ctx.moveTo(e.x, e.y);
+            ctx.lineTo(worm.x, worm.y);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        // тело червя-соперника
+        if (e.type === 'rival_worm' && e.segments) {
+            for (let s = e.segments.length - 1; s >= 0; s--) {
+                const seg = e.segments[s];
+                const sr = e.r * (1 - (s / e.segments.length) * 0.65);
+                ctx.fillStyle = s % 2 === 0 ? '#7209b7' : '#3a0ca3';
+                ctx.strokeStyle = '#ff0055';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(seg.x, seg.y, sr, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+            }
+            ctx.save();
+            ctx.translate(e.x, e.y);
+            ctx.rotate(e.angle);
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(e.r * 0.35, -e.r * 0.4, e.r * 0.14, 0, Math.PI * 2);
+            ctx.arc(e.r * 0.35, e.r * 0.4, e.r * 0.14, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+            if (e.stunTimer > 0) {
+                ctx.strokeStyle = '#00f5d4'; ctx.lineWidth = 2.5;
+                ctx.beginPath(); ctx.arc(e.x, e.y, e.r * 1.25, 0, Math.PI * 2); ctx.stroke();
+            }
+            continue;
+        }
+
+        ctx.save();
+        ctx.translate(e.x, e.y);
+        if (e.fadeOut) ctx.globalAlpha = Math.max(0, 1 - e.fadeOut / 50);
+        if (isGoldRush) { ctx.shadowColor = '#ffea00'; ctx.shadowBlur = 14; }
+
+        if (e.type === 'human_gunner') {
+            // солдат: каска, олив-форма, автомат целится в червя
+            const walk = e.burstLeft > 0 ? 0 : Math.sin(e.animPhase * 1.8) * 4;
+            ctx.strokeStyle = '#3d4a1f';
+            ctx.lineWidth = 3.5;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(-3, 4); ctx.lineTo(-4 + walk, 13);
+            ctx.moveTo(3, 4); ctx.lineTo(4 - walk, 13);
+            ctx.stroke();
+            ctx.fillStyle = isGoldRush ? '#ffea00' : '#4a5d23';
+            ctx.fillRect(-4.5, -5, 9, 10);
+            ctx.fillStyle = '#ffcdb2';
+            ctx.beginPath();
+            ctx.arc(0, -10, 5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#2f3b17';
+            ctx.beginPath();
+            ctx.arc(0, -11, 6, Math.PI, 0);
+            ctx.fill();
+            // автомат
+            ctx.save();
+            ctx.translate(0, -3);
+            ctx.rotate(e.aim);
+            ctx.strokeStyle = '#1b1b1b';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(-3, 0);
+            ctx.lineTo(15, 0);
+            ctx.stroke();
+            ctx.fillStyle = '#5c3b1e';
+            ctx.fillRect(-6, -1.5, 5, 3);
+            if (e.flash > 0) {
+                ctx.shadowColor = '#ffbe0b';
+                ctx.shadowBlur = 12;
+                ctx.fillStyle = '#ffea00';
+                ctx.beginPath();
+                ctx.arc(19, 0, 4.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
+        } else if (e.type === 'human_beach' || e.type === 'human_swim') {
+            const swing = Math.sin(e.animPhase * 1.8) * 5;
+            if (e.type === 'human_swim') ctx.rotate(e.dir > 0 ? 0.45 : -0.45);
+            ctx.strokeStyle = '#ffcdb2';
+            ctx.lineWidth = 3.5;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(-3, 4); ctx.lineTo(-4 + swing, 13);
+            ctx.moveTo(3, 4); ctx.lineTo(4 - swing, 13);
+            ctx.moveTo(-4, -3); ctx.lineTo(-9 - swing, 3);
+            ctx.moveTo(4, -3); ctx.lineTo(9 + swing, 3);
+            ctx.stroke();
+            ctx.fillStyle = isGoldRush ? '#ffea00' : e.suitColor;
+            ctx.fillRect(-4.5, -5, 9, 10);
+            ctx.fillStyle = '#ffcdb2';
+            ctx.beginPath();
+            ctx.arc(0, -10, 5.5, 0, Math.PI * 2);
+            ctx.fill();
+        } else if (e.type === 'boat') {
+            ctx.scale(e.dir, 1);
+            ctx.fillStyle = '#ffcdb2';
+            ctx.beginPath();
+            ctx.arc(-10, -16, 5, 0, Math.PI * 2);
+            ctx.arc(8, -16, 5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#caf0f8';
+            ctx.beginPath();
+            ctx.moveTo(-6, -8); ctx.lineTo(14, -22); ctx.lineTo(22, -8);
+            ctx.closePath();
+            ctx.fill();
+            ctx.fillStyle = isGoldRush ? '#ffea00' : '#f8f9fa';
+            ctx.strokeStyle = '#e63946';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(-e.r, -8);
+            ctx.lineTo(e.r * 1.1, -8);
+            ctx.lineTo(e.r * 0.75, 12);
+            ctx.lineTo(-e.r * 0.8, 12);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+        } else if (def.drifter) {
+            const pulse = 1 + Math.sin(e.animPhase) * 0.12;
+            const jk = Math.max(1, e.r / 20);
+            const spore = e.type === 'spore_jelly';
+            if (spore && !isGoldRush) { ctx.shadowColor = def.glow; ctx.shadowBlur = 22; }
+            ctx.strokeStyle = isGoldRush ? '#ffea00' : (spore ? 'rgba(128, 237, 153, 0.8)' : 'rgba(247, 37, 133, 0.75)');
+            ctx.lineWidth = 2.5 * Math.min(jk, 3);
+            for (let t = -3; t <= 3; t++) {
+                ctx.beginPath();
+                ctx.moveTo(t * 3.5 * jk, 2);
+                ctx.quadraticCurveTo(t * 5 * jk + Math.sin(e.animPhase + t) * 5 * jk, e.r * 0.8, t * 3 * jk, e.r * 1.45);
+                ctx.stroke();
+            }
+            ctx.fillStyle = isGoldRush ? 'rgba(255, 234, 0, 0.85)' : (spore ? 'rgba(56, 176, 0, 0.6)' : 'rgba(114, 9, 183, 0.75)');
+            ctx.beginPath();
+            ctx.arc(0, 0, e.r * pulse, Math.PI, 0);
+            ctx.fill();
+            if (spore) {
+                ctx.fillStyle = 'rgba(214, 255, 190, 0.55)';
+                for (let sp = 0; sp < 5; sp++) {
+                    ctx.beginPath();
+                    ctx.arc(Math.cos(sp * 1.9 + e.animPhase * 0.2) * e.r * 0.5, -Math.abs(Math.sin(sp * 2.7)) * e.r * 0.5, e.r * 0.07, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        } else if (e.type === 'squid_giant' || e.type === 'boss_kraken') {
+            ctx.rotate(e.angle);
+            const col = isGoldRush ? '#ffea00' : (e.type === 'boss_kraken' ? '#7b2cbf' : '#d90429');
+            ctx.strokeStyle = col;
+            ctx.lineWidth = e.type === 'boss_kraken' ? 7 : 4;
+            for (let t = -3; t <= 3; t++) {
+                ctx.beginPath();
+                ctx.moveTo(-e.r * 0.4, t * 4);
+                ctx.quadraticCurveTo(-e.r * 1.1, t * 8 + Math.sin(e.animPhase + t) * 10, -e.r * 1.75, t * 5);
+                ctx.stroke();
+            }
+            ctx.fillStyle = col;
+            ctx.beginPath();
+            ctx.ellipse(e.r * 0.1, 0, e.r * 0.85, e.r * 0.42, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#ffbe0b';
+            ctx.beginPath(); ctx.arc(e.r * 0.35, -e.r * 0.15, e.r * 0.14, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#000';
+            ctx.beginPath(); ctx.arc(e.r * 0.38, -e.r * 0.15, e.r * 0.06, 0, Math.PI * 2); ctx.fill();
+        } else if (e.type === 'seagull' || e.type === 'pelican') {
+            const wingY = Math.sin(e.animPhase * 2.4) * e.r * 0.8;
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 4;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(-e.r, wingY);
+            ctx.quadraticCurveTo(0, -4, e.r, wingY);
+            ctx.stroke();
+            ctx.fillStyle = e.type === 'pelican' ? '#ffd6a5' : '#f8f9fa';
+            ctx.beginPath();
+            ctx.ellipse(0, 2, e.r * 0.45, e.r * 0.28, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#ffbe0b';
+            ctx.beginPath();
+            ctx.arc(e.dir * e.r * 0.5, 0, e.type === 'pelican' ? 5 : 3.5, 0, Math.PI * 2);
+            ctx.fill();
+        } else if (e.type === 'heli_patrol') {
+            ctx.scale(e.dir, 1);
+            ctx.fillStyle = '#2b2d42';
+            ctx.fillRect(-e.r * 1.1, -8, e.r * 1.2, 10);
+            ctx.fillStyle = isGoldRush ? '#ffea00' : '#495057';
+            ctx.beginPath();
+            ctx.ellipse(10, 0, e.r * 0.65, e.r * 0.42, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#00f5d4';
+            ctx.beginPath();
+            ctx.arc(22, -2, e.r * 0.26, -Math.PI * 0.4, Math.PI * 0.4);
+            ctx.fill();
+            const bladeW = Math.sin(gameTime * 0.6) * e.r * 1.35;
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(-bladeW, -e.r * 0.55);
+            ctx.lineTo(bladeW, -e.r * 0.55);
+            ctx.stroke();
+        } else {
+            // рыбы, акулы, скаты, удильщики, левиафан, мегалодон
+            ctx.rotate(e.angle);
+            if (Math.cos(e.angle) < 0) ctx.scale(1, -1);
+
+            const tailWag = Math.sin(e.animPhase * 2) * (e.r * 0.22);
+
+            if (!canEat && dangerous) {
+                ctx.strokeStyle = 'rgba(255, 0, 68, 0.55)';
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.arc(0, 0, e.r * 1.18, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
+            let bodyColor = '#00b4d8';
+            if (e.type === 'clownfish') bodyColor = '#ff6d00';
+            else if (e.type === 'puffer') bodyColor = '#ffd166';
+            else if (e.type === 'turtle') bodyColor = '#2d6a4f';
+            else if (e.type === 'manta') bodyColor = '#1d3557';
+            else if (e.type === 'swordfish') bodyColor = '#0077b6';
+            else if (e.type === 'shark_white') bodyColor = '#6c757d';
+            else if (e.type === 'shark_hammer') bodyColor = '#495057';
+            else if (e.type === 'angler') bodyColor = '#240046';
+            else if (e.type === 'leviathan') bodyColor = '#3c096c';
+            else if (e.type === 'boss_meg') bodyColor = '#14213d';
+            if (def.color) bodyColor = def.color;
+            if (isGoldRush) bodyColor = '#ffea00';
+            else if (def.glow) { ctx.shadowColor = def.glow; ctx.shadowBlur = Math.min(26, 8 + e.r * 0.1); }
+
+            ctx.fillStyle = bodyColor;
+            ctx.beginPath();
+            ctx.moveTo(-e.r * 0.75, 0);
+            ctx.lineTo(-e.r * 1.38, -e.r * 0.52 + tailWag);
+            ctx.lineTo(-e.r * 1.2, tailWag * 0.3);
+            ctx.lineTo(-e.r * 1.38, e.r * 0.52 + tailWag);
+            ctx.closePath();
+            ctx.fill();
+
+            const isShark = e.type.indexOf('shark') === 0 || e.type === 'boss_meg';
+            if (isShark || e.type === 'swordfish' || e.type === 'leviathan' || def.maw || e.type === 'crystal_pike' || e.type === 'ghost_whale') {
+                ctx.beginPath();
+                ctx.moveTo(e.r * 0.1, -e.r * 0.35);
+                ctx.lineTo(-e.r * 0.25, -e.r * 0.95);
+                ctx.lineTo(-e.r * 0.45, -e.r * 0.35);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            if (e.type === 'manta' || def.wings) {
+                const flap = Math.sin(e.animPhase * 1.5) * 0.25;
+                ctx.beginPath();
+                ctx.moveTo(e.r * 0.6, 0);
+                ctx.lineTo(-e.r * 0.1, -e.r * (1.25 + flap));
+                ctx.lineTo(-e.r * 0.7, 0);
+                ctx.lineTo(-e.r * 0.1, e.r * (1.25 + flap));
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            ctx.beginPath();
+            ctx.ellipse(0, 0, e.r, e.r * (e.puffed ? 0.88 : 0.48), 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            if (def.maw) {
+                ctx.fillStyle = '#1a0006';
+                ctx.beginPath();
+                ctx.ellipse(e.r * 0.8, 0, e.r * 0.24, e.r * 0.16, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#f1f1f1';
+                ctx.lineWidth = Math.max(1.2, e.r * 0.03);
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                for (let k = 0; k < 9; k++) {
+                    const ta = (k / 9) * Math.PI * 2;
+                    ctx.moveTo(e.r * 0.8 + Math.cos(ta) * e.r * 0.24, Math.sin(ta) * e.r * 0.16);
+                    ctx.lineTo(e.r * 0.8 + Math.cos(ta) * e.r * 0.13, Math.sin(ta) * e.r * 0.085);
+                }
+                ctx.stroke();
+            }
+
+            if (isShark) {
+                ctx.fillStyle = e.type === 'boss_meg' ? '#00f5d4' : '#e9ecef';
+                ctx.beginPath();
+                ctx.ellipse(0, e.r * 0.18, e.r * 0.82, e.r * 0.22, 0, 0, Math.PI);
+                ctx.fill();
+            }
+
+            if (e.type === 'clownfish' && !isGoldRush) {
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(e.r * 0.2, -e.r * 0.42); ctx.lineTo(e.r * 0.2, e.r * 0.42);
+                ctx.moveTo(-e.r * 0.25, -e.r * 0.4); ctx.lineTo(-e.r * 0.25, e.r * 0.4);
+                ctx.stroke();
+            }
+
+            if (e.type === 'puffer' && e.puffed) {
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                for (let a = 0; a < Math.PI * 2; a += Math.PI / 6) {
+                    ctx.beginPath();
+                    ctx.moveTo(Math.cos(a) * e.r * 0.85, Math.sin(a) * e.r * 0.75);
+                    ctx.lineTo(Math.cos(a) * e.r * 1.2, Math.sin(a) * e.r * 1.08);
+                    ctx.stroke();
+                }
+            }
+
+            if (e.type === 'swordfish') {
+                ctx.strokeStyle = isGoldRush ? '#ffea00' : '#caf0f8';
+                ctx.lineWidth = 3.5;
+                ctx.beginPath();
+                ctx.moveTo(e.r * 0.9, 0);
+                ctx.lineTo(e.r * 1.75, 0);
+                ctx.stroke();
+            }
+
+            if (e.type === 'angler' || e.type === 'leviathan' || e.type === 'void_angler' || e.type === 'hollow_maw') {
+                ctx.strokeStyle = '#9d4edd';
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.moveTo(e.r * 0.4, -e.r * 0.35);
+                ctx.quadraticCurveTo(e.r * 0.95, -e.r * 0.85, e.r * 1.25, -e.r * 0.25);
+                ctx.stroke();
+                ctx.save();
+                ctx.shadowColor = '#00f5d4';
+                ctx.shadowBlur = 20;
+                ctx.fillStyle = '#00f5d4';
+                ctx.beginPath();
+                ctx.arc(e.r * 1.25, -e.r * 0.25, Math.max(e.isBoss ? 9 : 5.5, e.r * 0.05), 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+
+            ctx.fillStyle = e.isBoss ? '#ff0055' : '#ffffff';
+            ctx.beginPath();
+            ctx.arc(e.r * 0.55, -e.r * 0.14, Math.max(e.r < 8 ? 0.7 : 2.5, e.r * 0.11), 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(e.r * 0.58, -e.r * 0.14, Math.max(e.r < 8 ? 0.35 : 1.5, e.r * 0.055), 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.restore();
+
+        if (e.stunTimer > 0) {
+            ctx.strokeStyle = '#00f5d4';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.arc(e.x, e.y, e.r * 1.25, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+    }
+}
+
+function drawWorm() {
+    const skin = SKINS[saveData.skin] || SKINS[0];
+    const isGold = worm.goldRushTimer > 0;
+    const c1 = isGold ? '#ffea00' : skin.c1;
+    const c2 = isGold ? '#ff9e00' : skin.c2;
+
+    for (let i = worm.segments.length - 1; i >= 0; i--) {
+        const seg = worm.segments[i];
+        const t = i / worm.segments.length;
+        const r = worm.radius * (1 - t * 0.68);
+
+        ctx.save();
+        ctx.translate(seg.x, seg.y);
+        ctx.rotate(seg.angle);
+
+        if (i > 0 && i % 2 === 0) {
+            ctx.fillStyle = c2;
+            ctx.beginPath();
+            ctx.moveTo(0, -r * 0.8);
+            ctx.lineTo(-r * 0.9, -r * 1.45);
+            ctx.lineTo(-r * 0.5, -r * 0.5);
+            ctx.moveTo(0, r * 0.8);
+            ctx.lineTo(-r * 0.9, r * 1.45);
+            ctx.lineTo(-r * 0.5, r * 0.5);
+            ctx.fill();
+        }
+
+        const segGrad = ctx.createRadialGradient(r * 0.2, -r * 0.2, r * 0.1, 0, 0, r);
+        segGrad.addColorStop(0, i % 2 === 0 ? c1 : c2);
+        segGrad.addColorStop(1, '#14041c');
+        ctx.fillStyle = segGrad;
+        ctx.strokeStyle = isGold ? '#ffffff' : 'rgba(0,0,0,0.65)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    ctx.save();
+    ctx.translate(worm.x, worm.y);
+    ctx.rotate(worm.angle);
+    if (isGold) { ctx.shadowColor = '#ffea00'; ctx.shadowBlur = 24; }
+
+    const r = worm.radius;
+    const jawSwing = Math.sin(worm.jawPhase) * 0.26;
+
+    for (let s = -1; s <= 1; s += 2) {
+        ctx.save();
+        ctx.translate(r * 0.45, s * r * 0.48);
+        ctx.rotate(s * (0.35 + jawSwing));
+        ctx.fillStyle = skin.jaw;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.quadraticCurveTo(r * 0.65, s * r * 0.25, r * 0.95, -s * r * 0.2);
+        ctx.quadraticCurveTo(r * 0.45, -s * r * 0.05, 0, -s * r * 0.22);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    ctx.fillStyle = '#240014';
+    ctx.beginPath();
+    ctx.arc(r * 0.42, 0, r * 0.62, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#ffffff';
+    for (let t = 0; t < 7; t++) {
+        const ta = -1.1 + (t / 6) * 2.2;
+        ctx.beginPath();
+        ctx.arc(r * 0.42 + Math.cos(ta) * (r * 0.56), Math.sin(ta) * (r * 0.56), r * 0.14, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    ctx.fillStyle = skin.glow;
+    ctx.beginPath();
+    ctx.arc(r * 0.1, -r * 0.55, r * 0.18, 0, Math.PI * 2);
+    ctx.arc(r * 0.1, r * 0.55, r * 0.18, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+}
+
+function drawFX() {
+    // питомцы
+    for (const pet of pets) {
+        for (let s = pet.segs.length - 1; s >= 0; s--) {
+            const seg = pet.segs[s];
+            ctx.fillStyle = s === 0 ? '#00f5d4' : '#ff2a85';
+            ctx.beginPath();
+            ctx.arc(seg.x, seg.y, 8 * (1 - s / pet.segs.length * 0.6), 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    // снаряды
+    for (const pr of projectiles) {
+        if (!vis(pr.x, pr.y, 150)) continue;
+        ctx.save();
+        ctx.translate(pr.x, pr.y);
+        if (pr.type === 'torpedo') {
+            ctx.rotate(pr.angle);
+            ctx.fillStyle = '#ff0055';
+            ctx.beginPath(); ctx.ellipse(0, 0, 18, 7, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#ffea00';
+            ctx.beginPath(); ctx.arc(-18, 0, 5, 0, Math.PI * 2); ctx.fill();
+        } else if (pr.type === 'depth_charge') {
+            ctx.fillStyle = '#2b2d42';
+            ctx.strokeStyle = '#ffbe0b';
+            ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.arc(0, 0, pr.r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        } else if (pr.type === 'ink_cloud') {
+            const g = ctx.createRadialGradient(0, 0, 10, 0, 0, pr.r);
+            g.addColorStop(0, 'rgba(15, 5, 25, 0.92)');
+            g.addColorStop(1, 'rgba(15, 5, 25, 0)');
+            ctx.fillStyle = g;
+            ctx.beginPath(); ctx.arc(0, 0, pr.r, 0, Math.PI * 2); ctx.fill();
+        } else if (pr.type === 'bullet') {
+            // трассер: короткий яркий штрих по направлению полёта
+            const ba = Math.atan2(pr.vy, pr.vx);
+            ctx.rotate(ba);
+            ctx.strokeStyle = 'rgba(255, 190, 11, 0.95)';
+            ctx.lineWidth = 3;
+            ctx.lineCap = 'round';
+            ctx.shadowColor = '#ff9e00';
+            ctx.shadowBlur = 8;
+            ctx.beginPath();
+            ctx.moveTo(-12, 0);
+            ctx.lineTo(3, 0);
+            ctx.stroke();
+        } else if (pr.type === 'vortex') {
+            ctx.rotate(gameTime * 0.15);
+            ctx.strokeStyle = 'rgba(0, 245, 212, 0.6)';
+            ctx.lineWidth = 4;
+            for (let arm = 0; arm < 3; arm++) {
+                ctx.rotate((Math.PI * 2) / 3);
+                ctx.beginPath(); ctx.arc(20, 0, pr.r * 0.6, 0, Math.PI); ctx.stroke();
+            }
+        }
+        ctx.restore();
+    }
+
+    // волны импульса
+    for (const sw of shockwaves) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(0, 245, 212, ' + Math.max(0, sw.alpha) + ')';
+        ctx.lineWidth = 8;
+        ctx.shadowColor = '#00f5d4';
+        ctx.shadowBlur = 25;
+        ctx.beginPath();
+        ctx.arc(sw.x, sw.y, sw.r, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    // линии втягивания
+    if (worm.isBoosting()) {
+        ctx.save();
+        ctx.translate(worm.x, worm.y);
+        ctx.rotate(worm.angle);
+        ctx.strokeStyle = 'rgba(202, 240, 248, 0.28)';
+        ctx.lineWidth = 2;
+        for (let i = -1; i <= 1; i++) {
+            const wave = Math.sin(gameTime * 0.25 + i) * 8;
+            ctx.beginPath();
+            ctx.moveTo(worm.radius * 0.8, i * worm.radius * 0.35);
+            ctx.lineTo(worm.radius * 2.6, i * worm.radius * 1.1 + wave);
+            ctx.stroke();
+        }
+        ctx.restore();
+    }
+
+    // пузыри
+    for (const b of bubbles) {
+        ctx.strokeStyle = 'rgba(202, 240, 248, ' + b.alpha + ')';
+        ctx.fillStyle = 'rgba(202, 240, 248, ' + (b.alpha * 0.25) + ')';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+    }
+
+    // частицы
+    for (const p of particles) {
+        ctx.globalAlpha = Math.max(0, p.alpha);
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // всплывающий текст
+    ctx.textAlign = 'center';
+    for (const ft of floatTexts) {
+        ctx.globalAlpha = Math.max(0, ft.alpha);
+        ctx.font = '900 ' + ft.size + "px 'Segoe UI', sans-serif";
+        ctx.fillStyle = ft.color;
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 4;
+        ctx.strokeText(ft.text, ft.x, ft.y);
+        ctx.fillText(ft.text, ft.x, ft.y);
+    }
+    ctx.globalAlpha = 1;
+}
+
+function drawAbyssLighting() {
+    if (worm.y <= TWILIGHT_Y) return;
+    let darkness = Math.min(0.88, (worm.y - TWILIGHT_Y) / (CAVE_Y - TWILIGHT_Y) * 0.88);
+    let tint = '0, 15, 35';
+    let minLight = 260;
+    if (worm.y >= CAVE_Y) {
+        // в пещерах темнее, и у каждого яруса свой оттенок мрака
+        darkness = 0.92;
+        minLight = 300;
+        const ti = caveTierIdx(worm.y);
+        tint = ti === 0 ? '0, 18, 40' : (ti === 1 ? '22, 6, 42' : '50, 6, 8');
+    }
+    const sx = (worm.x - camX) * camZoom;
+    const sy = (worm.y - camY) * camZoom;
+    const lightRadius = Math.max(minLight, worm.radius * 7.5 * camZoom) * (worm.goldRushTimer > 0 ? 1.5 : 1);
+    const skin = SKINS[saveData.skin] || SKINS[0];
+
+    const g = ctx.createRadialGradient(sx, sy, worm.radius * 0.8 * camZoom, sx, sy, lightRadius);
+    g.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    g.addColorStop(0.45, 'rgba(' + tint + ', ' + (darkness * 0.45) + ')');
+    g.addColorStop(1, 'rgba(1, 2, 8, ' + darkness + ')');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    const glowR = worm.radius * 3.2 * camZoom;
+    const gg = ctx.createRadialGradient(sx, sy, 5, sx, sy, glowR);
+    gg.addColorStop(0, worm.goldRushTimer > 0 ? 'rgba(255, 234, 0, 0.28)' : hexA(skin.glow, 0.2));
+    gg.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = gg;
+    ctx.beginPath();
+    ctx.arc(sx, sy, glowR, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+}
+
+function drawMinimap() {
+    if (gameState !== 'playing') return;
+    const small = W < 900;
+    // мир теперь вытянут вниз — миникарта вертикальная
+    const mapW = small ? 54 : 80;
+    const mapH = small ? Math.min(150, H * 0.32) : 200;
+    const mapX = W - mapW - (small ? 10 : 20);
+    const mapY = (isTouchDevice || small) ? (small ? 128 : 170) : H - mapH - 20;
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(4, 15, 30, 0.78)';
+    ctx.strokeStyle = 'rgba(0, 210, 255, 0.45)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(mapX, mapY, mapW, mapH, 10); else ctx.rect(mapX, mapY, mapW, mapH);
+    ctx.fill();
+    ctx.stroke();
+
+    const surfY = mapY + (SURFACE_Y / WORLD_H) * mapH;
+    const caveY = mapY + (CAVE_Y / WORLD_H) * mapH;
+    ctx.strokeStyle = 'rgba(0, 245, 212, 0.35)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(mapX, surfY); ctx.lineTo(mapX + mapW, surfY); ctx.stroke();
+    // зона пещер затемнена, границы ярусов — своим цветом
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+    ctx.fillRect(mapX + 1, caveY, mapW - 2, mapY + mapH - caveY - 1);
+    const mapTiers = [[CAVE_Y, CAVE_TIERS[0].edge], [CAVE2_Y, CAVE_TIERS[1].edge], [CAVE3_Y, CAVE_TIERS[2].edge]];
+    for (let ti = 0; ti < mapTiers.length; ti++) {
+        const ly = mapY + (mapTiers[ti][0] / WORLD_H) * mapH;
+        ctx.strokeStyle = mapTiers[ti][1];
+        ctx.globalAlpha = 0.7;
+        ctx.beginPath(); ctx.moveTo(mapX, ly); ctx.lineTo(mapX + mapW, ly); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    ctx.fillStyle = '#ffea9f';
+    for (const isl of world.islands) ctx.fillRect(mapX + (isl.x / WORLD_W) * mapW - 3, surfY - 2, 6, 3);
+
+    ctx.fillStyle = '#ffd700';
+    for (const ch of world.chests) {
+        if (ch.opened) continue;
+        ctx.fillRect(mapX + (ch.x / WORLD_W) * mapW - 1.5, mapY + (ch.y / WORLD_H) * mapH - 1.5, 3, 3);
+    }
+
+    ctx.fillStyle = '#ff0055';
+    for (const e of entities) {
+        if (!e.isBoss) continue;
+        ctx.beginPath();
+        ctx.arc(mapX + (e.x / WORLD_W) * mapW, mapY + (e.y / WORLD_H) * mapH, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    ctx.fillStyle = '#00f5d4';
+    ctx.beginPath();
+    ctx.arc(mapX + (worm.x / WORLD_W) * mapW, mapY + (worm.y / WORLD_H) * mapH, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.restore();
+}
+
+// ============================================================================
+// ЧАСТЬ 6: HUD, МЕНЮ, МАГАЗИН
+// ============================================================================
+const hudEls = {
+    hpBar: document.getElementById('hp-bar'), hpTxt: document.getElementById('hp-txt'),
+    boostBar: document.getElementById('boost-bar'), boostTxt: document.getElementById('boost-txt'),
+    goldBar: document.getElementById('gold-bar'), goldTxt: document.getElementById('gold-txt'),
+    score: document.getElementById('score-val'), coin: document.getElementById('coin-val'), gem: document.getElementById('gem-val'),
+    mass: document.getElementById('mass-val'), depth: document.getElementById('depth-val'), zone: document.getElementById('zone-val'),
+    empCd: document.getElementById('emp-cd-txt'), empBtn: document.getElementById('btn-emp-skill')
+};
+
+let lastZoneIdx = -1;     // для баннера при входе в новую зону
+
+function updateHUD() {
+    const hpPct = clamp((worm.hp / worm.maxHp) * 100, 0, 100);
+    const boostPct = clamp((worm.boost / worm.maxBoost) * 100, 0, 100);
+    const goldPct = worm.goldRushTimer > 0 ? (worm.goldRushTimer / 480) * 100 : worm.goldCharge;
+
+    hudEls.hpBar.style.width = hpPct + '%';
+    hudEls.hpTxt.innerText = Math.round(hpPct) + '%';
+    hudEls.boostBar.style.width = boostPct + '%';
+    hudEls.boostTxt.innerText = Math.round(boostPct) + '%';
+    hudEls.goldBar.style.width = goldPct + '%';
+    hudEls.goldTxt.innerText = worm.goldRushTimer > 0 ? 'АКТИВНА!' : Math.round(goldPct) + '%';
+
+    hudEls.score.innerText = worm.score.toLocaleString('ru-RU');
+    hudEls.coin.innerText = saveData.coins;
+    hudEls.gem.innerText = saveData.gems;
+    hudEls.mass.innerText = (worm.radius * 0.8).toFixed(1);
+    hudEls.depth.innerText = Math.max(0, Math.round((worm.y - SURFACE_Y) / 8));
+
+    let zone, color, zoneIdx;
+    if (worm.y < SURFACE_Y) { zone = 'Над водой / Пляж'; color = '#ffbe0b'; zoneIdx = 0; }
+    else if (worm.y < TWILIGHT_Y) { zone = 'Солнечный Риф'; color = '#00f5d4'; zoneIdx = 1; }
+    else if (worm.y < ABYSS_Y) { zone = 'Сумеречная Зона'; color = '#4cc9f0'; zoneIdx = 2; }
+    else if (worm.y < CAVE_Y) { zone = 'Полуночная Бездна'; color = '#9d4edd'; zoneIdx = 3; }
+    else if (worm.y < CAVE2_Y) { zone = CAVE_TIERS[0].name; color = '#4cc9f0'; zoneIdx = 4; }
+    else if (worm.y < CAVE3_Y) { zone = CAVE_TIERS[1].name; color = '#c77dff'; zoneIdx = 5; }
+    else { zone = CAVE_TIERS[2].name; color = '#ff6d00'; zoneIdx = 6; }
+    hudEls.zone.innerText = zone;
+    hudEls.zone.style.color = color;
+    if (zoneIdx !== lastZoneIdx) {
+        if (lastZoneIdx !== -1 && zoneIdx >= 3) showBanner('⚠ ' + zone.toUpperCase() + ' ⚠', color);
+        lastZoneIdx = zoneIdx;
+    }
+
+    hudEls.empCd.innerText = empCooldown > 0 ? (empCooldown / 60).toFixed(1) + 'с' : 'ГОТОВ (E)';
+    hudEls.empBtn.style.opacity = empCooldown > 0 ? '0.55' : '1';
+}
+
+function renderShopUI() {
+    document.getElementById('menu-coins').innerText = saveData.coins;
+    document.getElementById('menu-gems').innerText = saveData.gems;
+    document.getElementById('menu-best').innerText = saveData.bestScore.toLocaleString('ru-RU');
+
+    const skinsBox = document.getElementById('skins-container');
+    skinsBox.innerHTML = '';
+    SKINS.forEach(function (sk) {
+        const unlocked = saveData.unlockedSkins.indexOf(sk.id) !== -1;
+        const selected = saveData.skin === sk.id;
+        const btn = document.createElement('button');
+        btn.className = 'skin-btn' + (selected ? ' selected' : '');
+        const priceLabel = unlocked ? (selected ? '✓ Выбран' : 'Выбрать') : (sk.currency === 'gems' ? sk.cost + ' 💎' : sk.cost + ' 🪙');
+        btn.innerHTML = '<span class="skin-swatch" style="background:linear-gradient(135deg,' + sk.c1 + ',' + sk.c2 + ')"></span><span>' + sk.name + ' (' + priceLabel + ')</span>';
+        btn.onclick = function () {
+            SFX.init();
+            if (unlocked) {
+                saveData.skin = sk.id;
+                SFX.play('coin');
+            } else if (sk.currency === 'coins' && saveData.coins >= sk.cost) {
+                saveData.coins -= sk.cost;
+                saveData.unlockedSkins.push(sk.id);
+                saveData.skin = sk.id;
+                SFX.play('goldrush');
+            } else if (sk.currency === 'gems' && saveData.gems >= sk.cost) {
+                saveData.gems -= sk.cost;
+                saveData.unlockedSkins.push(sk.id);
+                saveData.skin = sk.id;
+                SFX.play('goldrush');
+            }
+            saveGame();
+            renderShopUI();
+        };
+        skinsBox.appendChild(btn);
+    });
+
+    const shopBox = document.getElementById('shop-container');
+    shopBox.innerHTML = '';
+    UPGRADE_DEFS.forEach(function (u) {
+        const lvl = saveData.upgrades[u.key] || 1;
+        const maxLvl = 6;
+        const cost = u.baseCost * lvl;
+        const card = document.createElement('div');
+        card.className = 'shop-item';
+
+        let dots = '<div class="lvl-dots">';
+        for (let i = 1; i <= maxLvl; i++) dots += '<div class="lvl-dot' + (i <= lvl ? ' filled' : '') + '"></div>';
+        dots += '</div>';
+
+        const canAfford = saveData.coins >= cost && lvl < maxLvl;
+        card.innerHTML = '<div><h4>' + u.title + ' (Ур. ' + lvl + ')</h4><p>' + u.desc + '</p>' + dots + '</div>' +
+            '<button class="btn-buy"' + (!canAfford ? ' disabled' : '') + '>' + (lvl >= maxLvl ? 'МАКС. УРОВЕНЬ' : 'Улучшить за ' + cost + ' 🪙') + '</button>';
+
+        card.querySelector('button').onclick = function () {
+            SFX.init();
+            if (saveData.coins >= cost && lvl < maxLvl) {
+                saveData.coins -= cost;
+                saveData.upgrades[u.key] = lvl + 1;
+                SFX.play('coin');
+                saveGame();
+                renderShopUI();
+            }
+        };
+        shopBox.appendChild(card);
+    });
+}
+
+function openMenu(msg) {
+    gameState = 'menu';
+    input.boost = false;
+    resetJoystick();
+    saveGame();
+    renderShopUI();
+    const dm = document.getElementById('death-msg');
+    if (msg) { dm.innerText = msg + ' · Счёт: ' + worm.score.toLocaleString('ru-RU'); dm.style.display = 'block'; }
+    else { dm.style.display = 'none'; }
+    document.getElementById('btn-start').innerText = runActive ? 'ПРОДОЛЖИТЬ' : 'В ОКЕАН!';
+    document.getElementById('menu-modal').style.display = 'flex';
+    document.getElementById('hud').style.display = 'none';
+}
+
+function startGame() {
+    SFX.init();
+    document.getElementById('menu-modal').style.display = 'none';
+    document.getElementById('hud').style.display = 'block';
+    document.getElementById('death-msg').style.display = 'none';
+
+    if (!runActive) {
+        lastZoneIdx = -1;
+        worm.reset();
+        initEcosystem();
+        projectiles.length = 0; pets.length = 0; particles.length = 0; floatTexts.length = 0; bubbles.length = 0;
+        shockwaves.length = 0;
+        empCooldown = 0; blindTimer = 0;
+        quest.reset();
+        camX = worm.x - VW / 2; camY = worm.y - VH / 2;
+        runActive = true;
+        showBanner('Ты — крошечный червь. Ешь планктон и расти!', '#caf0f8');
+    } else {
+        worm.applyUpgrades();
+    }
+    gameState = 'playing';
+}
+
+document.getElementById('btn-start').addEventListener('click', startGame);
+document.getElementById('btn-pause').addEventListener('click', function () { openMenu(); });
+document.addEventListener('visibilitychange', function () { if (document.hidden && gameState === 'playing') openMenu(); });
+
+// ============================================================================
+// ЧАСТЬ 7: УПРАВЛЕНИЕ (мышь, клавиатура, мульти-тач джойстик)
+// ============================================================================
+function closestBtn(el) { return el && el.closest ? el.closest('button') : null; }
+
+window.addEventListener('mousemove', function (e) { input.mouseX = e.clientX; input.mouseY = e.clientY; });
+window.addEventListener('mousedown', function (e) {
+    if (closestBtn(e.target) || e.button === 2) return;
+    if (gameState !== 'playing') return;
+    input.boost = true;
+    SFX.init();
+});
+window.addEventListener('mouseup', function () { input.boost = false; });
+window.addEventListener('contextmenu', function (e) {
+    e.preventDefault();
+    if (gameState === 'playing') triggerBioEMP();
+});
+
+window.addEventListener('keydown', function (e) {
+    if (e.code === 'Space') { e.preventDefault(); input.boost = true; }
+    if (e.code === 'Escape' && gameState === 'playing') openMenu();
+    if ((e.code === 'KeyE' || e.code === 'ShiftLeft') && gameState === 'playing') triggerBioEMP();
+});
+window.addEventListener('keyup', function (e) {
+    if (e.code === 'Space') { e.preventDefault(); input.boost = false; }
+});
+
+// --- Плавающий джойстик: касание в левой части экрана, у каждого пальца свой id ---
+const joyZone = document.getElementById('joystick-zone');
+const joyKnob = document.getElementById('joystick-knob');
+const touchBoostBtn = document.getElementById('touch-boost');
+const joy = { id: null, cx: 0, cy: 0, maxR: 50 };
+let boostTouchId = null;
+
+function resetJoystick() {
+    joy.id = null;
+    input.joyActive = false;
+    input.joyDX = 0; input.joyDY = 0;
+    joyKnob.style.transform = 'translate(0px, 0px)';
+    joyZone.classList.remove('on');
+    joyZone.style.left = ''; joyZone.style.top = ''; joyZone.style.bottom = '';
+    boostTouchId = null;
+}
+
+function joyStart(t) {
+    const w = joyZone.offsetWidth || 140;
+    joy.id = t.identifier;
+    joy.cx = t.clientX;
+    joy.cy = t.clientY;
+    joy.maxR = w * 0.4;
+    joyZone.style.left = (joy.cx - w / 2) + 'px';
+    joyZone.style.top = (joy.cy - w / 2) + 'px';
+    joyZone.style.bottom = 'auto';
+    joyZone.classList.add('on');
+    input.joyActive = true;
+    input.joyDX = 1; input.joyDY = 0;
+    if (typeof worm !== 'undefined') { input.joyDX = Math.cos(worm.angle); input.joyDY = Math.sin(worm.angle); }
+}
+
+function joyMove(t) {
+    let dx = t.clientX - joy.cx;
+    let dy = t.clientY - joy.cy;
+    const dist = Math.hypot(dx, dy);
+    if (dist > joy.maxR) { dx = dx / dist * joy.maxR; dy = dy / dist * joy.maxR; }
+    joyKnob.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
+    if (dist > 6) { input.joyDX = dx; input.joyDY = dy; }   // мёртвая зона: направление не сбрасывается
+    input.joyActive = true;
+}
+
+window.addEventListener('touchstart', function (e) {
+    if (gameState !== 'playing') return;
+    let prevent = false;
+    for (let i = 0; i < e.changedTouches.length; i++) {
+        const t = e.changedTouches[i];
+        const target = t.target;
+        if (target && target.closest && target.closest('#touch-boost')) {
+            boostTouchId = t.identifier;
+            input.boost = true;
+            SFX.init();
+            prevent = true;
+        } else if (closestBtn(target)) {
+            // кнопки (пауза, импульс) обрабатывают себя сами
+        } else if (joy.id === null && t.clientX < W * 0.65) {
+            joyStart(t);
+            SFX.init();
+            prevent = true;
+        } else {
+            prevent = true;
+        }
+    }
+    if (prevent) e.preventDefault();
+}, { passive: false });
+
+window.addEventListener('touchmove', function (e) {
+    if (gameState !== 'playing') return;
+    for (let i = 0; i < e.changedTouches.length; i++) {
+        if (e.changedTouches[i].identifier === joy.id) joyMove(e.changedTouches[i]);
+    }
+    e.preventDefault();
+}, { passive: false });
+
+function onTouchEnd(e) {
+    for (let i = 0; i < e.changedTouches.length; i++) {
+        const id = e.changedTouches[i].identifier;
+        if (id === joy.id) {
+            joy.id = null;
+            input.joyActive = false;
+            joyKnob.style.transform = 'translate(0px, 0px)';
+            joyZone.classList.remove('on');
+            joyZone.style.left = ''; joyZone.style.top = ''; joyZone.style.bottom = '';
+        }
+        if (id === boostTouchId) { boostTouchId = null; input.boost = false; }
+    }
+}
+window.addEventListener('touchend', onTouchEnd, { passive: false });
+window.addEventListener('touchcancel', onTouchEnd, { passive: false });
+
+// кнопка Био-Импульса
+const empBtn = document.getElementById('btn-emp-skill');
+empBtn.addEventListener('click', function (e) { e.stopPropagation(); SFX.init(); triggerBioEMP(); });
+empBtn.addEventListener('touchstart', function (e) {
+    e.preventDefault(); e.stopPropagation();
+    SFX.init(); triggerBioEMP();
+}, { passive: false });
+
+// ============================================================================
+// ЧАСТЬ 8: КАМЕРА (с авто-зумом), РЕНДЕР, ГЛАВНЫЙ ЦИКЛ
+// ============================================================================
+function render() {
+    ctx.clearRect(0, 0, W, H);
+
+    // зум: крошечный червь — камера ближе, по мере роста отъезжает; на рывке и в прыжке чуть дальше
+    const boostF = worm.isBoosting() ? 0.05 : 0;
+    const airF = !worm.inWater ? 0.06 : 0;
+    const baseZoom = isTouchDevice ? 0.58 : 0.68;
+    const sizeZoom = baseZoom * Math.pow(14 / Math.max(5, worm.radius), 0.55);
+    const targetZoom = clamp(sizeZoom - boostF - airF, 0.28, 1.1);
+    camZoom += (targetZoom - camZoom) * 0.04;
+
+    VW = W / camZoom;
+    VH = H / camZoom;
+
+    const tx = worm.x + worm.vx * 16 - VW / 2;
+    const ty = worm.y + worm.vy * 16 - VH / 2;
+    camX += (tx - camX) * 0.1;
+    camY += (ty - camY) * 0.1;
+    camX = clamp(camX, 0, Math.max(0, WORLD_W - VW));
+    camY = clamp(camY, 0, Math.max(0, WORLD_H - VH));
+
+    let shakeX = 0, shakeY = 0;
+    if (screenShake > 0.2) {
+        shakeX = (Math.random() - 0.5) * screenShake;
+        shakeY = (Math.random() - 0.5) * screenShake;
+        screenShake *= 0.88;
+    } else {
+        screenShake = 0;
+    }
+
+    // экран -> мир с учётом зума
+    input.worldX = camX + input.mouseX / camZoom;
+    input.worldY = camY + input.mouseY / camZoom;
+
+    ctx.save();
+    ctx.scale(camZoom, camZoom);
+    ctx.translate(-(camX + shakeX), -(camY + shakeY));
+    drawWorld();
+    drawEntities();
+    drawWorm();
+    drawFX();
+    ctx.restore();
+
+    drawAbyssLighting();
+
+    if (hurtFlash > 0) {
+        ctx.fillStyle = 'rgba(255, 0, 60, ' + (hurtFlash / 14) * 0.28 + ')';
+        ctx.fillRect(0, 0, W, H);
+    }
+
+    if (blindTimer > 0) {
+        ctx.fillStyle = 'rgba(12, 2, 24, ' + Math.min(0.82, (blindTimer / 180) * 0.85) + ')';
+        ctx.fillRect(0, 0, W, H);
+    }
+    drawMinimap();
+}
+
+function loop() {
+    gameTime++;
+    world.update(gameTime);
+
+    if (gameState === 'playing') {
+        worm.update();
+        if (gameState === 'playing') {
+            updateEcosystem();
+            if (gameTime % 3 === 0) updateHUD();
+            if (gameTime % 900 === 0) saveGame();
+        }
+    } else if (!runActive) {
+        // демо-плавание на фоне меню (только когда нет активного забега)
+        worm.angle = Math.sin(gameTime * 0.015) * 0.35;
+        worm.x += Math.cos(worm.angle) * 2.2;
+        worm.y = SURFACE_Y + 260 + Math.sin(gameTime * 0.02) * 80;
+        worm.vx = Math.cos(worm.angle) * 2.2; worm.vy = 0;
+        if (worm.x > WORLD_W - 800) worm.x = 800;
+        worm.moveSegments();
+    }
+
+    render();
+    requestAnimationFrame(loop);
+}
+
+// ---- СТАРТ ----
+world.init();
+worm.reset();
+initEcosystem();
+quest.updateUI();
+renderShopUI();
+camX = worm.x - VW / 2;
+camY = worm.y - VH / 2;
+loop();
+    </script>
+</body>
+</html>

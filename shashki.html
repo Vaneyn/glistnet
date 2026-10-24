@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Шашки</title>
+  <style>
+    body {
+      background: #ddd;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+    }
+    canvas {
+      border: 2px solid #333;
+      background: #eee;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="board" width="400" height="400"></canvas>
+
+  <script>
+    // Размеры доски и клеток
+    const canvas = document.getElementById('board');
+    const ctx = canvas.getContext('2d');
+    const boardSize = 8;
+    const cellSize = canvas.width / boardSize;
+
+    // Игровое состояние
+    // board[r][c] = null или { color: 'red' | 'black', king: bool }
+    const board = [];
+    let currentTurn = 'red'; // красные ходят первыми
+    let selectedPiece = null;  // { row, col, moves: [...] }
+    
+    // Инициализация пустой доски
+    function initBoard() {
+      for (let r = 0; r < boardSize; r++) {
+        board[r] = [];
+        for (let c = 0; c < boardSize; c++) {
+          board[r][c] = null;
+        }
+      }
+      
+      // Расставляем шашки:
+      // На клетках, где (r+c) % 2 === 1
+      // Чёрные (black) располагаем сверху (строки 0-2)
+      for (let r = 0; r < 3; r++) {
+        for (let c = 0; c < boardSize; c++) {
+          if ((r + c) % 2 === 1) {
+            board[r][c] = { color: 'black', king: false };
+          }
+        }
+      }
+      // Красные (red) располагаем снизу (строки 5-7)
+      for (let r = boardSize - 3; r < boardSize; r++) {
+        for (let c = 0; c < boardSize; c++) {
+          if ((r + c) % 2 === 1) {
+            board[r][c] = { color: 'red', king: false };
+          }
+        }
+      }
+    }
+
+    // Функция отрисовки доски и шашек
+    function drawBoard() {
+      // Рисуем клетки
+      for (let r = 0; r < boardSize; r++) {
+        for (let c = 0; c < boardSize; c++) {
+          // Клетки двух цветов: светлые и тёмные
+          if ((r + c) % 2 === 0) {
+            ctx.fillStyle = '#f0d9b5';
+          } else {
+            ctx.fillStyle = '#b58863';
+          }
+          ctx.fillRect(c * cellSize, r * cellSize, cellSize, cellSize);
+        }
+      }
+      
+      // Подсвечиваем возможные ходы выбранной шашки (если она выбрана)
+      if (selectedPiece && selectedPiece.moves) {
+        for (const move of selectedPiece.moves) {
+          ctx.fillStyle = 'rgba(0,255,0,0.3)';
+          ctx.fillRect(move.col * cellSize, move.row * cellSize, cellSize, cellSize);
+        }
+      }
+      
+      // Рисуем шашки
+      for (let r = 0; r < boardSize; r++) {
+        for (let c = 0; c < boardSize; c++) {
+          const piece = board[r][c];
+          if (piece) {
+            drawPiece(r, c, piece);
+          }
+        }
+      }
+      
+      // Если шашка выбрана, выделяем её рамкой
+      if (selectedPiece) {
+        ctx.strokeStyle = 'yellow';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(selectedPiece.col * cellSize, selectedPiece.row * cellSize, cellSize, cellSize);
+      }
+    }
+
+    // Функция отрисовки одной шашки
+    function drawPiece(row, col, piece) {
+      const centerX = col * cellSize + cellSize / 2;
+      const centerY = row * cellSize + cellSize / 2;
+      const radius = cellSize * 0.4;
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+      ctx.fillStyle = piece.color;
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#333';
+      ctx.stroke();
+      ctx.closePath();
+      
+      // Если дамка, рисуем звёздочку или отметку
+      if (piece.king) {
+        ctx.fillStyle = 'gold';
+        ctx.font = `${cellSize * 0.5}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('★', centerX, centerY);
+      }
+    }
+
+    // Получить клетку по координатам мыши
+    function getCellFromCoords(x, y) {
+      const rect = canvas.getBoundingClientRect();
+      const col = Math.floor((x - rect.left) / cellSize);
+      const row = Math.floor((y - rect.top) / cellSize);
+      return { row, col };
+    }
+
+    // Определяем направления движения для шашки (учитывая дамку)
+    function getMoveDirections(piece) {
+      if (piece.king) {
+        // Дамка может ходить по всем диагоналям
+        return [
+          { dr: -1, dc: -1 },
+          { dr: -1, dc: 1 },
+          { dr: 1, dc: -1 },
+          { dr: 1, dc: 1 }
+        ];
+      } else {
+        // Обычные шашки: для красных – движутся вверх (уменьшение row), для чёрных – вниз
+        if (piece.color === 'red') {
+          return [
+            { dr: -1, dc: -1 },
+            { dr: -1, dc: 1 }
+          ];
+        } else {
+          return [
+            { dr: 1, dc: -1 },
+            { dr: 1, dc: 1 }
+          ];
+        }
+      }
+    }
+
+    // Вычисляем возможные ходы для шашки в клетке (row, col)
+    // Возвращает массив объектов вида { row, col, capture: { row, col } | null }
+    function getValidMoves(row, col) {
+      const piece = board[row][col];
+      if (!piece) return [];
+      const directions = getMoveDirections(piece);
+      let moves = [];
+      let captureMoves = [];
+
+      // Сначала ищем возможность захвата (если таковые есть, то другие ходы игнорируются)
+      for (const { dr, dc } of directions) {
+        const enemyRow = row + dr;
+        const enemyCol = col + dc;
+        const landingRow = row + dr * 2;
+        const landingCol = col + dc * 2;
+        if (
+          landingRow >= 0 && landingRow < boardSize &&
+          landingCol >= 0 && landingCol < boardSize &&
+          enemyRow >= 0 && enemyRow < boardSize &&
+          enemyCol >= 0 && enemyCol < boardSize
+        ) {
+          const enemyPiece = board[enemyRow][enemyCol];
+          if (enemyPiece && enemyPiece.color !== piece.color && !board[landingRow][landingCol]) {
+            captureMoves.push({
+              row: landingRow,
+              col: landingCol,
+              capture: { row: enemyRow, col: enemyCol }
+            });
+          }
+        }
+      }
+      
+      if (captureMoves.length > 0) {
+        return captureMoves;
+      }
+      
+      // Если захвата нет – обычные ходы (на одну клетку по диагонали)
+      for (const { dr, dc } of directions) {
+        const newRow = row + dr;
+        const newCol = col + dc;
+        if (
+          newRow >= 0 && newRow < boardSize &&
+          newCol >= 0 && newCol < boardSize &&
+          !board[newRow][newCol]
+        ) {
+          moves.push({ row: newRow, col: newCol, capture: null });
+        }
+      }
+      
+      return moves;
+    }
+
+    // Обработчик кликов по канвасу
+    canvas.addEventListener('click', (e) => {
+      const { row, col } = getCellFromCoords(e.clientX, e.clientY);
+      // Если выбрана клетка вне доски – игнорируем
+      if (row < 0 || row >= boardSize || col < 0 || col >= boardSize) return;
+
+      const piece = board[row][col];
+
+      // Если у нас уже выбрана шашка и мы кликаем по клетке с подсвеченным ходом, то делаем ход
+      if (selectedPiece && selectedPiece.moves) {
+        const move = selectedPiece.moves.find(m => m.row === row && m.col === col);
+        if (move) {
+          makeMove(selectedPiece.row, selectedPiece.col, move);
+          selectedPiece = null;
+          drawBoard();
+          return;
+        }
+      }
+      
+      // Если кликнули на шашку, принадлежащую текущему игроку, выбираем её
+      if (piece && piece.color === currentTurn) {
+        const moves = getValidMoves(row, col);
+        // Если нет ходов – ничего не делаем
+        if (moves.length === 0) {
+          selectedPiece = null;
+        } else {
+          selectedPiece = { row, col, moves };
+        }
+      } else {
+        // Иначе снимаем выделение
+        selectedPiece = null;
+      }
+      drawBoard();
+    });
+
+    // Функция совершения хода
+    function makeMove(fromRow, fromCol, move) {
+      const piece = board[fromRow][fromCol];
+      // Выполняем ход: ставим шашку в новую позицию и очищаем старую
+      board[move.row][move.col] = piece;
+      board[fromRow][fromCol] = null;
+      
+      // Если ход был захватывающим, убираем противника
+      if (move.capture) {
+        board[move.capture.row][move.capture.col] = null;
+      }
+      
+      // Если шашка достигла противоположной стороны – превращаем в дамку
+      if (!piece.king) {
+        if (piece.color === 'red' && move.row === 0) {
+          piece.king = true;
+        }
+        if (piece.color === 'black' && move.row === boardSize - 1) {
+          piece.king = true;
+        }
+      }
+      
+      // Смена хода
+      currentTurn = (currentTurn === 'red') ? 'black' : 'red';
+    }
+
+    // Главная функция запуска игры
+    function initGame() {
+      initBoard();
+      drawBoard();
+    }
+
+    // Инициализация игры
+    initGame();
+
+    // Можно добавить перерисовку при изменении размера окна или анимацию, если потребуется
+  </script>
+</body>
+</html>

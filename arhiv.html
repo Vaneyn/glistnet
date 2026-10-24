@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Вообще это архив</title>
+<style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background: linear-gradient(to bottom, red, green); /* Градиентный фон от красного до синего */
+            height: 100vh;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .circle {
+            display: inline-block;
+            width: 50px;
+            height: 50px;
+            margin: 10px; /* Увеличим расстояние между кружками */
+            background-color: grey;
+            border-radius: 50%;
+        }
+        button {
+            padding: 10px 20px; /* Увеличим размер кнопок */
+            font-size: 18px;
+            margin: 10px; /* Увеличим расстояние между кнопками */
+        }
+    </style>
+</head>
+<body>
+	<form>
+	
+		</form>
+
+	<div id="hiddenButtons" class="idden">
+	
+	<button onclick="runTool('tool2')">Шарики (требуется интернет)</button>
+<button onclick="runTool('tool14')">GlistaChat</button>
+<button onclick="runTool('toolmyname')">Редактор имени для GlistaChat</button>
+<button onclick="runTool('udacha')">Удача</button>
+<button onclick="runTool('tool16')">Cube relax open code</button>
+<button onclick="runTool('bad')">Книга оскорблений</button>
+<button onclick="runTool('tool13')">Klicker imp. online</button>
+	<button onclick="runTool('parse')">Парсинг ссылок</button>
+<button onclick="runTool('boom')">3D Boom (интренет)</button>
+<button onclick="runTool('6174')">|6174|</button>
+<button onclick="runTool('wtf')">Live to die</button>
+<button onclick="runTool('toolerror')">admin</button>
+<button onclick="runTool('gravit')">Гравитация</button>
+<button onclick="runTool('glinet')">Глинет</button>
+<button onclick="runTool('binary')">Получение кода страницы</button>
+   <button class="button game-button" onclick="openFile('shooter2p.html')">Стрелялка 3D на двоих</button>
+
+	</div>
+
+	<script>
+		function checkCode() {
+			var code = document.getElementById("code").value;
+			if (code === "12345") {
+				document.getElementById("hiddenButtons").classList.remove("hidden");
+			}
+		}
+	</script>
+	    </script>
+  </head>
+  <body
+  </body>
+  	<script>
+		function runTool(toolName) {
+			var url = toolName + ".html";
+			window.open(url, "_blank");
+		}
+
+
+
+
+
+
+
+
+
+
+
+// Начало достижений 
+
+// Инициализация IndexedDB
+function initDB() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open("AchievementsDB", 1);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result);
+        request.onupgradeneeded = (event) => {
+            const db = event.target.result;
+            db.createObjectStore("achievements", { keyPath: "title" });
+        };
+    });
+}
+
+// Добавление достижения и показ уведомления
+async function addAchievement(title, text, image = false) {
+    try {
+        const db = await initDB();
+        const transaction = db.transaction(["achievements"], "readwrite");
+        const objectStore = transaction.objectStore("achievements");
+
+        const checkRequest = objectStore.get(title);
+
+        return new Promise((resolve) => {
+            checkRequest.onsuccess = () => {
+                if (!checkRequest.result) {
+                    const newAchievement = { title, text, image: image || "button.png" };
+                    objectStore.add(newAchievement).onsuccess = () => {
+                        const div = document.createElement("div");
+                        div.textContent = title;
+                        div.style.position = "fixed";
+                        div.style.top = "15px";
+                        div.style.left = "5%";
+                        div.style.width = "90%";
+                        div.style.background = "#ffd700";
+                        div.style.color = "#1a1a1a";
+                        div.style.padding = "10px";
+                        div.style.borderRadius = "8px";
+                        div.style.boxShadow = "0 3px 10px rgba(0, 0, 0, 0.3)";
+                        div.style.zIndex = "1000";
+                        document.body.appendChild(div);
+                        setTimeout(() => div.remove(), 3000);
+                        resolve(true);
+                    };
+                } else {
+                    resolve(false);
+                }
+            };
+        });
+    } catch (error) {
+        console.error("Error:", error);
+        return false;
+    }
+}
+
+// Проверка и добавление достижения
+async function checkAndAddAchievement() {
+    if (1>= 1) {
+        const added = await addAchievement(
+            "Археолог",
+            "Ты зашёл в такое место, где пахнет пылью и сырым кодом...",
+            "arhiv.png"
+        );
+        if (added) console.log("Достижение добавлено!");
+    }
+}
+
+// Периодическая проверка
+setInterval(checkAndAddAchievement, 1000); // проверка каждую секунду
+
+// Конец достижений
+	</script>
+	  <button onclick="runTool('glist')">НАЗАД</button>
+</body>
+</html>

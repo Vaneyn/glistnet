@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<style>
+		body {
+			color: black;
+			background-color: grey;
+		}
+		button {
+		font-size: 20px;
+			color: white;
+			background-color: black;
+		}
+	</style>
+    <title>Злой Шифратор</title>
+    	<script>
+		function runTool(toolName) {
+			var url = toolName + ".html";
+			window.open(url, "_blank");
+		}
+	</script>
+	<button onclick="runTool('glist')">НАЗАД</button>
+    <script>
+        function шифровать() {
+            let входнойТекст = document.getElementById("вход").value;
+            let зашифрованныйТекст = "";
+
+            for (let i = 0; i < входнойТекст.length; i++) {
+                let символ = входнойТекст.charCodeAt(i);
+                зашифрованныйТекст += String.fromCharCode(символ - 3);
+            }
+
+            document.getElementById("результат").innerText = зашифрованныйТекст;
+        }
+
+        function расшифровать() {
+            let входнойТекст = document.getElementById("вход").value;
+            let расшифрованныйТекст = "";
+
+            for (let i = 0; i < входнойТекст.length; i++) {
+                let символ = входнойТекст.charCodeAt(i);
+                расшифрованныйТекст += String.fromCharCode(символ + 3);
+            }
+
+            document.getElementById("результат").innerText = расшифрованныйТекст;
+        }
+    </script>
+</head>
+<body>
+    <h1>Злой Шифратор</h1>
+  <textarea id="вход" placeholder="Введите текст для шифрования или расшифровки" rows="5" cols="40"></textarea>
+   <br>
+    <button onclick="шифровать()">Зашифровать</button>
+    <button onclick="расшифровать()">Расшифровать</button>
+    <br>
+    <h2>Результат:</h2>
+    <div id="результат"></div>
+</body>
+</html>

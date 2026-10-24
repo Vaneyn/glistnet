@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Государство</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            color: #333;
+            padding: 20px;
+        }
+        h1, h2 {
+            color: #444;
+        }
+        .stats, .results {
+            background-color: #fff;
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .slider-container {
+            margin: 10px 0;
+        }
+        .slider {
+            width: 100%;
+        }
+        button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>Государство Бавария</h1>
+        <h2>Уровень: Легко</h2>
+            <h3>Цель: Достичь 100К гражданских</h3>
+    <div class="stats">
+        <p>ГОД: <span id="gamescore">0</span></p>
+        <p>Гражданские: <span id="civilians">1000</span></p>
+        <p>Пища: <span id="food">5000</span></p>
+        <p>Военные: <span id="soldiers">100</span></p>
+        <p>Рабы: <span id="slaves">0</span></p>
+        <p>Партизаны: <span id="rebels">0</span></p>
+      
+    </div>
+    
+    <div class="slider-container">
+        <label>Мобилизовать в военных: <span id="mobilizeValue">0</span></label>
+        <input type="range" min="0" id="mobilizeSlider" class="slider">
+    </div>
+    
+    <div class="slider-container">
+        <label>Поработить гражданских: <span id="enslaveValue">0</span></label>
+        <input type="range" min="0" id="enslaveSlider" class="slider">
+    </div>
+    
+    <div class="slider-container">
+        <label>Выделить пищи: <span id="allocateFoodValue">0</span></label>
+        <input type="range" min="0" id="allocateFoodSlider" class="slider">
+    </div>
+ 
+    <button onclick="nextTurn()">Ход</button>
+    
+    <h2>Результаты:</h2>
+    <div class="results">
+        <p>Изменение гражданских: <span id="civiliansChange">0</span></p>
+        <p>Изменение военных: <span id="soldiersChange">0</span></p>
+         <p>Изменение партизан: <span id="rebelsChange">0</span></p>
+    </div>
+    
+    <script>
+        let civilians = 1000;
+        let food = 5000;
+        let soldiers = 100;
+        let slaves = 0;
+        let rebels = 0;
+               let gamescore = 0
+        function updateSliders() {
+            const mobilizeSlider = document.getElementById('mobilizeSlider');
+            const enslaveSlider = document.getElementById('enslaveSlider');
+            const allocateFoodSlider = document.getElementById('allocateFoodSlider');
+            
+            mobilizeSlider.max = Math.min(Math.floor(food / 10), civilians);
+            enslaveSlider.max = civilians;
+            allocateFoodSlider.max = food;
+            
+            document.getElementById('mobilizeValue').innerText = mobilizeSlider.value;
+            document.getElementById('enslaveValue').innerText = enslaveSlider.value;
+            document.getElementById('allocateFoodValue').innerText = allocateFoodSlider.value;
+        }
+        
+        document.querySelectorAll('.slider').forEach(slider => {
+            slider.addEventListener('input', updateSliders);
+        });
+        
+        function nextTurn() {
+            let mobilizeValue = parseInt(document.getElementById('mobilizeSlider').value);
+            let enslaveValue = parseInt(document.getElementById('enslaveSlider').value);
+            let allocateFoodValue = parseInt(document.getElementById('allocateFoodSlider').value);
+            gamescore += 10
+            // Update soldiers and civilians
+            soldiers += mobilizeValue;
+            civilians -= mobilizeValue;
+            food -= mobilizeValue * 10;
+            
+            // Update slaves and civilians
+            slaves += enslaveValue;
+            civilians -= enslaveValue;
+            
+            // Calculate food surplus or deficit
+            let totalPopulation = civilians + soldiers;
+            let foodDifference = allocateFoodValue - totalPopulation;
+            if (foodDifference > 0) {
+                civilians += Math.floor(Math.random() * (foodDifference + 1));
+            } else if (foodDifference < 0) {
+                civilians -= Math.floor(Math.random() * (-foodDifference + 1));
+            }
+            
+            // Food production
+            let foodProduction = Math.floor(slaves * 5) + Math.floor(civilians * 0.5);
+            food += foodProduction - allocateFoodValue;
+            
+    //!         
+ let slavesDied = 0;
+if (slaves === 1) {
+    if (Math.random() < 0.5) {
+        slavesDied = 1;
+    }
+} else {
+    slavesDied = Math.floor(slaves * (Math.random() * 0.8 + 0.1));
+}
+let rebelsRecruited = Math.floor(slavesDied * (Math.random() * 0.5 + 0.5));
+slaves -= slavesDied;
+rebels += rebelsRecruited;
+
+//!
+         
+            // Rebels attack soldiers
+            let attackers = Math.min(Math.floor(rebels * 0.5 * (rebels / (soldiers * 5))), rebels);
+            attackers = Math.round(attackers + attackers * (Math.random() * 2 - 1)); // ±100%
+            attackers = Math.min(attackers, rebels);
+            rebels -= attackers; // Ensure rebels are deducted correctly
+            
+            let defenders = soldiers;
+            
+            while (attackers > 0 && defenders > 0) {
+                if (Math.floor(Math.random() * 6) === 0) { // 1 in 6 chance for soldier to die
+                    defenders--;
+                } else { // 5 in 6 chance for attacker to die
+                    attackers--;
+                }
+            }
+            
+            if (defenders === 0) {
+                alert('Game Over: партизаны сломили вас');
+                    let civilians = 1000;
+        let food = 0;
+        let soldiers = 0;
+        let slaves = 0;
+          var url = "glist.html";
+            window.open(url, "_blank");
+                return;
+            }
+            
+            soldiers = defenders;
+            
+            // Check for game over condition
+            if (civilians <= 0) {
+                alert('Game Over: население уничтожено');
+                  let food = 0;
+        let soldiers = 0;
+        let slaves = 0;
+                 var url = "glist.html";
+            window.open(url, "_blank");
+                return;
+            }
+            
+            // Update changes
+            document.getElementById('civiliansChange').innerText = civilians - 1000;
+            document.getElementById('soldiersChange').innerText = soldiers - 100;
+            document.getElementById('rebelsChange').innerText = rebels;
+            
+            // Update current state
+            document.getElementById('civilians').innerText = civilians;
+            document.getElementById('food').innerText = food;
+            document.getElementById('soldiers').innerText = soldiers;
+            document.getElementById('slaves').innerText = slaves;
+            document.getElementById('rebels').innerText = rebels;
+            document.getElementById('gamescore').innerText = gamescore;
+            
+            // Reset sliders
+            updateSliders();
+        }
+        
+        // Initialize sliders
+        updateSliders();
+    </script>
+   	<script>
+		function runTool(toolName) {
+			var url = toolName + ".html";
+			window.open(url, "_blank");
+		}
+	</script>
+			<button onclick="runTool('glist')">НАЗАД</button>
+
+</body>
+</html>

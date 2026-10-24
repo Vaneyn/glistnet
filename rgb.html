@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Выбор цвета</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .color-selector {
+            margin-bottom: 20px;
+        }
+        .result {
+            font-size: 1.5em;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="color-selector">
+        <label for="colorInput">Выберите цвет:</label>
+        <input type="color" id="colorInput" value="#000000">
+        <button id="getColorHex">Получить HEX-код</button>
+    </div>
+    <div class="result" id="resultDisplay"></div>
+
+    <script>
+        const colorInput = document.getElementById('colorInput');
+        const resultDisplay = document.getElementById('resultDisplay');
+
+        document.getElementById('getColorHex').addEventListener('click', () => {
+            const selectedColor = colorInput.value;
+            const hexColor = selectedColor.slice(1).toUpperCase(); // Убираем '#' и приводим к верхнему регистру
+            resultDisplay.textContent = hexColor;
+        });
+    </script>
+</body>
+</html>

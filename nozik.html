@@ -1,0 +1,1463 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#070a0f">
+<title>Ножи в пень</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 100%; height: 100%; overflow: hidden;
+    background: #070a0f; color: #e8ecf4;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: rgba(0,0,0,0);
+    -webkit-touch-callout: none;
+  }
+
+  body {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    display: -webkit-box; display: -webkit-flex; display: flex;
+    -webkit-box-orient: vertical; -webkit-flex-direction: column; flex-direction: column;
+    -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center;
+    -webkit-box-align: center; -webkit-align-items: center; align-items: center;
+    background: radial-gradient(circle at 50% 0%, #1b2434 0%, #070a0f 65%);
+  }
+
+  .game {
+    display: -webkit-box; display: -webkit-flex; display: flex;
+    -webkit-box-orient: vertical; -webkit-flex-direction: column; flex-direction: column;
+    -webkit-box-align: center; -webkit-align-items: center; align-items: center;
+  }
+
+  .hud { display: -webkit-box; display: -webkit-flex; display: flex;
+         -webkit-box-align: end; -webkit-align-items: flex-end; align-items: flex-end; margin-bottom: 6px; }
+
+  .stat { text-align: center; margin: 0 17px; }
+  .stat span { display: block; font-size: 9px; letter-spacing: 2px; color: #5c6b85; font-weight: 700; margin-bottom: 3px; }
+  .stat b { display: block; font-size: 24px; font-weight: 800; line-height: 1; color: #ffd93d; font-variant-numeric: tabular-nums; }
+  .stat.best b { color: #7fd8ff; }
+
+  .level {
+    font-size: 11px; letter-spacing: 1.8px; color: #6c7c96; font-weight: 700;
+    height: 14px; line-height: 14px; margin-bottom: 6px; text-align: center;
+  }
+  .level b { color: #ff9f43; }
+  .level.boss   { color: #ff4757; }
+  .level.boss b { color: #ff4757; }
+  .level.boss2  { color: #ff9f43; }
+  .level.boss2 b{ color: #ff9f43; }
+  .level.boss3  { color: #a06bff; }
+  .level.boss3 b{ color: #a06bff; }
+  .level.boss4  { color: #2ed573; }
+  .level.boss4 b{ color: #2ed573; }
+
+  .stage {
+    position: relative; border-radius: 20px; overflow: hidden; background: #0a0e15;
+    box-shadow: 0 16px 40px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.055);
+  }
+
+  canvas { display: block; width: 100%; height: 100%; touch-action: none; -ms-touch-action: none; }
+
+  .hearts {
+    position: absolute;
+    top: 8px; left: 8px;
+    display: -webkit-box; display: -webkit-flex; display: flex;
+    -webkit-flex-wrap: wrap; flex-wrap: wrap;
+    gap: 3px;
+    max-width: 90px;
+    z-index: 5;
+    pointer-events: none;
+  }
+  .hearts svg {
+    display: block;
+    width: 14px; height: 14px;
+    -webkit-animation: heartPop .4s ease; animation: heartPop .4s ease;
+    filter: drop-shadow(0 0 4px rgba(255,71,87,.75));
+  }
+  @-webkit-keyframes heartPop { 0% { -webkit-transform: scale(0); } 60% { -webkit-transform: scale(1.25); } 100% { -webkit-transform: scale(1); } }
+  @keyframes heartPop { 0% { transform: scale(0); } 60% { transform: scale(1.25); } 100% { transform: scale(1); } }
+
+  .knife-counter {
+    position: absolute;
+    top: 8px; right: 8px;
+    background: rgba(10,16,24,.78);
+    border: 1px solid rgba(255,255,255,.09);
+    border-radius: 7px;
+    padding: 4px 6px 5px;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 1.1px;
+    color: #7f8aa3;
+    pointer-events: none;
+    max-width: 88px;
+    z-index: 5;
+  }
+  .kc-label { display: block; margin-bottom: 3px; white-space: nowrap; }
+  .kc-icons { display: -webkit-box; display: -webkit-flex; display: flex;
+              -webkit-flex-wrap: wrap; flex-wrap: wrap; gap: 1px; }
+  .kicon { width: 10px; height: 7px; color: #d0dbe8; display: block; }
+
+  .overlay {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    display: -webkit-box; display: -webkit-flex; display: flex;
+    -webkit-box-orient: vertical; -webkit-flex-direction: column; flex-direction: column;
+    -webkit-box-align: center; -webkit-align-items: center; align-items: center;
+    -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center;
+    background: rgba(6,9,14,.9);
+    opacity: 0; pointer-events: none;
+    -webkit-transition: opacity .28s; transition: opacity .28s;
+    z-index: 10;
+  }
+  .overlay.show { opacity: 1; pointer-events: auto; }
+  .overlay h2 { font-size: 22px; font-weight: 800; letter-spacing: 1.4px; color: #ff6b6b; margin-bottom: 9px; text-align: center; }
+  .overlay .final { font-size: 14px; color: #93a2bb; margin-bottom: 16px; }
+  .overlay .final b { color: #ffd93d; font-size: 21px; font-variant-numeric: tabular-nums; }
+
+  .overlay button {
+    padding: 13px 38px; font-size: 15px; font-weight: 700; letter-spacing: .9px;
+    font-family: inherit; color: #10151f; background: linear-gradient(180deg, #ffe066, #f7b731);
+    border: none; border-radius: 12px; cursor: pointer;
+    box-shadow: 0 8px 22px rgba(247,183,49,.32);
+  }
+  .overlay button:active { box-shadow: 0 3px 12px rgba(247,183,49,.28); }
+
+  .hint { margin-top: 10px; font-size: 11.5px; letter-spacing: .5px; color: #4a5872; text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="game">
+  <div class="hud">
+    <div class="stat"><span>СЧЁТ</span><b id="score">0</b></div>
+    <div class="stat best"><span>РЕКОРД</span><b id="best">0</b></div>
+  </div>
+
+  <div class="level" id="levelLabel">УРОВЕНЬ 1 · <b>0/5</b></div>
+
+  <div class="stage" id="stage">
+    <canvas id="cv"></canvas>
+    <div class="hearts" id="hearts"></div>
+    <div class="knife-counter" id="knifeCounter">
+      <span class="kc-label">ОСТАЛОСЬ:</span>
+      <span class="kc-icons" id="kcIcons"></span>
+    </div>
+    <div class="overlay" id="overlay">
+      <h2 id="finalTitle">ИГРА ОКОНЧЕНА</h2>
+      <div class="final">Ножей в пне: <b id="finalScore">0</b></div>
+      <button id="restart" type="button">ИГРАТЬ СНОВА</button>
+    </div>
+  </div>
+
+  <div class="hint">ТАП или ПРОБЕЛ — метнуть нож</div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ================= DOM ================= */
+  var canvas     = document.getElementById('cv');
+  var ctx        = canvas.getContext('2d');
+  var stage      = document.getElementById('stage');
+  var scoreEl    = document.getElementById('score');
+  var bestEl     = document.getElementById('best');
+  var levelEl    = document.getElementById('levelLabel');
+  var kcIconsEl  = document.getElementById('kcIcons');
+  var heartsEl   = document.getElementById('hearts');
+  var overlay    = document.getElementById('overlay');
+  var finalTitle = document.getElementById('finalTitle');
+  var finalScore = document.getElementById('finalScore');
+  var restartBtn = document.getElementById('restart');
+
+  /* ================= КОНСТАНТЫ ================= */
+  var TAU           = Math.PI * 2;
+  var TOP           = -Math.PI / 2;
+  var COLLISION     = 0.085;
+  var FLY_TIME      = 0.085;
+  var REGULAR_HITS  = 5;
+  var DOTS_TO_BOSS  = 5;
+  var BOSS_SCALE    = 0.72;
+  var TIP_FRAC      = 0.90;
+  var SPEED_START   = 1.15;
+  var SPEED_CAP     = 4.2;
+  var SPEED_MAX     = 7.0;
+  var APPLE_HIT     = 0.15;
+  var APPLE_CHANCE  = 0.10;              // 10% шанс яблока на новом пне
+  var APPLE_RF_MIN  = 0.88;              // на самой кромке пня
+  var APPLE_RF_MAX  = 0.95;
+
+  /* ================= ГЕОМЕТРИЯ ================= */
+  var W = 0, H = 0, cx = 0, cy = 0;
+  var baseR = 0, R = 0, tipR = 0;
+  var launchY = 0, targetY = 0;
+  var dpr = 1, lastW = 0, lastH = 0;
+  var bgGrad = null;
+  var stars = [];
+
+  /* ================= СОСТОЯНИЕ ================= */
+  var state       = 'ready';
+  var wheelRot    = 0;
+  var wheelSpeed  = 0;
+  var targetSpeed = SPEED_START;
+  var speedBase   = SPEED_START;
+  var speedDir    = 1;
+  var knives      = [];
+  var platforms   = [];
+  var platformSpd = 0;
+  var platformFlipT = 0;
+  var score       = 0;
+  var best        = 0;
+  var flyT        = 0;
+  var shake       = 0;
+  var particles   = [];
+  var rings       = [];
+  var falling     = null;
+  var elapsed     = 0;
+  var levelNum    = 1;
+  var hitsInLevel = 0;
+  var dotsFilled  = 0;
+  var isBoss      = false;
+  var bossType    = 0;
+  var cycleCount  = 0;
+  var transT      = 0;
+  var transKind   = 'to-regular';
+  var bossTimer   = 0;
+  var rWobble     = 0;
+  var radiusMul   = 1;
+  var flipCounter = 0;
+  var frameTick   = 0;
+  var lastTs      = 0;
+  var rhythmT     = 0;
+  var rhythmFactor= 0;
+  var regularDone = 0;
+
+  var lives    = 0;
+  var streak   = 0;
+  var apple    = null;   // { angle, rf }
+  var appleFx  = null;
+
+  try { best = parseInt(localStorage.getItem('knifeStumpV3'), 10) || 0; } catch (e) { best = 0; }
+
+  /* ================= АУДИО ================= */
+  var audio = null;
+  function initAudio() {
+    if (audio) {
+      if (audio.state === 'suspended' && audio.resume) { try { audio.resume(); } catch (e) {} }
+      return;
+    }
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) audio = new AC();
+    } catch (e) { audio = null; }
+  }
+  function tone(f0, f1, dur, vol, type) {
+    if (!audio) return;
+    try {
+      var t = audio.currentTime;
+      var o = audio.createOscillator();
+      var g = audio.createGain();
+      o.type = type || 'triangle';
+      o.frequency.setValueAtTime(f0, t);
+      if (o.frequency.exponentialRampToValueAtTime) {
+        o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
+      }
+      g.gain.setValueAtTime(vol, t);
+      if (g.gain.exponentialRampToValueAtTime) {
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      }
+      o.connect(g); g.connect(audio.destination);
+      o.start(t); o.stop(t + dur + 0.02);
+    } catch (e) {}
+  }
+  function sHit()   { tone(220, 60, 0.13, 0.16, 'triangle'); }
+  function sFail()  { tone(320, 45, 0.40, 0.20, 'sawtooth'); tone(95, 30, 0.46, 0.13, 'square'); }
+  function sBreak() { tone(180, 40, 0.30, 0.17, 'square'); tone(520, 90, 0.22, 0.10, 'triangle'); }
+  function sLevel() { tone(440, 880, 0.15, 0.12, 'triangle'); }
+  function sWin()   {
+    tone(523, 784, 0.18, 0.16, 'triangle');
+    setTimeout(function () { tone(784, 1175, 0.28, 0.16, 'triangle'); }, 130);
+    setTimeout(function () { tone(1046, 1568, 0.35, 0.14, 'triangle'); }, 300);
+  }
+  function sApple() { tone(880, 1320, 0.12, 0.14, 'sine'); setTimeout(function () { tone(1320, 1760, 0.14, 0.10, 'sine'); }, 90); }
+
+  /* ================= ДОСТИЖЕНИЯ (IndexedDB) ================= */
+  var DB_NAME = 'AchievementsDB';
+  var DB_VERSION = 1;
+  var STORE_NAME = 'achievements';
+
+  function initDB() {
+    return new Promise(function (resolve, reject) {
+      if (!window.indexedDB) { reject(new Error('no indexedDB')); return; }
+      var request = indexedDB.open(DB_NAME, DB_VERSION);
+      request.onerror   = function () { reject(request.error); };
+      request.onsuccess = function () { resolve(request.result); };
+      request.onupgradeneeded = function (event) {
+        var db = event.target.result;
+        if (!db.objectStoreNames.contains(STORE_NAME)) {
+          db.createObjectStore(STORE_NAME, { keyPath: 'title' });
+        }
+      };
+    });
+  }
+
+  function addAchievement(title, text, image) {
+    return initDB().then(function (db) {
+      return new Promise(function (resolve) {
+        var transaction = db.transaction([STORE_NAME], 'readwrite');
+        var objectStore = transaction.objectStore(STORE_NAME);
+        var checkRequest = objectStore.get(title);
+        checkRequest.onsuccess = function () {
+          if (!checkRequest.result) {
+            var newAchievement = { title: title, text: text, image: image || 'button.png' };
+            var addReq = objectStore.add(newAchievement);
+            addReq.onsuccess = function () {
+              var div = document.createElement('div');
+              div.innerHTML = '<div style="font-weight:800;font-size:14px">' + title + '</div>'
+                            + '<div style="font-size:12px;margin-top:3px;opacity:.82">' + text + '</div>';
+              div.style.position    = 'fixed';
+              div.style.top         = '15px';
+              div.style.left        = '5%';
+              div.style.width       = '90%';
+              div.style.background  = '#ffd700';
+              div.style.color       = '#1a1a1a';
+              div.style.padding     = '10px 14px';
+              div.style.borderRadius= '8px';
+              div.style.boxShadow   = '0 3px 10px rgba(0, 0, 0, 0.3)';
+              div.style.zIndex      = '1000';
+              div.style.textAlign   = 'center';
+              div.style.fontFamily  = 'inherit';
+              div.style.pointerEvents = 'none';
+              div.style.transition  = 'opacity .3s';
+              document.body.appendChild(div);
+              setTimeout(function () {
+                div.style.opacity = '0';
+                setTimeout(function () { if (div.parentNode) div.parentNode.removeChild(div); }, 350);
+              }, 3000);
+              resolve(true);
+            };
+            addReq.onerror = function () { resolve(false); };
+          } else {
+            resolve(false);
+          }
+        };
+        checkRequest.onerror = function () { resolve(false); };
+      });
+    }).catch(function () { return false; });
+  }
+
+  function checkStreakAchievements() {
+    if (streak === 1)  addAchievement('Попал, однако.', 'Попасть один раз в бревно.');
+    if (streak === 30) addAchievement('Псих с ножом', 'Умело воткнул 30 ножей подряд.');
+    if (streak === 50) addAchievement('Ножемет', 'Ух ты! Надо же попасть 50 раз подряд.');
+    if (streak === 75) addAchievement('Мастер втыкания', 'Воткнул 75 ножей подряд.');
+  }
+
+  /* ================= ХЕЛПЕРЫ ================= */
+  function angDist(a, b) {
+    var d = Math.abs(a - b) % TAU;
+    return d > Math.PI ? TAU - d : d;
+  }
+  function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
+  function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
+  function romanNumeral(n) {
+    var r = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII','XIII','XIV','XV'];
+    return r[n - 1] || String(n);
+  }
+  function getHitsNeeded() {
+    if (isBoss) return Math.min(10, 5 + cycleCount);
+    return REGULAR_HITS;
+  }
+
+  /* ================= СЕРДЕЧКИ ================= */
+  function renderHearts() {
+    var html = '';
+    var count = Math.min(lives, 8);
+    for (var i = 0; i < count; i++) {
+      html += '<svg viewBox="0 0 24 24" width="14" height="14">'
+            + '<path d="M12 21s-8-5-8-11a5 5 0 0 1 8-4 5 5 0 0 1 8 4c0 6-8 11-8 11z" '
+            + 'fill="#ff4757" stroke="#8a1622" stroke-width="1.5" stroke-linejoin="round"/>'
+            + '</svg>';
+    }
+    if (count < lives) {
+      html += '<span style="color:#ff4757;font-size:11px;font-weight:700;line-height:14px">+' + (lives - count) + '</span>';
+    }
+    heartsEl.innerHTML = html;
+  }
+
+  /* ================= LAYOUT ================= */
+  function layout() {
+    var vw = window.innerWidth  || document.documentElement.clientWidth  || 360;
+    var vh = window.innerHeight || document.documentElement.clientHeight || 640;
+    var maxW = vw * 0.94; if (maxW > 400) maxW = 400;
+    var maxH = vh * 0.64;
+    var w = maxW, h = w * 1.25;
+    if (h > maxH) { h = maxH; w = h / 1.25; }
+    if (w < 170) { w = 170; h = 212; }
+    stage.style.width  = Math.round(w) + 'px';
+    stage.style.height = Math.round(h) + 'px';
+  }
+
+  function resize() {
+    var w = canvas.clientWidth  || stage.clientWidth;
+    var h = canvas.clientHeight || stage.clientHeight;
+    if (w <= 0 || h <= 0) return;
+    if (w === lastW && h === lastH) return;
+    lastW = w; lastH = h;
+    dpr = window.devicePixelRatio || 1;
+    if (dpr > 2) dpr = 2;
+    if (dpr < 1) dpr = 1;
+    W = w; H = h;
+    canvas.width  = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    computeGeometry();
+  }
+
+  function computeGeometry() {
+    cx = W / 2;
+    cy = H * 0.585;
+    baseR = Math.min(W * 0.265, H * 0.205);
+    if (baseR < 34) baseR = 34;
+    updateRadius();
+    launchY = cy - baseR - Math.max(50, baseR * 0.72);
+    if (launchY < 18) launchY = 18;
+    buildStars();
+    buildBgGradient();
+  }
+
+  function updateRadius() {
+    var scale = 1;
+    if (isBoss && bossType <= 1) scale = BOSS_SCALE;
+    R = baseR * scale * radiusMul;
+    tipR = R * TIP_FRAC;
+    targetY = cy - tipR;
+  }
+
+  function buildStars() {
+    stars.length = 0;
+    for (var i = 0; i < 20; i++) {
+      stars.push({
+        x: ((i * 137.5) % 100) / 100 * W,
+        y: ((i * 71.3)  % 100) / 100 * H,
+        s: ((i * 13) % 3) * 0.6 + 0.9
+      });
+    }
+  }
+
+  function buildBgGradient() {
+    var g = ctx.createRadialGradient(cx, cy - baseR * 0.35, baseR * 0.15, cx, cy, baseR * 2.3);
+    g.addColorStop(0,    '#16202f');
+    g.addColorStop(0.55, '#0a0f18');
+    g.addColorStop(1,    '#06090d');
+    bgGrad = g;
+  }
+
+  /* ================= ФОН ================= */
+  function drawBg() {
+    ctx.fillStyle = bgGrad || '#080c12';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = 'rgba(130,170,230,.13)';
+    for (var i = 0; i < stars.length; i++) {
+      var s = stars[i];
+      ctx.fillRect(s.x, s.y, s.s, s.s);
+    }
+  }
+
+  /* ================= ПЕНЬ ================= */
+  function drawStump() {
+    var r = R;
+    var glowColor = 'rgba(255,196,110,.045)';
+    if (isBoss) {
+      if (bossType === 0) glowColor = 'rgba(255,71,87,.05)';
+      else if (bossType === 1) glowColor = 'rgba(255,159,67,.055)';
+      else if (bossType === 2) glowColor = 'rgba(160,107,255,.06)';
+      else glowColor = 'rgba(46,213,115,.06)';
+    }
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 1.22, 0, TAU);
+    ctx.fillStyle = glowColor;
+    ctx.fill();
+
+    ctx.save();
+    ctx.translate(cx, cy);
+
+    var barkG = ctx.createRadialGradient(-r * 0.4, -r * 0.4, r * 0.2, 0, 0, r);
+    barkG.addColorStop(0,   '#5b422c');
+    barkG.addColorStop(0.7, '#3b2a1b');
+    barkG.addColorStop(1,   '#241812');
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, TAU);
+    ctx.fillStyle = barkG;
+    ctx.fill();
+
+    var woodG = ctx.createRadialGradient(-r * 0.28, -r * 0.34, r * 0.05, 0, 0, r);
+    woodG.addColorStop(0,    '#f0d5a4');
+    woodG.addColorStop(0.40, '#d9b075');
+    woodG.addColorStop(0.72, '#c09454');
+    woodG.addColorStop(1,    '#9c7238');
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.93, 0, TAU);
+    ctx.fillStyle = woodG;
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(wheelRot);
+    ctx.lineWidth = 1;
+    for (var i = 1; i <= 7; i++) {
+      var rr = r * 0.93 * (i / 8);
+      ctx.beginPath();
+      ctx.arc(0, 0, rr, 0, TAU);
+      ctx.strokeStyle = 'rgba(122,86,44,' + (0.10 + (i % 3) * 0.055).toFixed(3) + ')';
+      ctx.stroke();
+    }
+    ctx.strokeStyle = 'rgba(88,58,28,.30)';
+    ctx.lineWidth = 1.4;
+    for (i = 0; i < 5; i++) {
+      var a = (i / 5) * TAU + 0.55;
+      var ca = Math.cos(a), sa = Math.sin(a);
+      ctx.beginPath();
+      ctx.moveTo(ca * r * 0.16, sa * r * 0.16);
+      ctx.lineTo(ca * r * 0.90, sa * r * 0.90);
+      ctx.stroke();
+    }
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.075, 0, TAU);
+    ctx.fillStyle = 'rgba(104,68,32,.55)';
+    ctx.fill();
+    ctx.restore();
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 0.93, 0, TAU);
+    ctx.strokeStyle = 'rgba(255,226,178,.28)';
+    ctx.lineWidth = 1.6;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, r - 0.8, 0, TAU);
+    ctx.strokeStyle = 'rgba(0,0,0,.30)';
+    ctx.lineWidth = 1.6;
+    ctx.stroke();
+  }
+
+  /* ================= ЯБЛОКО ================= */
+  function maybeSpawnApple(presetKnives) {
+    apple = null;
+    if (Math.random() >= APPLE_CHANCE) return;
+
+    for (var attempt = 0; attempt < 30; attempt++) {
+      var a = Math.random() * TAU;
+      // Радиус яблока — у самой кромки пня (0.88..0.95), почти свисает с края
+      var rf = APPLE_RF_MIN + Math.random() * (APPLE_RF_MAX - APPLE_RF_MIN);
+      var ok = true;
+      for (var i = 0; i < presetKnives.length; i++) {
+        // Ножи стоят на 0.90R — большой угловой зазор, чтобы не пересекались
+        if (angDist(presetKnives[i].angle, a) < 0.55) { ok = false; break; }
+      }
+      if (ok) { apple = { angle: a, rf: rf }; break; }
+    }
+  }
+
+  function drawApple() {
+    if (!apple) return;
+    var abs = apple.angle + wheelRot;
+    var ar  = R * apple.rf;
+    var ax  = cx + Math.cos(abs) * ar;
+    var ay  = cy + Math.sin(abs) * ar;
+    var rad = Math.max(5, R * 0.11);
+
+    ctx.beginPath();
+    ctx.arc(ax, ay + rad * 0.22, rad * 0.95, 0, TAU);
+    ctx.fillStyle = 'rgba(0,0,0,.30)';
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(ax, ay, rad, 0, TAU);
+    var ag = ctx.createRadialGradient(ax - rad * 0.35, ay - rad * 0.40, rad * 0.12, ax, ay, rad * 1.05);
+    ag.addColorStop(0,    '#ff8080');
+    ag.addColorStop(0.42, '#ea3b3b');
+    ag.addColorStop(0.78, '#c0202b');
+    ag.addColorStop(1,    '#8a1017');
+    ctx.fillStyle = ag;
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(ax, ay, rad, 0, TAU);
+    ctx.strokeStyle = 'rgba(70,8,12,.55)';
+    ctx.lineWidth = Math.max(1, rad * 0.09);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(ax - rad * 0.34, ay - rad * 0.38, rad * 0.20, 0, TAU);
+    ctx.fillStyle = 'rgba(255,255,255,.80)';
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(ax + rad * 0.05, ay - rad * 0.92);
+    ctx.quadraticCurveTo(ax + rad * 0.22, ay - rad * 1.25, ax + rad * 0.10, ay - rad * 1.55);
+    ctx.strokeStyle = '#5c4130';
+    ctx.lineWidth = Math.max(1.2, rad * 0.13);
+    ctx.lineCap = 'round';
+    ctx.stroke();
+    ctx.lineCap = 'butt';
+
+    ctx.beginPath();
+    ctx.moveTo(ax + rad * 0.15, ay - rad * 1.35);
+    ctx.quadraticCurveTo(ax + rad * 0.75, ay - rad * 1.55, ax + rad * 0.95, ay - rad * 1.05);
+    ctx.quadraticCurveTo(ax + rad * 0.55, ay - rad * 0.95, ax + rad * 0.15, ay - rad * 1.35);
+    ctx.closePath();
+    var lg = ctx.createLinearGradient(ax, ay - rad * 1.5, ax + rad, ay - rad);
+    lg.addColorStop(0, '#7dffa8');
+    lg.addColorStop(1, '#1f9c4a');
+    ctx.fillStyle = lg;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(10,60,25,.5)';
+    ctx.lineWidth = Math.max(0.6, rad * 0.05);
+    ctx.stroke();
+  }
+
+  function drawAppleFx() {
+    if (!appleFx) return;
+    var p = appleFx.t / appleFx.dur;
+    if (p >= 1) { appleFx = null; return; }
+    var rad = 6 + (1 - p) * 22;
+    ctx.beginPath();
+    ctx.arc(appleFx.x, appleFx.y, rad, 0, TAU);
+    ctx.strokeStyle = 'rgba(255,80,80,' + (0.85 * (1 - p)).toFixed(3) + ')';
+    ctx.lineWidth = 3 * (1 - p) + 1;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(appleFx.x, appleFx.y, rad * 0.55, 0, TAU);
+    ctx.strokeStyle = 'rgba(120,255,150,' + (0.75 * (1 - p)).toFixed(3) + ')';
+    ctx.lineWidth = 2.4 * (1 - p) + 0.6;
+    ctx.stroke();
+  }
+
+  /* ================= НОЖ ================= */
+  function drawKnife(x, y, ang, scale) {
+    var s = scale || 1;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(ang);
+    if (s !== 1) ctx.scale(s, s);
+
+    var BL = 29, BW = 9, HL = 16, HW = 8;
+
+    ctx.fillStyle = '#5c4130';
+    ctx.fillRect(BL, -HW / 2, HL, HW);
+    ctx.fillStyle = 'rgba(0,0,0,.28)';
+    ctx.fillRect(BL + HL * 0.45, -HW / 2, HL * 0.22, HW);
+    ctx.fillStyle = 'rgba(255,255,255,.10)';
+    ctx.fillRect(BL, -HW / 2, HL, 2);
+
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(BL * 0.70, -BW / 2);
+    ctx.lineTo(BL,        -BW / 2);
+    ctx.lineTo(BL,         BW / 2);
+    ctx.lineTo(BL * 0.70,  BW / 2);
+    ctx.closePath();
+    ctx.fillStyle = '#b9c8dc';
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(BL * 0.70, -BW / 2);
+    ctx.lineTo(BL,        -BW / 2);
+    ctx.lineTo(BL,        -BW * 0.10);
+    ctx.lineTo(BL * 0.70, -BW * 0.10);
+    ctx.closePath();
+    ctx.fillStyle = '#f2f6fc';
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(BL * 0.70, BW / 2);
+    ctx.lineTo(BL,        BW / 2);
+    ctx.strokeStyle = 'rgba(255,255,255,.75)';
+    ctx.lineWidth = 0.9;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(BL + HL * 0.72, 0, 1.7, 0, TAU);
+    ctx.fillStyle = '#b9a382';
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  /* ================= ПЛАТФОРМЫ ================= */
+  function drawPlatforms() {
+    if (!platforms.length) return;
+    var rIn = R + 11;
+    var rOut = R + 25;
+    var midR = (rIn + rOut) / 2;
+
+    var edge = (bossType === 3) ? '#8fffc8' : '#c8d4e6';
+    var c1 = (bossType === 3) ? '#a8ffcf' : '#95a3ba';
+    var c2 = (bossType === 3) ? '#4ed68c' : '#6c7c94';
+    var c3 = (bossType === 3) ? '#1e8f55' : '#3d4a60';
+
+    for (var i = 0; i < platforms.length; i++) {
+      var p = platforms[i];
+      var a0 = p.angle - p.span / 2;
+      var a1 = p.angle + p.span / 2;
+
+      ctx.beginPath();
+      ctx.arc(cx, cy, rOut + 2, a0, a1);
+      ctx.arc(cx, cy, rIn - 2, a1, a0, true);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(0,0,0,.4)';
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(cx, cy, rOut, a0, a1);
+      ctx.arc(cx, cy, rIn, a1, a0, true);
+      ctx.closePath();
+      var pg = ctx.createRadialGradient(cx, cy, rIn, cx, cy, rOut);
+      pg.addColorStop(0,   c1);
+      pg.addColorStop(0.5, c2);
+      pg.addColorStop(1,   c3);
+      ctx.fillStyle = pg;
+      ctx.fill();
+
+      ctx.strokeStyle = edge;
+      ctx.lineWidth = 1.4;
+      ctx.stroke();
+
+      ctx.fillStyle = '#eef3fa';
+      for (var j = -1; j <= 1; j++) {
+        var aa = p.angle + j * p.span * 0.3;
+        ctx.beginPath();
+        ctx.arc(cx + Math.cos(aa) * midR, cy + Math.sin(aa) * midR, 1.7, 0, TAU);
+        ctx.fill();
+      }
+    }
+  }
+
+  /* ================= ВТКНУТЫЕ / ЛЕТЯЩИЕ / ЭФФЕКТЫ ================= */
+  function drawStuck() {
+    if (!knives.length) return;
+    var tr = R * TIP_FRAC;
+    for (var i = 0; i < knives.length; i++) {
+      var abs = knives[i].angle + wheelRot;
+      drawKnife(cx + Math.cos(abs) * tr, cy + Math.sin(abs) * tr, abs, 1);
+    }
+  }
+
+  function drawFlying() {
+    if (state === 'ready') {
+      drawKnife(cx, launchY, TOP, 1);
+    } else if (state === 'flying') {
+      var p = easeOut(clamp(flyT, 0, 1));
+      drawKnife(cx, launchY + (targetY - launchY) * p, TOP, 1);
+    }
+  }
+
+  function drawParticles() {
+    for (var i = 0; i < particles.length; i++) {
+      var p = particles[i];
+      var lifeP = p.life / p.maxLife;
+      var alpha = 1 - lifeP * lifeP;
+      if (alpha <= 0.02) continue;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawRings() {
+    for (var i = 0; i < rings.length; i++) {
+      var r = rings[i];
+      var p = r.t / r.dur;
+      if (p >= 1) continue;
+      var rad = r.r + (r.rMax - r.r) * easeOut(p);
+      ctx.beginPath();
+      ctx.arc(r.x, r.y, rad, 0, TAU);
+      ctx.strokeStyle = 'rgba(255,225,160,' + (0.55 * (1 - p)).toFixed(3) + ')';
+      ctx.lineWidth = 2.6 * (1 - p) + 0.4;
+      ctx.stroke();
+    }
+  }
+
+  function drawFalling() {
+    if (falling) drawKnife(falling.x, falling.y, falling.rot, 1);
+  }
+
+  /* ================= РЕНДЕР ================= */
+  function render() {
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    drawBg();
+
+    ctx.save();
+    if (shake > 0.001) {
+      var s = shake * 9;
+      ctx.translate((Math.random() - 0.5) * s, (Math.random() - 0.5) * s);
+    }
+
+    if (state !== 'transition') {
+      drawStump();
+      drawApple();
+      drawStuck();
+      if (platforms.length) drawPlatforms();
+      drawFlying();
+    }
+
+    ctx.restore();
+
+    drawFalling();
+    drawParticles();
+    drawRings();
+    drawAppleFx();
+  }
+
+  /* ================= ОБНОВЛЕНИЕ ================= */
+  function update(dt) {
+    elapsed += dt;
+
+    if (isBoss && bossType <= 1) {
+      radiusMul = 1 + Math.sin(elapsed * 3.1) * 0.035;
+    } else {
+      radiusMul = 1;
+    }
+    updateRadius();
+
+    if (isBoss && (state === 'ready' || state === 'flying')) {
+      bossTimer -= dt;
+      if (bossTimer <= 0) {
+        var minT, maxT, magMul;
+        if (bossType === 2)      { minT = 0.28; maxT = 0.55; magMul = 1.6; }
+        else if (bossType === 3) { minT = 0.10; maxT = 0.22; magMul = 2.2; }
+        else                     { minT = 0.40; maxT = 1.10; magMul = 1.0; }
+
+        bossTimer = minT + Math.random() * (maxT - minT);
+        var mag = speedBase * (0.30 + Math.random() * magMul);
+        if (Math.random() < 0.5) mag = -mag;
+        else if (wheelSpeed < 0) mag = -Math.abs(mag);
+        targetSpeed = mag;
+      }
+      rWobble = Math.sin(elapsed * 3.1) * 0.045 + Math.sin(elapsed * 7.7) * 0.018;
+    } else {
+      rWobble = 0;
+    }
+
+    if (isBoss && bossType === 3 && state !== 'transition') {
+      platformFlipT -= dt;
+      if (platformFlipT <= 0) {
+        platformFlipT = 0.18 + Math.random() * 0.40;
+        platformSpd = (Math.random() < 0.5 ? -1 : 1) * (1.5 + Math.random() * 3.2);
+      }
+    }
+
+    var effTarget = targetSpeed;
+    if (!isBoss && rhythmFactor > 0.001 && state !== 'transition') {
+      rhythmT += dt;
+      var cycleLen = 2.5;
+      var phase = rhythmT % cycleLen;
+      var lowMag  = speedBase * 0.40;
+      var highMag = speedBase * 1.85;
+      if (highMag > 6.5) highMag = 6.5;
+      var rhythmMag;
+      if (phase < 2.0) {
+        rhythmMag = lowMag + (highMag - lowMag) * (phase / 2.0);
+      } else {
+        rhythmMag = highMag - (highMag - lowMag) * ((phase - 2.0) / 0.5);
+      }
+      var dir = targetSpeed >= 0 ? 1 : -1;
+      var normalMag = Math.abs(targetSpeed);
+      var blendedMag = normalMag * (1 - rhythmFactor) + rhythmMag * rhythmFactor;
+      effTarget = dir * blendedMag;
+    }
+
+    if (state !== 'transition') {
+      var lerpK = 3.0 + (score / 5) * 0.42;
+      if (lerpK > 14) lerpK = 14;
+      var diff = effTarget - wheelSpeed;
+      wheelSpeed += diff * Math.min(1, dt * lerpK);
+      if (Math.abs(effTarget - wheelSpeed) < 0.004) wheelSpeed = effTarget;
+
+      wheelRot += wheelSpeed * dt;
+      if (wheelRot > 1e6)  wheelRot -= 1e6;
+      if (wheelRot < -1e6) wheelRot += 1e6;
+    }
+
+    if (platforms.length && state !== 'transition') {
+      for (var pi = 0; pi < platforms.length; pi++) {
+        platforms[pi].angle += platformSpd * dt;
+      }
+    }
+
+    if (state === 'flying') {
+      flyT += dt / FLY_TIME;
+      if (flyT >= 1) { flyT = 1; land(); }
+    }
+
+    if (state === 'transition') {
+      transT -= dt;
+      if (transT <= 0) beginNext();
+    }
+
+    if (shake > 0) { shake -= dt * 4.2; if (shake < 0) shake = 0; }
+
+    if (falling) {
+      falling.t += dt;
+      falling.vy += 1500 * dt;
+      falling.x += falling.vx * dt;
+      falling.y += falling.vy * dt;
+      falling.rot += falling.vrot * dt;
+      if (falling.t > 2.2) falling = null;
+    }
+
+    var i, p;
+    for (i = particles.length - 1; i >= 0; i--) {
+      p = particles[i];
+      p.vy += 950 * dt;
+      p.x  += p.vx * dt;
+      p.y  += p.vy * dt;
+      p.rot += p.vrot * dt;
+      p.life += dt;
+      if (p.life >= p.maxLife || p.y > H + 100 || p.x < -100 || p.x > W + 100) {
+        particles.splice(i, 1);
+      }
+    }
+
+    for (i = rings.length - 1; i >= 0; i--) {
+      rings[i].t += dt;
+      if (rings[i].t >= rings[i].dur) rings.splice(i, 1);
+    }
+
+    if (appleFx) {
+      appleFx.t += dt;
+      if (appleFx.t >= appleFx.dur) appleFx = null;
+    }
+  }
+
+  /* ================= БРОСОК / ПРИЗЕМЛЕНИЕ ================= */
+  function throwKnife() {
+    if (state !== 'ready') return;
+    state = 'flying';
+    flyT = 0;
+  }
+
+  function checkPlatformCollision() {
+    if (!platforms.length) return false;
+    for (var i = 0; i < platforms.length; i++) {
+      if (angDist(platforms[i].angle, TOP) < platforms[i].span / 2 + 0.02) return true;
+    }
+    return false;
+  }
+
+  function bounceKnife() {
+    falling = {
+      x: cx, y: cy - R - 15,
+      vx: (Math.random() - 0.5) * 260,
+      vy: -320,
+      rot: TOP,
+      vrot: (Math.random() > 0.5 ? 1 : -1) * 9,
+      t: 0
+    };
+    shake = 1;
+    sFail();
+    renderHearts();
+    streak = 0;
+    state = 'ready';
+    flyT = 0;
+  }
+
+  function eatApple() {
+    if (!apple) return;
+    var abs = apple.angle + wheelRot;
+    var ar  = R * apple.rf;
+    lives++;
+    var fxX = cx + Math.cos(abs) * ar;
+    var fxY = cy + Math.sin(abs) * ar;
+    apple = null;
+    appleFx = { x: fxX, y: fxY, t: 0, dur: 0.55 };
+    renderHearts();
+    sApple();
+  }
+
+  function land() {
+    var rel = TOP - wheelRot;
+
+    var hit = false;
+    var hitType = '';
+    if (checkPlatformCollision()) { hit = true; hitType = 'platform'; }
+    else {
+      for (var i = 0; i < knives.length; i++) {
+        if (angDist(knives[i].angle, rel) < COLLISION) { hit = true; hitType = 'knife'; break; }
+      }
+    }
+
+    if (hit) {
+      if (lives > 0) {
+        lives--;
+        bounceKnife();
+        return;
+      }
+      if (hitType === 'platform') platformHit();
+      else gameOver();
+      return;
+    }
+
+    if (apple && angDist(apple.angle, rel) < APPLE_HIT) {
+      eatApple();
+    }
+
+    knives.push({ angle: rel });
+    score++;
+    hitsInLevel++;
+    streak++;
+    scoreEl.textContent = String(score);
+
+    rings.push({ x: cx, y: cy - tipR, r: 3, rMax: 30, t: 0, dur: 0.34 });
+    shake = Math.max(shake, 0.24);
+    sHit();
+
+    if (!isBoss) {
+      var mag = Math.abs(targetSpeed) + 0.07;
+      var cap = SPEED_START + Math.floor(score / 5) * 0.16 + 0.6;
+      if (cap > SPEED_MAX) cap = SPEED_MAX;
+      if (mag > cap) mag = cap;
+      targetSpeed = (targetSpeed < 0 ? -1 : 1) * mag;
+    }
+
+    flipCounter++;
+    var flipInterval = Math.max(2, 5 - Math.floor(score / 22));
+    if (flipCounter >= flipInterval) {
+      flipCounter = 0;
+      if (!isBoss) targetSpeed = -targetSpeed;
+    }
+
+    updateHUD();
+    updateKnifeCounter();
+    checkStreakAchievements();
+
+    if (hitsInLevel >= getHitsNeeded()) {
+      completeLevel();
+    } else {
+      state = 'ready';
+      flyT = 0;
+    }
+  }
+
+  function platformHit() {
+    state = 'over';
+    shake = 1;
+    sFail();
+
+    falling = {
+      x: cx, y: cy - R - 15,
+      vx: (Math.random() - 0.5) * 260,
+      vy: -320,
+      rot: TOP,
+      vrot: (Math.random() > 0.5 ? 1 : -1) * 9,
+      t: 0
+    };
+
+    saveBest();
+
+    if (isBoss) {
+      addAchievement('Попадос', 'Проиграть во время прохождения босса.');
+    }
+    streak = 0;
+
+    finalTitle.textContent = 'ВРЕЗАЛСЯ В ПЛАТФОРМУ';
+    finalTitle.style.color = '#ff9f43';
+    finalScore.textContent = String(score);
+    setTimeout(function () { overlay.classList.add('show'); }, 420);
+  }
+
+  /* ================= УРОВНИ ================= */
+  function completeLevel() {
+    state = 'transition';
+    shatter();
+    shake = 1;
+
+    if (isBoss) {
+      if (cycleCount >= 3) {
+        addAchievement('Втыкающая легенда', 'Прошел 4 босса в игре «ножик и пень».');
+      }
+      dotsFilled = 0;
+      sWin();
+      transKind = 'after-boss';
+      transT = 1.0;
+    } else {
+      dotsFilled++;
+      regularDone++;
+      if (dotsFilled > DOTS_TO_BOSS) dotsFilled = DOTS_TO_BOSS;
+      sBreak();
+
+      if (dotsFilled >= DOTS_TO_BOSS) {
+        transKind = 'to-boss';
+        transT = 1.0;
+      } else {
+        transKind = 'to-regular';
+        transT = 0.85;
+        sLevel();
+      }
+    }
+    updateHUD();
+    updateKnifeCounter();
+  }
+
+  function beginNext() {
+    knives.length    = 0;
+    platforms.length = 0;
+    particles.length = 0;
+    rings.length     = 0;
+    falling          = null;
+    apple            = null;
+    appleFx          = null;
+
+    wheelRot = 0;
+    wheelSpeed = 0;
+    hitsInLevel = 0;
+    flyT = 0;
+    rWobble = 0;
+    radiusMul = 1;
+    flipCounter = 0;
+    platformSpd = 0;
+    platformFlipT = 0;
+
+    if (transKind === 'to-boss') {
+      isBoss = true;
+      bossType = cycleCount % 4;
+      setupBoss(bossType);
+    } else {
+      if (transKind === 'after-boss') {
+        cycleCount++;
+      }
+      isBoss = false;
+      levelNum++;
+      setupRegular();
+    }
+
+    computeGeometry();
+    updateHUD();
+    updateKnifeCounter();
+    state = 'ready';
+  }
+
+  function setupRegular() {
+    speedBase = SPEED_START + Math.floor(score / 5) * 0.16;
+    if (speedBase > SPEED_CAP) speedBase = SPEED_CAP;
+
+    speedDir = (Math.floor(score / 5) % 2 === 0) ? 1 : -1;
+    targetSpeed = speedBase * speedDir;
+
+    var preset = [];
+    var kc = 1 + Math.floor(Math.random() * 5);
+    var offset = Math.random() * TAU;
+    for (var i = 0; i < kc; i++) {
+      var a = (i / kc) * TAU + offset;
+      preset.push({ angle: a });
+    }
+    knives = preset;
+
+    maybeSpawnApple(preset);
+
+    rhythmT = 0;
+    rhythmFactor = Math.min(1, regularDone / 8);
+  }
+
+  function setupBoss(type) {
+    var knifeCount = (type === 3) ? 3 : 4;
+    var preset = [];
+    for (var i = 0; i < knifeCount; i++) {
+      preset.push({ angle: (i / knifeCount) * TAU });
+    }
+    knives = preset;
+
+    platforms.length = 0;
+    platformSpd = 0;
+    platformFlipT = 0;
+
+    if (type === 0) {
+      speedBase = 2.55;
+      targetSpeed = speedBase;
+      bossTimer = 0.9;
+    } else if (type === 1) {
+      speedBase = 2.0;
+      targetSpeed = speedBase;
+      bossTimer = 0.7;
+      platformSpd = -2.4;
+      platforms.push({ angle: 0,            span: 0.55 });
+      platforms.push({ angle: TAU / 3,      span: 0.55 });
+      platforms.push({ angle: TAU * 2 / 3,  span: 0.55 });
+    } else if (type === 2) {
+      speedBase = 3.2;
+      targetSpeed = speedBase;
+      bossTimer = 0.35;
+    } else {
+      speedBase = 2.8;
+      targetSpeed = speedBase;
+      bossTimer = 0.22;
+      platformSpd = -3.4;
+      platformFlipT = 0.4;
+      platforms.push({ angle: 0,            span: 0.45 });
+      platforms.push({ angle: TAU / 3,      span: 0.45 });
+      platforms.push({ angle: TAU * 2 / 3,  span: 0.45 });
+    }
+
+    speedDir = 1;
+    targetSpeed = speedBase * speedDir;
+
+    maybeSpawnApple(preset);
+  }
+
+  /* ================= КОНЕЦ ИГРЫ ================= */
+  function gameOver() {
+    state = 'over';
+    shake = 1;
+    sFail();
+
+    falling = {
+      x: cx, y: cy - tipR,
+      vx: (Math.random() - 0.5) * 230,
+      vy: -270,
+      rot: TOP,
+      vrot: (Math.random() > 0.5 ? 1 : -1) * 8.5,
+      t: 0
+    };
+
+    saveBest();
+
+    if (isBoss) {
+      addAchievement('Попадос', 'Проиграть во время прохождения босса.');
+    }
+    streak = 0;
+
+    finalTitle.textContent = 'ИГРА ОКОНЧЕНА';
+    finalTitle.style.color = '#ff6b6b';
+    finalScore.textContent = String(score);
+    setTimeout(function () { overlay.classList.add('show'); }, 420);
+  }
+
+  function saveBest() {
+    if (score > best) {
+      best = score;
+      try { localStorage.setItem('knifeStumpV3', String(best)); } catch (e) {}
+    }
+    bestEl.textContent = String(best);
+  }
+
+  /* ================= ЭФФЕКТ РАЗЛЁТА ================= */
+  var CHUNK = ['#e0bb84', '#c99e60', '#b0854a', '#9c7238', '#f0d5a4', '#7a5828'];
+
+  function shatter() {
+    var n = 24;
+    for (var i = 0; i < n; i++) {
+      var a  = (i / n) * TAU + Math.random() * 0.5;
+      var sp = 120 + Math.random() * 250;
+      particles.push({
+        x: cx + Math.cos(a) * R * (0.25 + Math.random() * 0.7),
+        y: cy + Math.sin(a) * R * (0.25 + Math.random() * 0.7),
+        vx: Math.cos(a) * sp,
+        vy: Math.sin(a) * sp - 80,
+        rot: Math.random() * TAU,
+        vrot: (Math.random() - 0.5) * 13,
+        w: 5 + Math.random() * 12,
+        h: 4 + Math.random() * 8,
+        life: 0,
+        maxLife: 1.0 + Math.random() * 0.8,
+        color: CHUNK[i % CHUNK.length]
+      });
+    }
+    rings.push({ x: cx, y: cy, r: R * 0.35, rMax: R * 2.3, t: 0, dur: 0.55 });
+    rings.push({ x: cx, y: cy, r: R * 0.10, rMax: R * 1.5, t: 0, dur: 0.38 });
+  }
+
+  /* ================= HUD ================= */
+  function updateHUD() {
+    var need = getHitsNeeded();
+    if (isBoss) {
+      var cls = 'level boss';
+      if (bossType === 1) cls += ' boss2';
+      else if (bossType === 2) cls += ' boss3';
+      else if (bossType === 3) cls += ' boss4';
+
+      var roman = romanNumeral(cycleCount + 1);
+      var name;
+      if (bossType === 0) name = 'БОСС ' + roman;
+      else if (bossType === 1) name = 'БОСС ' + roman + ' · ПЛАТФОРМЫ';
+      else if (bossType === 2) name = 'БОСС ' + roman + ' · ХАОС';
+      else name = 'БОСС ' + roman + ' · ЛОВУШКИ';
+
+      levelEl.className = cls;
+      levelEl.innerHTML = name + ' · <b>' + hitsInLevel + '/' + need + '</b>';
+    } else {
+      levelEl.className = 'level';
+      levelEl.innerHTML = 'УРОВЕНЬ ' + levelNum + ' · <b>' + hitsInLevel + '/' + need + '</b>';
+    }
+  }
+
+  function updateKnifeCounter() {
+    var need = getHitsNeeded();
+    var remain = Math.max(0, need - hitsInLevel);
+    var html = '';
+    var svg = '<svg class="kicon" viewBox="0 0 19 12" width="10" height="7" preserveAspectRatio="none">'
+            + '<rect x="0" y="4" width="6" height="4" rx="1" fill="currentColor"/>'
+            + '<path d="M6,4 L14,4 L19,6 L14,8 L6,8 Z" fill="currentColor"/>'
+            + '</svg>';
+    for (var i = 0; i < remain; i++) html += svg;
+    kcIconsEl.innerHTML = html;
+  }
+
+  /* ================= РЕСТАРТ ================= */
+  function restart() {
+    overlay.classList.remove('show');
+
+    state       = 'ready';
+    wheelRot    = 0;
+    wheelSpeed  = 0;
+    targetSpeed = SPEED_START;
+    speedBase   = SPEED_START;
+    speedDir    = 1;
+    knives.length    = 0;
+    platforms.length = 0;
+    particles.length = 0;
+    rings.length     = 0;
+    falling     = null;
+    apple       = null;
+    appleFx     = null;
+    lives       = 0;
+    streak      = 0;
+    score       = 0;
+    flyT        = 0;
+    shake       = 0;
+    levelNum    = 1;
+    hitsInLevel = 0;
+    dotsFilled  = 0;
+    isBoss      = false;
+    bossType    = 0;
+    cycleCount  = 0;
+    transKind   = 'to-regular';
+    transT      = 0;
+    bossTimer   = 0;
+    rWobble     = 0;
+    radiusMul   = 1;
+    flipCounter = 0;
+    elapsed     = 0;
+    rhythmT     = 0;
+    rhythmFactor= 0;
+    regularDone = 0;
+    platformSpd = 0;
+    platformFlipT = 0;
+
+    scoreEl.textContent = '0';
+    updateHUD();
+    updateKnifeCounter();
+    renderHearts();
+    computeGeometry();
+  }
+
+  /* ================= ЦИКЛ ================= */
+  function loop(ts) {
+    if (!lastTs) lastTs = ts;
+    var dt = (ts - lastTs) / 1000;
+    lastTs = ts;
+    if (dt > 0.05) dt = 0.05;
+    if (dt < 0)    dt = 0;
+
+    frameTick++;
+    if (frameTick >= 15) {
+      frameTick = 0;
+      resize();
+    }
+
+    update(dt);
+    render();
+    window.requestAnimationFrame(loop);
+  }
+
+  /* ================= ВВОД ================= */
+  var lastTouchTs = 0;
+
+  function onTouchStart(e) {
+    lastTouchTs = Date.now();
+    if (e.cancelable) e.preventDefault();
+    initAudio();
+    throwKnife();
+  }
+  function onMouseDown() {
+    if (Date.now() - lastTouchTs < 800) return;
+    initAudio();
+    throwKnife();
+  }
+  function onTouchMove(e) { if (e.cancelable) e.preventDefault(); }
+
+  canvas.addEventListener('touchstart', onTouchStart, false);
+  canvas.addEventListener('touchmove',  onTouchMove,  false);
+  canvas.addEventListener('mousedown',  onMouseDown,  false);
+
+  window.addEventListener('keydown', function (e) {
+    var code = e.code || e.keyCode;
+    if (code === 'Space' || code === ' ' || code === 32) {
+      if (e.preventDefault) e.preventDefault();
+      initAudio();
+      if (state === 'over') restart();
+      else throwKnife();
+    }
+  }, false);
+
+  function onRestart(e) {
+    if (e) {
+      if (e.stopPropagation) e.stopPropagation();
+      if (e.cancelable) e.preventDefault();
+    }
+    initAudio();
+    restart();
+  }
+  restartBtn.addEventListener('touchstart', onRestart, false);
+  restartBtn.addEventListener('mousedown', function (e) {
+    if (Date.now() - lastTouchTs < 800) return;
+    onRestart(e);
+  }, false);
+  restartBtn.addEventListener('click', function (e) {
+    if (e.stopPropagation) e.stopPropagation();
+  }, false);
+
+  window.addEventListener('resize', function () { layout(); resize(); }, false);
+  window.addEventListener('orientationchange', function () {
+    setTimeout(function () { layout(); resize(); }, 220);
+  }, false);
+  document.addEventListener('visibilitychange', function () { lastTs = 0; }, false);
+
+  /* ================= СТАРТ ================= */
+  function boot() {
+    bestEl.textContent = String(best);
+    layout();
+    resize();
+    setTimeout(function () { layout(); resize(); }, 60);
+    setTimeout(function () { layout(); resize(); }, 260);
+    updateHUD();
+    updateKnifeCounter();
+    renderHearts();
+    window.requestAnimationFrame(loop);
+  }
+
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    setTimeout(boot, 0);
+  } else {
+    document.addEventListener('DOMContentLoaded', boot, false);
+  }
+
+})();
+</script>
+</body>
+</html>

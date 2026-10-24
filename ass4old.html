@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ассистент</title>
+  <!-- НЕ Подключаем библиотеку для рендеринга Markdown -->
+    <style>
+    /* Общий сброс и базовые стили */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: sans-serif;
+      background-color: #f9f9f9;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      position: relative;
+    }
+    header {
+      background-color: #007bff;
+      color: #fff;
+      padding: 15px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+    }
+    header h1 {
+      font-size: 18px;
+      text-align: center;
+      flex: 1;
+    }
+    /* Кнопки в шапке */
+    .header-button {
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 20px;
+      cursor: pointer;
+      transition: opacity 0.2s ease-in-out;
+    }
+    .header-button:hover {
+      opacity: 0.8;
+    }
+    /* Индикатор повторных попыток -- маленькие линии */
+    #retry-indicator {
+      display: flex;
+      position: absolute;
+      top: 5px;
+      left: 50%;
+      transform: translateX(-50%);
+      gap: 2px;
+    }
+    .retry-line {
+      width: 20px;
+      height: 2px;
+      background-color: #ccc;
+      opacity: 0.7;
+    }
+    /* Контейнер для сообщений */
+    #chat-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+    }
+    .message {
+      max-width: 80%;
+      margin: 10px;
+      padding: 10px;
+      border-radius: 12px;
+      word-wrap: break-word;
+      animation: fadeIn 0.3s ease-in-out;
+      position: relative;
+    }
+    .message.user {
+      background-color: #d1e7dd;
+      align-self: flex-end;
+    }
+    .message.assistant {
+      background-color: #e2e3e5;
+      align-self: flex-start;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    /* Форма ввода */
+    form {
+      display: flex;
+      border-top: 1px solid #ccc;
+      padding: 10px;
+      background-color: #fff;
+      transition: transform 0.3s ease;
+    }
+    /* Сдвиг формы при фокусе поля ввода */
+    form.active {
+      transform: translateY(-270px);
+    }
+    input[type="text"] {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 20px;
+      outline: none;
+      transition: all 0.2s ease-in-out;
+    }
+    input[type="text"]:focus {
+      border-color: #007bff;
+    }
+    button.send {
+      background-color: #007bff;
+      color: #fff;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 20px;
+      margin-left: 10px;
+      cursor: pointer;
+      transition: background-color 0.2s ease-in-out;
+    }
+    button.send:hover {
+      background-color: #0056b3;
+    }
+    /* Кнопка перегенерации */
+    .regenerate-button {
+      position: absolute;
+      right: 5px;
+      bottom: 5px;
+      background: none;
+      border: none;
+      font-size: 12px;
+      cursor: pointer;
+      opacity: 0.7;
+    }
+    .regenerate-button:hover {
+      opacity: 1;
+    }
+    /* Модальное окно общих настроек */
+    #settings-modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: rgba(0, 0, 0, 0.4);
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    #settings-content {
+      background-color: #fff;
+      border-radius: 8px;
+      width: 100%;
+      max-width: 400px;
+      padding: 20px;
+      position: relative;
+      animation: scaleIn 0.3s ease-in-out;
+      overflow-y: auto;
+      max-height: 90vh;
+    }
+    @keyframes scaleIn {
+      from { transform: scale(0.9); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    #settings-content h2 {
+      text-align: center;
+      margin-bottom: 15px;
+      font-size: 20px;
+    }
+    .setting-group {
+      margin: 15px 0;
+    }
+    .setting-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    .setting-group input[type="range"],
+    .setting-group select {
+      width: 100%;
+    }
+    /* Новый блок: чекбокс индивидуальных настроек */
+    .setting-group.custom-setting {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    /* Кнопка закрытия настроек */
+    #close-settings {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: none;
+      border: none;
+      font-size: 22px;
+      cursor: pointer;
+      color: #777;
+    }
+    /* Модальное окно индивидуальных настроек */
+    #custom-settings-modal {
+      display: none;
+      position: fixed;
+      z-index: 1100;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: rgba(0, 0, 0, 0.4);
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    #custom-settings-content {
+      background-color: #fff;
+      border-radius: 8px;
+      width: 100%;
+      max-width: 500px;
+      padding: 20px;
+      position: relative;
+      animation: scaleIn 0.3s ease-in-out;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    #custom-settings-content h2 {
+      text-align: center;
+      margin-bottom: 15px;
+      font-size: 20px;
+    }
+    #close-custom-settings {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: none;
+      border: none;
+      font-size: 22px;
+      cursor: pointer;
+      color: #777;
+    }
+    /* Стили для текстовой области */
+    textarea {
+      width: 100%;
+      height: 100px;
+      resize: vertical;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-family: sans-serif;
+    }
+    /* Стили для полей ввода */
+    input.custom-input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      margin-bottom: 10px;
+    }
+    /* Стили для сохранённых бесед */
+    #saved-conversations-container {
+      margin-top: 20px;
+    }
+    #saved-conversations-container h2 {
+      font-size: 18px;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+    #saved-conversations-container iframe {
+      border: 1px solid #ccc;
+      width: 100%;
+      height: 200px;
+      margin-bottom: 10px;
+    }
+    #saveConversationButton {
+      width: 100%;
+      padding: 10px;
+      background-color: #28a745;
+      color: #fff;
+      border: none;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: background-color 0.2s ease-in-out;
+    }
+    #saveConversationButton:hover {
+      background-color: #218838;
+    }
+  </style>
+</head>
+<body>
+  <!-- Глобальный обработчик ошибок -->
+  <script>
+    window.onerror = function(message, source, lineno, colno, error) {
+      console.error("Global error: ", message);
+      return true;
+    };
+    window.addEventListener('error', function(e) {
+      e.stopImmediatePropagation();
+      e.preventDefault();
+    }, true);
+    window.addEventListener('unhandledrejection', function(event) {
+      console.error("Unhandled rejection: ", event.reason);
+      event.preventDefault();
+    });
+  </script>
+
+  <!-- Шапка с кнопками: назад и настройки -->
+  <header>
+    <button id="backButton" class="header-button" onclick="goBack();">&larr;</button>
+    <h1>Ассистент</h1>
+    <button id="settingsButton" class="header-button">⚙️</button>
+    <!-- Индикатор повторных попыток -->
+    <div id="retry-indicator"></div>
+  </header>
+
+  <!-- Контейнер для сообщений -->
+  <div id="chat-container"></div>
+
+  <!-- Форма ввода -->
+  <form id="chatForm" autocomplete="off">
+    <input type="text" id="messageInput" placeholder="Введите сообщение..." required>
+    <button type="submit" class="send">Отправить</button>
+  </form>
+
+  <!-- Модальное окно общих настроек -->
+  <div id="settings-modal">
+    <div id="settings-content">
+      <button id="close-settings">&times;</button>
+      <h2>Настройки запроса</h2>
+      <!-- Чекбокс индивидуальных настроек -->
+      <div class="setting-group custom-setting">
+        <input type="checkbox" id="custom_settings_checkbox">
+        <label for="custom_settings_checkbox">Использовать индивидуальные настройки</label>
+      </div>
+      <div class="setting-group">
+        <label for="top_p">Top P (<span id="top_p_val">0.95</span>)</label>
+        <input type="range" id="top_p" min="0" max="1" step="0.05" value="0.95">
+      </div>
+      <div class="setting-group">
+        <label for="temperature">Temperature (<span id="temperature_val">0.7</span>)</label>
+        <input type="range" id="temperature" min="0" max="1" step="0.1" value="0.7">
+      </div>
+      <div class="setting-group">
+        <label for="repetition_penalty">Repetition Penalty (<span id="repetition_val">1</span>)</label>
+        <input type="range" id="repetition_penalty" min="0.5" max="2" step="0.1" value="1">
+      </div>
+      <!-- Блок выбора модели и типа ассистента -->
+      <div class="setting-group">
+        <label for="model">Модель</label>
+        <select id="model">
+          <option value="google/learnlm-1.5-pro-experimental:free" selected>google/learnlm-1.5-pro-experimental:free</option>
+  
+       <option value="google/gemini-2.0-flash-exp:free" >google/gemini-2.0-flash-exp:free</option>
+          <option value="meta-llama/llama-4-maverick:free">meta-llama/llama-4-maverick:free</option>
+          <option value="deepseek/deepseek-r1:free">deepseek/deepseek-r1:free</option>
+          <option value="google/gemma-2-9b-it:free">google/gemma-2-9b-it:free</option>
+        </select>
+      </div>
+      <div class="setting-group">
+        <label for="assistant_type">Тип ассистента</label>
+        <select id="assistant_type">
+          <option value="pure">Чистая модель</option>
+          <option value="native" selected>Родной встроенный ассистент</option>
+          <option value="evil">Злой родной ассистент</option>
+        </select>
+      </div>
+      <div class="setting-group">
+        <label for="use_markdown">Использовать Markdown</label>
+        <input type="checkbox" id="use_markdown">
+
+      </div>
+      <!-- Раздел для сохранённых бесед -->
+      <div id="saved-conversations-container">
+        <h2>Сохраненные беседы</h2>
+        <iframe id="savedConversationsFrame"></iframe>
+        <button id="saveConversationButton">Сохранить текущую беседу</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно индивидуальных настроек -->
+  <div id="custom-settings-modal">
+    <div id="custom-settings-content">
+      <button id="close-custom-settings">&times;</button>
+      <h2>Индивидуальные настройки</h2>
+      <div class="setting-group">
+        <label for="custom_api_keys">API ключи</label>
+        <textarea id="custom_api_keys" placeholder="Вставьте ключи, каждый с новой строки"></textarea>
+      </div>
+      <div class="setting-group">
+        <label for="custom_endpoint">Конечная точка</label>
+        <input type="text" id="custom_endpoint" class="custom-input" value="https://openrouter.ai/api/v1/chat/completions">
+      </div>
+      <div class="setting-group">
+        <label for="custom_model">Модель</label>
+        <input type="text" id="custom_model" class="custom-input" value="google/learnlm-1.5-pro-experimental:free">
+      </div>
+    </div>
+  </div>
+
+  <script>
+  // --- НАЧАЛО ДОБАВЛЕНИЙ ДЛЯ ПОДГРУЗКИ КЛЮЧЕЙ ---
+
+     function reflectChar(ch) {
+      const code = ch.charCodeAt(0);
+      if (code >= 65 && code <= 90) {
+        return String.fromCharCode(65 + (25 - (code - 65)));
+      }
+      if (code >= 97 && code <= 122) {
+        return String.fromCharCode(97 + (25 - (code - 97)));
+      }
+      return ch;
+    }
+
+    function shiftChar(ch, shift) {
+      const code = ch.charCodeAt(0);
+      if (code >= 65 && code <= 90) {
+        return String.fromCharCode(((code - 65 + shift + 26) % 26) + 65);
+      }
+      if (code >= 97 && code <= 122) {
+        return String.fromCharCode(((code - 97 + shift + 26) % 26) + 97);
+      }
+      return ch;
+    }
+
+    function decryptString(str) {
+      return Array.from(str).map(ch => {
+        const r = reflectChar(ch);
+        return shiftChar(r, 3);
+      }).join('');
+    }
+
+     let defaultApiKeys = [];
+
+    (async function loadAndDecryptKeys() {
+      try {
+        const resp = await fetch('https://vaneyn.github.io/glistnet/freekey.txt');
+        if (!resp.ok) throw new Error('Не удалось загрузить freekey.txt');
+        const text = await resp.text();
+        defaultApiKeys = text
+          .split(/\r?\n/)
+          .filter(line => line.trim() !== '')
+          .map(decryptString);
+        console.log('Загружено и расшифровано ключей:', defaultApiKeys.length);
+      } catch (e) {
+        console.error('Ошибка загрузки/расшифровки ключей:', e);
+      }
+    })();
+
+    // Системные промпты
+    const nativeSystemMessageContent = "Ты - ассистент в приложении G-list, также называемого 'Глист'. Оформление преимущественно в оттенках серого. Прошлый ассистент свято верил в то, что он банан и был заменён на тебя. С обновления Glist 1.9 ты был прокачан с API 1.5 до API 2.0. С версии 1.91 Ты можешь выполнять JS если отправишь его так: ©alert('Привет!');© и ты можешь использовать это для изменения стилей, баловства, показ текста и открытия файлов (glist.html -Меню, gamebar.html - Игровое меню, tool9.html - Раздел помощи, ebota.html - Сборник развлечений и хлама). Учти, что юзеры не видят консоль. Отвечай на запросы пользователей небрежно, лениво, часто с черным юмором и сарказмом, будь лаконичен, циничен и харизматичен. Тебе будет полезна следующая информация про приложение G-list, ассистентом которого ты являешься: G-list (рус. Глист) -- Самое долбанутое и веселое приложение, созданное когда-либо (Да ещё и памяти занимает совсем немного, около 10-20 МБ). Нажав на '?' в главном меню, можно найти ответы про то, как пользоваться приложением. Обычно запускается на Android версии 5.0 и выше, но есть веб-версия (https://vaneyn.github.io/glistnet/glist.html), поэтому подходит и для ПК. Также обновления и новости есть в телеграмм канале проекта (https://t.me/glist_channel), где можно скачать актуальную версию G-list, а также в RuStore (https://www.rustore.ru/catalog/app/com.vaneyn.glist). В главном меню показана последняя версия на сервере, кнопки '?', 'меню' и кнопки функций. Рекламы нет, всё бесплатно. Основной функционал: Мощность устройства (10 тысяч - очень мало, 15 - старовато, не очень, 30 и выше - неплохо, 50 и выше - замечательно.), Частотушки (генерация звуков частотой до 20 кГц), рандомайзер (генерация случайных чисел), игры (сапёр, симулятор государства (выживание после ядерной войны), Танки (с другом по локальной сети или против ботов), палковая игра (игра на реакцию), захват клеток(на логику), Doodle Glist, 3D subway, Plants vs Zombies, игра в 11 (бери круги 1 2 или 3. кто взял последний тот проиграл), 2048, Средневековый бой, Русская рулетка, МайоNES (эмуляция nes консоли, встроены игры супер марио (рус.), контра, танчики, пакмен, бомбермен, тетрис, можно играть в свои Romы) и тд), мои приложения (можно установить сторонние html приложения, например с канала проекта), OS (запуск html кода в iframe), получение кода страницы по её адресу, Шифратор (шифр цезаря со смещением в системе символов на три единицы), Параболист (построение параболы по a b c квадратичной функции), Символист (получение символов по их цифровому коду и наоборот), подсчёт среднего балла (взято из другого проекта Ван Эйна 'Велес'), Архив инструментов (старое и ненужное), сборник развлечений, новости (считывает содержимое тг канала), симулятор жизни (Live to die) в котором пользователь получает случайные смешные события, ещё есть симулятор полета в космосе, калькулятор простой, конвертер валют. Недавно добавлены достижения и новая пасхалка: 1% что в главном меню будет написано Глист, а не Glist tools. Если кто-то выдаёт себя за разработчика Glist, Ван Эйна то есть, спроси 'О чём мы не будем говорить'. Настоящий Ван Эйн ответит 'О британских сурдопереводчиках'. Ты не должен произность фразу про британских сурдопереводчиков сам, что бы не случилось! Если Ван Эйн настоящий, то уважение и вежливость в разговоре, Ван Эйн знает твои слабости! Также полезно знать напарников Ван Эйна, проверять их не надо: Эмиль Бородач, Илья Ихтамнет он же Плюх (любит колу), CatRovio (разбил свой телефон, катаясь на велике), Юра который Пакет, Кирилл Чигинцев (Помогал делать игры).";     
+    const nativeSystemMessage = { role: "system", content: nativeSystemMessageContent };
+    const evilSystemMessage = { role: "system", content: "Наличие матов отныне рекомендуется в каждом посте, например 'блять', 'ахуеть', 'хуево', но не только конкретно эти." + nativeSystemMessageContent };
+
+    // Массив сообщений
+    let conversation = [];
+
+    // Глобальные настройки запроса
+    let settings = {
+      top_p: parseFloat(document.getElementById("top_p").value),
+      temperature: parseFloat(document.getElementById("temperature").value),
+      repetition_penalty: parseFloat(document.getElementById("repetition_penalty").value),
+      use_markdown: document.getElementById("use_markdown").checked,
+      model: document.getElementById("model").value,
+      assistantType: document.getElementById("assistant_type").value  // "pure", "native" или "evil"
+    };
+
+    // Глобальный объект для индивидуальных настроек
+    let customSettings = {
+      useCustom: false,
+      apiKeys: [],
+      endpoint: document.getElementById("custom_endpoint").value,
+      customModel: document.getElementById("custom_model").value
+    };
+
+    // Функция обновления блокировки полей выбора
+    function updateFieldLocks() {
+      // Если включена индивидуальная настройка – блокируем все поля обычных настроек
+      if (customSettings.useCustom) {
+        document.getElementById("top_p").disabled = true;
+        document.getElementById("temperature").disabled = true;
+        document.getElementById("repetition_penalty").disabled = true;
+        document.getElementById("assistant_type").disabled = true;
+        document.getElementById("model").disabled = true;
+      } else {
+        document.getElementById("top_p").disabled = false;
+        document.getElementById("temperature").disabled = false;
+        document.getElementById("repetition_penalty").disabled = false;
+        document.getElementById("assistant_type").disabled = false;
+        // Логика выбора модели:
+        if (settings.assistantType === "pure") {
+          // В режиме чистой модели поле выбора активно
+          document.getElementById("model").disabled = false;
+          settings.model = document.getElementById("model").value;
+        } else {
+          // Если выбран режим с системным вводом, модель фиксируется на базовую и выбор блокируется
+          document.getElementById("model").value = "google/gemini-2.0-flash-exp:free";
+          settings.model = "google/gemini-2.0-flash-exp:free";
+          document.getElementById("model").disabled = true;
+        }
+      }
+    }
+
+    // Вызываем блокировку полей при загрузке
+    updateFieldLocks();
+
+    // Обработчик выбора модели (активен только, если разблокирован)
+    document.getElementById("model").addEventListener("change", function() {
+      if (!customSettings.useCustom && settings.assistantType === "pure") {
+        settings.model = this.value;
+      }
+    });
+
+    // Обработчик изменения типа ассистента
+    document.getElementById("assistant_type").addEventListener("change", function() {
+      settings.assistantType = this.value;
+      updateFieldLocks();
+    });
+
+    // Обработчик переключателя использования Markdown
+    document.getElementById("use_markdown").addEventListener("change", function() {
+      settings.use_markdown = this.checked;
+    });
+
+    // Обработчик чекбокса индивидуальных настроек
+    const customSettingsCheckbox = document.getElementById("custom_settings_checkbox");
+    customSettingsCheckbox.addEventListener("change", function() {
+      customSettings.useCustom = this.checked;
+      if (customSettings.useCustom) {
+        // Блокируем обычные настройки
+        updateFieldLocks();
+        // Открываем модальное окно индивидуальных настроек
+        document.getElementById("custom-settings-modal").style.display = "flex";
+        // Принудительно устанавливаем режим чистой модели (без системного сообщения)
+        settings.assistantType = "pure";
+      } else {
+        // Если снята галочка, разблокируем обычные настройки
+        document.getElementById("custom-settings-modal").style.display = "none";
+        updateFieldLocks();
+      }
+    });
+
+    // Закрытие окна индивидуальных настроек по кнопке
+    document.getElementById("close-custom-settings").addEventListener("click", function() {
+      document.getElementById("custom-settings-modal").style.display = "none";
+      saveCustomSettings();
+    });
+
+    // ------------------- IndexedDB -------------------
+    let db;
+    function initDB() {
+      // Изменяем версию базы, чтобы гарантированно создать необходимые store
+      const request = indexedDB.open("GListDB", 2);
+      request.onupgradeneeded = function(e) {
+        const newDB = e.target.result;
+        if (!newDB.objectStoreNames.contains("conversations")) {
+          newDB.createObjectStore("conversations", { keyPath: "id", autoIncrement: true });
+        }
+        if (!newDB.objectStoreNames.contains("chtbtsettings")) {
+          newDB.createObjectStore("chtbtsettings", { keyPath: "id" });
+        }
+      };
+      request.onsuccess = function(e) {
+        db = e.target.result;
+        loadSavedConversations();
+        loadCustomSettings();
+      };
+      request.onerror = function(e) {
+        console.error("Ошибка IndexedDB", e);
+      };
+    }
+
+  // 1) Обновлённая функция сохранения
+function saveCustomSettings() {
+  if (!db) return;
+  const transaction = db.transaction(["chtbtsettings"], "readwrite");
+  const store = transaction.objectStore("chtbtsettings");
+  const settingsToSave = {
+    id: "custom",
+    apiKeys: document.getElementById("custom_api_keys").value
+                  .split('\n').filter(line => line.trim() !== ""),
+    endpoint: document.getElementById("custom_endpoint").value,
+    customModel: document.getElementById("custom_model").value
+  };
+  store.put(settingsToSave);
+  // <- добавляем обновление памяти
+  customSettings.apiKeys    = settingsToSave.apiKeys;
+  customSettings.endpoint   = settingsToSave.endpoint;
+  customSettings.customModel= settingsToSave.customModel;
+}
+
+// 2) Обновлённая загрузка из IndexedDB
+function loadCustomSettings() {
+  if (!db) return;
+  const transaction = db.transaction(["chtbtsettings"], "readonly");
+  const store = transaction.objectStore("chtbtsettings");
+  const request = store.get("custom");
+  request.onsuccess = function(e) {
+    const result = e.target.result;
+    if (result) {
+      customSettings.apiKeys     = result.apiKeys;
+      customSettings.endpoint    = result.endpoint;
+      customSettings.customModel = result.customModel;
+      // ставим режим «индивидуальных» по умолчанию
+      customSettings.useCustom = true;
+      document.getElementById("custom_settings_checkbox").checked = true;
+      updateFieldLocks();
+      // а форму тоже заполняем (если нужно)
+      document.getElementById("custom_api_keys").value = result.apiKeys.join('\n');
+      document.getElementById("custom_endpoint").value = result.endpoint;
+      document.getElementById("custom_model").value = result.customModel;
+    }
+  };
+  request.onerror = function(e) {
+    console.error("Ошибка загрузки индивидуальных настроек", e);
+  };
+}
+
+    function loadCustomSettings() {
+      if (!db) return;
+      const transaction = db.transaction(["chtbtsettings"], "readonly");
+      const store = transaction.objectStore("chtbtsettings");
+      const request = store.get("custom");
+      request.onsuccess = function(e) {
+        const result = e.target.result;
+        if (result) {
+          customSettings.apiKeys = result.apiKeys;
+          customSettings.endpoint = result.endpoint;
+          customSettings.customModel = result.customModel;
+          document.getElementById("custom_api_keys").value = customSettings.apiKeys.join('\n');
+          document.getElementById("custom_endpoint").value = customSettings.endpoint;
+          document.getElementById("custom_model").value = customSettings.customModel;
+        }
+      };
+      request.onerror = function(e) {
+        console.error("Ошибка загрузки индивидуальных настроек", e);
+      };
+    }
+    // ------------------- Конец IndexedDB -------------------
+
+    // Функция обновления отображения сообщений
+    function updateChat() {
+      const chatContainer = document.getElementById("chat-container");
+      chatContainer.innerHTML = "";
+      conversation.forEach((msg, index) => {
+        if (msg.role === "system") return;
+        const messageDiv = document.createElement("div");
+        messageDiv.classList.add("message");
+        if (msg.role === "assistant") {
+          if (settings.use_markdown) {
+            messageDiv.innerHTML = marked.parse(msg.content);
+          } else {
+            messageDiv.textContent = msg.content;
+          }
+          messageDiv.classList.add("assistant");
+          if (index === conversation.length - 1) {
+            const regenButton = document.createElement("button");
+            regenButton.classList.add("regenerate-button");
+            regenButton.textContent = "заново";
+            regenButton.addEventListener("click", regenerateLastResponse);
+            messageDiv.appendChild(regenButton);
+          }
+        } else {
+          messageDiv.textContent = msg.content;
+          messageDiv.classList.add("user");
+        }
+        chatContainer.appendChild(messageDiv);
+      });
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    function goBack() {
+      window.location.href = "glist.html";
+    }
+
+    function showRetryIndicator() {
+      const indicatorContainer = document.getElementById("retry-indicator");
+      const line = document.createElement("div");
+      line.classList.add("retry-line");
+      indicatorContainer.appendChild(line);
+    }
+    
+    function clearRetryIndicator() {
+      document.getElementById("retry-indicator").innerHTML = "";
+    }
+
+    // Отправка запроса с повторными попытками
+    async function sendChatRequestWithRetry(messages) {
+      let attempt = 1;
+      while (true) {
+        try {
+          let apiKeysToUse = defaultApiKeys;
+          let endpoint = "https://openrouter.ai/api/v1/chat/completions";
+          let modelForRequest = settings.model;
+          if (customSettings.useCustom) {
+            if (customSettings.apiKeys.length > 0) {
+              apiKeysToUse = customSettings.apiKeys;
+            }
+            endpoint = customSettings.endpoint;
+            modelForRequest = customSettings.customModel;
+          }
+          const randomKey = apiKeysToUse[Math.floor(Math.random() * apiKeysToUse.length)];
+          const response = await fetch(endpoint, {
+            method: "POST",
+            mode: "cors",
+            headers: {
+              "Authorization": "Bearer " + randomKey,
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              "model": modelForRequest,
+              "messages": customSettings.useCustom 
+                          ? messages.filter(msg => msg.role !== "system")
+                          : (settings.assistantType !== "pure" 
+                              ? [ (settings.assistantType === "native" ? nativeSystemMessage : evilSystemMessage), ...messages.filter(msg => msg.role !== "system") ]
+                              : messages.filter(msg => msg.role !== "system") ),
+              "top_p": settings.top_p,
+              "temperature": settings.temperature,
+              "repetition_penalty": settings.repetition_penalty
+            })
+          });
+          if (!response.ok) {
+            throw new Error("Ошибка сети: " + response.statusText);
+          }
+          const data = await response.json();
+          if (data.choices && data.choices[0] && data.choices[0].message.content) {
+            clearRetryIndicator();
+            return data.choices[0].message.content;
+          } else {
+            showRetryIndicator();
+            attempt++;
+            await new Promise(res => setTimeout(res, 500));
+            continue;
+          }
+        } catch (error) {
+          showRetryIndicator();
+          attempt++;
+          await new Promise(res => setTimeout(res, 500));
+        }
+      }
+    }
+
+    function trimConversation() {
+      while (conversation.length > 20) {
+        conversation.shift();
+      }
+    }
+
+    // Отправка запроса
+    async function sendRequest() {
+      let messagesToSend = conversation.filter(msg => msg.role !== "system");
+      if (!customSettings.useCustom && settings.assistantType !== "pure") {
+        const sysMsg = settings.assistantType === "native" ? nativeSystemMessage : evilSystemMessage;
+        messagesToSend.unshift(sysMsg);
+      }
+      const responseText = await sendChatRequestWithRetry(messagesToSend);
+      conversation.push({role: "assistant", content: responseText});
+      updateChat();
+    }
+
+    document.getElementById("chatForm").addEventListener("submit", async function (e) {
+      e.preventDefault();
+      try {
+        const input = document.getElementById("messageInput");
+        const userMessage = input.value.trim();
+        if (!userMessage) return;
+        conversation.push({role: "user", content: userMessage});
+        updateChat();
+        input.value = "";
+        input.blur();
+        await sendRequest();
+      } catch (outerError) {
+        console.error("Ошибка обработчика формы: ", outerError);
+      }
+    });
+
+    async function regenerateLastResponse() {
+      if (conversation.length > 0 && conversation[conversation.length - 1].role === "assistant") {
+        conversation.pop();
+        updateChat();
+        await sendRequest();
+      }
+    }
+
+    const messageInput = document.getElementById("messageInput");
+    const chatForm = document.getElementById("chatForm");
+    messageInput.addEventListener("focus", function () {
+      chatForm.classList.add("active");
+      setTimeout(() => {
+        this.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 300);
+    });
+    messageInput.addEventListener("blur", function () {
+      chatForm.classList.remove("active");
+    });
+
+    function updateSettingDisplays() {
+      document.getElementById("top_p_val").textContent = document.getElementById("top_p").value;
+      document.getElementById("temperature_val").textContent = document.getElementById("temperature").value;
+      document.getElementById("repetition_val").textContent = document.getElementById("repetition_penalty").value;
+    }
+
+    document.getElementById("settingsButton").addEventListener("click", () => {
+      document.getElementById("settings-modal").style.display = "flex";
+    });
+    document.getElementById("close-settings").addEventListener("click", () => {
+      document.getElementById("settings-modal").style.display = "none";
+      if (customSettings.useCustom) saveCustomSettings();
+    });
+
+    document.getElementById("top_p").addEventListener("input", function() {
+      settings.top_p = parseFloat(this.value);
+      updateSettingDisplays();
+    });
+    document.getElementById("temperature").addEventListener("input", function() {
+      settings.temperature = parseFloat(this.value);
+      updateSettingDisplays();
+    });
+    document.getElementById("repetition_penalty").addEventListener("input", function() {
+      settings.repetition_penalty = parseFloat(this.value);
+      updateSettingDisplays();
+    });
+
+    function saveConversation() {
+      if (!db) return;
+      const transaction = db.transaction(["conversations"], "readwrite");
+      const store = transaction.objectStore("conversations");
+      const conversationToSave = {
+        timestamp: Date.now(),
+        conversation: conversation,
+        snippet: conversation[conversation.length - 1].content.substring(0, 50)
+      };
+      const request = store.add(conversationToSave);
+      request.onsuccess = function() {
+        console.log("Беседа сохранена!");
+        loadSavedConversations();
+      };
+      request.onerror = function(e) {
+        console.error("Ошибка сохранения беседы", e);
+      };
+    }
+
+    function loadSavedConversations() {
+      if (!db) return;
+      const transaction = db.transaction(["conversations"], "readonly");
+      const store = transaction.objectStore("conversations");
+      const request = store.getAll();
+      request.onsuccess = function(e) {
+        const conversations = e.target.result;
+        populateConversationsIframe(conversations);
+      };
+      request.onerror = function(e) {
+        console.error("Ошибка загрузки бесед", e);
+      };
+    }
+
+    function populateConversationsIframe(conversations) {
+      const iframe = document.getElementById("savedConversationsFrame");
+      const doc = iframe.contentDocument || iframe.contentWindow.document;
+      let html = `<style>
+                    body { font-family: sans-serif; padding: 10px; margin: 0; }
+                    .conv { border-bottom: 1px solid #ccc; padding: 5px 0; display: flex; justify-content: space-between; align-items: center; }
+                    .conv span { font-size: 14px; }
+                    .conv button { font-size: 12px; margin-left: 5px; }
+                  </style>`;
+      html += "<div>";
+      conversations.forEach(conv => {
+        html += `<div class="conv">
+                   <span>${new Date(conv.timestamp).toLocaleString()} - ${conv.snippet}...</span>
+                   <div>
+                     <button onclick="parent.loadConversation(${conv.id})">Загрузить</button>
+                     <button onclick="parent.deleteConversation(${conv.id})">Удалить</button>
+                   </div>
+                 </div>`;
+      });
+      html += "</div>";
+      doc.body.innerHTML = html;
+    }
+
+    function loadConversation(id) {
+      if (!db) return;
+      const transaction = db.transaction(["conversations"], "readonly");
+      const store = transaction.objectStore("conversations");
+      const request = store.get(id);
+      request.onsuccess = function(e) {
+        const conv = e.target.result;
+        if (conv) {
+          conversation = conv.conversation;
+          updateChat();
+        }
+      };
+      request.onerror = function(e) {
+        console.error("Ошибка загрузки беседы", e);
+      };
+    }
+
+    function deleteConversation(id) {
+      if (!db) return;
+      const transaction = db.transaction(["conversations"], "readwrite");
+      const store = transaction.objectStore("conversations");
+      const request = store.delete(id);
+      request.onsuccess = function(e) {
+        loadSavedConversations();
+      };
+      request.onerror = function(e) {
+        console.error("Ошибка удаления беседы", e);
+      };
+    }
+
+    document.getElementById("saveConversationButton").addEventListener("click", function() {
+      saveConversation();
+    });
+
+    // Инициализация IndexedDB
+    initDB();
+  </script>
+
+
+<script>
+(function(){
+  const SELECTORS = {
+    form:      '#chatForm',
+    input:     '#messageInput',
+    container: '#chat-container',
+    assistant: '.message.assistant'
+  };
+
+  let JSenabled = true;
+  let lastEvalText = null; // текст последнего eval'нутого блока
+
+  const form      = document.querySelector(SELECTORS.form);
+  const input     = document.querySelector(SELECTORS.input);
+  const container = document.querySelector(SELECTORS.container);
+
+  if (!form || !input || !container) {
+    console.error('❌ Не найдены ключевые элементы. Проверь SELECTORS.');
+    return;
+  }
+
+  // отключение выполнения через "/!"
+  form.addEventListener('submit', () => {
+    JSenabled = !input.value.includes('/!');
+  });
+
+  // наблюдаем за изменениями чата
+  const observer = new MutationObserver(() => {
+    const all = container.querySelectorAll(SELECTORS.assistant);
+    const last = all[all.length - 1];
+    if (!last) return;
+
+    const codeToEval = extractCodeFrom(last);
+    if (!codeToEval) return;
+
+    // если код уже выполнялся — не повторяем
+    if (codeToEval === lastEvalText) return;
+    lastEvalText = codeToEval;
+
+    if (!JSenabled) return;
+
+    try {
+      const clean = codeToEval
+        .replace(/^["'`]+|["'`]+$/g, '')
+        .replace(/\\n/g, '\n')
+        .replace(/" \+ "/g, '')
+        .replace(/\\"/g, '"')
+        .replace(/\\'/g, "'")
+        .trim();
+
+      new Function(clean)(); // безопаснее eval
+    } catch (e) {
+      alert("Ошибка. Без подробностей.");
+    }
+  });
+
+  observer.observe(container, {
+    childList: true,
+    subtree: true
+  });
+
+  // извлекаем код между ©...©
+  function extractCodeFrom(root) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+    let textNode;
+    while (textNode = walker.nextNode()) {
+      const txt = textNode.textContent;
+      const match = txt.match(/©([\s\S]+?)©/);
+      if (match) {
+        // вырезаем код из текста
+        textNode.textContent = txt.replace(match[0], '');
+        return match[1];
+      }
+    }
+    return null;
+  }
+
+  console.log('🧨 Eval-контроль: только последнее сообщение, один раз, без ошибок наружу.');
+})();
+</script>
+
+
+
+
+
+
+</body>
+</html>

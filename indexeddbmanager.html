@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>IndexedDB Viewer</title>
+  <style>
+    body { font-family: sans-serif; background: #f0f0f0; padding: 10px; }
+    .db { background: #fff; padding: 10px; margin-bottom: 10px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    .store { margin-left: 10px; margin-top: 10px; background: #fafafa; padding: 10px; border-radius: 6px; }
+    .entry { margin-left: 20px; background: #eee; padding: 5px; border-radius: 4px; margin-top: 4px; }
+    button { margin: 4px; }
+  </style>
+</head>
+<body>
+  <h2>IndexedDB Viewer & Manager</h2>
+  <div id="container"></div>
+
+  <script>
+    async function listDatabases() {
+      const container = document.getElementById('container');
+      container.innerHTML = '';
+      const dbs = await indexedDB.databases();
+      for (const dbInfo of dbs) {
+        const dbDiv = document.createElement('div');
+        dbDiv.className = 'db';
+        dbDiv.innerHTML = `<strong>${dbInfo.name}</strong> (версия ${dbInfo.version})<br>`;
+        
+        const viewBtn = document.createElement('button');
+        viewBtn.textContent = 'Показать содержимое';
+        viewBtn.onclick = () => showDBContent(dbInfo.name);
+        dbDiv.appendChild(viewBtn);
+
+        const deleteDBBtn = document.createElement('button');
+        deleteDBBtn.textContent = 'Удалить базу данных';
+        deleteDBBtn.onclick = () => {
+          indexedDB.deleteDatabase(dbInfo.name);
+          setTimeout(listDatabases, 500);
+        };
+        dbDiv.appendChild(deleteDBBtn);
+
+        const rollbackBtn = document.createElement('button');
+        rollbackBtn.textContent = 'Откат до версии 1';
+        rollbackBtn.onclick = () => rollbackToVersion1(dbInfo.name);
+        dbDiv.appendChild(rollbackBtn);
+
+        container.appendChild(dbDiv);
+      }
+    }
+
+    async function showDBContent(dbName) {
+      const db = await openDB(dbName);
+      const storeNames = Array.from(db.objectStoreNames);
+      const dbDiv = [...document.querySelectorAll('.db')].find(div => div.textContent.includes(dbName));
+      dbDiv.querySelectorAll('.store').forEach(e => e.remove());
+
+      for (let storeName of storeNames) {
+        const storeDiv = document.createElement('div');
+        storeDiv.className = 'store';
+        storeDiv.innerHTML = `<strong>Store: ${storeName}</strong><br>`;
+
+        const deleteStoreBtn = document.createElement('button');
+        deleteStoreBtn.textContent = 'Удалить store';
+        deleteStoreBtn.onclick = async () => {
+          db.close();
+          const version = db.version + 1;
+          const req = indexedDB.open(dbName, version);
+          req.onupgradeneeded = () => {
+            const upgradeDB = req.result;
+            if (upgradeDB.objectStoreNames.contains(storeName)) {
+              upgradeDB.deleteObjectStore(storeName);
+            }
+          };
+          req.onsuccess = () => {
+            req.result.close();
+            setTimeout(() => showDBContent(dbName), 500);
+          };
+        };
+        storeDiv.appendChild(deleteStoreBtn);
+
+        const tx = db.transaction(storeName, 'readonly');
+        const store = tx.objectStore(storeName);
+        const req = store.getAll();
+        const keyReq = store.getAllKeys();
+
+        const [values, keys] = await Promise.all([
+          new Promise(r => { req.onsuccess = () => r(req.result); }),
+          new Promise(r => { keyReq.onsuccess = () => r(keyReq.result); }),
+        ]);
+
+        values.forEach((value, i) => {
+          const entryDiv = document.createElement('div');
+          entryDiv.className = 'entry';
+          entryDiv.innerHTML = `Key: ${keys[i]}<br>Value: <pre>${JSON.stringify(value, null, 2)}</pre>`;
+
+          const delBtn = document.createElement('button');
+          delBtn.textContent = 'Удалить запись';
+          delBtn.onclick = () => {
+            const dtx = db.transaction(storeName, 'readwrite');
+            dtx.objectStore(storeName).delete(keys[i]);
+            dtx.oncomplete = () => showDBContent(dbName);
+          };
+          entryDiv.appendChild(delBtn);
+
+          storeDiv.appendChild(entryDiv);
+        });
+
+        dbDiv.appendChild(storeDiv);
+      }
+      db.close();
+    }
+
+    async function rollbackToVersion1(dbName) {
+      const data = {};
+      const oldDB = await openDB(dbName);
+      const storeNames = Array.from(oldDB.objectStoreNames);
+
+      for (let storeName of storeNames) {
+        data[storeName] = [];
+        const tx = oldDB.transaction(storeName, "readonly");
+        const store = tx.objectStore(storeName);
+        const values = await new Promise(r => {
+          const req = store.getAll();
+          req.onsuccess = () => r(req.result);
+        });
+        const keys = await new Promise(r => {
+          const req = store.getAllKeys();
+          req.onsuccess = () => r(req.result);
+        });
+        for (let i = 0; i < keys.length; i++) {
+          data[storeName].push({ key: keys[i], value: values[i] });
+        }
+      }
+      oldDB.close();
+
+      await new Promise(r => {
+        const del = indexedDB.deleteDatabase(dbName);
+        del.onsuccess = del.onerror = () => r();
+      });
+
+      const req = indexedDB.open(dbName, 1);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        for (let storeName in data) {
+          db.createObjectStore(storeName);
+        }
+      };
+
+      req.onsuccess = () => {
+        const newDB = req.result;
+        for (let storeName in data) {
+          const tx = newDB.transaction(storeName, 'readwrite');
+          const store = tx.objectStore(storeName);
+          data[storeName].forEach(entry => {
+            store.put(entry.value, entry.key);
+          });
+        }
+        newDB.close();
+        alert("База успешно откатана до версии 1");
+        listDatabases();
+      };
+    }
+
+    function openDB(name) {
+      return new Promise(res => {
+        const req = indexedDB.open(name);
+        req.onsuccess = () => res(req.result);
+      });
+    }
+
+    listDatabases();
+  </script>
+</body>
+</html>

@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Глубокий парсер ссылок</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(to right, #e0eafc, #cfdef3);
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 25px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+        label {
+            font-weight: 600;
+            display: block;
+            margin-top: 15px;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            margin-top: 8px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+        button {
+            margin-top: 10px;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: 0.3s;
+            font-weight: bold;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .search-button {
+            background-color: #28a745;
+        }
+        .search-button:hover {
+            background-color: #1e7e34;
+        }
+        .copy-button {
+            background-color: #ffc107;
+            margin-left: 10px;
+        }
+        .copy-button:hover {
+            background-color: #e0a800;
+        }
+        .status {
+            margin-top: 15px;
+            font-weight: bold;
+            color: #333;
+            font-size: 16px;
+        }
+        .link {
+            font-size: 14px;
+            color: #333;
+            background: #f9f9f9;
+            border-left: 4px solid #007bff;
+            padding: 4px 10px;
+            margin: 4px 0;
+            border-radius: 3px;
+            word-break: break-all;
+        }
+        #spinner {
+            width: 24px;
+            height: 24px;
+            border: 4px solid #ccc;
+            border-top: 4px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            display: none;
+            margin: 10px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .search-result {
+            margin-top: 15px;
+            font-size: 15px;
+            background-color: #e8f5e9;
+            border-left: 4px solid #28a745;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        #finalResult {
+            margin-top: 20px;
+            background: #f0f0f0;
+            padding: 12px;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <button onclick="runTool('glist')">НАЗАД</button>
+
+    <label for="searchInput">Поиск по найденным ссылкам:</label>
+    <input type="text" id="searchInput">
+    <button onclick="searchText()" class="search-button">Поиск</button>
+    <div id="searchResult" class="search-result"></div>
+
+    <label for="urlInput">Введите начальную ссылку:</label>
+    <input type="text" id="urlInput">
+    <button onclick="startExtraction()">Начать извлечение</button>
+
+    <div id="spinner"></div>
+    <div class="status" id="status">Остановлен</div>
+    <div id="output"></div>
+
+    <div id="finalResult">
+        <span id="finalMessage"></span>
+        <button class="copy-button" onclick="copyLinks()">Копировать ссылки</button>
+    </div>
+</div>
+
+<script>
+    function runTool(toolName) {
+        window.open(toolName + ".html", "_blank");
+    }
+
+    let isSearching = false;
+    let allFoundLinks = new Set();
+    let queue = [];
+    let outputCount = 0;
+
+    async function startExtraction() {
+        const startUrl = document.getElementById('urlInput').value.trim();
+        if (!startUrl.startsWith("http")) {
+            alert("Введите корректную ссылку (начиная с http)");
+            return;
+        }
+
+        allFoundLinks.clear();
+        queue = [startUrl];
+        outputCount = 0;
+        document.getElementById('output').innerHTML = "";
+        document.getElementById('status').textContent = "Работаю...";
+        document.getElementById('spinner').style.display = "block";
+        document.getElementById('finalResult').style.display = "none";
+        isSearching = true;
+
+        while (queue.length > 0 && isSearching) {
+            const batch = queue.splice(0, 10);
+            let newCount = 0;
+
+            await Promise.all(batch.map(async (url) => {
+                try {
+                    if (allFoundLinks.has(url)) return;
+                    allFoundLinks.add(url);
+                    addLinkToOutput(url);
+                    const response = await fetch(url);
+                    const html = await response.text();
+                    const doc = new DOMParser().parseFromString(html, 'text/html');
+                    const links = Array.from(doc.querySelectorAll('a'))
+                        .map(a => a.href)
+                        .filter(href => href.startsWith("http") && !allFoundLinks.has(href));
+                    newCount += links.length;
+                    queue.push(...links);
+                } catch (err) {
+                    console.warn("Ошибка:", url, err);
+                }
+            }));
+
+            updateStatus();
+
+            const ratio = newCount / Math.max(batch.length * 10, 1);
+            if (ratio < 0.1) {
+                finishSearch("Поток истощился. Всего найдено: " + outputCount);
+                return;
+            }
+
+            await new Promise(res => setTimeout(res, 50));
+        }
+
+        finishSearch("Сканирование завершено. Найдено: " + outputCount);
+    }
+
+    function addLinkToOutput(link) {
+        const p = document.createElement('p');
+        p.className = "link";
+        p.textContent = link;
+        document.getElementById('output').appendChild(p);
+        outputCount++;
+    }
+
+    function updateStatus() {
+        document.getElementById('status').textContent = "Найдено ссылок: " + outputCount;
+    }
+
+    function finishSearch(message) {
+        isSearching = false;
+        document.getElementById('status').textContent = message;
+        document.getElementById('spinner').style.display = "none";
+        document.getElementById('finalMessage').textContent = message;
+        document.getElementById('finalResult').style.display = "block";
+    }
+
+    function copyLinks() {
+        const links = [...allFoundLinks].join('\n');
+        navigator.clipboard.writeText(links)
+            .then(() => alert("Ссылки скопированы!"))
+            .catch(() => alert("Ошибка копирования"));
+    }
+
+    function searchText() {
+        const q = document.getElementById('searchInput').value.trim().toLowerCase();
+        const resultDiv = document.getElementById('searchResult');
+        const matches = [...allFoundLinks].filter(link => link.toLowerCase().includes(q));
+        resultDiv.innerHTML = matches.length > 0
+            ? `<p><strong>Найдено:</strong></p>` + matches.map(l => `<p>${l}</p>`).join('')
+            : "Совпадений не найдено.";
+    }
+</script>
+</body>
+</html>

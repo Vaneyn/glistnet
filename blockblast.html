@@ -1,0 +1,2211 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Block Blast — G-list</title>
+    <style>
+          * {
+            box-sizing: border-box;
+            -webkit-box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
+            font-faily: 'Rubik', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #15193b;
+            background-image: -webkit-radial-gradient(50% 20%, circle, #2a3470 0%, #15193b 70%, #0d1026 100%);
+            background-image: radial-gradient(circle at 50% 20%, #2a3470 0%, #15193b 70%, #0d1026 100%);
+            color: #ffffff;
+            touch-action: none;
+            -ms-touch-action: none;
+        }
+
+        /* Полноэкранные слои */
+        .screen-overlay {
+            position: fixed;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 100;
+            display: -webkit-box;
+            display: -webkit-flex;
+            display: flex;
+            -webkit-box-orient: vertical;
+            -webkit-box-direction: normal;
+            -webkit-flex-direction: column;
+            flex-direction: column;
+            -webkit-box-align: center;
+            -webkit-align-items: center;
+            align-items: center;
+            -webkit-box-pack: center;
+            -webkit-justify-content: center;
+            justify-content: center;
+            padding: 20px;
+            background-color: rgba(16, 20, 48, 0.96);
+            background-image: -webkit-radial-gradient(50% 25%, circle, rgba(45, 56, 122, 0.98) 0%, rgba(14, 18, 44, 0.98) 85%);
+            background-image: radial-gradient(circle at 50% 25%, rgba(45, 56, 122, 0.98) 0%, rgba(14, 18, 44, 0.98) 85%);
+            -webkit-transition: opacity 0.22s ease, visibility 0.22s ease;
+            transition: opacity 0.22s ease, visibility 0.22s ease;
+            -webkit-transform: translateZ(0);
+            transform: translateZ(0);
+        }
+
+        .screen-hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .menu-box {
+            width: 100%;
+            max-width: 340px;
+            display: -webkit-box;
+            display: -webkit-flex;
+            display: flex;
+            -webkit-box-orient: vertical;
+            -webkit-box-direction: normal;
+            -webkit-flex-direction: column;
+            flex-direction: column;
+            -webkit-box-align: center;
+            -webkit-align-items: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        /* Декоративная мини-сетка 3x3 в меню (без CSS Grid) */
+        .deco-grid {
+            width: 108px;
+            height: 108px;
+            padding: 8px;
+            background-color: #151a42;
+            border-radius: 16px;
+            border: 2px solid #2d3880;
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+            margin-bottom: 16px;
+            -webkit-transform: rotate(-3deg);
+            transform: rotate(-3deg);
+            display: -webkit-box;
+            display: -webkit-flex;
+            display: flex;
+            -webkit-flex-wrap: wrap;
+            flex-wrap: wrap;
+            -webkit-box-pack: justify;
+            -webkit-justify-content: space-between;
+            justify-content: space-between;
+            -webkit-align-content: space-between;
+            align-content: space-between;
+        }
+
+        .deco-cell {
+            width: 26px;
+            height: 26px;
+            border-radius: 6px;
+            position: relative;
+        }
+
+        .deco-empty {
+            background-color: #1e2559;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.45);
+        }
+
+        /* 3D Логотипы на чистом text-shadow (60 FPS на старых GPU без filter: drop-shadow) */
+        .logo-title {
+            font-size: 52px;
+            line-height: 0.96;
+            font-weight: 900;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: #ffae00;
+            text-shadow:
+                0 -2px 0 #fff59d,
+                0 1px 0 #f59e0b,
+                0 2px 0 #d97706,
+                0 3px 0 #b45309,
+                0 4px 0 #92400e,
+                0 5px 0 #78350f,
+                0 6px 0 #5c2408,
+                0 10px 18px rgba(0, 0, 0, 0.55);
+            -webkit-transform: rotate(-2deg);
+            transform: rotate(-2deg);
+        }
+
+        .logo-subtitle {
+            font-size: 42px;
+            line-height: 1;
+            font-weight: 900;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            color: #38bdf8;
+            text-shadow:
+                0 -2px 0 #bae6fd,
+                0 1px 0 #0284c7,
+                0 2px 0 #0369a1,
+                0 3px 0 #1d4ed8,
+                0 4px 0 #1e40af,
+                0 5px 0 #1e3a8a,
+                0 6px 0 #172554,
+                0 10px 18px rgba(0, 0, 0, 0.55);
+            -webkit-transform: rotate(2deg);
+            transform: rotate(2deg);
+            margin-top: -2px;
+        }
+
+        .logo-glist-row {
+            position: relative;
+            display: inline-block;
+            margin-top: 6px;
+            margin-bottom: 24px;
+        }
+
+        .logo-glist {
+            font-size: 32px;
+            line-height: 1.05;
+            font-weight: 900;
+            letter-spacing: 3.5px;
+            text-transform: uppercase;
+            color: #2dd4bf;
+            text-shadow:
+                0 -2px 0 #ccfbf1,
+                0 1px 0 #14b8a6,
+                0 2px 0 #0d9488,
+                0 3px 0 #0f766e,
+                0 4px 0 #115e59,
+                0 5px 0 #083344,
+                0 8px 15px rgba(0, 0, 0, 0.5);
+            -webkit-transform: rotate(-1.5deg);
+            transform: rotate(-1.5deg);
+        }
+
+        .signature-van-eyn {
+            position: absolute;
+            left: 100%;
+            bottom: 3px;
+            margin-left: 10px;
+            white-space: nowrap;
+            font-size: 13px;
+            font-weight: 600;
+            color: rgba(203, 213, 225, 0.8);
+            letter-spacing: 0.4px;
+            font-style: italic;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.55);
+        }
+
+        /* Карточка рекорда в меню */
+        .record-card {
+            width: 100%;
+            background-color: #171c47;
+            border: 2px solid #2e3882;
+            border-radius: 18px;
+            padding: 14px 20px;
+            margin-bottom: 24px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35), inset 0 2px 6px rgba(255, 255, 255, 0.04);
+        }
+
+        .record-label {
+            display: -webkit-box;
+            display: -webkit-flex;
+            display: flex;
+            -webkit-box-align: center;
+            -webkit-align-items: center;
+            align-items: center;
+            -webkit-box-pack: center;
+            -webkit-justify-content: center;
+            justify-content: center;
+            color: #fbbf24;
+            font-size: 13px;
+            font-weight: 800;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .record-value {
+            font-size: 36px;
+            font-weight: 900;
+            color: #ffffff;
+            line-height: 1.1;
+            text-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Кнопки меню */
+        .menu-buttons {
+            width: 100%;
+        }
+
+        .btn-3d {
+            position: relative;
+            width: 100%;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            border-radius: 16px;
+            display: -webkit-box;
+            display: -webkit-flex;
+            display: flex;
+            -webkit-box-align: center;
+            -webkit-align-items: center;
+            align-items: center;
+            -webkit-box-pack: center;
+            -webkit-justify-content: center;
+            justify-content: center;
+            text-decoration: none;
+            color: #ffffff;
+            -webkit-transition: -webkit-transform 0.08s ease;
+            transition: transform 0.08s ease;
+        }
+
+        .btn-3d svg {
+            margin-right: 8px;
+        }
+
+        .btn-3d:active {
+            -webkit-transform: translateY(4px);
+            transform: translateY(4px);
+        }
+
+        .btn-green {
+            padding: 15px 20px;
+            font-size: 22px;
+            margin-bottom: 14px;
+            background-color: #22c55e;
+            background-image: -webkit-linear-gradient(top, #4ade80 0%, #16a34a 100%);
+            background-image: linear-gradient(180deg, #4ade80 0%, #16a34a 100%);
+            box-shadow: 0 6px 0 #14532d, 0 10px 18px rgba(0,0,0,0.4), inset 0 2px 0 rgba(255,255,255,0.4);
+            text-shadow: 0 2px 3px rgba(0,0,0,0.35);
+        }
+
+        .btn-green:active {
+            box-shadow: 0 2px 0 #14532d, 0 4px 10px rgba(0,0,0,0.4), inset 0 2px 0 rgba(255,255,255,0.4);
+        }
+
+        .btn-purple {
+            padding: 13px 20px;
+            font-size: 18px;
+            background-color: #9333ea;
+            background-image: -webkit-linear-gradient(top, #a855f7 0%, #7e22ce 100%);
+            background-image: linear-gradient(180deg, #a855f7 0%, #7e22ce 100%);
+            box-shadow: 0 5px 0 #4c1d95, 0 8px 16px rgba(0,0,0,0.35), inset 0 2px 0 rgba(255,255,255,0.35);
+            text-shadow: 0 2px 3px rgba(0,0,0,0.35);
+        }
+
+        .btn-purple:active {
+            box-shadow: 0 1px 0 #4c1d95, 0 4px 8px rgba(0,0,0,0.35), inset 0 2px 0 rgba(255,255,255,0.35);
+        }
+
+        .btn-blue {
+            padding: 13px 20px;
+            font-size: 18px;
+            background-color: #0284c7;
+            background-image: -webkit-linear-gradient(top, #38bdf8 0%, #0284c7 100%);
+            background-image: linear-gradient(180deg, #38bdf8 0%, #0284c7 100%);
+            box-shadow: 0 5px 0 #0c4a6e, 0 8px 16px rgba(0,0,0,0.35), inset 0 2px 0 rgba(255,255,255,0.35);
+            text-shadow: 0 2px 3px rgba(0,0,0,0.35);
+        }
+
+        .btn-blue:active {
+            box-shadow: 0 1px 0 #0c4a6e, 0 4px 8px rgba(0,0,0,0.35), inset 0 2px 0 rgba(255,255,255,0.35);
+        }
+
+        .menu-sound-toggle {
+            margin-top: 20px;
+            padding: 8px 16px;
+            border-radius: 12px;
+            background-color: #1a2052;
+            border: 1px solid #323d8f;
+            color: #c7d2fe;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            display: -webkit-inline-box;
+            display: -webkit-inline-flex;
+            display: inline-flex;
+            -webkit-box-align: center;
+            -webkit-align-items: center;
+            align-items: center;
+        }
+
+        /* =========================================================================
+           ИГРОВОЙ КОНТЕЙНЕР
+        ========================================================================= */
+        #app-container {
+            width: 100%;
+            max-width: 450px;
+            height: 100%;
+            margin: 0 auto;
+            padding: 10px 14px 16px 14px;
+            display: -webkit-box;
+            display: -webkit-flex;
+            display: flex;
+            -webkit-box-orient: vertical;
+            -webkit-box-direction: normal;
+            -webkit-flex-direction: column;
+            flex-direction: column;
+            -webkit-box-pack: justify;
+            -webkit-justify-content: space-between;
+            justify-content: space-between;
+            position: relative;
+        }
+
+        .top-header {
+            width: 100%;
+            display: -webkit-box;
+            display: -webkit-flex;
+            display: flex;
+            -webkit-box-align: center;
+            -webkit-align-items: center;
+            align-items: center;
+            -webkit-box-pack: justify;
+            -webkit-justify-content: space-between;
+            justify-content: space-between;
+            padding-top: 2px;
+        }
+
+        .btn-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            background-color: #232b66;
+            border: 2px solid #364196;
+            box-shadow: 0 4px 0 #12173b;
+            display: -webkit-box;
+            display: -webkit-flex;
+            display: flex;
+            -webkit-box-align: center;
+            -webkit-align-items: center;
+            align-items: center;
+            -webkit-box-pack: center;
+            -webkit-justify-content: center;
+            justify-content: center;
+            color: #c7d2fe;
+            cursor: pointer;
+        }
+
+        .btn-icon:active {
+            -webkit-transform: translateY(3px);
+            transform: translateY(3px);
+            box-shadow: 0 1px 0 #12173b;
+        }
+
+        .best-pill {
+            display: -webkit-box;
+            display: -webkit-flex;
+            display: flex;
+            -webkit-box-align: center;
+            -webkit-align-items: center;
+            align-items: center;
+            background-color: #141940;
+            border: 2px solid #263075;
+            padding: 5px 14px;
+            border-radius: 16px;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.45);
+        }
+
+        .best-pill-val {
+            font-size: 20px;
+            font-weight: 900;
+            color: #fcd34d;
+            margin-left: 6px;
+        }
+
+        .score-section {
+            text-align: center;
+            margin: 2px 0;
+        }
+
+        #hud-score {
+            font-size: 44px;
+            line-height: 1.05;
+            font-weight: 900;
+            color: #ffffff;
+            text-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+            -webkit-transition: -webkit-transform 0.14s ease;
+            transition: transform 0.14s ease;
+        }
+
+        #combo-indicator {
+            height: 18px;
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: #67e8f9;
+            opacity: 0;
+            -webkit-transition: opacity 0.2s ease;
+            transition: opacity 0.2s ease;
+        }
+
+        /* =========================================================================
+           ИГРОВОЕ ПОЛЕ 8x8 (АДАПТИВНЫЙ КВАДРАТ ЧЕРЕЗ PADDING-BOTTOM БЕЗ ASPECT-RATIO)
+        ========================================================================= */
+        #board-outer {
+            width: 100%;
+            display: -webkit-box;
+            display: -webkit-flex;
+            display: flex;
+            -webkit-box-align: center;
+            -webkit-align-items: center;
+            align-items: center;
+            -webkit-box-pack: center;
+            -webkit-justify-content: center;
+            justify-content: center;
+        }
+
+        #board-wrapper {
+            width: 100%;
+            position: relative;
+            padding-bottom: 100%; /* Гарантирует 1:1 квадрат на Android 4.4+ */
+            background-color: #111536;
+            border-radius: 18px;
+            box-shadow:
+                inset 0 6px 12px rgba(0, 0, 0, 0.6),
+                0 8px 24px rgba(0, 0, 0, 0.4),
+                0 0 0 3px #252d69;
+        }
+
+        #grid {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            bottom: 6px;
+            left: 6px;
+            display: -webkit-box;
+            display: -webkit-flex;
+            display: flex;
+            -webkit-flex-wrap: wrap;
+            flex-wrap: wrap;
+        }
+
+        .grid-cell {
+            width: 12.5%;
+            height: 12.5%;
+            padding: 2.5px;
+            position: relative;
+        }
+
+        .cell-inner {
+            width: 100%;
+            height: 100%;
+            background-color: #1b214f;
+            border-radius: 7px;
+            position: relative;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.45);
+        }
+
+        /* 3D Блок внутри клетки или превью */
+        .block-tile {
+            width: 100%;
+            height: 100%;
+            border-radius: 7px;
+            position: relative;
+            box-shadow:
+                inset 0 4px 0 rgba(255, 255, 255, 0.45),
+                inset 0 -4px 0 rgba(0, 0, 0, 0.28),
+                inset 3px 0 0 rgba(255, 255, 255, 0.2),
+                inset -3px 0 0 rgba(0, 0, 0, 0.15),
+                0 2px 4px rgba(0, 0, 0, 0.35);
+            -webkit-transform: translateZ(0);
+            transform: translateZ(0);
+        }
+
+        .block-tile::after {
+            content: '';
+            position: absolute;
+            top: 16%;
+            left: 16%;
+            width: 68%;
+            height: 68%;
+            border-radius: 4px;
+            background-image: -webkit-linear-gradient(315deg, rgba(255,255,255,0.24) 0%, rgba(255,255,255,0) 65%);
+            background-image: linear-gradient(135deg, rgba(255,255,255,0.24) 0%, rgba(255,255,255,0) 65%);
+            pointer-events: none;
+        }
+
+        .preview-tile {
+            opacity: 0.46;
+            -webkit-transform: scale(0.93);
+            transform: scale(0.93);
+        }
+
+        /* Подсветка линии, которая сейчас сгорит (без тяжелого filter) */
+        .will-clear .block-tile {
+            box-shadow:
+                0 0 10px #ffffff,
+                inset 0 0 10px rgba(255, 255, 255, 0.9);
+            -webkit-animation: pulseGlow 0.38s infinite alternate;
+            animation: pulseGlow 0.38s infinite alternate;
+        }
+
+        @-webkit-keyframes pulseGlow {
+            0% { -webkit-transform: scale(0.95); }
+            100% { -webkit-transform: scale(1.03); }
+        }
+        @keyframes pulseGlow {
+            0% { transform: scale(0.95); }
+            100% { transform: scale(1.03); }
+        }
+
+        .pop-in {
+            -webkit-animation: popIn 0.18s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            animation: popIn 0.18s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        @-webkit-keyframes popIn {
+            0% { -webkit-transform: scale(0.5); }
+            70% { -webkit-transform: scale(1.08); }
+            100% { -webkit-transform: scale(1); }
+        }
+        @keyframes popIn {
+            0% { transform: scale(0.5); }
+            70% { transform: scale(1.08); }
+            100% { transform: scale(1); }
+        }
+
+        .clearing {
+            -webkit-animation: clearBlast 0.34s ease-out forwards;
+            animation: clearBlast 0.34s ease-out forwards;
+            z-index: 10;
+        }
+
+        @-webkit-keyframes clearBlast {
+            0% { -webkit-transform: scale(1); opacity: 1; }
+            35% { -webkit-transform: scale(1.18); opacity: 0.95; box-shadow: 0 0 14px #fff; }
+            100% { -webkit-transform: scale(0); opacity: 0; }
+        }
+        @keyframes clearBlast {
+            0% { transform: scale(1); opacity: 1; }
+            35% { transform: scale(1.18); opacity: 0.95; box-shadow: 0 0 14px #fff; }
+            100% { transform: scale(0); opacity: 0; }
+        }
+
+        /* =========================================================================
+           НИЖНЯЯ ПАНЕЛЬ С 3 ФИГУРАМИ
+        ========================================================================= */
+        #tray {
+            width: 100%;
+            height: 112px;
+            background-color: rgba(17, 21, 54, 0.75);
+            border: 2px solid #252d69;
+            border-radius: 18px;
+            display: -webkit-box;
+            display: -webkit-flex;
+            display: flex;
+            -webkit-box-align: center;
+            -webkit-align-items: center;
+            align-items: center;
+            -webkit-box-pack: justify;
+            -webkit-justify-content: space-between;
+            justify-content: space-between;
+            padding: 6px;
+            box-shadow: inset 0 4px 10px rgba(0, 0, 0, 0.4);
+        }
+
+        .tray-slot {
+            width: 33.33%;
+            height: 100%;
+            display: -webkit-box;
+            display: -webkit-flex;
+            display: flex;
+            -webkit-box-align: center;
+            -webkit-align-items: center;
+            align-items: center;
+            -webkit-box-pack: center;
+            -webkit-justify-content: center;
+            justify-content: center;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .piece-preview {
+            position: relative;
+            pointer-events: none;
+            -webkit-transition: opacity 0.2s ease, -webkit-transform 0.2s ease;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+
+        .piece-spawn {
+            -webkit-animation: spawnIn 0.26s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            animation: spawnIn 0.26s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        @-webkit-keyframes spawnIn {
+            0% { -webkit-transform: scale(0.2); opacity: 0; }
+            100% { -webkit-transform: scale(1); opacity: 1; }
+        }
+        @keyframes spawnIn {
+            0% { transform: scale(0.2); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .piece-unavailable {
+            opacity: 0.3;
+        }
+
+        /* Перетаскиваемая фигура (без filter: drop-shadow для 60 FPS на Android) */
+        #drag-ghost {
+            position: fixed;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            z-index: 999;
+            display: none;
+            will-change: transform;
+            -webkit-transform: translate3d(0, 0, 0);
+            transform: translate3d(0, 0, 0);
+        }
+
+        #drag-ghost .block-tile {
+            box-shadow:
+                inset 0 4px 0 rgba(255, 255, 255, 0.48),
+                inset 0 -4px 0 rgba(0, 0, 0, 0.3),
+                inset 3px 0 0 rgba(255, 255, 255, 0.22),
+                inset -3px 0 0 rgba(0, 0, 0, 0.18),
+                0 10px 18px rgba(0, 0, 0, 0.55);
+        }
+
+        /* Всплывающий текст очков и комбо */
+        .floating-text {
+            position: absolute;
+            left: 50%;
+            top: 48%;
+            pointer-events: none;
+            font-weight: 900;
+            text-transform: uppercase;
+            text-align: center;
+            white-space: nowrap;
+            z-index: 60;
+            text-shadow: 0 4px 0 rgba(0,0,0,0.6), 0 6px 14px rgba(0,0,0,0.5);
+            -webkit-animation: floatUp 0.9s ease-out forwards;
+            animation: floatUp 0.9s ease-out forwards;
+        }
+
+        @-webkit-keyframes floatUp {
+            0% { -webkit-transform: translate(-50%, -30%) scale(0.5); opacity: 0; }
+            25% { -webkit-transform: translate(-50%, -65%) scale(1.12); opacity: 1; }
+            100% { -webkit-transform: translate(-50%, -125%) scale(0.9); opacity: 0; }
+        }
+        @keyframes floatUp {
+            0% { transform: translate(-50%, -30%) scale(0.5); opacity: 0; }
+            25% { transform: translate(-50%, -65%) scale(1.12); opacity: 1; }
+            100% { transform: translate(-50%, -125%) scale(0.9); opacity: 0; }
+        }
+
+        /* Модальное окно окончания игры */
+        .gameover-card {
+            width: 100%;
+            max-width: 340px;
+            background-color: #181e4a;
+            border: 2px solid #344096;
+            border-radius: 24px;
+            padding: 24px 20px;
+            text-align: center;
+            box-shadow: 0 18px 40px rgba(0, 0, 0, 0.65);
+        }
+
+        .go-sub {
+            color: #fbbf24;
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 4px;
+        }
+
+        .go-title {
+            font-size: 28px;
+            font-weight: 900;
+            text-transform: uppercase;
+            margin-bottom: 18px;
+            text-shadow: 0 3px 0 rgba(0, 0, 0, 0.4);
+        }
+
+        .go-stats {
+            display: -webkit-box;
+            display: -webkit-flex;
+            display: flex;
+            -webkit-box-pack: justify;
+            -webkit-justify-content: space-between;
+            justify-content: space-between;
+            margin-bottom: 18px;
+        }
+
+        .go-stat-box {
+            width: 48%;
+            background-color: #111536;
+            border: 1px solid #283175;
+            border-radius: 16px;
+            padding: 12px 8px;
+        }
+
+        .go-stat-label {
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            color: #a5b4fc;
+            margin-bottom: 4px;
+        }
+
+        .go-stat-val {
+            font-size: 28px;
+            font-weight: 900;
+        }
+
+        .new-record-pill {
+            display: inline-block;
+            margin-bottom: 16px;
+            padding: 6px 16px;
+            border-radius: 20px;
+            background-color: #f59e0b;
+            color: #0f172a;
+            font-weight: 900;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Холст для частиц */
+        #fx-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 80;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Адаптация для компактных экранов старых смартфонов (480x800 и меньше) */
+        @media (max-height: 640px) {
+            #app-container {
+                max-width: 360px;
+                padding: 6px 10px 10px 10px;
+            }
+            #hud-score {
+                font-size: 34px;
+            }
+            #tray {
+                height: 92px;
+            }
+            .deco-grid {
+                width: 88px;
+                height: 88px;
+                margin-bottom: 10px;
+            }
+            .deco-cell {
+                width: 21px;
+                height: 21px;
+            }
+            .logo-title { font-size: 44px; }
+            .logo-subtitle { font-size: 35px; }
+            .logo-glist { font-size: 26px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Холст частиц (запускается только во время взрыва линий) -->
+    <canvas id="fx-canvas"></canvas>
+
+    <!-- ================= ГЛАВНОЕ МЕНЮ ================= -->
+    <div id="main-menu" class="screen-overlay">
+        <div class="menu-box">
+            <!-- Декоративная мини-сетка из 3D-блоков -->
+            <div class="deco-grid">
+                <div class="deco-cell"><div class="block-tile" style="background-color: #ff4757;"></div></div>
+                <div class="deco-cell"><div class="block-tile" style="background-color: #ffa502;"></div></div>
+                <div class="deco-cell"><div class="block-tile" style="background-color: #2ed573;"></div></div>
+                <div class="deco-cell"><div class="block-tile" style="background-color: #1e90ff;"></div></div>
+                <div class="deco-cell deco-empty"></div>
+                <div class="deco-cell"><div class="block-tile" style="background-color: #a55eea;"></div></div>
+                <div class="deco-cell"><div class="block-tile" style="background-color: #ff6b81;"></div></div>
+                <div class="deco-cell"><div class="block-tile" style="background-color: #eccc68;"></div></div>
+                <div class="deco-cell"><div class="block-tile" style="background-color: #00d2d3;"></div></div>
+            </div>
+
+            <!-- Заголовок BLOCK BLAST + G-LIST + By Van Eyn -->
+            <div class="logo-title">BLOCK</div>
+            <div class="logo-subtitle">BLAST</div>
+            <div class="logo-glist-row">
+                <div class="logo-glist">G-LIST</div>
+                <span class="signature-van-eyn">By Van Eyn</span>
+            </div>
+
+            <!-- Карточка лучшего рекорда -->
+            <div class="record-card">
+                <div class="record-label">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="margin-right: 6px;">
+                        <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z"/>
+                    </svg>
+                    <span>Лучший рекорд</span>
+                </div>
+                <div id="menu-best-score" class="record-value">0</div>
+            </div>
+
+            <!-- Кнопки меню -->
+            <div class="menu-buttons">
+                <button id="btn-play" type="button" class="btn-3d btn-green">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M8 5v14l11-7z"/>
+                    </svg>
+                    <span>Играть</span>
+                </button>
+
+                <a href="glist.html" id="btn-back" onclick="window.location.href='glist.html'; return false;" class="btn-3d btn-purple">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+                    </svg>
+                    <span>Назад</span>
+                </a>
+            </div>
+
+            <button id="menu-sound-btn" type="button" class="menu-sound-toggle">
+                <span id="menu-sound-icon" style="margin-right: 6px;">🔊</span>
+                <span id="menu-sound-text">Звук: Вкл</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- ================= ОКНО ОКОНЧАНИЯ ИГРЫ ================= -->
+    <div id="gameover-modal" class="screen-overlay screen-hidden">
+        <div class="gameover-card">
+            <div class="go-sub">Ходов больше нет</div>
+            <div class="go-title">Игра окончена</div>
+
+            <div class="go-stats">
+                <div class="go-stat-box">
+                    <div class="go-stat-label">Ваш счёт</div>
+                    <div id="go-score" class="go-stat-val" style="color: #ffffff;">0</div>
+                </div>
+                <div class="go-stat-box">
+                    <div class="go-stat-label" style="color: #fbbf24;">👑 Рекорд</div>
+                    <div id="go-best" class="go-stat-val" style="color: #fcd34d;">0</div>
+                </div>
+            </div>
+
+            <div id="new-record-badge" class="new-record-pill hidden">🎉 Новый рекорд!</div>
+
+            <div class="menu-buttons">
+                <button id="btn-restart" type="button" class="btn-3d btn-green" style="font-size: 20px; padding: 13px 18px;">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+                    </svg>
+                    <span>Заново</span>
+                </button>
+                <button id="btn-to-menu" type="button" class="btn-3d btn-blue">
+                    <span>В меню</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= ИГРОВОЙ ЭКРАН ================= -->
+    <div id="app-container">
+        <div class="top-header">
+            <button id="btn-home" type="button" class="btn-icon" title="В главное меню">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+                </svg>
+            </button>
+
+            <div class="best-pill">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="#fbbf24">
+                    <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z"/>
+                </svg>
+                <span id="hud-best" class="best-pill-val">0</span>
+            </div>
+
+            <button id="btn-sound" type="button" class="btn-icon" title="Вкл/Выкл звук">
+                <svg id="icon-sound-on" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+                </svg>
+                <svg id="icon-sound-off" class="hidden" width="24" height="24" viewBox="0 0 24 24" fill="#fb7185">
+                    <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
+                </svg>
+            </button>
+        </div>
+
+        <div class="score-section">
+            <div id="hud-score">0</div>
+            <div id="combo-indicator">Комбо x2</div>
+        </div>
+
+        <div id="board-outer">
+            <div id="board-wrapper">
+                <div id="grid"></div>
+            </div>
+        </div>
+
+        <div id="tray">
+            <div class="tray-slot" data-slot="0"></div>
+            <div class="tray-slot" data-slot="1"></div>
+            <div class="tray-slot" data-slot="2"></div>
+        </div>
+    </div>
+
+    <!-- Перетаскиваемый клон фигуры -->
+    <div id="drag-ghost"></div>
+
+    <script>
+        /* =========================================================================
+           КОНСТАНТЫ И ПАЛИТРА (ES5-СОВМЕСТИМЫЙ КОД ДЛЯ ANDROID WEBVIEW)
+        ========================================================================= */
+        var GRID_SIZE = 8;
+        var STORAGE_KEY = 'BBrecord';
+
+        var BLOCK_COLORS = [
+            '#ff4757', // Красный
+            '#ffa502', // Оранжевый
+            '#eccc68', // Жёлтый
+            '#2ed573', // Зелёный
+            '#00d2d3', // Бирюзовый
+            '#1e90ff', // Синий
+            '#a55eea', // Фиолетовый
+            '#ff6b81'  // Розовый
+        ];
+
+        var RAW_SHAPES = [
+            [[1]],
+            [[1, 1]],
+            [[1, 1, 1]],
+            [[1, 1, 1, 1]],
+            [[1, 1, 1, 1, 1]],
+            [[1], [1]],
+            [[1], [1], [1]],
+            [[1], [1], [1], [1]],
+            [[1], [1], [1], [1], [1]],
+            [[1, 1], [1, 1]],
+            [[1, 1, 1], [1, 1, 1], [1, 1, 1]],
+            [[1, 1, 1], [1, 1, 1]],
+            [[1, 1], [1, 1], [1, 1]],
+            [[1, 0], [1, 1]],
+            [[0, 1], [1, 1]],
+            [[1, 1], [1, 0]],
+            [[1, 1], [0, 1]],
+            [[1, 0, 0], [1, 0, 0], [1, 1, 1]],
+            [[0, 0, 1], [0, 0, 1], [1, 1, 1]],
+            [[1, 1, 1], [1, 0, 0], [1, 0, 0]],
+            [[1, 1, 1], [0, 0, 1], [0, 0, 1]],
+            [[1, 0], [1, 0], [1, 1]],
+            [[0, 1], [0, 1], [1, 1]],
+            [[1, 1], [1, 0], [1, 0]],
+            [[1, 1], [0, 1], [0, 1]],
+            [[1, 1, 1], [1, 0, 0]],
+            [[1, 1, 1], [0, 0, 1]],
+            [[1, 0, 0], [1, 1, 1]],
+            [[0, 0, 1], [1, 1, 1]],
+            [[1, 1, 1], [0, 1, 0]],
+            [[0, 1, 0], [1, 1, 1]],
+            [[1, 0], [1, 1], [1, 0]],
+            [[0, 1], [1, 1], [0, 1]],
+            [[1, 1, 0], [0, 1, 1]],
+            [[0, 1, 1], [1, 1, 0]],
+            [[0, 1], [1, 1], [1, 0]],
+            [[1, 0], [1, 1], [0, 1]],
+            [[1, 0], [0, 1]],
+            [[0, 1], [1, 0]],
+            [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+            [[0, 0, 1], [0, 1, 0], [1, 0, 0]]
+        ];
+
+        // Предварительно компилируем смещения клеток каждой фигуры для мгновенной симуляции (< 1 мс)
+        var SHAPES = [];
+        var COMPACT_SHAPES = [];
+
+        (function precompileShapes() {
+            for (var i = 0; i < RAW_SHAPES.length; i++) {
+                var mat = RAW_SHAPES[i];
+                var rows = mat.length;
+                var cols = mat[0].length;
+                var offsets = [];
+                for (var r = 0; r < rows; r++) {
+                    for (var c = 0; c < cols; c++) {
+                        if (mat[r][c]) {
+                            offsets.push(r * GRID_SIZE + c);
+                        }
+                    }
+                }
+                var compiled = {
+                    id: i,
+                    matrix: mat,
+                    rows: rows,
+                    cols: cols,
+                    offsets: offsets
+                };
+                SHAPES.push(compiled);
+                if (rows <= 3 && cols <= 3) {
+                    COMPACT_SHAPES.push(compiled);
+                }
+            }
+        })();
+
+        /* =========================================================================
+           ЗВУКОВОЙ СИНТЕЗАТОР (СОВМЕСТИМЫЙ С WEBKITAUDIOCONTEXT)
+        ========================================================================= */
+        var sound = {
+            ctx: null,
+            enabled: true,
+            init: function () {
+                try {
+                    if (!this.ctx) {
+                        var AudioCtx = window.AudioContext || window.webkitAudioContext;
+                        if (AudioCtx) {
+                            this.ctx = new AudioCtx();
+                        }
+                    }
+                    if (this.ctx && this.ctx.state === 'suspended' && this.ctx.resume) {
+                        this.ctx.resume();
+                    }
+                } catch (e) {}
+            },
+            toggle: function () {
+                this.enabled = !this.enabled;
+                if (this.enabled) {
+                    this.init();
+                    this.playPickup();
+                }
+                return this.enabled;
+            },
+            playTone: function (freq, type, duration, delay, vol, slideFreq) {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+                try {
+                    var now = this.ctx.currentTime + (delay || 0);
+                    var osc = this.ctx.createOscillator();
+                    var gain = this.ctx.createGain();
+
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, now);
+                    if (slideFreq) {
+                        osc.frequency.exponentialRampToValueAtTime(slideFreq, now + duration);
+                    }
+
+                    gain.gain.setValueAtTime(0.001, now);
+                    gain.gain.linearRampToValueAtTime(vol || 0.15, now + 0.015);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+
+                    if (osc.start) {
+                        osc.start(now);
+                        osc.stop(now + duration + 0.02);
+                    } else if (osc.noteOn) {
+                        osc.noteOn(now);
+                        osc.noteOff(now + duration + 0.02);
+                    }
+                } catch (e) {}
+            },
+            playPickup: function () {
+                this.playTone(340, 'sine', 0.08, 0, 0.12, 480);
+            },
+            playPlace: function () {
+                this.playTone(220, 'triangle', 0.11, 0, 0.2, 310);
+                this.playTone(440, 'sine', 0.09, 0.03, 0.12, null);
+            },
+            playClear: function (linesCount, combo) {
+                var baseNotes = [523.25, 659.25, 783.99, 1046.50, 1318.51];
+                var pitchBoost = Math.min((combo - 1) * 60, 300);
+                var count = Math.min(linesCount + 2, baseNotes.length);
+                for (var i = 0; i < count; i++) {
+                    this.playTone(baseNotes[i] + pitchBoost, 'triangle', 0.25, i * 0.055, 0.18, null);
+                }
+            },
+            playGameOver: function () {
+                var notes = [392.00, 349.23, 329.63, 261.63];
+                for (var i = 0; i < notes.length; i++) {
+                    this.playTone(notes[i], 'sawtooth', 0.28, i * 0.16, 0.12, null);
+                }
+            }
+        };
+
+        /* =========================================================================
+           СОСТОЯНИЕ ИГРЫ И DOM-ЭЛЕМЕНТЫ
+        ========================================================================= */
+        var board = []; // 8x8 массив цветов или null
+        var cellInners = []; // 8x8 массив .cell-inner DOM-элементов
+        var trayPieces = [null, null, null];
+        var score = 0;
+        var bestScore = 0;
+        var comboStreak = 0;
+
+        // Кешированное состояние перетаскивания (без вызова getBoundingClientRect на каждый кадр)
+        var dragState = {
+            active: false,
+            slotIndex: -1,
+            piece: null,
+            isTouch: false,
+            targetRow: null,
+            targetCol: null,
+            canPlace: false,
+            cellSize: 40,
+            gridLeft: 0,
+            gridTop: 0,
+            step: 42,
+            ghostWidth: 0,
+            ghostHeight: 0
+        };
+
+        var mainMenu = document.getElementById('main-menu');
+        var gameoverModal = document.getElementById('gameover-modal');
+        var gridEl = document.getElementById('grid');
+        var boardWrapper = document.getElementById('board-wrapper');
+        var traySlots = document.querySelectorAll('.tray-slot');
+        var dragGhost = document.getElementById('drag-ghost');
+
+        var menuBestScoreEl = document.getElementById('menu-best-score');
+        var hudBestEl = document.getElementById('hud-best');
+        var hudScoreEl = document.getElementById('hud-score');
+        var comboIndicatorEl = document.getElementById('combo-indicator');
+
+        var goScoreEl = document.getElementById('go-score');
+        var goBestEl = document.getElementById('go-best');
+        var newRecordBadge = document.getElementById('new-record-badge');
+
+        /* =========================================================================
+           СОХРАНЕНИЕ РЕКОРДА В LOCAL STORAGE (BBrecord)
+        ========================================================================= */
+        function loadBestScore() {
+            try {
+                var saved = localStorage.getItem(STORAGE_KEY);
+                bestScore = saved ? parseInt(saved, 10) || 0 : 0;
+            } catch (e) {
+                bestScore = 0;
+            }
+            updateScoreUI();
+        }
+
+        function saveBestScore(newBest) {
+            bestScore = newBest;
+            try {
+                localStorage.setItem(STORAGE_KEY, String(bestScore));
+            } catch (e) {}
+            updateScoreUI();
+        }
+
+        function updateScoreUI() {
+            menuBestScoreEl.textContent = bestScore;
+            hudBestEl.textContent = bestScore;
+            hudScoreEl.textContent = score;
+        }
+
+        /* =========================================================================
+           СОЗДАНИЕ СЕТКИ И ЗАПУСК ИГРЫ
+        ========================================================================= */
+        function createGridDOM() {
+            gridEl.innerHTML = '';
+            cellInners = [];
+
+            for (var r = 0; r < GRID_SIZE; r++) {
+                var rowEls = [];
+                for (var c = 0; c < GRID_SIZE; c++) {
+                    var cellWrap = document.createElement('div');
+                    cellWrap.className = 'grid-cell';
+
+                    var inner = document.createElement('div');
+                    inner.className = 'cell-inner';
+
+                    cellWrap.appendChild(inner);
+                    gridEl.appendChild(cellWrap);
+                    rowEls.push(inner);
+                }
+                cellInners.push(rowEls);
+            }
+        }
+
+        function startNewGame() {
+            sound.init();
+            score = 0;
+            comboStreak = 0;
+            comboIndicatorEl.style.opacity = '0';
+
+            board = [];
+            for (var r = 0; r < GRID_SIZE; r++) {
+                var row = [];
+                for (var c = 0; c < GRID_SIZE; c++) {
+                    row.push(null);
+                }
+                board.push(row);
+            }
+
+            updateScoreUI();
+            renderBoard();
+            generateThreePieces();
+
+            mainMenu.classList.add('screen-hidden');
+            gameoverModal.classList.add('screen-hidden');
+        }
+
+        function renderBoard() {
+            for (var r = 0; r < GRID_SIZE; r++) {
+                for (var c = 0; c < GRID_SIZE; c++) {
+                    var inner = cellInners[r][c];
+                    inner.className = 'cell-inner';
+                    inner.innerHTML = '';
+
+                    if (board[r][c]) {
+                        var tile = document.createElement('div');
+                        tile.className = 'block-tile';
+                        tile.style.backgroundColor = board[r][c];
+                        inner.appendChild(tile);
+                    }
+                }
+            }
+        }
+
+        /* =========================================================================
+           БЫСТРЫЙ РЕШАТЕЛЬ НА ОДНОМЕРНЫХ МАССИВАХ (ОПТИМИЗИРОВАН ПОД СТАРЫЕ CPU)
+           Проверяет, что все 3 фигуры можно выставить в любом порядке без поражения
+        ========================================================================= */
+        function boardToFlatArray(srcBoard) {
+            var flat = new Array(64);
+            var idx = 0;
+            for (var r = 0; r < GRID_SIZE; r++) {
+                for (var c = 0; c < GRID_SIZE; c++) {
+                    flat[idx++] = srcBoard[r][c] !== null ? 1 : 0;
+                }
+            }
+            return flat;
+        }
+
+        function canFitCompiledOnFlat(flat, shape, startR, startC) {
+            if (startR < 0 || startC < 0 || startR + shape.rows > GRID_SIZE || startC + shape.cols > GRID_SIZE) {
+                return false;
+            }
+            var baseIdx = startR * GRID_SIZE + startC;
+            var offsets = shape.offsets;
+            for (var i = 0; i < offsets.length; i++) {
+                if (flat[baseIdx + offsets[i]] === 1) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function simulatePlaceOnFlat(flat, shape, startR, startC) {
+            var next = flat.slice(0);
+            var baseIdx = startR * GRID_SIZE + startC;
+            var offsets = shape.offsets;
+
+            for (var i = 0; i < offsets.length; i++) {
+                next[baseIdx + offsets[i]] = 1;
+            }
+
+            var fullRows = [];
+            var fullCols = [];
+
+            for (var r = 0; r < GRID_SIZE; r++) {
+                var rowStart = r * GRID_SIZE;
+                var rFull = true;
+                for (var c = 0; c < GRID_SIZE; c++) {
+                    if (next[rowStart + c] === 0) {
+                        rFull = false;
+                        break;
+                    }
+                }
+                if (rFull) fullRows.push(r);
+            }
+
+            for (var col = 0; col < GRID_SIZE; col++) {
+                var cFull = true;
+                for (var row = 0; row < GRID_SIZE; row++) {
+                    if (next[row * GRID_SIZE + col] === 0) {
+                        cFull = false;
+                        break;
+                    }
+                }
+                if (cFull) fullCols.push(col);
+            }
+
+            for (var ri = 0; ri < fullRows.length; ri++) {
+                var rBase = fullRows[ri] * GRID_SIZE;
+                for (var ci = 0; ci < GRID_SIZE; ci++) {
+                    next[rBase + ci] = 0;
+                }
+            }
+
+            for (var cj = 0; cj < fullCols.length; cj++) {
+                var colIdx = fullCols[cj];
+                for (var rj = 0; rj < GRID_SIZE; rj++) {
+                    next[rj * GRID_SIZE + colIdx] = 0;
+                }
+            }
+
+            return {
+                flat: next,
+                cleared: fullRows.length + fullCols.length
+            };
+        }
+
+        function getCandidateNextFlats(flat, shape, maxBranches) {
+            var clearing = [];
+            var normal = [];
+            var maxR = GRID_SIZE - shape.rows;
+            var maxC = GRID_SIZE - shape.cols;
+
+            for (var r = 0; r <= maxR; r++) {
+                for (var c = 0; c <= maxC; c++) {
+                    if (canFitCompiledOnFlat(flat, shape, r, c)) {
+                        var sim = simulatePlaceOnFlat(flat, shape, r, c);
+                        if (sim.cleared > 0) {
+                            clearing.push(sim.flat);
+                        } else {
+                            normal.push(sim.flat);
+                        }
+                    }
+                }
+            }
+
+            // Быстрое перемешивание нескольких обычных ходов
+            for (var i = normal.length - 1; i > 0; i--) {
+                var j = (Math.random() * (i + 1)) | 0;
+                var tmp = normal[i];
+                normal[i] = normal[j];
+                normal[j] = tmp;
+            }
+
+            var combined = clearing.concat(normal);
+            if (combined.length > maxBranches) {
+                combined.length = maxBranches;
+            }
+            return combined;
+        }
+
+        function canPlayFixedOrderFlat(flat, orderedShapes, stepIndex) {
+            if (stepIndex >= orderedShapes.length) return true;
+            var currentShape = orderedShapes[stepIndex];
+            var nextStates = getCandidateNextFlats(flat, currentShape, 8);
+
+            for (var i = 0; i < nextStates.length; i++) {
+                if (canPlayFixedOrderFlat(nextStates[i], orderedShapes, stepIndex + 1)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        var PERMUTATIONS_6 = [
+            [0, 1, 2],
+            [0, 2, 1],
+            [1, 0, 2],
+            [1, 2, 0],
+            [2, 0, 1],
+            [2, 1, 0]
+        ];
+
+        // Проверяет, что все 3 фигуры могут быть сыграны в ЛЮБОМ порядке (все 6 перестановок)
+        function canPlayInAllOrdersFlat(flat, triple) {
+            for (var i = 0; i < 3; i++) {
+                if (getCandidateNextFlats(flat, triple[i], 1).length === 0) {
+                    return false;
+                }
+            }
+            for (var p = 0; p < 6; p++) {
+                var perm = PERMUTATIONS_6[p];
+                var ordered = [triple[perm[0]], triple[perm[1]], triple[perm[2]]];
+                if (!canPlayFixedOrderFlat(flat, ordered, 0)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        // Проверяет, существует ли хотя бы одна комбинация, при которой все 3 блока будут выставлены
+        function canPlayInAnyOrderFlat(flat, triple) {
+            for (var p = 0; p < 6; p++) {
+                var perm = PERMUTATIONS_6[p];
+                var ordered = [triple[perm[0]], triple[perm[1]], triple[perm[2]]];
+                if (canPlayFixedOrderFlat(flat, ordered, 0)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function generateThreePieces() {
+            var startFlat = boardToFlatArray(board);
+            var selected = null;
+            var attempt;
+
+            // 1. Ищем 3 фигуры, которые можно сыграть в ЛЮБОМ из 6 порядков
+            for (attempt = 0; attempt < 36; attempt++) {
+                var candAll = [
+                    SHAPES[(Math.random() * SHAPES.length) | 0],
+                    SHAPES[(Math.random() * SHAPES.length) | 0],
+                    SHAPES[(Math.random() * SHAPES.length) | 0]
+                ];
+                if (canPlayInAllOrdersFlat(startFlat, candAll)) {
+                    selected = candAll;
+                    break;
+                }
+            }
+
+            // 2. Если на поле тесно — ищем среди компактных фигур (до 3x3), проходимых в любом порядке
+            if (!selected) {
+                for (attempt = 0; attempt < 30; attempt++) {
+                    var candCompact = [
+                        COMPACT_SHAPES[(Math.random() * COMPACT_SHAPES.length) | 0],
+                        COMPACT_SHAPES[(Math.random() * COMPACT_SHAPES.length) | 0],
+                        COMPACT_SHAPES[(Math.random() * COMPACT_SHAPES.length) | 0]
+                    ];
+                    if (canPlayInAllOrdersFlat(startFlat, candCompact)) {
+                        selected = candCompact;
+                        break;
+                    }
+                }
+            }
+
+            // 3. Если все 6 перестановок невозможны — ищем тройку с гарантированным решением хотя бы в одном порядке
+            if (!selected) {
+                for (attempt = 0; attempt < 30; attempt++) {
+                    var candAny = [
+                        SHAPES[(Math.random() * SHAPES.length) | 0],
+                        SHAPES[(Math.random() * SHAPES.length) | 0],
+                        SHAPES[(Math.random() * SHAPES.length) | 0]
+                    ];
+                    if (canPlayInAnyOrderFlat(startFlat, candAny)) {
+                        selected = candAny;
+                        break;
+                    }
+                }
+            }
+
+            // 4. Пошаговый конструктор на случай экстремально заполненной доски
+            if (!selected) {
+                var constructed = [];
+                var simFlat = startFlat.slice(0);
+
+                for (var step = 0; step < 3; step++) {
+                    var pool = SHAPES.slice(0);
+                    for (var s = pool.length - 1; s > 0; s--) {
+                        var rIdx = (Math.random() * (s + 1)) | 0;
+                        var temp = pool[s];
+                        pool[s] = pool[rIdx];
+                        pool[rIdx] = temp;
+                    }
+
+                    var chosen = null;
+                    var nextFlat = null;
+                    for (var k = 0; k < pool.length; k++) {
+                        var states = getCandidateNextFlats(simFlat, pool[k], 1);
+                        if (states.length > 0) {
+                            chosen = pool[k];
+                            nextFlat = states[0];
+                            break;
+                        }
+                    }
+
+                    if (chosen) {
+                        constructed.push(chosen);
+                        simFlat = nextFlat;
+                    } else {
+                        constructed.push(SHAPES[0]);
+                    }
+                }
+                selected = constructed;
+            }
+
+            for (var idx = 0; idx < 3; idx++) {
+                var compiledShape = selected[idx];
+                var color = BLOCK_COLORS[(Math.random() * BLOCK_COLORS.length) | 0];
+                trayPieces[idx] = {
+                    matrix: compiledShape.matrix,
+                    rows: compiledShape.rows,
+                    cols: compiledShape.cols,
+                    color: color
+                };
+            }
+
+            renderTray(true);
+            updatePiecesAvailability();
+        }
+
+        /* =========================================================================
+           ОТРИСОВКА ТРЕЯ (НА АБСОЛЮТНОМ ПОЗИЦИОНИРОВАНИИ БЕЗ CSS GRID)
+        ========================================================================= */
+        function createPieceDOM(piece, tileSize, gap, extraClass) {
+            var container = document.createElement('div');
+            container.className = 'piece-preview' + (extraClass ? ' ' + extraClass : '');
+
+            var totalW = piece.cols * tileSize + (piece.cols - 1) * gap;
+            var totalH = piece.rows * tileSize + (piece.rows - 1) * gap;
+            container.style.width = totalW + 'px';
+            container.style.height = totalH + 'px';
+
+            for (var r = 0; r < piece.rows; r++) {
+                for (var c = 0; c < piece.cols; c++) {
+                    if (piece.matrix[r][c]) {
+                        var tile = document.createElement('div');
+                        tile.className = 'block-tile';
+                        tile.style.position = 'absolute';
+                        tile.style.width = tileSize + 'px';
+                        tile.style.height = tileSize + 'px';
+                        tile.style.left = (c * (tileSize + gap)) + 'px';
+                        tile.style.top = (r * (tileSize + gap)) + 'px';
+                        tile.style.backgroundColor = piece.color;
+                        tile.style.borderRadius = tileSize < 24 ? '5px' : '7px';
+                        container.appendChild(tile);
+                    }
+                }
+            }
+            return container;
+        }
+
+        function renderTray(animateSpawn) {
+            for (var idx = 0; idx < traySlots.length; idx++) {
+                var slot = traySlots[idx];
+                slot.innerHTML = '';
+                var piece = trayPieces[idx];
+                if (!piece) continue;
+
+                var maxDim = Math.max(piece.rows, piece.cols);
+                var tileSize = maxDim >= 5 ? 15 : maxDim === 4 ? 18 : 21;
+                var dom = createPieceDOM(piece, tileSize, 3, animateSpawn ? 'piece-spawn' : '');
+                slot.appendChild(dom);
+            }
+        }
+
+        /* =========================================================================
+           ПРОВЕРКА ДОСТУПНОСТИ ХОДОВ НА ДОСКЕ
+        ========================================================================= */
+        function canPlacePieceAt(piece, startRow, startCol) {
+            if (!piece) return false;
+            if (startRow < 0 || startCol < 0 || startRow + piece.rows > GRID_SIZE || startCol + piece.cols > GRID_SIZE) {
+                return false;
+            }
+            for (var r = 0; r < piece.rows; r++) {
+                for (var c = 0; c < piece.cols; c++) {
+                    if (piece.matrix[r][c] && board[startRow + r][startCol + c] !== null) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        function canPieceFitAnywhere(piece) {
+            if (!piece) return false;
+            var maxR = GRID_SIZE - piece.rows;
+            var maxC = GRID_SIZE - piece.cols;
+            for (var r = 0; r <= maxR; r++) {
+                for (var c = 0; c <= maxC; c++) {
+                    if (canPlacePieceAt(piece, r, c)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        function updatePiecesAvailability() {
+            var anyPieceCanFit = false;
+            var remainingPieces = 0;
+
+            for (var idx = 0; idx < trayPieces.length; idx++) {
+                var piece = trayPieces[idx];
+                var slotEl = traySlots[idx];
+                var previewEl = slotEl.querySelector('.piece-preview');
+                if (!piece) continue;
+
+                remainingPieces++;
+                if (canPieceFitAnywhere(piece)) {
+                    anyPieceCanFit = true;
+                    if (previewEl) previewEl.classList.remove('piece-unavailable');
+                } else {
+                    if (previewEl) previewEl.classList.add('piece-unavailable');
+                }
+            }
+
+            if (remainingPieces > 0 && !anyPieceCanFit) {
+                setTimeout(function () {
+                    triggerGameOver();
+                }, 420);
+            }
+        }
+
+        /* =========================================================================
+           ВЫСОКОПРОИЗВОДИТЕЛЬНЫЙ DRAG & DROP (КЕШИРОВАНИЕ МЕТРИК НА СТАРТЕ)
+        ========================================================================= */
+        function buildDragGhost(piece, cellSize, gap) {
+            dragGhost.innerHTML = '';
+            dragGhost.style.display = 'block';
+
+            var dom = createPieceDOM(piece, cellSize, gap, '');
+            dragGhost.style.width = dom.style.width;
+            dragGhost.style.height = dom.style.height;
+            dragGhost.appendChild(dom);
+        }
+
+        function startDrag(slotIndex, clientX, clientY, isTouch) {
+            var piece = trayPieces[slotIndex];
+            if (!piece) return;
+
+            sound.playPickup();
+
+            // Кешируем размеры сетки один раз при начале перетаскивания (0 layout thrashing)
+            var gridRect = gridEl.getBoundingClientRect();
+            var step = gridRect.width / GRID_SIZE;
+            var gap = 5;
+            var cellSize = step - gap;
+
+            dragState.active = true;
+            dragState.slotIndex = slotIndex;
+            dragState.piece = piece;
+            dragState.isTouch = isTouch;
+            dragState.cellSize = cellSize;
+            dragState.step = step;
+            dragState.gridLeft = gridRect.left;
+            dragState.gridTop = gridRect.top;
+            dragState.ghostWidth = piece.cols * cellSize + (piece.cols - 1) * gap;
+            dragState.ghostHeight = piece.rows * cellSize + (piece.rows - 1) * gap;
+            dragState.targetRow = null;
+            dragState.targetCol = null;
+            dragState.canPlace = false;
+
+            var previewEl = traySlots[slotIndex].querySelector('.piece-preview');
+            if (previewEl) previewEl.style.opacity = '0';
+
+            buildDragGhost(piece, cellSize, gap);
+            moveDrag(clientX, clientY);
+        }
+
+        function moveDrag(clientX, clientY) {
+            if (!dragState.active || !dragState.piece) return;
+
+            var piece = dragState.piece;
+            var cellSize = dragState.cellSize;
+            var step = dragState.step;
+
+            var verticalLift = dragState.isTouch ? 82 : 24;
+            var ghostLeft = clientX - dragState.ghostWidth / 2;
+            var ghostTop = clientY - dragState.ghostHeight / 2 - verticalLift;
+
+            var translateStr = 'translate3d(' + ghostLeft + 'px, ' + ghostTop + 'px, 0)';
+            dragGhost.style.webkitTransform = translateStr;
+            dragGhost.style.transform = translateStr;
+
+            var centerOfFirstBlockX = ghostLeft + cellSize / 2;
+            var centerOfFirstBlockY = ghostTop + cellSize / 2;
+
+            var col = Math.floor((centerOfFirstBlockX - dragState.gridLeft) / step);
+            var row = Math.floor((centerOfFirstBlockY - dragState.gridTop) / step);
+
+            if (canPlacePieceAt(piece, row, col)) {
+                if (dragState.targetRow !== row || dragState.targetCol !== col || !dragState.canPlace) {
+                    dragState.targetRow = row;
+                    dragState.targetCol = col;
+                    dragState.canPlace = true;
+                    renderPreviewOnGrid(piece, row, col);
+                }
+            } else {
+                if (dragState.canPlace) {
+                    dragState.canPlace = false;
+                    dragState.targetRow = null;
+                    dragState.targetCol = null;
+                    clearPreviewOnGrid();
+                }
+            }
+        }
+
+        function endDrag() {
+            if (!dragState.active) return;
+
+            var slotIndex = dragState.slotIndex;
+            var piece = dragState.piece;
+            var canPlace = dragState.canPlace;
+            var targetRow = dragState.targetRow;
+            var targetCol = dragState.targetCol;
+
+            dragGhost.style.display = 'none';
+            dragGhost.innerHTML = '';
+
+            if (canPlace && piece && targetRow !== null && targetCol !== null) {
+                clearPreviewOnGrid();
+                placePieceOnBoard(slotIndex, piece, targetRow, targetCol);
+            } else {
+                clearPreviewOnGrid();
+                if (traySlots[slotIndex]) {
+                    var previewEl = traySlots[slotIndex].querySelector('.piece-preview');
+                    if (previewEl) previewEl.style.opacity = '1';
+                }
+            }
+
+            dragState.active = false;
+            dragState.piece = null;
+            dragState.slotIndex = -1;
+        }
+
+        /* =========================================================================
+           ПРЕДПРОСМОТР НА СЕТКЕ И ПОДСВЕТКА ЛИНИЙ
+        ========================================================================= */
+        function clearPreviewOnGrid() {
+            for (var r = 0; r < GRID_SIZE; r++) {
+                for (var c = 0; c < GRID_SIZE; c++) {
+                    var inner = cellInners[r][c];
+                    inner.classList.remove('will-clear');
+                    var previewTile = inner.querySelector('.preview-tile');
+                    if (previewTile && previewTile.parentNode) {
+                        previewTile.parentNode.removeChild(previewTile);
+                    }
+                }
+            }
+        }
+
+        function renderPreviewOnGrid(piece, startRow, startCol) {
+            clearPreviewOnGrid();
+
+            for (var r = 0; r < piece.rows; r++) {
+                for (var c = 0; c < piece.cols; c++) {
+                    if (piece.matrix[r][c]) {
+                        var tr = startRow + r;
+                        var tc = startCol + c;
+                        var previewTile = document.createElement('div');
+                        previewTile.className = 'block-tile preview-tile';
+                        previewTile.style.backgroundColor = piece.color;
+                        cellInners[tr][tc].appendChild(previewTile);
+                    }
+                }
+            }
+
+            // Проверяем, какие линии заполнятся
+            for (var row = 0; row < GRID_SIZE; row++) {
+                var rowFull = true;
+                for (var col = 0; col < GRID_SIZE; col++) {
+                    var inPiece = (row >= startRow && row < startRow + piece.rows &&
+                                   col >= startCol && col < startCol + piece.cols &&
+                                   piece.matrix[row - startRow][col - startCol] === 1);
+                    if (!inPiece && board[row][col] === null) {
+                        rowFull = false;
+                        break;
+                    }
+                }
+                if (rowFull) {
+                    for (var cc = 0; cc < GRID_SIZE; cc++) {
+                        cellInners[row][cc].classList.add('will-clear');
+                    }
+                }
+            }
+
+            for (var cIdx = 0; cIdx < GRID_SIZE; cIdx++) {
+                var colFull = true;
+                for (var rIdx = 0; rIdx < GRID_SIZE; rIdx++) {
+                    var inPieceC = (rIdx >= startRow && rIdx < startRow + piece.rows &&
+                                    cIdx >= startCol && cIdx < startCol + piece.cols &&
+                                    piece.matrix[rIdx - startRow][cIdx - startCol] === 1);
+                    if (!inPieceC && board[rIdx][cIdx] === null) {
+                        colFull = false;
+                        break;
+                    }
+                }
+                if (colFull) {
+                    for (var rr = 0; rr < GRID_SIZE; rr++) {
+                        cellInners[rr][cIdx].classList.add('will-clear');
+                    }
+                }
+            }
+        }
+
+        /* =========================================================================
+           РАЗМЕЩЕНИЕ ФИГУРЫ И СЖИГАНИЕ ЛИНИЙ
+        ========================================================================= */
+        function placePieceOnBoard(slotIndex, piece, startRow, startCol) {
+            sound.playPlace();
+
+            var blocksPlaced = 0;
+            for (var r = 0; r < piece.rows; r++) {
+                for (var c = 0; c < piece.cols; c++) {
+                    if (piece.matrix[r][c]) {
+                        var tr = startRow + r;
+                        var tc = startCol + c;
+                        board[tr][tc] = piece.color;
+                        blocksPlaced++;
+
+                        var inner = cellInners[tr][tc];
+                        inner.innerHTML = '';
+                        var tile = document.createElement('div');
+                        tile.className = 'block-tile pop-in';
+                        tile.style.backgroundColor = piece.color;
+                        inner.appendChild(tile);
+                    }
+                }
+            }
+
+            trayPieces[slotIndex] = null;
+            traySlots[slotIndex].innerHTML = '';
+
+            addScore(blocksPlaced);
+
+            var fullRows = [];
+            var fullCols = [];
+
+            for (var row = 0; row < GRID_SIZE; row++) {
+                var isRowFull = true;
+                for (var col = 0; col < GRID_SIZE; col++) {
+                    if (board[row][col] === null) {
+                        isRowFull = false;
+                        break;
+                    }
+                }
+                if (isRowFull) fullRows.push(row);
+            }
+
+            for (var cIdx = 0; cIdx < GRID_SIZE; cIdx++) {
+                var isColFull = true;
+                for (var rIdx = 0; rIdx < GRID_SIZE; rIdx++) {
+                    if (board[rIdx][cIdx] === null) {
+                        isColFull = false;
+                        break;
+                    }
+                }
+                if (isColFull) fullCols.push(cIdx);
+            }
+
+            var totalLines = fullRows.length + fullCols.length;
+
+            if (totalLines > 0) {
+                comboStreak++;
+                clearLinesAndAnimate(fullRows, fullCols, totalLines, comboStreak);
+            } else {
+                comboStreak = 0;
+                comboIndicatorEl.style.opacity = '0';
+                afterTurnChecks();
+            }
+        }
+
+        function clearLinesAndAnimate(fullRows, fullCols, totalLines, currentCombo) {
+            sound.playClear(totalLines, currentCombo);
+
+            var clearedMap = {};
+            var cellsList = [];
+            var i, r, c, key;
+
+            for (i = 0; i < fullRows.length; i++) {
+                r = fullRows[i];
+                for (c = 0; c < GRID_SIZE; c++) {
+                    key = r + ',' + c;
+                    if (!clearedMap[key]) {
+                        clearedMap[key] = true;
+                        cellsList.push([r, c]);
+                    }
+                }
+            }
+            for (i = 0; i < fullCols.length; i++) {
+                c = fullCols[i];
+                for (r = 0; r < GRID_SIZE; r++) {
+                    key = r + ',' + c;
+                    if (!clearedMap[key]) {
+                        clearedMap[key] = true;
+                        cellsList.push([r, c]);
+                    }
+                }
+            }
+
+            var baseLinePoints = totalLines * 10 * totalLines;
+            var comboBonus = currentCombo > 1 ? (currentCombo - 1) * 15 : 0;
+            var earnedPoints = baseLinePoints + comboBonus;
+            addScore(earnedPoints);
+
+            if (currentCombo > 1) {
+                comboIndicatorEl.textContent = 'Комбо x' + currentCombo + '!';
+                comboIndicatorEl.style.opacity = '1';
+            }
+
+            var praiseWords = ['', 'Отлично!', 'Супер!', 'Мощно!', 'Мега Взрыв!', 'Невероятно!'];
+            var label = totalLines >= 2
+                ? praiseWords[Math.min(totalLines, 5)] + ' +' + earnedPoints
+                : currentCombo > 1
+                    ? 'Комбо x' + currentCombo + ' +' + earnedPoints
+                    : '+' + earnedPoints;
+
+            showFloatingText(label, totalLines >= 2 || currentCombo > 1);
+
+            // Вычисляем координаты сетки один раз для генерации частиц
+            var gridRect = gridEl.getBoundingClientRect();
+            var step = gridRect.width / GRID_SIZE;
+
+            for (i = 0; i < cellsList.length; i++) {
+                var cr = cellsList[i][0];
+                var cc = cellsList[i][1];
+                var color = board[cr][cc];
+                board[cr][cc] = null;
+
+                var inner = cellInners[cr][cc];
+                var tileEl = inner.querySelector('.block-tile');
+                if (tileEl) {
+                    tileEl.classList.remove('pop-in');
+                    tileEl.classList.add('clearing');
+                }
+
+                var px = gridRect.left + (cc + 0.5) * step;
+                var py = gridRect.top + (cr + 0.5) * step;
+                spawnCanvasParticles(px, py, color);
+            }
+
+            setTimeout(function () {
+                for (var j = 0; j < cellsList.length; j++) {
+                    var rr = cellsList[j][0];
+                    var rc = cellsList[j][1];
+                    cellInners[rr][rc].innerHTML = '';
+                }
+                afterTurnChecks();
+            }, 350);
+        }
+
+        function afterTurnChecks() {
+            var allEmpty = true;
+            for (var i = 0; i < 3; i++) {
+                if (trayPieces[i] !== null) {
+                    allEmpty = false;
+                    break;
+                }
+            }
+            if (allEmpty) {
+                generateThreePieces();
+            } else {
+                updatePiecesAvailability();
+            }
+        }
+
+        /* =========================================================================
+           ОЧКИ И ВСПЛЫВАЮЩИЕ НАДПИСИ
+        ========================================================================= */
+        function addScore(points) {
+            score += points;
+            if (score > bestScore) {
+                saveBestScore(score);
+            } else {
+                updateScoreUI();
+            }
+
+            hudScoreEl.style.webkitTransform = 'scale(1.15)';
+            hudScoreEl.style.transform = 'scale(1.15)';
+            setTimeout(function () {
+                hudScoreEl.style.webkitTransform = 'scale(1)';
+                hudScoreEl.style.transform = 'scale(1)';
+            }, 140);
+        }
+
+        function showFloatingText(text, isBig) {
+            var floatEl = document.createElement('div');
+            floatEl.className = 'floating-text';
+            floatEl.style.fontSize = isBig ? '28px' : '22px';
+            floatEl.style.color = isBig ? '#fde047' : '#38bdf8';
+            floatEl.textContent = text;
+
+            boardWrapper.appendChild(floatEl);
+            setTimeout(function () {
+                if (floatEl && floatEl.parentNode) {
+                    floatEl.parentNode.removeChild(floatEl);
+                }
+            }, 900);
+        }
+
+        /* =========================================================================
+           ЛЕГКОВЕСНАЯ СИСТЕМА ЧАСТИЦ НА CANVAS (РАБОТАЕТ ТОЛЬКО ПО ТРЕБОВАНИЮ)
+        ========================================================================= */
+        var fxCanvas = document.getElementById('fx-canvas');
+        var fxCtx = fxCanvas.getContext('2d');
+        var particles = [];
+        var particleLoopActive = false;
+
+        function resizeFxCanvas() {
+            fxCanvas.width = window.innerWidth;
+            fxCanvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeFxCanvas);
+        resizeFxCanvas();
+
+        function spawnCanvasParticles(x, y, color) {
+            for (var i = 0; i < 5; i++) {
+                var angle = Math.random() * Math.PI * 2;
+                var speed = 1.6 + Math.random() * 4.2;
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed - 1.0,
+                    size: 6 + Math.random() * 4,
+                    color: color || '#ffffff',
+                    alpha: 1
+                });
+            }
+            if (!particleLoopActive) {
+                particleLoopActive = true;
+                requestAnimationFrame(stepParticles);
+            }
+        }
+
+        function stepParticles() {
+            fxCtx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
+
+            for (var i = particles.length - 1; i >= 0; i--) {
+                var p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.2;
+                p.alpha -= 0.035;
+                p.size *= 0.96;
+
+                if (p.alpha <= 0.02) {
+                    particles.splice(i, 1);
+                    continue;
+                }
+
+                fxCtx.globalAlpha = p.alpha;
+                fxCtx.fillStyle = p.color;
+                fxCtx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+            }
+
+            fxCtx.globalAlpha = 1;
+
+            if (particles.length > 0) {
+                requestAnimationFrame(stepParticles);
+            } else {
+                particleLoopActive = false;
+                fxCtx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
+            }
+        }
+
+        /* =========================================================================
+           ОКОНЧАНИЕ ИГРЫ (GAME OVER)
+        ========================================================================= */
+        function triggerGameOver() {
+            sound.playGameOver();
+
+            var isNewRecord = score > 0 && score >= bestScore;
+            if (score > bestScore) {
+                saveBestScore(score);
+            }
+
+            goScoreEl.textContent = score;
+            goBestEl.textContent = bestScore;
+
+            if (isNewRecord) {
+                newRecordBadge.classList.remove('hidden');
+            } else {
+                newRecordBadge.classList.add('hidden');
+            }
+
+            gameoverModal.classList.remove('screen-hidden');
+        }
+
+        /* =========================================================================
+           ОБРАБОТЧИКИ СОБЫТИЙ (TOUCH + MOUSE ДЛЯ ВСЕХ ВЕРСИЙ ANDROID WEBVIEW)
+        ========================================================================= */
+        function bindSlotEvents(slot, index) {
+            slot.addEventListener('mousedown', function (e) {
+                if (e.button !== 0) return;
+                e.preventDefault();
+                startDrag(index, e.clientX, e.clientY, false);
+            }, false);
+
+            slot.addEventListener('touchstart', function (e) {
+                if (e.touches && e.touches.length > 0) {
+                    if (e.cancelable) e.preventDefault();
+                    var touch = e.touches[0];
+                    startDrag(index, touch.clientX, touch.clientY, true);
+                }
+            }, false);
+        }
+
+        function setupInputListeners() {
+            for (var i = 0; i < traySlots.length; i++) {
+                bindSlotEvents(traySlots[i], i);
+            }
+
+            window.addEventListener('mousemove', function (e) {
+                if (!dragState.active || dragState.isTouch) return;
+                e.preventDefault();
+                moveDrag(e.clientX, e.clientY);
+            }, false);
+
+            window.addEventListener('mouseup', function () {
+                if (!dragState.active || dragState.isTouch) return;
+                endDrag();
+            }, false);
+
+            window.addEventListener('touchmove', function (e) {
+                if (!dragState.active || !dragState.isTouch) return;
+                if (e.touches && e.touches.length > 0) {
+                    if (e.cancelable) e.preventDefault();
+                    var touch = e.touches[0];
+                    moveDrag(touch.clientX, touch.clientY);
+                }
+            }, false);
+
+            window.addEventListener('touchend', function () {
+                if (!dragState.active || !dragState.isTouch) return;
+                endDrag();
+            }, false);
+
+            window.addEventListener('touchcancel', function () {
+                if (!dragState.active || !dragState.isTouch) return;
+                endDrag();
+            }, false);
+
+            document.getElementById('btn-play').addEventListener('click', startNewGame, false);
+            document.getElementById('btn-restart').addEventListener('click', startNewGame, false);
+
+            document.getElementById('btn-to-menu').addEventListener('click', function () {
+                gameoverModal.classList.add('screen-hidden');
+                mainMenu.classList.remove('screen-hidden');
+                loadBestScore();
+            }, false);
+
+            document.getElementById('btn-home').addEventListener('click', function () {
+                mainMenu.classList.remove('screen-hidden');
+                loadBestScore();
+            }, false);
+
+            function syncSoundButtons(isEnabled) {
+                var iconOn = document.getElementById('icon-sound-on');
+                var iconOff = document.getElementById('icon-sound-off');
+                var menuIcon = document.getElementById('menu-sound-icon');
+                var menuText = document.getElementById('menu-sound-text');
+
+                if (isEnabled) {
+                    iconOn.classList.remove('hidden');
+                    iconOff.classList.add('hidden');
+                    menuIcon.textContent = '🔊';
+                    menuText.textContent = 'Звук: Вкл';
+                } else {
+                    iconOn.classList.add('hidden');
+                    iconOff.classList.remove('hidden');
+                    menuIcon.textContent = '🔇';
+                    menuText.textContent = 'Звук: Выкл';
+                }
+            }
+
+            document.getElementById('btn-sound').addEventListener('click', function () {
+                syncSoundButtons(sound.toggle());
+            }, false);
+
+            document.getElementById('menu-sound-btn').addEventListener('click', function () {
+                syncSoundButtons(sound.toggle());
+            }, false);
+        }
+
+        window.onload = function () {
+            loadBestScore();
+            createGridDOM();
+            setupInputListeners();
+        };
+    </script>
+</body>
+</html>

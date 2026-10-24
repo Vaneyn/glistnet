@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f7f8fb">
+<meta name="format-detection" content="telephone=no">
+<title>Сколько времени осталось?</title>
+<style>
+:root{
+  --bg:#f7f8fb;
+  --card:#ffffff;
+  --muted:#6b7280;
+  --accent:#0b1220;
+  --accent-2:#0ea5a4;
+  --border:#e7ecf2;
+  --unit-bg:#ffffff;
+  --unit-border:#f1f4f8;
+  --btn-bg:#0b1220;
+  --btn-fg:#ffffff;
+  --progress-bg:#eef2f7;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0b0f14;
+    --card:#151b24;
+    --muted:#8b95a5;
+    --accent:#e8edf3;
+    --border:#232a36;
+    --unit-bg:#1a2028;
+    --unit-border:#232a36;
+    --btn-bg:#0ea5a4;
+    --btn-fg:#ffffff;
+    --progress-bg:#1a2028;
+  }
+}
+*{box-sizing:border-box}
+html,body{
+  min-height:100dvh;
+  margin:0;
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  background:var(--bg);
+  color:var(--accent);
+  -webkit-font-smoothing:antialiased;
+  -webkit-tap-highlight-color:transparent;
+}
+.wrap{
+  max-width:1000px;
+  margin:10px auto;
+  padding:
+    max(12px, env(safe-area-inset-top))
+    max(12px, env(safe-area-inset-right))
+    max(12px, env(safe-area-inset-bottom))
+    max(12px, env(safe-area-inset-left));
+}
+.card{
+  background:var(--card);
+  border-radius:12px;
+  padding:12px;
+  box-shadow:0 8px 20px rgba(12,18,30,0.06);
+}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+h1{font-size:18px;margin:0}
+.lead{color:var(--muted);font-size:13px;margin-top:6px}
+.row{display:flex;gap:8px;align-items:stretch;flex-wrap:wrap;margin-top:10px}
+.field{flex:1 1 160px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.field-label{font-size:12px;color:var(--muted);padding-left:4px}
+input[type=text], input[type=date], select{
+  padding:10px;
+  border-radius:10px;
+  border:1px solid var(--border);
+  background:transparent;
+  font-size:16px;
+  min-height:44px;
+  width:100%;
+  font-family:inherit;
+  color:var(--accent);
+  -webkit-appearance:none;
+  appearance:none;
+}
+input:focus, select:focus{outline:2px solid var(--accent-2);outline-offset:-1px}
+.controls{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:stretch}
+button{
+  border:0;padding:10px 12px;border-radius:10px;font-size:16px;
+  cursor:pointer;background:var(--btn-bg);color:var(--btn-fg);
+  min-width:96px;min-height:44px;touch-action:manipulation;font-family:inherit;
+}
+button:active{transform:scale(0.98)}
+button.secondary{background:transparent;color:var(--accent);border:1px solid var(--border)}
+button.ghost{background:transparent;color:var(--muted);border:0;padding:8px;min-width:44px;min-height:44px}
+.controls select{flex:1 1 200px;min-width:0}
+.controls button{flex:0 0 auto}
+
+.body-grid{display:flex;gap:16px;margin-top:12px;align-items:flex-start}
+.left-col{flex:1 1 auto;min-width:0}
+.progress-col{flex:0 0 auto;text-align:center;display:flex;flex-direction:column;align-items:center}
+
+.big-totals{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px}
+.big-card{
+  border-radius:12px;padding:12px;
+  background:linear-gradient(180deg,rgba(14,165,164,0.06),rgba(14,165,164,0.02));
+  border:1px solid rgba(14,165,164,0.1);
+  text-align:center;min-width:0;
+}
+.big-value{font-size:20px;font-weight:800;letter-spacing:0.3px;display:block;transition:transform 220ms,opacity 160ms}
+.big-label{font-size:12px;color:var(--muted);margin-top:6px}
+
+.countdown{display:grid;grid-template-columns:repeat(auto-fit,minmax(72px,1fr));gap:8px;margin-top:12px}
+.unit{background:var(--unit-bg);border-radius:10px;padding:8px 10px;text-align:center;border:1px solid var(--unit-border);min-width:0}
+.amount{display:block;font-weight:700;font-size:18px;transition:transform 220ms,opacity 160ms}
+.label{font-size:12px;color:var(--muted)}
+.pulse{transform:scale(1.06);opacity:0.96}
+
+/* --- ПИКСЕЛЬНЫЙ ПРОГРЕСС: 200 x 500 = 100 000 пикселей ---
+   box-sizing: content-box — критично: иначе border:1px срезает
+   правые 2 колонки и нижние 2 строки canvas, и первая строка
+   заполнения (y=499) становится невидимой. */
+.progress-container{
+  box-sizing: content-box;
+  width:200px;
+  height:500px;
+  position:relative;
+  border-radius:4px;
+  overflow:hidden;
+  border:1px solid var(--border);
+  background:var(--progress-bg);
+  flex:0 0 auto;
+}
+#progressCanvas{
+  display:block;
+  width:200px;
+  height:500px;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+.progress-caption{
+  font-size:12px;
+  color:var(--muted);
+  margin-top:6px;
+  text-align:center;
+  line-height:1.35;
+}
+#progressPercent{
+  font-size:16px;
+  font-weight:800;
+  color:var(--accent);
+  display:block;
+  margin-bottom:2px;
+  font-variant-numeric: tabular-nums;
+}
+#progressPixels{
+  font-size:11px;
+  color:var(--muted);
+  font-variant-numeric: tabular-nums;
+  margin-bottom:2px;
+}
+
+.toast{
+  position:fixed;left:50%;transform:translateX(-50%) translateY(12px);
+  bottom:calc(16px + env(safe-area-inset-bottom));
+  background:var(--btn-bg);color:var(--btn-fg);
+  padding:10px 16px;border-radius:999px;font-size:15px;
+  opacity:0;pointer-events:none;transition:opacity 220ms,transform 220ms;
+  z-index:9999;max-width:calc(100vw - 32px);
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
+
+footer{margin-top:12px;display:flex;justify-content:space-between;color:var(--muted);font-size:13px;gap:8px;flex-wrap:wrap}
+
+@media (max-width:560px){
+  .controls{flex-direction:column}
+  .controls > *{width:100%}
+  .body-grid{flex-direction:column;align-items:center}
+  .left-col{width:100%}
+}
+@media (prefers-reduced-motion: reduce), (max-width:560px){
+  .amount, .big-value{transition:none}
+  .pulse{transform:none}
+}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <header>
+        <div>
+          <h1>Сколько времени осталось?</h1>
+          <div class="lead">DMB неизбежен</div>
+        </div>
+        <div style="text-align:right">
+          <button class="ghost" onclick="history.back()" title="Назад">НАЗАД</button>
+        </div>
+      </header>
+
+      <div class="row">
+        <div class="field" style="flex:1 1 100%">
+          <span class="field-label">Событие</span>
+          <input id="eventInput" type="text" placeholder="Например: Новый год 2030" maxlength="120">
+        </div>
+      </div>
+
+      <div class="row">
+        <label class="field">
+          <span class="field-label">Дата события</span>
+          <input id="dateInput" type="date">
+        </label>
+        <label class="field">
+          <span class="field-label">Начало отсчёта (по умолчанию — сегодня)</span>
+          <input id="startDateInput" type="date">
+        </label>
+      </div>
+
+      <div class="controls">
+        <button id="saveBtn" onclick="saveEvent()">Сохранить</button>
+        <button class="secondary" onclick="deleteSelectedEvent()">Удалить</button>
+        <select id="savedEvents" onchange="loadSelectedEvent()">
+          <option value="">— Новое событие —</option>
+        </select>
+      </div>
+
+      <div class="body-grid">
+        <div class="left-col">
+          <div class="big-totals" id="bigTotals">
+            <div class="big-card"><span class="big-value" id="tot-seconds">—</span><span class="big-label">секунд</span></div>
+            <div class="big-card"><span class="big-value" id="tot-minutes">—</span><span class="big-label">минут</span></div>
+            <div class="big-card"><span class="big-value" id="tot-hours">—</span><span class="big-label">часов</span></div>
+            <div class="big-card"><span class="big-value" id="tot-days">—</span><span class="big-label">дней</span></div>
+            <div class="big-card"><span class="big-value" id="tot-weeks">—</span><span class="big-label">недель</span></div>
+          </div>
+
+          <div id="countdown" class="countdown">
+            <div class="unit"><span class="amount" id="val-months">—</span><span class="label">Мес.</span></div>
+            <div class="unit"><span class="amount" id="val-weeks">—</span><span class="label">Нед.</span></div>
+            <div class="unit"><span class="amount" id="val-days">—</span><span class="label">Дней</span></div>
+            <div class="unit"><span class="amount" id="val-hours">—</span><span class="label">Часов</span></div>
+            <div class="unit"><span class="amount" id="val-minutes">—</span><span class="label">Мин.</span></div>
+            <div class="unit"><span class="amount" id="val-seconds">—</span><span class="label">Сек.</span></div>
+          </div>
+        </div>
+
+        <div class="progress-col">
+          <div class="progress-container" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progressBar">
+            <canvas id="progressCanvas" width="200" height="500"></canvas>
+          </div>
+          <div class="progress-caption">
+            <span id="progressPercent">—</span>
+            <div id="progressPixels"></div>
+            <div id="progressStartCaption"></div>
+          </div>
+        </div>
+      </div>
+
+      <footer>
+        <span>Жди, но жить не забывай</span>
+        <span>Я тебя предупредил</span>
+      </footer>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="assertive"></div>
+
+<script>
+/* ---- utils ---- */
+function showToast(text, ms=3000){
+  const t = document.getElementById('toast');
+  t.textContent = text;
+  t.classList.add('show');
+  clearTimeout(t._to);
+  t._to = setTimeout(()=> t.classList.remove('show'), ms);
+}
+function toDateInputValue(d){
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+const numberFormatter = new Intl.NumberFormat('ru-RU');
+
+/* ---- DB v2, с миграцией старых записей ---- */
+let db;
+const request = indexedDB.open('eventDB', 2);
+request.onupgradeneeded = e => {
+  db = e.target.result;
+  const tx = e.target.transaction;
+  let os;
+  if(!db.objectStoreNames.contains('events')){
+    os = db.createObjectStore('events',{keyPath:'id',autoIncrement:true});
+    os.createIndex('name','name',{unique:false});
+    os.createIndex('date','date',{unique:false});
+  } else {
+    os = tx.objectStore('events');
+  }
+  os.openCursor().onsuccess = ev => {
+    const c = ev.target.result;
+    if(c){
+      const item = c.value;
+      if(!item.startDate){
+        item.startDate = new Date().toISOString();
+        c.update(item);
+      }
+      c.continue();
+    }
+  };
+};
+request.onsuccess = e => {
+  db = e.target.result;
+  loadSavedEvents(() => {
+    const lastId = localStorage.getItem('lastEventId');
+    if(lastId){
+      const sel = document.getElementById('savedEvents');
+      sel.value = lastId;
+      if(sel.value) loadSelectedEvent();
+    }
+  });
+};
+request.onerror = e => console.error('IndexedDB error', e);
+
+/* ---- state ---- */
+let tickHandle = null;
+let tickFn = null;
+let currentEventId = null;
+let currentEventData = null;
+let eventFired = false;
+
+/* ---- UI helpers ---- */
+function setAndPulse(id, text){
+  const el = document.getElementById(id);
+  if(!el) return;
+  if(el.textContent !== text){
+    el.textContent = text;
+    el.classList.add('pulse');
+    clearTimeout(el._to);
+    el._to = setTimeout(()=> el.classList.remove('pulse'), 260);
+  }
+}
+
+/* =====================================================
+   ПИКСЕЛЬНЫЙ ПРОГРЕСС
+   Canvas 200 x 500 = 100 000 пикселей.
+   Порядок: снизу вверх, ряд за рядом, внутри ряда — слева направо.
+   Индекс 0 = левый НИЖНИЙ угол, индекс PX_TOTAL-1 = правый ВЕРХНИЙ.
+   В canvas ось Y идёт вниз, поэтому Y = PX_H - 1 - rowFromBottom.
+   ===================================================== */
+const PX_W = 200;
+const PX_H = 500;
+const PX_TOTAL = PX_W * PX_H; // 100 000
+
+let canvas = null;
+let ctx = null;
+let pixelsFilled = 0;
+let colorBg = '#eef2f7';
+let colorFill = '#0ea5a4';
+
+function readCssColors(){
+  const s = getComputedStyle(document.documentElement);
+  colorBg   = s.getPropertyValue('--progress-bg').trim() || colorBg;
+  colorFill = s.getPropertyValue('--accent-2').trim()   || colorFill;
+}
+
+function initCanvas(){
+  canvas = document.getElementById('progressCanvas');
+  if(!canvas) return;
+  canvas.width = PX_W;
+  canvas.height = PX_H;
+  ctx = canvas.getContext('2d', { alpha: false });
+  readCssColors();
+  pixelsFilled = 0;
+  ctx.fillStyle = colorBg;
+  ctx.fillRect(0, 0, PX_W, PX_H);
+}
+
+function paintPixel(i){
+  const rowFromBottom = Math.floor(i / PX_W);
+  const col = i % PX_W;
+  const y = PX_H - 1 - rowFromBottom;
+  ctx.fillRect(col, y, 1, 1);
+}
+
+function redrawPixels(){
+  if(!ctx) return;
+  ctx.fillStyle = colorBg;
+  ctx.fillRect(0, 0, PX_W, PX_H);
+  if(pixelsFilled > 0){
+    ctx.fillStyle = colorFill;
+    for(let i = 0; i < pixelsFilled; i++) paintPixel(i);
+  }
+}
+
+function setPixelsFilled(n){
+  if(!ctx) return;
+  n = Math.max(0, Math.min(PX_TOTAL, Math.floor(n)));
+  if(n === pixelsFilled) return;
+
+  if(n < pixelsFilled){
+    pixelsFilled = 0;
+    ctx.fillStyle = colorBg;
+    ctx.fillRect(0, 0, PX_W, PX_H);
+  }
+
+  ctx.fillStyle = colorFill;
+  for(let i = pixelsFilled; i < n; i++) paintPixel(i);
+  pixelsFilled = n;
+}
+
+function updatePercentLabel(percent){
+  const el = document.getElementById('progressPercent');
+  if(el) el.textContent = percent.toFixed(2) + '%';
+  const pxEl = document.getElementById('progressPixels');
+  if(pxEl) pxEl.textContent = numberFormatter.format(pixelsFilled) + ' / ' + numberFormatter.format(PX_TOTAL) + ' px';
+  const bar = document.getElementById('progressBar');
+  if(bar) bar.setAttribute('aria-valuenow', percent.toFixed(0));
+}
+
+/* Смена темы — перерисовка новыми цветами из CSS-переменных */
+if(window.matchMedia){
+  const mq = window.matchMedia('(prefers-color-scheme: dark)');
+  const handler = () => {
+    readCssColors();
+    const keep = pixelsFilled;
+    pixelsFilled = 0;
+    if(ctx){ ctx.fillStyle = colorBg; ctx.fillRect(0,0,PX_W,PX_H); }
+    setPixelsFilled(keep);
+  };
+  if(mq.addEventListener) mq.addEventListener('change', handler);
+  else if(mq.addListener) mq.addListener(handler);
+}
+
+/* ---- Save / Load / Delete / New ---- */
+function saveEvent(){
+  const name = document.getElementById('eventInput').value.trim();
+  const dateVal = document.getElementById('dateInput').value;
+  const startDateVal = document.getElementById('startDateInput').value;
+  if(!name || !dateVal){ showToast('Заполните название и дату'); return; }
+
+  // Работаем только с датами — старт всегда в 00:00 локально
+  const targetIso = new Date(dateVal + 'T00:00:00').toISOString();
+  const todayStr = toDateInputValue(new Date());
+  const effectiveStart = startDateVal || todayStr;
+  const startIso = new Date(effectiveStart + 'T00:00:00').toISOString();
+
+  const wasUpdate = !!currentEventId;
+  const item = { name, date: targetIso, startDate: startIso };
+  if(wasUpdate) item.id = currentEventId;
+
+  const tx = db.transaction('events','readwrite');
+  const os = tx.objectStore('events');
+  const req = wasUpdate ? os.put(item) : os.add(item);
+
+  req.onsuccess = (e) => {
+    const savedId = wasUpdate ? currentEventId : e.target.result;
+    currentEventId = null;
+    currentEventData = null;
+    document.getElementById('eventInput').value = '';
+    document.getElementById('dateInput').value = '';
+    document.getElementById('startDateInput').value = toDateInputValue(new Date());
+    loadSavedEvents(() => {
+      const sel = document.getElementById('savedEvents');
+      sel.value = String(savedId);
+      loadSelectedEvent();
+      showToast(wasUpdate ? 'Событие обновлено' : 'Событие сохранено');
+    });
+  };
+  req.onerror = () => showToast('Ошибка сохранения');
+}
+
+function loadSavedEvents(callback){
+  const sel = document.getElementById('savedEvents');
+  sel.innerHTML = '<option value="">— Новое событие —</option>';
+  const tx = db.transaction('events','readonly');
+  const os = tx.objectStore('events');
+  const idx = os.index('date');
+  idx.openCursor().onsuccess = e => {
+    const c = e.target.result;
+    if(c){
+      const item = c.value;
+      const dateStr = new Date(item.date).toLocaleDateString('ru-RU');
+      const opt = document.createElement('option');
+      opt.value = item.id;
+      opt.textContent = `${item.name} — ${dateStr}`;
+      sel.appendChild(opt);
+      c.continue();
+    } else if(typeof callback === 'function') callback();
+  };
+}
+
+function loadSelectedEvent(){
+  const id = document.getElementById('savedEvents').value;
+  if(!id){ newEvent(); return; }
+  const tx = db.transaction('events','readonly');
+  tx.objectStore('events').get(Number(id)).onsuccess = e => {
+    const ev = e.target.result;
+    if(ev) startCountdown(ev);
+  };
+}
+
+function newEvent(){
+  document.getElementById('eventInput').value = '';
+  document.getElementById('dateInput').value = '';
+  document.getElementById('startDateInput').value = toDateInputValue(new Date());
+  stopCountdown();
+  resetAllDisplays();
+  currentEventData = null;
+  currentEventId = null;
+  localStorage.removeItem('lastEventId');
+}
+
+function deleteSelectedEvent(){
+  const sel = document.getElementById('savedEvents');
+  const id = sel.value;
+  if(!id){ showToast('Сначала выберите событие'); return; }
+  const label = sel.options[sel.selectedIndex].textContent;
+  if(!confirm('Удалить «' + label + '»?')) return;
+  const tx = db.transaction('events','readwrite');
+  tx.objectStore('events').delete(Number(id)).onsuccess = () => {
+    if(Number(id) === currentEventId){ stopCountdown(); resetAllDisplays(); currentEventData = null; }
+    if(localStorage.getItem('lastEventId') === String(id)) localStorage.removeItem('lastEventId');
+    loadSavedEvents(()=> showToast('Событие удалено'));
+  };
+}
+
+/* ---- Countdown ---- */
+function stopCountdown(){
+  if(tickHandle){ clearTimeout(tickHandle); tickHandle = null; }
+  tickFn = null;
+  currentEventId = null;
+}
+function resetAllDisplays(){
+  ['tot-seconds','tot-minutes','tot-hours','tot-days','tot-weeks',
+   'val-months','val-weeks','val-days','val-hours','val-minutes','val-seconds'].forEach(id=>{
+    const el = document.getElementById(id); if(el) el.textContent='—';
+  });
+  const pct = document.getElementById('progressPercent');
+  if(pct) pct.textContent = '—';
+  const px = document.getElementById('progressPixels');
+  if(px) px.textContent = '';
+  const cap = document.getElementById('progressStartCaption');
+  if(cap) cap.textContent = '';
+  setPixelsFilled(0);
+  updatePercentLabel(0);
+}
+function updateAllZero(){
+  ['tot-seconds','tot-minutes','tot-hours','tot-days','tot-weeks',
+   'val-months','val-weeks','val-days','val-hours','val-minutes','val-seconds'].forEach(id=>{
+    setAndPulse(id, '0');
+  });
+}
+function scheduleNext(){
+  const delay = 1000 - (Date.now() % 1000);
+  tickHandle = setTimeout(() => {
+    if(tickFn){ tickFn(); scheduleNext(); }
+  }, delay);
+}
+function restartTick(){
+  if(!tickFn) return;
+  if(tickHandle){ clearTimeout(tickHandle); tickHandle = null; }
+  tickFn();
+  if(tickFn) scheduleNext();
+}
+document.addEventListener('visibilitychange', () => {
+  if(document.visibilityState === 'visible') restartTick();
+});
+window.addEventListener('focus', restartTick);
+
+function startCountdown(ev){
+  stopCountdown();
+  currentEventId = ev.id;
+  currentEventData = ev;
+  eventFired = false;
+  localStorage.setItem('lastEventId', String(ev.id));
+
+  const target = new Date(ev.date);
+  if(isNaN(target.getTime())){ showToast('Неверная дата'); return; }
+
+  // Старт всегда на локальной полуночи выбранной даты.
+  // Это нормализует и старые записи, где startDate мог быть с временем.
+  const startRaw = new Date(ev.startDate || Date.now());
+  const startDate = new Date(startRaw.getFullYear(), startRaw.getMonth(), startRaw.getDate());
+
+  document.getElementById('eventInput').value = ev.name;
+  document.getElementById('dateInput').value = toDateInputValue(target);
+  document.getElementById('startDateInput').value = toDateInputValue(startDate);
+
+  const cap = document.getElementById('progressStartCaption');
+  if(cap) cap.textContent = 'с ' + startDate.toLocaleDateString('ru-RU');
+
+  // Сброс canvas под новое событие
+  pixelsFilled = 0;
+  if(ctx){ ctx.fillStyle = colorBg; ctx.fillRect(0, 0, PX_W, PX_H); }
+
+  tickFn = function tick(){
+    const now = new Date();
+    const diffMs = target.getTime() - now.getTime();
+
+    if(diffMs > 0){
+      const totalSeconds = Math.floor(diffMs / 1000);
+      const totalMinutes = Math.floor(totalSeconds / 60);
+      const totalHours = Math.floor(totalMinutes / 60);
+      const totalDays = Math.floor(totalHours / 24);
+      const totalWeeks = Math.floor(totalDays / 7);
+
+      setAndPulse('tot-seconds', numberFormatter.format(totalSeconds));
+      setAndPulse('tot-minutes', numberFormatter.format(totalMinutes));
+      setAndPulse('tot-hours', numberFormatter.format(totalHours));
+      setAndPulse('tot-days', numberFormatter.format(totalDays));
+      setAndPulse('tot-weeks', numberFormatter.format(totalWeeks));
+
+      const monthMs = 1000*60*60*24*30.44;
+      const weekMs  = 1000*60*60*24*7;
+      const dayMs   = 1000*60*60*24;
+      const hourMs  = 1000*60*60;
+      const minMs   = 1000*60;
+      let r = diffMs;
+      const months  = Math.floor(r / monthMs); r -= months * monthMs;
+      const weeks   = Math.floor(r / weekMs);  r -= weeks  * weekMs;
+      const days    = Math.floor(r / dayMs);   r -= days   * dayMs;
+      const hours   = Math.floor(r / hourMs);  r -= hours  * hourMs;
+      const minutes = Math.floor(r / minMs);   r -= minutes* minMs;
+      const seconds = Math.floor(r / 1000);
+
+      setAndPulse('val-months', String(months));
+      setAndPulse('val-weeks', String(weeks));
+      setAndPulse('val-days', String(days));
+      setAndPulse('val-hours', String(hours));
+      setAndPulse('val-minutes', String(minutes));
+      setAndPulse('val-seconds', String(seconds));
+    } else {
+      updateAllZero();
+    }
+
+    const totalSpan = target.getTime() - startDate.getTime();
+    let percent;
+    if(totalSpan <= 0){
+      percent = 100;
+    } else {
+      percent = (now.getTime() - startDate.getTime()) / totalSpan * 100;
+      percent = Math.max(0, Math.min(100, percent));
+    }
+
+    const targetPixels = percent / 100 * PX_TOTAL;
+    setPixelsFilled(targetPixels);
+    updatePercentLabel(percent);
+
+    if(diffMs <= 0 && !eventFired){
+      eventFired = true;
+      setPixelsFilled(PX_TOTAL);
+      updatePercentLabel(100);
+      updateAllZero();
+      showToast('СВЕРШИЛОСЬ 🎉', 5000);
+      try{ if(navigator.vibrate) navigator.vibrate([80,40,80]); }catch(e){}
+      stopCountdown();
+    }
+  };
+
+  tickFn();
+  scheduleNext();
+}
+
+/* ---- init ---- */
+document.addEventListener('DOMContentLoaded', () => {
+  const sd = document.getElementById('startDateInput');
+  if(sd && !sd.value) sd.value = toDateInputValue(new Date());
+  initCanvas();
+});
+</script>
+</body>
+</html>

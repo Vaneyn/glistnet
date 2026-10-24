@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reaction Game</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    html, body {
+      overflow: hidden;
+      user-select: none;
+      height: 100%;
+    }
+    body {
+      background: #f4f4f4;
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 10px;
+    }
+    /* Шапка: счёт по центру, кнопка назад слева */
+    #header {
+      width: 97%;
+      max-width: 600px;
+      position: relative;
+      margin-bottom: 10px;
+    }
+    #scoreBoard {
+      font-size: 1.4rem;
+      text-align: center;
+    }
+    #backBtn {
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      padding: 8px 16px;
+      font-size: 1rem;
+      cursor: pointer;
+      border: none;
+      background: #333;
+      color: #fff;
+      border-radius: 5px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    /* Кнопка старт под канвасом */
+    #startBtn {
+      padding: 10px 20px;
+      font-size: 1.2rem;
+      cursor: pointer;
+      border: none;
+      background: #333;
+      color: #fff;
+      border-radius: 5px;
+      -webkit-tap-highlight-color: transparent;
+      margin-top: 10px;
+    }
+    button:focus {
+      outline: none;
+    }
+    #canvasContainer {
+      width: 90%;
+      max-width: 600px;
+      height: 60vh;
+      border: 2px solid #333;
+      background: #fff;
+      position: relative;
+      margin-bottom: 10px;
+      transition: border 0.1s;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    #timeBar {
+      width: 90%;
+      max-width: 600px;
+      height: 20px;
+      background: #ddd;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+    #timeFill {
+      height: 100%;
+      width: 100%;
+      background: #4caf50;
+      transition: width 0.2s;
+    }
+    @media (max-width: 480px) {
+      #scoreBoard {
+        font-size: 1.2rem;
+      }
+      #backBtn, #startBtn {
+        padding: 6px 12px;
+        font-size: 0.9rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="header">
+    <button id="backBtn" onclick="window.location.href='glist.html'">Назад</button>
+    <div id="scoreBoard">Счёт: 0</div>
+  </div>
+  
+  <div id="canvasContainer">
+    <canvas id="gameCanvas"></canvas>
+  </div>
+  
+  <div id="timeBar">
+    <div id="timeFill"></div>
+  </div>
+  
+  <button id="startBtn">Старт игры</button>
+
+  <script>
+    // === Ачивки: IndexedDB + уведомления ===
+    function initDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open("AchievementsDB", 1);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result);
+        request.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          db.createObjectStore("achievements", { keyPath: "title" });
+        };
+      });
+    }
+
+    async function addAchievement(title, text, image = "button.png") {
+      try {
+        const db = await initDB();
+        const tx = db.transaction("achievements", "readwrite");
+        const store = tx.objectStore("achievements");
+        const exists = await new Promise(res => {
+          const r = store.get(title);
+          r.onsuccess = () => res(!!r.result);
+        });
+        if (exists) return false;
+        await new Promise(res => store.add({ title, text, image }).onsuccess = res);
+        // уведомление на экране
+        const div = document.createElement("div");
+        div.textContent = title;
+        Object.assign(div.style, {
+          position: "fixed", top: "15px", left: "5%",
+          width: "90%", background: "#ffd700", color: "#1a1a1a",
+          padding: "10px", borderRadius: "8px",
+          boxShadow: "0 3px 10px rgba(0,0,0,0.3)", zIndex: 1000
+        });
+        document.body.appendChild(div);
+        setTimeout(() => div.remove(), 3000);
+        return true;
+      } catch (err) {
+        console.error(err);
+        return false;
+      }
+    }
+
+    // === Элементы интерфейса ===
+    const scoreBoard = document.getElementById('scoreBoard');
+    const canvasContainer = document.getElementById('canvasContainer');
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const timeFill = document.getElementById('timeFill');
+    const startBtn = document.getElementById('startBtn');
+
+    // === Настройка canvas ===
+    canvas.width = canvasContainer.clientWidth;
+    canvas.height = canvasContainer.clientHeight;
+
+    // === Игровые переменные ===
+    let score = 0;
+    let timeScore = 1000;
+    let gameInterval, animFrame;
+    let currentObject = null;
+    let gameRunning = false;
+    const BASE_RADIUS = 30;
+    const SCALE_FACTOR = 1.25;
+
+    // === Обновление UI ===
+    function updateUI() {
+      scoreBoard.textContent = `Счёт: ${score} (Рекорд: ${localStorage.getItem("Reactiongamerecord")||0})`;
+      const pct = Math.max(0, Math.min(100, (timeScore/1000)*100));
+      timeFill.style.width = pct + '%';
+    }
+
+    // === Генерация и отрисовка объектов ===
+    function generateObject() {
+      const type = Math.random()<0.5 ? 'red' : 'yellow';
+      const radius = BASE_RADIUS * SCALE_FACTOR;
+      const x = Math.random()*(canvas.width - 2*radius)+radius;
+      const y = Math.random()*(canvas.height - 2*radius)+radius;
+      let vx=0, vy=0;
+      if (type==='yellow') {
+        const speed = 2 + Math.random()*2;
+        const angle = Math.random()*2*Math.PI;
+        vx = speed*Math.cos(angle);
+        vy = speed*Math.sin(angle);
+      }
+      currentObject = { type, x, y, radius, vx, vy };
+      drawObject();
+    }
+    function drawObject() {
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      if (!currentObject) return;
+      ctx.beginPath();
+      ctx.arc(currentObject.x, currentObject.y, currentObject.radius, 0, 2*Math.PI);
+      ctx.fillStyle = currentObject.type==='red' ? '#e74c3c' : '#f1c40f';
+      ctx.fill();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "#333";
+      ctx.stroke();
+      ctx.closePath();
+    }
+
+    // === Анимация желтых шаров ===
+    function animate() {
+      if (!gameRunning) return;
+      if (currentObject && currentObject.type==='yellow') {
+        currentObject.x += currentObject.vx;
+        currentObject.y += currentObject.vy;
+        if (currentObject.x-currentObject.radius<0 || currentObject.x+currentObject.radius>canvas.width)
+          currentObject.vx *= -1;
+        if (currentObject.y-currentObject.radius<0 || currentObject.y+currentObject.radius>canvas.height)
+          currentObject.vy *= -1;
+        drawObject();
+      }
+      animFrame = requestAnimationFrame(animate);
+    }
+
+    // === Обработка клика по canvas ===
+    canvas.addEventListener('click', e => {
+      if (!gameRunning || !currentObject) return;
+      const rect = canvas.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
+      const dist = Math.hypot(clickX-currentObject.x, clickY-currentObject.y);
+      const margin = currentObject.type==='red' ? 0.02 : 0.10;
+      const allowed = currentObject.radius * (1 + margin);
+
+      if (dist <= allowed) {
+        score++;
+        timeScore += timeScore * 0.025;
+        updateUI();
+        // проверка ачивок
+        checkAndAddAchievement1();
+        checkAndAddAchievement2();
+        checkAndAddAchievement3();
+        checkAndAddAchievement4();
+        if (currentObject.type==='red') {
+          if (Math.random()<1/3) generateObject();
+        } else {
+          generateObject();
+        }
+      } else {
+        canvasContainer.style.border = "4px solid red";
+        setTimeout(()=>canvasContainer.style.border="2px solid #333", 100);
+        timeScore -= timeScore * 0.20;
+        updateUI();
+      }
+    });
+
+    // === Таймер игры ===
+    function startTimer() {
+      gameInterval = setInterval(() => {
+        timeScore -= 100;
+        updateUI();
+        if (timeScore <= 0) endGame();
+      }, 1000);
+    }
+
+    // === Завершение игры ===
+    function endGame() {
+      gameRunning = false;
+      clearInterval(gameInterval);
+      cancelAnimationFrame(animFrame);
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      const record = localStorage.getItem("Reactiongamerecord")||0;
+      if (score > record) localStorage.setItem("Reactiongamerecord", score);
+      alert(`Игра окончена! Ваш счёт: ${score}`);
+      startBtn.disabled = false;
+    }
+
+    // === Старт игры ===
+    function startGame() {
+      score = 0;
+      timeScore = 1000;
+      updateUI();
+      generateObject();
+      gameRunning = true;
+      startTimer();
+      animate();
+    }
+    startBtn.addEventListener('click', () => {
+      startBtn.disabled = true;
+      startGame();
+    });
+
+    // === Ачивки по счёту ===
+    async function checkAndAddAchievement1() {
+      if (score >= 20) {
+        const added = await addAchievement(
+          "Быстротык",
+          "Ты набрал 20 очков!",
+          "button.png"
+        );
+        if (added) console.log("Достижение 'Быстротык' добавлено!");
+      }
+    }
+    async function checkAndAddAchievement2() {
+      if (score >= 25) {
+        const added = await addAchievement(
+          "Молниехлопный",
+          "Ты набрал 25 очков!",
+          "button.png"
+        );
+        if (added) console.log("Достижение 'Молниехлопный' добавлено!");
+      }
+    }
+    async function checkAndAddAchievement3() {
+      if (score >= 30) {
+        const added = await addAchievement(
+          "Снайпертык пулеметный",
+          "Ты набрал 30 очков!",
+          "finger.jpeg"
+        );
+        if (added) console.log("Достижение 'Снайпертык пулеметный' добавлено!");
+      }
+    }
+    async function checkAndAddAchievement4() {
+      if (score >= 35) {
+        const added = await addAchievement(
+          "МЕГАЖМЯКЕР",
+          "Ты набрал 35 очков. Самое крутое достижение игры 'Реакция'",
+          "fingerepic.png"
+        );
+        if (added) console.log("Достижение 'МЕГАЖМЯКЕР' добавлено!");
+      }
+    }
+  </script>
+</body>
+</html>

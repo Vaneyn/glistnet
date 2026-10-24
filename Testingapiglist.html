@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Диагностика API | GlistNet</title>
+  <style>
+    /* Глобальные стили */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: 'Rajdhani', 'Agency FB', sans-serif;
+      background: linear-gradient(135deg, #0c0e1d, #1a1d3a);
+      color: #e0e0ff;
+      padding: 1em;
+      min-height: 100vh;
+      overflow-x: hidden;
+      position: relative;
+    }
+    
+    /* Эффект сканирования */
+    body::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, transparent, #00f7ff, transparent);
+      box-shadow: 0 0 20px 5px rgba(0, 247, 255, 0.6);
+      animation: scan 4s linear infinite;
+      z-index: 1000;
+    }
+    
+    @keyframes scan {
+      0% { top: 0; }
+      50% { top: 100%; }
+      100% { top: 0; }
+    }
+    
+    /* Эффект сетки */
+    body::after {
+      content: "";
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-image: 
+        linear-gradient(rgba(0, 247, 255, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 247, 255, 0.05) 1px, transparent 1px);
+      background-size: 20px 20px;
+      pointer-events: none;
+      z-index: -1;
+    }
+    
+    /* Стили заголовка */
+    .header {
+      text-align: center;
+      margin-bottom: 2rem;
+      position: relative;
+      padding: 1rem 0;
+    }
+    
+    .header h1 {
+      font-size: 2.2rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+      color: #fff;
+      text-shadow: 0 0 10px #00f7ff, 0 0 20px #00f7ff;
+      position: relative;
+      display: inline-block;
+    }
+    
+    .header h1::after {
+      content: "";
+      position: absolute;
+      bottom: -5px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, #00f7ff, #ff00ff, transparent);
+      box-shadow: 0 0 10px rgba(0, 247, 255, 0.7);
+    }
+    
+    /* Кнопки */
+    button {
+      display: block;
+      width: 100%;
+      padding: 0.9em;
+      margin: 1.5em 0;
+      border: none;
+      border-radius: 4px;
+      background: rgba(0, 10, 30, 0.7);
+      color: #00f7ff;
+      font-size: 1.1em;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+      border: 1px solid rgba(0, 247, 255, 0.4);
+      box-shadow: 0 0 10px rgba(0, 247, 255, 0.2), 
+                 0 0 20px rgba(0, 10, 30, 0.5) inset;
+    }
+    
+    button:hover {
+      background: rgba(0, 30, 60, 0.7);
+      box-shadow: 0 0 15px rgba(0, 247, 255, 0.5), 
+                 0 0 30px rgba(0, 247, 255, 0.3),
+                 0 0 20px rgba(0, 10, 30, 0.8) inset;
+      transform: translateY(-2px);
+    }
+    
+    button:active {
+      transform: translateY(1px);
+    }
+    
+    button::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(0, 247, 255, 0.2), transparent);
+      transition: 0.5s;
+    }
+    
+    button:hover::before {
+      left: 100%;
+    }
+    
+    button.back {
+      color: #ff00ff;
+      border: 1px solid rgba(255, 0, 255, 0.4);
+      box-shadow: 0 0 10px rgba(255, 0, 255, 0.2), 
+                  0 0 20px rgba(0, 10, 30, 0.5) inset;
+    }
+    
+    button.back:hover {
+      background: rgba(30, 0, 60, 0.7);
+      box-shadow: 0 0 15px rgba(255, 0, 255, 0.5), 
+                  0 0 30px rgba(255, 0, 255, 0.3),
+                  0 0 20px rgba(0, 10, 30, 0.8) inset;
+    }
+    
+    button.back::before {
+      background: linear-gradient(90deg, transparent, rgba(255, 0, 255, 0.2), transparent);
+    }
+    
+    /* Контейнер статуса */
+    .status-container {
+      position: relative;
+      max-width: 500px;
+      margin: 0 auto 2rem;
+      padding: 20px;
+      background: rgba(10, 15, 30, 0.5);
+      border: 1px solid rgba(0, 247, 255, 0.3);
+      border-radius: 10px;
+      box-shadow: 0 0 20px rgba(0, 247, 255, 0.1),
+                  0 0 40px rgba(0, 10, 30, 0.5) inset;
+    }
+    
+    /* Фигура статуса */
+    .status-figure {
+      width: 100%;
+      max-width: 400px;
+      margin: 0 auto;
+      display: block;
+      filter: drop-shadow(0 0 10px rgba(0, 247, 255, 0.5));
+    }
+    
+    /* Стили для шардов */
+    .shard {
+      transition: all 0.5s ease;
+    }
+    
+    .shard.ok polygon {
+      filter: url(#glow);
+    }
+    
+    .shard.fail polygon {
+      filter: url(#glow-red);
+    }
+    
+    .shard text {
+      font-size: 14px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      fill: #b0b0ff;
+      transition: all 0.3s ease;
+      text-shadow: 0 0 5px rgba(0, 0, 0, 0.8);
+    }
+    
+    .shard.ok text {
+      fill: #00f7ff;
+      text-shadow: 0 0 8px rgba(0, 247, 255, 0.8);
+    }
+    
+    .shard.fail text {
+      fill: #ff0055;
+      text-shadow: 0 0 8px rgba(255, 0, 85, 0.8);
+    }
+    
+    /* Центральная точка */
+    .center-point {
+      fill: #0a0f1e;
+      stroke: #00f7ff;
+      stroke-width: 2;
+      filter: url(#glow);
+      r: 15;
+    }
+    
+    /* Модальное окно */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 5, 15, 0.85);
+      justify-content: center;
+      align-items: center;
+      backdrop-filter: blur(5px);
+    }
+    
+    .modal-content {
+      background: linear-gradient(145deg, #001015, #000a1a);
+      color: #00ff00;
+      padding: 1.5em;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 800px;
+      max-height: 80vh;
+      overflow-y: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9em;
+      position: relative;
+      border: 1px solid rgba(0, 255, 0, 0.4);
+      box-shadow: 0 0 20px rgba(0, 255, 0, 0.3),
+                 0 0 40px rgba(0, 0, 0, 0.8) inset;
+    }
+    
+    .modal-content::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-image: 
+        linear-gradient(rgba(0, 255, 0, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 255, 0, 0.05) 1px, transparent 1px);
+      background-size: 20px 20px;
+      pointer-events: none;
+      z-index: -1;
+    }
+    
+    .close-btn {
+      position: absolute;
+      top: 10px;
+      right: 15px;
+      color: #ff0055;
+      font-size: 1.8em;
+      cursor: pointer;
+      text-shadow: 0 0 8px rgba(255, 0, 85, 0.8);
+      transition: all 0.3s ease;
+    }
+    
+    .close-btn:hover {
+      transform: scale(1.2);
+      color: #ff0000;
+      text-shadow: 0 0 15px rgba(255, 0, 0, 1);
+    }
+    
+    /* Текст в терминале */
+    #logOutput {
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 1.6;
+      color: #00ff00;
+      text-shadow: 0 0 5px rgba(0, 255, 0, 0.5);
+    }
+    
+    /* Анимации */
+    @keyframes pulse {
+      0% { opacity: 0.7; }
+      50% { opacity: 1; }
+      100% { opacity: 0.7; }
+    }
+    
+    .pulse {
+      animation: pulse 2s infinite ease-in-out;
+    }
+    
+    /* Индикатор состояния */
+    .status-indicator {
+      text-align: center;
+      margin: 10px 0;
+      font-size: 0.9em;
+      color: #00f7ff;
+      text-shadow: 0 0 5px rgba(0, 247, 255, 0.5);
+    }
+  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<button class="back" onclick="location.href='glist.html'">← Назад</button>
+
+<div class="header">
+  <h1>Диагностика API</h1>
+  <div class="status-indicator">Состояние: <span id="overallStatus">ПРОВЕРКА...</span></div>
+</div>
+
+<div class="status-container">
+  <svg viewBox="-120 -120 240 240" class="status-figure">
+    <defs>
+      <!-- Фильтр свечения для успешных элементов -->
+      <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+        <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur" />
+        <feColorMatrix in="blur" type="matrix"
+          values="0 0 0 0 0 
+                  0 1 0 0 0 
+                  0 0 1 0 0 
+                  0 0 0 15 -5" result="glow"/>
+        <feBlend in="SourceGraphic" in2="glow" mode="screen" />
+      </filter>
+      
+      <!-- Фильтр свечения для ошибок -->
+      <filter id="glow-red" x="-50%" y="-50%" width="200%" height="200%">
+        <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur" />
+        <feColorMatrix in="blur" type="matrix"
+          values="1 0 0 0 0 
+                  0 0 0 0 0 
+                  0 0 0.5 0 0 
+                  0 0 0 15 -5" result="glow"/>
+        <feBlend in="SourceGraphic" in2="glow" mode="screen" />
+      </filter>
+    </defs>
+    
+    <g id="shard-oldapi" class="shard">
+      <polygon points="0,0 100,0 30,95" fill="#0a0f1e" stroke="#00f7ff" stroke-width="1.5"/>
+      <text x="55" y="30">Old API</text>
+    </g>
+    
+    <g id="shard-tools" class="shard">
+      <polygon points="0,0 30,95 -80,60" fill="#0a0f1e" stroke="#00f7ff" stroke-width="1.5"/>
+      <text x="-20" y="80">Glist Tools</text>
+    </g>
+    
+    <g id="shard-plugins" class="shard">
+      <polygon points="0,0 -80,60 -100,-10" fill="#0a0f1e" stroke="#00f7ff" stroke-width="1.5"/>
+      <text x="-75" y="20">Plugins</text>
+    </g>
+    
+    <g id="shard-telegram" class="shard">
+      <polygon points="0,0 -100,-10 -30,-95" fill="#0a0f1e" stroke="#00f7ff" stroke-width="1.5"/>
+      <text x="-55" y="-30">Telegram</text>
+    </g>
+    
+    <g id="shard-openrouter" class="shard">
+      <polygon points="0,0 -30,-95 100,0" fill="#0a0f1e" stroke="#00f7ff" stroke-width="1.5"/>
+      <text x="30" y="-60">OpenRouter</text>
+    </g>
+    
+    <!-- Центральная точка -->
+    <circle class="center-point" cx="0" cy="0" />
+  </svg>
+</div>
+
+<button onclick="openModal()">Показать отладку</button>
+
+<div id="modal" class="modal">
+  <div class="modal-content">
+    <span class="close-btn" onclick="closeModal()">×</span>
+    <pre id="logOutput">Запуск диагностики...</pre>
+  </div>
+</div>
+
+<script>
+  const log = [];
+  const statusColors = { ok: '#00f7ff', fail: '#ff0055' };
+  let allSystemsOk = true;
+  
+  function openModal() {
+    document.getElementById('modal').style.display = 'flex';
+  }
+  
+  function closeModal() {
+    document.getElementById('modal').style.display = 'none';
+  }
+  
+  function setShardStatus(id, ok) {
+    const g = document.getElementById(id);
+    const polygon = g.querySelector('polygon');
+    
+    // Сброс класса
+    g.classList.remove('ok', 'fail');
+    
+    if (ok) {
+      g.classList.add('ok');
+      polygon.setAttribute('fill', '#0a1f1e');
+      polygon.setAttribute('stroke', statusColors.ok);
+    } else {
+      g.classList.add('fail');
+      polygon.setAttribute('fill', '#1f0a0a');
+      polygon.setAttribute('stroke', statusColors.fail);
+      allSystemsOk = false;
+    }
+  }
+  
+  function updateOverallStatus() {
+    const statusElement = document.getElementById('overallStatus');
+    if (allSystemsOk) {
+      statusElement.textContent = "ВСЕ СИСТЕМЫ ОПЕРАТИВНЫ";
+      statusElement.style.color = '#00f7ff';
+      statusElement.style.textShadow = '0 0 10px rgba(0, 247, 255, 0.8)';
+    } else {
+      statusElement.textContent = "ОБНАРУЖЕНЫ НЕИСПРАВНОСТИ";
+      statusElement.style.color = '#ff0055';
+      statusElement.style.textShadow = '0 0 10px rgba(255, 0, 85, 0.8)';
+    }
+  }
+  
+  function logEntry(title, details, ok) {
+    const border = ok ? "✔ УСПЕХ" : "✖ ОШИБКА";
+    const color = ok ? "#00ff00" : "#ff5555";
+    
+    const entry = 
+`╭─ ${title} — <span style="color: ${color}; text-shadow: 0 0 5px ${color}80;">${border}</span>
+│
+${details.trim().split('\n').map(l => `│ ${l}`).join('\n')}
+╰───────────────`;
+    
+    log.push(entry);
+  }
+  
+  async function checkOldAPI() {
+    const id = 'shard-oldapi';
+    try {
+      const res = await fetch('http://d90930x1.beget.tech/PocketCodeDB/DATABASE/echo/echo.php?slot=1&token=35733253709vaneyn2007@gmail.com46774546073');
+      const text = await res.text();
+      const match = text.match(/[а-яА-Я]/g);
+      const ok = match && match.length >= 3;
+      setShardStatus(id, ok);
+      logEntry("Old API", `Ответ:\n${text}`, ok);
+      return ok;
+    } catch (e) {
+      setShardStatus(id, false);
+      logEntry("Old API", `Ошибка: ${e.message}`, false);
+      return false;
+    }
+  }
+  
+  async function checkTools() {
+    const id = 'shard-tools';
+    try {
+      const res = await fetch('https://vaneyn.github.io/glistnet/glist.html');
+      const text = await res.text();
+      const ok = res.ok && text.length > 50;
+      setShardStatus(id, ok);
+      logEntry("Glist Tools", `Код: ${res.status}\nДлина: ${text.length}`, ok);
+      return ok;
+    } catch (e) {
+      setShardStatus(id, false);
+      logEntry("Glist Tools", `Ошибка: ${e.message}`, false);
+      return false;
+    }
+  }
+  
+  async function checkPlugins() {
+    const id = 'shard-plugins';
+    try {
+      const res = await fetch('https://vaneyn.github.io/glistnet/plugins.txt');
+      const text = await res.text();
+      const ok = res.ok && text.length > 10;
+      setShardStatus(id, ok);
+      logEntry("Plugins", `Код: ${res.status}\nСодержимое:\n${text}`, ok);
+      return ok;
+    } catch (e) {
+      setShardStatus(id, false);
+      logEntry("Plugins", `Ошибка: ${e.message}`, false);
+      return false;
+    }
+  }
+  
+  async function checkTelegram() {
+    const id = 'shard-telegram';
+    try {
+      const r100 = await fetch('https://t.me/glist_channel/100');
+      const t100 = await r100.text();
+      const ok100 = t100.includes("Версия от 15 марта 2025 года");
+      
+      const r118 = await fetch('https://t.me/glist_channel/118');
+      const t118 = await r118.text();
+      const ok118 = t118.includes("Версия от 12 мая 2025 года");
+      
+      const ok = ok100 && ok118;
+      setShardStatus(id, ok);
+      logEntry("Telegram", `100: ${ok100 ? "✓ найдено" : "✗ не найдено"}\n118: ${ok118 ? "✓ найдено" : "✗ не найдено"}`, ok);
+      return ok;
+    } catch (e) {
+      setShardStatus(id, false);
+      logEntry("Telegram", `Ошибка: ${e.message}`, false);
+      return false;
+    }
+  }
+  
+  async function checkOpenRouter() {
+    const id = 'shard-openrouter';
+    try {
+      const res = await fetch('https://status.openrouter.ai/');
+      const text = await res.text();
+      const matches = [...text.matchAll(/<span[^>]*class="component-status"[^>]*>(.*?)<\/span>/g)];
+      const statuses = matches.map(m => m[1].trim().toLowerCase());
+      const allOk = statuses.every(s => s.includes('operational'));
+      setShardStatus(id, allOk);
+      logEntry("OpenRouter", `Компоненты:\n${statuses.join(', ')}`, allOk);
+      return allOk;
+    } catch (e) {
+      setShardStatus(id, false);
+      logEntry("OpenRouter", `Ошибка: ${e.message}`, false);
+      return false;
+    }
+  }
+  
+  async function runChecks() {
+    // Добавляем анимацию пульсации для центральной точки
+    const centerPoint = document.querySelector('.center-point');
+    centerPoint.classList.add('pulse');
+    
+    // Запускаем проверки последовательно
+    await checkOldAPI();
+    await new Promise(resolve => setTimeout(resolve, 300));
+    await checkTools();
+    await new Promise(resolve => setTimeout(resolve, 300));
+    await checkPlugins();
+    await new Promise(resolve => setTimeout(resolve, 300));
+    await checkTelegram();
+    await new Promise(resolve => setTimeout(resolve, 300));
+    await checkOpenRouter();
+    
+    // Обновляем общий статус
+    updateOverallStatus();
+    
+    // Убираем анимацию пульсации
+    centerPoint.classList.remove('pulse');
+    
+    // Форматируем лог для вывода
+    document.getElementById('logOutput').innerHTML = log.join('\n\n');
+  }
+  
+  runChecks();
+</script>
+
+</body>
+</html>

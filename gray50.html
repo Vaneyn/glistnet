@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>50 оттенков серого</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        h1 {
+            text-align: right;
+            color: #444;
+            margin-bottom: 20px;
+padding: 0 60px
+        }
+        
+        .color-display {
+            width: 300px;
+            height: 200px;
+            margin: 0 auto 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.2s;
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        
+        button {
+            background-color: #666;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 0 10px;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #444;
+        }
+        
+        .shades-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+        }
+        
+        .shade-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 120px;
+            cursor: pointer;
+        }
+        
+        .shade-preview {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            margin-bottom: 5px;
+            border: 2px solid #ddd;
+            transition: transform 0.2s;
+        }
+        
+        .shade-preview:hover {
+            transform: scale(1.1);
+        }
+        
+        .shade-name {
+            text-align: center;
+            font-size: 12px;
+            color: #555;
+        }
+        
+        .color-code {
+            background-color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 14px;
+            margin-bottom: 5px;
+            cursor: pointer;
+            border: 1px solid #ddd;
+            transition: background-color 0.2s;
+        }
+        
+        .color-code:hover {
+            background-color: #f0f0f0;
+        }
+        
+        .selected-shade {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 30px;
+            gap: 20px;
+        }
+        
+        .selected-color {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: 3px solid #ddd;
+        }
+        
+        .selected-info {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #333;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 4px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+       .back-button {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background-color: #666;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    text-decoration: none;
+    font-size: 14px;
+}
+
+.back-button:hover {
+    background-color: #444;
+} 
+        .show {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <h1>50 оттенков серого</h1>
+    
+    <div class="color-display" id="colorDisplay"></div>
+    
+    <div class="controls">
+        <button id="startBtn">Старт</button>
+        <button id="stopBtn">Стоп</button>
+    </div>
+    <a href="glist.html" class="back-button">← Назад</a>
+    <div class="shades-container" id="shadesContainer"></div>
+    
+    <div class="selected-shade">
+        <div class="selected-color" id="selectedColor"></div>
+        <div class="selected-info">
+            <div class="color-code" id="selectedCode">Выберите оттенок</div>
+            <div id="selectedName"></div>
+        </div>
+    </div>
+    
+    <div class="notification" id="notification">Код скопирован!</div>
+    
+    <script>
+        // Все 50 оттенков серого с названиями
+        const grayShades = [
+            { name: "Белый", code: "#FFFFFF" },
+            { name: "Снежно-белый", code: "#FFFAFA" },
+            { name: "Дымчато-белый", code: "#F5F5F5" },
+            { name: "Серебристый", code: "#C0C0C0" },
+            { name: "Светло-серый", code: "#D3D3D3" },
+            { name: "Гейнсборо", code: "#DCDCDC" },
+            { name: "Платиновый", code: "#E5E4E2" },
+            { name: "Серый мороз", code: "#E5E4E2" },
+            { name: "Серый туман", code: "#C9C0BB" },
+            { name: "Серый голубь", code: "#C0C0C0" },
+            { name: "Серый шифер", code: "#708090" },
+            { name: "Серый сланец", code: "#778899" },
+            { name: "Серый олово", code: "#848482" },
+            { name: "Серый базальт", code: "#4E5754" },
+            { name: "Серый бетон", code: "#7C7C7C" },
+            { name: "Серый антрацит", code: "#293133" },
+            { name: "Серый графит", code: "#383838" },
+            { name: "Серый уголь", code: "#464646" },
+            { name: "Серый пепел", code: "#666362" },
+            { name: "Серый цемент", code: "#7D8471" },
+            { name: "Серый камень", code: "#8B8C89" },
+            { name: "Серый металлик", code: "#8C8C8C" },
+            { name: "Серый никель", code: "#727272" },
+            { name: "Серый сталь", code: "#71797E" },
+            { name: "Серый железо", code: "#5A5A5A" },
+            { name: "Серый титан", code: "#878681" },
+            { name: "Серый алюминий", code: "#A9ACB6" },
+            { name: "Серый цинк", code: "#7A7B78" },
+            { name: "Серый свинец", code: "#5D5D5D" },
+            { name: "Серый мышиный", code: "#848482" },
+            { name: "Серый слоновая кость", code: "#959492" },
+            { name: "Серый хаки", code: "#8A865D" },
+            { name: "Серый камуфляж", code: "#78866B" },
+            { name: "Серый джинсовый", code: "#6D8BAC" },
+            { name: "Серый линкор", code: "#848482" },
+            { name: "Серый флот", code: "#616D7E" },
+            { name: "Серый пыльный", code: "#A8989B" },
+            { name: "Серый пепельный", code: "#B2BEB5" },
+            { name: "Серый дымчатый", code: "#B6B6B4" },
+            { name: "Серый туманный", code: "#C0C0C0" },
+            { name: "Серый перламутр", code: "#DAD6CA" },
+            { name: "Серый жемчужный", code: "#D0D0D0" },
+            { name: "Серый кварц", code: "#C9C0BB" },
+            { name: "Серый мрамор", code: "#C0C0C0" },
+            { name: "Серый гранит", code: "#676767" },
+            { name: "Серый песчаник", code: "#786D5F" },
+            { name: "Серый глиняный", code: "#847E7C" },
+            { name: "Серый кирпичный", code: "#857A72" },
+            { name: "Серый асфальт", code: "#4A4A4A" },
+            { name: "Черный", code: "#000000" }
+        ];
+        
+        const colorDisplay = document.getElementById('colorDisplay');
+        const shadesContainer = document.getElementById('shadesContainer');
+        const selectedColor = document.getElementById('selectedColor');
+        const selectedCode = document.getElementById('selectedCode');
+        const selectedName = document.getElementById('selectedName');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const notification = document.getElementById('notification');
+        
+        let intervalId = null;
+        let currentIndex = 0;
+        
+        // Создаем карточки для каждого оттенка
+        grayShades.forEach((shade, index) => {
+            const shadeCard = document.createElement('div');
+            shadeCard.className = 'shade-card';
+            
+            const shadePreview = document.createElement('div');
+            shadePreview.className = 'shade-preview';
+            shadePreview.style.backgroundColor = shade.code;
+            
+            const colorCode = document.createElement('div');
+            colorCode.className = 'color-code';
+            colorCode.textContent = shade.code;
+            
+            const shadeName = document.createElement('div');
+            shadeName.className = 'shade-name';
+            shadeName.textContent = shade.name;
+            
+            // Обработчик клика на оттенок
+            shadeCard.addEventListener('click', () => {
+                selectedColor.style.backgroundColor = shade.code;
+                selectedCode.textContent = shade.code;
+                selectedName.textContent = shade.name;
+                stopColorChange();
+            });
+            
+            // Обработчик клика на код цвета
+            colorCode.addEventListener('click', (e) => {
+                e.stopPropagation();
+                navigator.clipboard.writeText(shade.code).then(() => {
+                    showNotification();
+                });
+            });
+            
+            shadeCard.appendChild(colorCode);
+            shadeCard.appendChild(shadePreview);
+            shadeCard.appendChild(shadeName);
+            shadesContainer.appendChild(shadeCard);
+        });
+        
+        // Функция для изменения цвета
+        function changeColor() {
+            colorDisplay.style.backgroundColor = grayShades[currentIndex].code;
+            currentIndex = (currentIndex + 1) % grayShades.length;
+        }
+        
+        // Функция для запуска смены цветов
+        function startColorChange() {
+            if (!intervalId) {
+                intervalId = setInterval(changeColor, 200);
+            }
+        }
+        
+        // Функция для остановки смены цветов
+        function stopColorChange() {
+            if (intervalId) {
+                clearInterval(intervalId);
+                intervalId = null;
+            }
+        }
+        
+        // Функция для показа уведомления
+        function showNotification() {
+            notification.classList.add('show');
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 2000);
+        }
+        
+        // Обработчики кнопок
+        startBtn.addEventListener('click', startColorChange);
+        stopBtn.addEventListener('click', stopColorChange);
+        
+        // Запускаем смену цветов при загрузке
+        startColorChange();
+    </script>
+</body>
+</html>

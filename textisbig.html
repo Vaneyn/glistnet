@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Оценка памяти</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      background: #2c2c2c;
+      color: #eee;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+      height: 100vh;
+      box-sizing: border-box;
+    }
+    textarea {
+      width: 100%;
+      max-width: 500px;
+      height: 200px;
+      margin: 10px 0;
+      background: #1e1e1e;
+      color: #ccc;
+      border: 1px solid #444;
+      padding: 10px;
+      resize: none;
+      font-family: monospace;
+    }
+    button {
+      padding: 10px 20px;
+      background: #444;
+      color: #fff;
+      border: none;
+      margin: 5px;
+      border-radius: 5px;
+    }
+    .result {
+      margin-top: 10px;
+      font-size: 14px;
+      color: #ccc;
+    }
+    .back-btn {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: #555;
+    }
+  </style>
+</head>
+<body>
+  <button class="back-btn" onclick="location.href='glist.html'">← Назад</button>
+  <h1> </h1>
+ <h2>Память текста</h2>
+  <textarea id="inputText" placeholder="Вставь текст сюда..."></textarea>
+  <div>
+    <button onclick="analyze()">Посчитать</button>
+  </div>
+  <div class="result" id="result"></div>
+
+  <script>
+    function toBase64(str) {
+      return btoa(unescape(encodeURIComponent(str)));
+    }
+
+    function getByteSize(str) {
+      return new TextEncoder().encode(str).length;
+    }
+
+    function analyze() {
+      const text = document.getElementById('inputText').value;
+      const rawBytes = getByteSize(text);
+      const base64 = toBase64(text);
+      const base64Bytes = getByteSize(base64);
+
+      document.getElementById('result').innerHTML = `
+        Обычный текст: ${(rawBytes / 1024).toFixed(2)} КБ<br>
+        Base64 версия: ${(base64Bytes / 1024).toFixed(2)} КБ
+      `;
+    }
+  </script>
+</body>
+</html>

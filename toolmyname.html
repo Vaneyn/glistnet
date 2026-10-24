@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Example</title>
+  <style>
+    body {
+      color: white;
+      background-color: grey;
+    }
+  </style>
+  <script>
+    // Получаем IP-адрес пользователя с сайта https://api.ipify.org
+    fetch('https://api.ipify.org?format=json')
+      .then(response => response.json())
+      .then(data => {
+        const ip = data.ip;
+
+        // Получаем значение имени из локального хранилища браузера
+        const name = localStorage.getItem('name');
+
+        // Отображаем поле ввода имени всегда
+        const form = document.createElement('form');
+        form.addEventListener('submit', event => {
+          event.preventDefault();
+
+          const name = document.querySelector('#name').value;
+
+          // Сохраняем имя пользователя в локальное хранилище браузера и в куки
+          localStorage.setItem('name', name);
+          document.cookie = `name=${name}; max-age=31536000`;
+
+          // Отображаем приветствие с именем
+          document.getElementById('greeting').textContent = `Привет, ${name}!`;
+        });
+
+        const label = document.createElement('label');
+        label.textContent = 'Введите ваше новое имя:';
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.id = 'name';
+        input.name = 'name';
+        const button = document.createElement('button');
+        button.type = 'submit';
+        button.textContent = 'Сохранить';
+        form.appendChild(label);
+        form.appendChild(input);
+        form.appendChild(button);
+        document.body.appendChild(form);
+
+        // Добавляем элемент для вывода приветствия
+        const greeting = document.createElement('div');
+        greeting.id = 'greeting';
+
+        // Отображаем приветствие только после получения имени пользователя из локального хранилища
+        if (name) {
+          greeting.textContent = `Привет, ${name}! Твой текущий ip= ${ip}`;
+        }
+
+        document.body.appendChild(greeting);
+      })
+      .catch(error => {
+        console.error('Произошла ошибка:', error);
+      });
+  </script>
+  	<script>
+		function runTool(toolName) {
+			var url = toolName + ".html";
+			window.open(url, "_blank");
+		}
+	</script>
+	</script>
+  <button onclick="runTool('glist')">НАЗАД</button>
+</script>
+</head>
+<body>
+</body>
+</html>

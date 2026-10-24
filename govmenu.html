@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Меню игры</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(to right, #4568DC, #B06AB3);
+    }
+    
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    
+    h1 {
+      font-size: 4rem;
+      color: white;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+      animation: fadeIn 1s ease-in-out;
+    }
+    
+    h2 {
+      font-size: 2rem;
+      color: white;
+      text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+      animation: fadeIn 1.5s ease-in-out;
+    }
+    
+    .buttons {
+      margin-top: 2rem;
+      animation: fadeIn 2s ease-in-out;
+    }
+    
+    .btn {
+      display: inline-block;
+      padding: 1rem 2rem;
+      margin: 0 1rem;
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: white;
+      background-color: #4568DC;
+      border: none;
+      border-radius: 5px;
+      box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+      transition: background-color 0.3s ease-in-out;
+    }
+    
+    .btn:hover {
+      background-color: #B06AB3;
+    }
+    
+    @keyframes fadeIn {
+      0% {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Государство</h1>
+Ядерная смута
+    <h2>Выберите сложность игры:</h2>
+    <div class="buttons">
+     		<button class="btn" onclick="runTool('govbase')">Легкий</button>
+				<button class="btn" onclick="runTool('govmedium')">Средний</button>
+		<button class="btn" onclick="runTool('govhard')">Лютый</button>
+		<button class="btn" onclick="runTool('govimp')">Невозможный?</button>
+		    <h3>Истории уровней:</h3>
+	<button class="btn" onclick="runTool('gov1')">Легкий: Бавария</button>
+	<button class="btn" onclick="runTool('gov2')">Средний: Москва</button>
+	<button class="btn" onclick="runTool('gov3')">Лютый: Урал</button>
+				
+    	<script>
+		function runTool(toolName) {
+			var url = toolName + ".html";
+			window.open(url, "_blank");
+		}
+	</script>
+			<button class="btn" onclick="runTool('glist')">НАЗАД</button>
+		
+    </div>
+  </div>
+</body>
+</html>

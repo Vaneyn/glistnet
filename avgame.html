@@ -1,0 +1,1615 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Толпа Артёмов — Deluxe Edition</title>
+<style>
+  :root {
+    --bg-panel: rgba(255, 255, 255, 0.88);
+    --border-panel: rgba(0, 0, 0, 0.14);
+    --accent: #ff6b35;
+    --accent-hover: #e85a25;
+    --text: #1f2421;
+  }
+  * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
+  html, body {
+    height: 100%; margin: 0; overflow: hidden;
+    background: #FFEFDD; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    color: var(--text);
+  }
+  #c {
+    display: block; width: 100vw; height: 100vh;
+    image-rendering: pixelated; touch-action: none;
+  }
+
+  /* Верхняя панель управления и статистики */
+  #topBar {
+    position: fixed; top: 10px; left: 10px; right: 10px; z-index: 40;
+    display: flex; justify-content: space-between; align-items: flex-start;
+    pointer-events: none; flex-wrap: wrap; gap: 8px;
+  }
+  .ui-group {
+    display: flex; gap: 6px; flex-wrap: wrap; pointer-events: auto;
+    background: var(--bg-panel); padding: 6px 8px; border-radius: 12px;
+    border: 1px solid var(--border-panel);
+    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+    align-items: center;
+  }
+  button {
+    padding: 7px 11px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.15);
+    background: #fff; font-weight: 600; font-size: 13px; color: var(--text);
+    cursor: pointer; transition: all 0.15s ease; display: inline-flex; align-items: center; gap: 5px;
+  }
+  button:hover { background: #f3f4f6; transform: translateY(-1px); }
+  button:active { transform: translateY(0); }
+  button.primary { background: var(--accent); color: #fff; border-color: transparent; }
+  button.primary:hover { background: var(--accent-hover); }
+  button.active-tool {
+    background: #1f2421; color: #fff; border-color: #1f2421;
+    box-shadow: 0 0 0 2px rgba(255,107,53,0.5);
+  }
+
+  .stat-pill {
+    font-size: 13px; font-weight: 700; padding: 4px 10px;
+    background: rgba(0,0,0,0.05); border-radius: 8px; display: flex; align-items: center; gap: 5px;
+  }
+
+  /* Нижняя док-панель инструментов */
+  #bottomDock {
+    position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
+    z-index: 40; display: flex; gap: 6px; pointer-events: auto;
+    background: var(--bg-panel); padding: 6px 10px; border-radius: 14px;
+    border: 1px solid var(--border-panel); backdrop-filter: blur(8px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.14); max-width: 96vw; overflow-x: auto;
+  }
+  .tool-btn { font-size: 13px; padding: 8px 12px; border-radius: 10px; white-space: nowrap; }
+
+  /* Всплывающий баннер подсказок */
+  #tipBanner {
+    position: fixed; bottom: 74px; left: 50%; transform: translateX(-50%);
+    background: rgba(31, 36, 33, 0.88); color: #fff; padding: 7px 16px;
+    border-radius: 20px; font-size: 12px; font-weight: 500; z-index: 35;
+    pointer-events: none; transition: opacity 0.4s ease; opacity: 0;
+    text-align: center; max-width: 90vw; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  }
+
+  /* Контейнер для тост-уведомлений и достижений */
+  #toastContainer {
+    position: fixed; top: 64px; left: 50%; transform: translateX(-50%);
+    z-index: 2000; display: flex; flex-direction: column; gap: 8px;
+    align-items: center; pointer-events: none; width: min(460px, 92vw);
+  }
+  .toast {
+    width: 100%; background: linear-gradient(135deg, #ffd700, #ffb700);
+    color: #1a1a1a; padding: 10px 14px; border-radius: 12px;
+    box-shadow: 0 8px 22px rgba(0,0,0,0.22); font-weight: 700;
+    display: flex; align-items: center; gap: 12px;
+    animation: slideIn 0.25s ease-out; pointer-events: auto;
+  }
+  @keyframes slideIn {
+    from { transform: translateY(-16px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+
+  /* Модальное окно достижений и правил */
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+    backdrop-filter: blur(3px); z-index: 1000; display: none;
+    align-items: center; justify-content: center; padding: 16px;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: #fff; border-radius: 16px; max-width: 500px; width: 100%;
+    max-height: 82vh; display: flex; flex-direction: column;
+    box-shadow: 0 12px 34px rgba(0,0,0,0.25); overflow: hidden;
+  }
+  .modal-header {
+    padding: 14px 18px; border-bottom: 1px solid #eee;
+    display: flex; justify-content: space-between; align-items: center;
+    font-weight: 800; font-size: 17px;
+  }
+  .modal-body { padding: 14px 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+  .ach-card {
+    display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+    border-radius: 10px; border: 1px solid #e5e7eb; background: #f9fafb;
+    opacity: 0.55; transition: all 0.2s;
+  }
+  .ach-card.unlocked {
+    opacity: 1; background: #fffbeb; border-color: #fde68a;
+  }
+  .ach-icon {
+    width: 40px; height: 40px; border-radius: 8px; background: #fef3c7;
+    display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+
+<div id="topBar">
+  <div class="ui-group">
+    <button id="backBtn" title="Сохранить и выйти">⬅ Назад</button>
+    <button id="spawnBtn" class="primary">➕ Артём</button>
+    <button id="delBtn" title="Удалить одного Артёма">➖ Удалить</button>
+    <button id="clearItemsBtn" title="Убрать все предметы с карты">🧹 Очистить</button>
+    <button id="saveBtn" title="Сохранить прогресс">💾</button>
+    <button id="muteBtn" title="Вкл/Выкл звук">🔊</button>
+    <button id="achBtn" title="Список достижений">🏆 <span id="achCountText">0/6</span></button>
+  </div>
+
+  <div class="ui-group">
+    <div class="stat-pill" title="Всего Артёмов на экране">🧑 <span id="statPop">0</span></div>
+    <div class="stat-pill" title="В невесомости">🚀 <span id="statSpace">0</span></div>
+    <div class="stat-pill" title="Болеют или грустят">🤢 <span id="statSick">0</span></div>
+    <div class="stat-pill" title="Влюблены">❤️ <span id="statLove">0</span></div>
+  </div>
+</div>
+
+<div id="toastContainer"></div>
+<div id="tipBanner"></div>
+
+<!-- Док выбора активного инструмента -->
+<div id="bottomDock">
+  <button class="tool-btn active-tool" data-tool="hand">✋ Рука (Тащить / Тап)</button>
+  <button class="tool-btn" data-tool="poopBox">💩 Коробка (Клон)</button>
+  <button class="tool-btn" data-tool="virus">🦠 Вирус</button>
+  <button class="tool-btn" data-tool="moon">🌕 Луна (Антиграв)</button>
+  <button class="tool-btn" data-tool="dark">⚫ Чёрная дыра</button>
+  <button class="tool-btn" data-tool="vacuum">🌪️ Пылесос</button>
+</div>
+
+<!-- Модальное окно достижений -->
+<div class="modal-backdrop" id="achModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span>🏆 Достижения «Толпы Артёмов»</span>
+      <button id="closeAchModal">✕</button>
+    </div>
+    <div class="modal-body" id="achListContainer"></div>
+  </div>
+</div>
+
+<canvas id="c"></canvas>
+
+<script>
+/* ============================================================================
+   ЧАСТЬ 1: КОНФИГУРАЦИЯ, ЗВУКОВОЙ СИНТЕЗАТОР И ЗАГРУЗЧИК СПРАЙТОВ (С ФОЛЛБЭКОМ)
+   ============================================================================ */
+
+const SPRITE_FILES = ['artem1.png','artem2.png','artem3.png','artem4.png','artem5.png'];
+const STORAGE_KEY = 'AVgame';
+const BASE_TARGET_HEIGHT_RATIO = 0.05;
+const SIZE_MULTIPLIER = 4;
+const TARGET_HEIGHT_RATIO = BASE_TARGET_HEIGHT_RATIO * SIZE_MULTIPLIER;
+const GRAVITY = 2200; // px/sec^2
+const BREATH_INTERVAL_MIN = 1500, BREATH_INTERVAL_MAX = 2000;
+const BREATH_RETURN_MS = 280;
+const AUTOSAVE_INTERVAL = 10000;
+const ITEM_SPAWN_MIN = 2500, ITEM_SPAWN_MAX = 18000;
+const FALLS_LIMIT_PER_MIN = 4;
+const PROXIMITY_DISTANCE = 40 * SIZE_MULTIPLIER;
+const PROXIMITY_REQUIRE_MS = 3000;
+const ITEM_GROUND_LIFETIME_MS = 20000;
+const ITEM_SCALE_DIV = 4;
+
+/* ======= Web Audio API Синтезатор ======= */
+class SoundFX {
+  constructor() {
+    this.ctx = null;
+    this.muted = false;
+  }
+  init() {
+    if (!this.ctx) {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtx) this.ctx = new AudioCtx();
+    }
+    if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+  }
+  play(type) {
+    if (this.muted) return;
+    this.init();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    if (type === 'jump') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(240, now);
+      osc.frequency.exponentialRampToValueAtTime(580, now + 0.14);
+      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+      osc.start(now); osc.stop(now + 0.15);
+    } else if (type === 'thud') {
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(110, now);
+      osc.frequency.exponentialRampToValueAtTime(38, now + 0.12);
+      gain.gain.setValueAtTime(0.2, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.12);
+      osc.start(now); osc.stop(now + 0.12);
+    } else if (type === 'pop') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(420, now);
+      osc.frequency.exponentialRampToValueAtTime(880, now + 0.08);
+      gain.gain.setValueAtTime(0.15, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.09);
+      osc.start(now); osc.stop(now + 0.09);
+    } else if (type === 'sick') {
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(220, now);
+      osc.frequency.linearRampToValueAtTime(130, now + 0.25);
+      gain.gain.setValueAtTime(0.1, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.26);
+      osc.start(now); osc.stop(now + 0.26);
+    } else if (type === 'boom') {
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(95, now);
+      osc.frequency.exponentialRampToValueAtTime(22, now + 0.32);
+      gain.gain.setValueAtTime(0.22, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.34);
+      osc.start(now); osc.stop(now + 0.34);
+    } else if (type === 'ach') {
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(523.25, now); // C5
+      osc.frequency.setValueAtTime(659.25, now + 0.1); // E5
+      osc.frequency.setValueAtTime(783.99, now + 0.2); // G5
+      gain.gain.setValueAtTime(0.18, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.45);
+      osc.start(now); osc.stop(now + 0.45);
+    }
+  }
+}
+const sfx = new SoundFX();
+
+/* ======= Настройка Canvas ======= */
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let DPR = Math.max(1, window.devicePixelRatio || 1);
+
+function resizeCanvas(){
+  DPR = Math.max(1, window.devicePixelRatio || 1);
+  const w = window.innerWidth, h = window.innerHeight;
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+  canvas.width = Math.round(w * DPR);
+  canvas.height = Math.round(h * DPR);
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.imageSmoothingEnabled = false;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+/* ======= Класс Спрайта с кэшированием маски прозрачности ======= */
+class Sprite {
+  constructor(img){
+    this.img = img;
+    this.w = img.width || 32;
+    this.h = img.height || 48;
+    this.leftOpaque = 0;
+    this.rightOpaque = this.w - 1;
+    this.topOpaque = 0;
+    this.bottomOpaque = this.h - 1;
+    this.alphaMask = null; // Uint8Array для мгновенного hit-теста без создания canvas
+    this._analyze();
+  }
+  _analyze(){
+    const tmp = document.createElement('canvas');
+    tmp.width = this.w; tmp.height = this.h;
+    const tctx = tmp.getContext('2d');
+    tctx.drawImage(this.img, 0, 0);
+    try {
+      const data = tctx.getImageData(0, 0, this.w, this.h).data;
+      this.alphaMask = new Uint8Array(this.w * this.h);
+      for(let i = 0; i < this.w * this.h; i++) {
+        this.alphaMask[i] = data[i * 4 + 3];
+      }
+      for(let x=0; x<this.w; x++){ let f=false; for(let y=0; y<this.h; y++){ if(this.alphaMask[y*this.w+x]>127){ this.leftOpaque=x; f=true; break; } } if(f) break; }
+      for(let x=this.w-1; x>=0; x--){ let f=false; for(let y=0; y<this.h; y++){ if(this.alphaMask[y*this.w+x]>127){ this.rightOpaque=x; f=true; break; } } if(f) break; }
+      for(let y=0; y<this.h; y++){ let f=false; for(let x=0; x<this.w; x++){ if(this.alphaMask[y*this.w+x]>127){ this.topOpaque=y; f=true; break; } } if(f) break; }
+      for(let y=this.h-1; y>=0; y--){ let f=false; for(let x=0; x<this.w; x++){ if(this.alphaMask[y*this.w+x]>127){ this.bottomOpaque=y; f=true; break; } } if(f) break; }
+    } catch(e) {
+      // Если открыто через file:// и браузер блокирует чтение внешней картинки
+      this.alphaMask = null;
+    }
+  }
+  isOpaqueAt(relX, relY) {
+    if (relX < 0 || relY < 0 || relX >= this.w || relY >= this.h) return false;
+    if (!this.alphaMask) return true;
+    return this.alphaMask[relY * this.w + relX] > 100;
+  }
+}
+
+/* ======= Процедурный генератор пиксельных Артёмов (если нет картинок) ======= */
+function createFallbackSpriteCanvas(poseIndex) {
+  const c = document.createElement('canvas');
+  c.width = 32; c.height = 40;
+  const g = c.getContext('2d');
+  g.imageSmoothingEnabled = false;
+
+  const px = (x, y, w, h, col) => { g.fillStyle = col; g.fillRect(x, y, w, h); };
+
+  // Цветовая палитра Артёма
+  const skin = '#ffcdb2', hair = '#4a2c11', shirt = '#3a86ff', pants = '#1d3557', shoes = '#2b2d42';
+
+  if (poseIndex === 4) {
+    // 4: Лежит (упал)
+    px(4, 26, 24, 9, shirt);
+    px(22, 24, 8, 9, skin);
+    px(24, 23, 6, 3, hair);
+    px(2, 28, 5, 6, pants);
+    px(26, 27, 2, 2, '#000'); // закрытый глаз
+    return c;
+  }
+
+  // Причёска и голова
+  px(9, 4, 14, 4, hair);
+  px(8, 7, 16, 11, skin);
+  px(8, 6, 3, 4, hair);
+
+  // Лицо в зависимости от состояния
+  if (poseIndex === 2) {
+    // 2: Влюблённый
+    px(11, 10, 3, 3, '#e63946');
+    px(18, 10, 3, 3, '#e63946');
+    px(13, 15, 6, 2, '#d62828');
+  } else if (poseIndex === 3) {
+    // 3: Грустный
+    px(11, 11, 2, 2, '#1d3557');
+    px(19, 11, 2, 2, '#1d3557');
+    px(11, 13, 2, 3, '#4cc9f0'); // слёзы
+    px(19, 13, 2, 3, '#4cc9f0');
+    px(13, 15, 6, 1, '#000');
+  } else {
+    // 0 и 1: Обычное лицо
+    px(11, 10, 2, 3, '#000');
+    px(19, 10, 2, 3, '#000');
+    px(14, 15, 4, 1, '#b56576');
+  }
+
+  // Торс (худи)
+  px(7, 18, 18, 11, shirt);
+  px(5, 19, 3, 8, shirt);
+  px(24, 19, 3, 8, shirt);
+  px(5, 27, 3, 2, skin);
+  px(24, 27, 3, 2, skin);
+
+  // Ноги (0 — стоит, 1 — шаг)
+  if (poseIndex === 1) {
+    px(9, 29, 5, 6, pants);
+    px(18, 28, 5, 5, pants);
+    px(8, 35, 6, 3, shoes);
+    px(18, 33, 6, 3, shoes);
+  } else {
+    px(9, 29, 5, 7, pants);
+    px(18, 29, 5, 7, pants);
+    px(8, 36, 6, 3, shoes);
+    px(18, 36, 6, 3, shoes);
+  }
+  return c;
+}
+
+let SPRITES = [];
+function loadImages(files){
+  return Promise.all(files.map((f, idx) => new Promise((res) => {
+    const img = new Image();
+    img.src = f;
+    img.onload = () => res(new Sprite(img));
+    img.onerror = () => {
+      // Если картинка не найдена — генерируем встроенный пиксель-арт
+      const fallbackCanvas = createFallbackSpriteCanvas(idx);
+      res(new Sprite(fallbackCanvas));
+    };
+  })));
+}
+
+/* ============================================================================
+   ЧАСТЬ 2: ИГРОВОЕ СОСТОЯНИЕ, ЧАСТИЦЫ, КЛАССЫ ARTEM И ITEM
+   ============================================================================ */
+
+function now(){ return Date.now(); }
+function rand(min,max){ return Math.random()*(max-min)+min; }
+function choose(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+
+let artems = [];
+let items = [];
+let particles = []; // Визуальные частицы и эмоции
+let activeTool = 'hand';
+let totalBlackHoleKills = 0;
+
+/* ======= Система частиц и эмодзи-эффектов ======= */
+function spawnParticle(x, y, opts = {}) {
+  particles.push({
+    x, y,
+    vx: opts.vx !== undefined ? opts.vx : rand(-90, 90),
+    vy: opts.vy !== undefined ? opts.vy : rand(-160, -40),
+    size: opts.size || rand(3, 7),
+    color: opts.color || '#ff6b35',
+    text: opts.text || null,
+    gravity: opts.gravity !== undefined ? opts.gravity : 0.4,
+    born: now(),
+    life: opts.life || 850
+  });
+}
+
+function updateAndDrawParticles(dt) {
+  const dtSec = dt / 1000;
+  const t = now();
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    const age = t - p.born;
+    if (age >= p.life) {
+      particles.splice(i, 1);
+      continue;
+    }
+    const prog = age / p.life;
+    p.x += p.vx * dtSec;
+    p.y += p.vy * dtSec;
+    p.vy += GRAVITY * p.gravity * dtSec;
+
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, 1 - prog);
+    if (p.text) {
+      ctx.font = `${Math.round(p.size)}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillText(p.text, p.x, p.y);
+    } else {
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * (1 - prog * 0.3), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+
+/* ======= Класс Артёма ======= */
+class Artem {
+  constructor(x, y){
+    this.x = x; this.y = y;
+    this.vx = rand(-80, 80); this.vy = 0;
+    this.rotation = 0; this.angularV = 0;
+    this.facing = this.vx >= 0 ? 1 : -1;
+    this.state = 'walk'; // walk | stand | held | lying | sad | inlove
+    this.spriteIndex = 0;
+    this.scale = 1; this.sizeGrow = 1;
+    this.initScale();
+    this.holding = null;
+    this.id = Math.random().toString(36).slice(2, 9);
+    this.fallTimestamps = [];
+    this.dead = false; this.opacity = 1;
+    this.proximityTimers = new Map();
+    this.getUpTimeout = null; this.sadTimeout = null;
+    this.spawnedAt = now();
+    this.nextBreathAt = now() + rand(BREATH_INTERVAL_MIN, BREATH_INTERVAL_MAX);
+    this.breathPhase = 0; this.breathStart = 0;
+    this.gravDisabledUntil = 0;
+    this.tintUntil = 0;
+    // ИИ ходьбы и анимации шага
+    this.walkTarget = null;
+    this.walkSpeed = rand(45, 110);
+    this.standUntil = 0;
+    this.stepAccum = 0;
+    this.lastEmoteAt = 0;
+  }
+
+  initScale(){
+    const s = SPRITES[0]; if(!s) return;
+    const desired = window.innerHeight * TARGET_HEIGHT_RATIO;
+    this.scale = desired / s.h;
+  }
+
+  width(){ return SPRITES[this.spriteIndexForState()].w * this.scale * this.sizeGrow; }
+  height(){ return SPRITES[this.spriteIndexForState()].h * this.scale * this.sizeGrow; }
+
+  leftOpaqueWorld(){ const s = SPRITES[this.spriteIndexForState()]; return this.x + (s.leftOpaque - s.w/2) * this.scale * this.sizeGrow; }
+  rightOpaqueWorld(){ const s = SPRITES[this.spriteIndexForState()]; return this.x + (s.rightOpaque - s.w/2) * this.scale * this.sizeGrow; }
+  topOpaqueWorld(){ const s = SPRITES[this.spriteIndexForState()]; return this.y + (s.topOpaque) * this.scale * this.sizeGrow; }
+  bottomOpaqueWorld(){ const s = SPRITES[this.spriteIndexForState()]; return this.y + (s.bottomOpaque) * this.scale * this.sizeGrow; }
+
+  spriteIndexForState(){
+    if(this.state === 'lying') return 4;
+    if(this.state === 'sad') return 3;
+    if(this.state === 'inlove') return 2;
+    if(this.state === 'held') return 0;
+    if(this.state === 'walk') {
+      // Чередуем кадры 0 и 1 при движении для живой походки
+      if (Math.abs(this.vx) > 10) {
+        return (Math.floor(this.stepAccum / 14) % 2 === 0) ? 1 : 0;
+      }
+      return 0;
+    }
+    return 0;
+  }
+
+  pickRandomWalkTarget(){
+    const s = SPRITES[0];
+    const margin = 24 + (s ? s.w * this.scale * 0.5 : 30);
+    this.walkTarget = rand(margin, Math.max(margin + 10, canvas.clientWidth - margin));
+    this.walkSpeed = rand(45, 120);
+  }
+
+  registerFall(){
+    const t = now();
+    this.fallTimestamps.push(t);
+    this.fallTimestamps = this.fallTimestamps.filter(ts => t - ts <= 60000);
+    sfx.play('thud');
+    for(let i=0; i<5; i++) {
+      spawnParticle(this.x, this.bottomOpaqueWorld(), { color: '#d4a373', vy: rand(-100, -30), life: 450 });
+    }
+    if(this.fallTimestamps.length >= FALLS_LIMIT_PER_MIN && !this.dead){
+      this.dead = true;
+      spawnParticle(this.x, this.y, { text: '👻', size: 24, vy: -80, gravity: 0, life: 1200 });
+      const start = now(), dur = 1200;
+      const that = this;
+      (function fade(){
+        const p = Math.min(1, (now() - start) / dur);
+        that.opacity = 1 - p;
+        if(p < 1) requestAnimationFrame(fade);
+        else {
+          that.opacity = 0;
+          const idx = artems.indexOf(that);
+          if(idx >= 0) artems.splice(idx, 1);
+        }
+      })();
+    }
+  }
+
+  pickUp(pointerId, px, py){
+    this.holding = {
+      pointerId, pivotX: px, pivotY: py,
+      baseOx: this.x - px, baseOy: this.y - py,
+      rotationSincePick: this.rotation
+    };
+    this.state = 'held';
+    this.angularV = 0; this.vx = 0; this.vy = 0;
+  }
+
+  updateWhileHeld(px, py, lastDx, lastDy, dt){
+    if(!this.holding) return;
+    const h = this.holding;
+    const ox = h.baseOx, oy = h.baseOy;
+    const r = Math.hypot(ox, oy) || 1;
+    const tangential = (lastDx * (-oy) + lastDy * ox) / (r + 1);
+    this.angularV += tangential * 0.02 * (dt / 16.6);
+    h.rotationSincePick += this.angularV * dt / 1000;
+    const cos = Math.cos(h.rotationSincePick), sin = Math.sin(h.rotationSincePick);
+    const rx = ox * cos - oy * sin, ry = ox * sin + oy * cos;
+    this.x = px + rx; this.y = py + ry;
+    this.angularV *= 0.992;
+    this.rotation = h.rotationSincePick;
+    h.pivotX = px; h.pivotY = py;
+  }
+
+  release(pxVel, pyVel, angVel){
+    let addVx = 0, addVy = 0;
+    if(this.holding){
+      const ox = this.holding.baseOx, oy = this.holding.baseOy;
+      addVx = -this.holding.rotationSincePick * oy * 0.45;
+      addVy = this.holding.rotationSincePick * ox * 0.45;
+    }
+    this.holding = null;
+    this.state = 'walk';
+    this.vx = Math.max(-1400, Math.min(1400, pxVel + addVx));
+    this.vy = Math.max(-1400, Math.min(1400, pyVel + addVy));
+    this.angularV = angVel || 0;
+  }
+
+  applyPhysics(dt){
+    if(this.opacity <= 0 || this.holding) return;
+    const dtSec = Math.min(0.05, dt / 1000);
+    const t = now();
+    const gravityActive = t >= (this.gravDisabledUntil || 0);
+
+    if(gravityActive) {
+      this.vy += GRAVITY * dtSec;
+    } else {
+      // Эффект лёгкого парения в невесомости
+      this.vy *= 0.99;
+      if (Math.random() < 0.08) {
+        spawnParticle(this.x + rand(-15, 15), this.y + this.height()*0.5, { text: '✨', size: 12, vx: 0, vy: 20, gravity: 0, life: 600 });
+      }
+    }
+
+    this.x += this.vx * dtSec;
+    this.y += this.vy * dtSec;
+    this.rotation += this.angularV * dtSec;
+    this.stepAccum += Math.abs(this.vx) * dtSec;
+
+    // Периодические эмоции над головой
+    if (t - this.lastEmoteAt > 650) {
+      if (this.state === 'inlove') {
+        spawnParticle(this.x + rand(-12, 12), this.y - 6, { text: '❤️', size: 15, vx: rand(-20, 20), vy: -55, gravity: 0, life: 900 });
+        this.lastEmoteAt = t;
+      } else if (this.tintUntil && t < this.tintUntil) {
+        spawnParticle(this.x + rand(-12, 12), this.y - 4, { text: '🤢', size: 14, vx: rand(-15, 15), vy: -45, gravity: 0, life: 800 });
+        this.lastEmoteAt = t;
+      }
+    }
+
+    // Столкновения с границами экрана
+    const left = this.leftOpaqueWorld(), right = this.rightOpaqueWorld(), top = this.topOpaqueWorld(), bottom = this.bottomOpaqueWorld();
+    const groundY = canvas.clientHeight;
+
+    if(left < 0){
+      this.x += -left; this.vx = Math.abs(this.vx) * 0.45; this.angularV *= 0.5;
+      if(gravityActive && (Math.abs(this.vx) > 220 || Math.abs(this.vy) > 320)){ this.spriteFallSnap('left'); this.registerFall(); }
+    }
+    if(right > canvas.clientWidth){
+      this.x -= (right - canvas.clientWidth); this.vx = -Math.abs(this.vx) * 0.45; this.angularV *= 0.5;
+      if(gravityActive && (Math.abs(this.vx) > 220 || Math.abs(this.vy) > 320)){ this.spriteFallSnap('right'); this.registerFall(); }
+    }
+    if(top < 0){
+      const sp = SPRITES[this.spriteIndexForState()];
+      this.y = -sp.topOpaque * this.scale * this.sizeGrow;
+      this.vy = Math.abs(this.vy) * 0.3; this.angularV *= 0.5;
+      if(gravityActive && Math.abs(this.vy) > 320){ this.spriteFallSnap('top'); this.registerFall(); }
+    }
+    if(bottom >= groundY){
+      this.y -= (bottom - groundY);
+      if(gravityActive && this.vy > 260){ this.spriteFallSnap('bottom'); this.registerFall(); }
+      this.vy = -this.vy * 0.14;
+      if(Math.abs(this.vy) < 35) this.vy = 0;
+    }
+
+    // Выравнивание по земле при ходьбе
+    if(this.state === 'walk' && gravityActive){
+      if(Math.abs(groundY - this.bottomOpaqueWorld()) < 3){
+        this.rotation = 0;
+        const sp = SPRITES[this.spriteIndexForState()];
+        this.y = groundY - sp.bottomOpaque * this.scale * this.sizeGrow;
+      }
+    }
+
+    if(this.state === 'lying' || this.state === 'sad'){
+      this.angularV = 0;
+      this.vx *= 0.9;
+      if(Math.abs(this.vx) < 2) this.vx = 0;
+    }
+  }
+
+  applyAI(){
+    if(this.opacity <= 0) return;
+    if(this.holding || this.state === 'lying' || this.state === 'sad' || this.state === 'held' || this.state === 'inlove') return;
+
+    // Если парит в невесомости — не ходит по земле
+    if(now() < (this.gravDisabledUntil || 0)) return;
+
+    // Если рядом лежит вкусная коробка или луна — Артём заинтересуется
+    if(this.state === 'walk' && Math.random() < 0.02) {
+      let nearest = null, minDist = 240;
+      for (const it of items) {
+        if (!it.holder && (it.type === 'poopBox' || it.type === 'moon')) {
+          const d = Math.hypot(it.x - this.x, it.y - this.y);
+          if (d < minDist) { minDist = d; nearest = it; }
+        }
+      }
+      if (nearest) this.walkTarget = nearest.x;
+    }
+
+    if(this.state === 'walk' && this.walkTarget !== null){
+      const dx = this.walkTarget - this.x;
+      const dist = Math.abs(dx);
+      const dir = dx > 0 ? 1 : -1;
+      this.vx = dir * this.walkSpeed;
+      this.facing = dir;
+      if(dist < 8){
+        this.vx = 0;
+        this.walkTarget = null;
+        if(Math.random() < 0.5){
+          this.state = 'stand';
+          this.standUntil = now() + rand(1200, 6000);
+        } else {
+          this.pickRandomWalkTarget();
+        }
+      }
+    } else if(this.state === 'walk' && this.walkTarget === null){
+      this.pickRandomWalkTarget();
+    } else if(this.state === 'stand'){
+      this.vx *= 0.85;
+      if(now() >= this.standUntil){
+        if(Math.random() < 0.65){
+          this.pickRandomWalkTarget();
+          this.state = 'walk';
+        } else {
+          this.standUntil = now() + rand(1200, 5000);
+        }
+      }
+    }
+  }
+
+  spriteFallSnap(surface){
+    this.state = 'lying'; this.spriteIndex = 4;
+    const sp = SPRITES[this.spriteIndexForState()];
+    if(surface === 'bottom'){ this.rotation = 0; this.y = canvas.clientHeight - sp.bottomOpaque * this.scale * this.sizeGrow; }
+    else if(surface === 'left'){ this.rotation = -Math.PI/2; this.x = sp.w * this.scale * this.sizeGrow/2 + 2; }
+    else if(surface === 'right'){ this.rotation = Math.PI/2; this.x = canvas.clientWidth - sp.w * this.scale * this.sizeGrow/2 - 2; }
+    else if(surface === 'top'){ this.rotation = Math.PI; this.y = -sp.topOpaque * this.scale * this.sizeGrow; }
+    this.angularV = 0;
+    if(this.getUpTimeout) clearTimeout(this.getUpTimeout);
+    if(this.sadTimeout) clearTimeout(this.sadTimeout);
+
+    const upAfter = Math.round(rand(2500, 5500));
+    const sadDuration = Math.round(rand(1500, 5000));
+    this.getUpTimeout = setTimeout(()=>{
+      if(this.dead) return;
+      this.state = 'sad'; this.spriteIndex = 3; this.rotation = 0;
+      this.sadTimeout = setTimeout(()=>{
+        if(this.dead) return;
+        this.state = 'walk'; this.spriteIndex = 0;
+        this.pickRandomWalkTarget();
+      }, sadDuration);
+    }, upAfter);
+  }
+
+  toSerializable(){
+    return {
+      x:this.x, y:this.y, vx:this.vx, vy:this.vy, rotation:this.rotation, angularV:this.angularV,
+      facing:this.facing, state:this.state, spriteIndex:this.spriteIndex, scale:this.scale, sizeGrow:this.sizeGrow,
+      id:this.id, dead:this.dead, opacity:this.opacity, spawnedAt:this.spawnedAt, gravDisabledUntil:this.gravDisabledUntil,
+      tintUntil:this.tintUntil, walkTarget:this.walkTarget, walkSpeed:this.walkSpeed, standUntil:this.standUntil, fallTimestamps:this.fallTimestamps
+    };
+  }
+
+  draw(){
+    if(this.opacity <= 0) return;
+    const sIdx = this.spriteIndexForState();
+    const sp = SPRITES[sIdx];
+    const w = sp.w * this.scale * this.sizeGrow;
+    const h = sp.h * this.scale * this.sizeGrow;
+
+    // Исправленное дыхание сверху-вниз (ноги остаются строго на полу)
+    let breathScaleY = 1;
+    const nowt = now();
+    if(nowt >= this.nextBreathAt){
+      this.breathPhase = 1;
+      this.breathStart = nowt;
+      this.nextBreathAt = nowt + rand(BREATH_INTERVAL_MIN, BREATH_INTERVAL_MAX);
+    }
+    if(this.breathPhase === 1){
+      const elapsed = nowt - this.breathStart;
+      if(elapsed < BREATH_RETURN_MS){
+        const p = elapsed / BREATH_RETURN_MS;
+        breathScaleY = 1 - 0.045 * Math.sin(p * Math.PI);
+      } else {
+        this.breathPhase = 0;
+        breathScaleY = 1;
+      }
+    }
+    const dstH = h * breathScaleY;
+    const topShift = h - dstH; // Смещение только макушки при сохранении нижней границы
+
+    // Тень на земле
+    const groundDist = Math.max(0, canvas.clientHeight - (this.y + h));
+    if (groundDist < 260) {
+      const shadowScale = Math.max(0.2, 1 - groundDist / 260);
+      ctx.save();
+      ctx.fillStyle = `rgba(0,0,0,${0.16 * shadowScale * this.opacity})`;
+      ctx.beginPath();
+      ctx.ellipse(this.x, canvas.clientHeight - 4, (w * 0.35) * shadowScale, 5 * shadowScale, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    ctx.save();
+    ctx.globalAlpha = this.opacity;
+
+    // Свечение при антигравитации
+    if (nowt < (this.gravDisabledUntil || 0)) {
+      ctx.shadowColor = '#9d4edd';
+      ctx.shadowBlur = 14;
+    }
+
+    // Вращение вокруг нижней точки опоры
+    if((this.rotation !== 0) || this.state === 'lying' || this.state === 'held'){
+      let pivotX = this.x;
+      let pivotY = this.y + sp.bottomOpaque * this.scale * this.sizeGrow;
+      if(this.state === 'lying' && Math.abs(this.rotation - Math.PI/2) < 0.01){ pivotX = this.x + w/2; pivotY = this.y + h/2; }
+      if(this.state === 'lying' && Math.abs(this.rotation + Math.PI/2) < 0.01){ pivotX = this.x - w/2; pivotY = this.y + h/2; }
+      ctx.translate(pivotX, pivotY);
+      ctx.rotate(this.rotation);
+      ctx.translate(-pivotX, -pivotY);
+    }
+
+    ctx.translate(this.x, this.y + topShift);
+    if(this.facing < 0) ctx.scale(-1, 1);
+    ctx.translate(-this.x, -this.y - topShift);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(sp.img, this.x - w/2, this.y + topShift, w, dstH);
+
+    // Зелёный оттенок при отравлении вирусом
+    if(this.tintUntil && nowt < this.tintUntil){
+      ctx.fillStyle = 'rgba(58, 161, 75, 0.32)';
+      ctx.fillRect(this.x - w/2, this.y + topShift, w, dstH);
+    }
+
+    ctx.restore();
+  }
+}
+
+/* ======= Класс Предмета ======= */
+class Item {
+  constructor(type, x, y){
+    this.type = type;
+    this.x = x; this.y = y;
+    this.vx = (type === 'dark') ? rand(-110, 110) : rand(-80, 80);
+    this.vy = 0;
+    this.size = (30 * SIZE_MULTIPLIER) / ITEM_SCALE_DIV;
+    this.holder = null;
+    this.beingEaten = false;
+    this.spawnedAt = now();
+    this.groundedAt = null;
+    this.noGravity = (type === 'dark');
+  }
+
+  applyPhysics(dt){
+    if(this.beingEaten) return;
+    if(this.holder){
+      this.x = this.holder.x + (this.holder.facing * 8);
+      this.y = this.holder.y + this.holder.height() * 0.45;
+      this.vx = 0; this.vy = 0;
+      return;
+    }
+    const dtSec = Math.min(0.05, dt / 1000);
+    if(this.groundedAt === null){
+      if(!this.noGravity) {
+        this.vy += GRAVITY * dtSec;
+      } else {
+        // Чёрная дыра плавно дрейфует и притягивает ближайшие объекты
+        if(this.y < 80) this.vy += 120 * dtSec;
+        else if(this.y > canvas.clientHeight - 100) this.vy -= 120 * dtSec;
+      }
+      this.x += this.vx * dtSec;
+      this.y += this.vy * dtSec;
+
+      if(this.x - this.size/2 < 0){ this.x = this.size/2; this.vx = Math.abs(this.vx) * 0.6; }
+      if(this.x + this.size/2 > canvas.clientWidth){ this.x = canvas.clientWidth - this.size/2; this.vx = -Math.abs(this.vx) * 0.6; }
+      if(this.y + this.size/2 >= canvas.clientHeight){
+        this.y = canvas.clientHeight - this.size/2;
+        if(this.noGravity) {
+          this.vy = -Math.abs(this.vy) * 0.8;
+        } else {
+          this.vy = 0; this.vx = 0;
+          this.groundedAt = now();
+        }
+      }
+    }
+  }
+
+  startEatingAnimation(holder){
+    this.beingEaten = true;
+    sfx.play('pop');
+    const startY = this.y;
+    const startT = now(), dur = 550;
+    const that = this;
+    (function ascend(){
+      const p = Math.min(1, (now() - startT) / dur);
+      that.x = holder.x;
+      that.y = startY + ((holder.y + holder.height() * 0.25) - startY) * p;
+      if(p < 1) {
+        requestAnimationFrame(ascend);
+      } else {
+        for(let i=0; i<10; i++){
+          spawnParticle(that.x, that.y, { color: '#cc8844', size: rand(3, 6) });
+        }
+      }
+    })();
+  }
+
+  explodeFragmentsAt(x, y){
+    sfx.play('boom');
+    for(let i=0; i<20; i++){
+      spawnParticle(x, y, { color: '#4a154b', vx: rand(-280, 280), vy: rand(-300, 60), size: rand(4, 8), life: 900 });
+    }
+  }
+
+  draw(){
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const fontSz = Math.max(14, Math.round(this.size * 0.72));
+
+    if(this.type === 'poopBox'){
+      ctx.fillStyle = '#8B5A2B';
+      ctx.strokeStyle = '#5c3a1b';
+      ctx.lineWidth = 2;
+      ctx.fillRect(-this.size/2, -this.size/2, this.size, this.size);
+      ctx.strokeRect(-this.size/2, -this.size/2, this.size, this.size);
+      ctx.font = `${fontSz}px sans-serif`;
+      ctx.fillText('💩', 0, 1);
+    } else if(this.type === 'virus'){
+      ctx.fillStyle = '#3AA14B';
+      ctx.beginPath(); ctx.arc(0, 0, this.size/2, 0, Math.PI*2); ctx.fill();
+      ctx.font = `${fontSz}px sans-serif`;
+      ctx.fillText('🦠', 0, 1);
+    } else if(this.type === 'moon'){
+      ctx.fillStyle = '#7209b7';
+      ctx.beginPath(); ctx.arc(0, 0, this.size/2, 0, Math.PI*2); ctx.fill();
+      ctx.font = `${fontSz}px sans-serif`;
+      ctx.fillText('🌕', 0, 1);
+    } else if(this.type === 'dark'){
+      const pulse = 1 + 0.12 * Math.sin(now() / 120);
+      ctx.fillStyle = '#10002b';
+      ctx.shadowColor = '#7209b7';
+      ctx.shadowBlur = 12;
+      ctx.beginPath(); ctx.arc(0, 0, (this.size/2) * pulse, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = '#9d4edd';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
+
+
+
+/* ============================================================================
+   ЧАСТЬ 3: УПРАВЛЕНИЕ, СОХРАНЕНИЯ, ИГРОВОЙ ЦИКЛ И ДОСТИЖЕНИЯ (INDEXEDDB)
+   ============================================================================ */
+
+/* ======= Спавн и Утилиты ======= */
+function spawnArtem(x, y, small = false){
+  const a = new Artem(x || canvas.clientWidth / 2, y || canvas.clientHeight - 120);
+  if(small){
+    a.sizeGrow = 0.45;
+    const start = now(), dur = 800;
+    (function gr(){
+      const p = Math.min(1, (now() - start) / dur);
+      a.sizeGrow = 0.45 + 0.55 * p;
+      if(p < 1) requestAnimationFrame(gr);
+    })();
+  }
+  a.pickRandomWalkTarget();
+  artems.push(a);
+  sfx.play('pop');
+  return a;
+}
+
+function spawnRandomItem(){
+  const pool = ['poopBox','virus','moon','poopBox','virus','moon','dark'];
+  const t = choose(pool);
+  const x = rand(30, canvas.clientWidth - 30);
+  items.push(new Item(t, x, -30));
+}
+
+function explodeArtemAndRemove(art){
+  const fx = art.x, fy = art.y + art.height() * 0.5;
+  for(let i=0; i<26; i++){
+    spawnParticle(fx, fy, {
+      color: i % 2 === 0 ? '#dd3333' : '#ff6b35',
+      vx: rand(-320, 320), vy: rand(-360, -40),
+      size: rand(3, 8), life: 1000
+    });
+  }
+  const idx = artems.indexOf(art);
+  if(idx >= 0) artems.splice(idx, 1);
+}
+
+function showTip(text, duration = 4500) {
+  const banner = document.getElementById('tipBanner');
+  if(!banner) return;
+  banner.textContent = text;
+  banner.style.opacity = '1';
+  clearTimeout(banner._hideTimer);
+  banner._hideTimer = setTimeout(() => { banner.style.opacity = '0'; }, duration);
+}
+
+function showToast(title, subtitle, icon = '🏆') {
+  const container = document.getElementById('toastContainer');
+  const box = document.createElement('div');
+  box.className = 'toast';
+  box.innerHTML = `
+    <div style="font-size:26px;flex-shrink:0">${icon}</div>
+    <div>
+      <div style="font-size:15px">${title}</div>
+      <div style="font-size:12px;font-weight:500;opacity:0.88">${subtitle}</div>
+    </div>
+  `;
+  container.appendChild(box);
+  setTimeout(() => {
+    box.style.transition = 'opacity 0.35s, transform 0.35s';
+    box.style.opacity = '0';
+    box.style.transform = 'translateY(-10px)';
+    setTimeout(() => box.remove(), 380);
+  }, 3600);
+}
+
+/* ======= Сохранение / Загрузка ======= */
+function saveGame(){
+  try{
+    const state = {
+      artems: artems.map(a => a.toSerializable()),
+      items: items.map(it => ({
+        type: it.type, x: it.x, y: it.y, vx: it.vx, vy: it.vy,
+        spawnedAt: it.spawnedAt, groundedAt: it.groundedAt
+      })),
+      totalBlackHoleKills,
+      ts: now()
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }catch(e){ console.warn('Save error:', e); }
+}
+
+function loadGame(){
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if(!raw) return false;
+  try{
+    const st = JSON.parse(raw);
+    artems = []; items = [];
+    totalBlackHoleKills = st.totalBlackHoleKills || 0;
+    if(st.artems && st.artems.length){
+      for(const a of st.artems){
+        const art = new Artem(a.x || canvas.clientWidth/2, a.y || canvas.clientHeight - 120);
+        art.vx = (typeof a.vx === 'number') ? a.vx : rand(-80, 80);
+        art.vy = (typeof a.vy === 'number') ? a.vy : 0;
+        art.rotation = a.rotation || 0;
+        art.angularV = a.angularV || 0;
+        art.facing = a.facing || (art.vx >= 0 ? 1 : -1);
+        art.state = (a.state === 'held') ? 'walk' : (a.state || 'walk');
+        art.spriteIndex = a.spriteIndex || 0;
+        art.sizeGrow = a.sizeGrow || 1;
+        art.id = a.id || art.id;
+        art.dead = !!a.dead;
+        art.opacity = (typeof a.opacity === 'number') ? a.opacity : 1;
+        art.spawnedAt = a.spawnedAt || now();
+        art.gravDisabledUntil = a.gravDisabledUntil || 0;
+        art.tintUntil = a.tintUntil || 0;
+        art.walkTarget = (typeof a.walkTarget === 'number') ? a.walkTarget : null;
+        art.walkSpeed = a.walkSpeed || rand(45, 110);
+        art.standUntil = a.standUntil || 0;
+        art.fallTimestamps = a.fallTimestamps || [];
+        art.initScale();
+        if(art.state === 'walk' && !art.walkTarget) art.pickRandomWalkTarget();
+        if(art.state === 'stand' && !art.standUntil) art.standUntil = now() + rand(1000, 6000);
+        if(!art.dead && art.opacity > 0.05) artems.push(art);
+      }
+    } else {
+      spawnArtem(canvas.clientWidth/2, canvas.clientHeight - 120);
+    }
+    if(st.items && st.items.length){
+      for(const it of st.items){
+        const item = new Item(it.type, it.x, it.y);
+        item.vx = it.vx || 0; item.vy = it.vy || 0;
+        item.spawnedAt = it.spawnedAt || now();
+        item.groundedAt = it.groundedAt || null;
+        items.push(item);
+      }
+    }
+    return true;
+  }catch(e){
+    console.warn('Load failed:', e);
+    return false;
+  }
+}
+
+/* ======= Быстрый Pixel Hit-Test (через кэшированную маску) ======= */
+function pixelOpaqueAtSprite(sp, sx, sy, scaledW, scaledH, pxX, pxY){
+  const relX = Math.floor((pxX - sx) * (sp.w / scaledW));
+  const relY = Math.floor((pxY - sy) * (sp.h / scaledH));
+  return sp.isOpaqueAt(relX, relY);
+}
+
+function hitTestArtem(x, y){
+  for(let i = artems.length - 1; i >= 0; i--){
+    const a = artems[i];
+    if(a.opacity <= 0) continue;
+    const sp = SPRITES[a.spriteIndexForState()];
+    const w = sp.w * a.scale * a.sizeGrow, h = sp.h * a.scale * a.sizeGrow;
+    const left = a.x - w/2, top = a.y;
+    if(x >= left && x <= left + w && y >= top && y <= top + h){
+      if(pixelOpaqueAtSprite(sp, left, top, w, h, x, y)) return a;
+    }
+  }
+  return null;
+}
+
+/* ======= Обработчики ввода (Мышь + Тач + Инструменты) ======= */
+let activePointer = null;
+canvas.addEventListener('touchstart', pointerDown, {passive:false});
+canvas.addEventListener('touchmove', pointerMove, {passive:false});
+canvas.addEventListener('touchend', pointerUp, {passive:false});
+canvas.addEventListener('mousedown', pointerDown);
+window.addEventListener('mousemove', pointerMove);
+window.addEventListener('mouseup', pointerUp);
+
+function getPosFromEvent(e){
+  if(e.touches && e.touches[0]) return {x: e.touches[0].clientX, y: e.touches[0].clientY};
+  if(e.changedTouches && e.changedTouches[0]) return {x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY};
+  return {x: e.clientX, y: e.clientY};
+}
+
+function applyVacuumAt(px, py, dt) {
+  const radius = 220;
+  // Засасываем предметы
+  for (let i = items.length - 1; i >= 0; i--) {
+    const it = items[i];
+    const dx = px - it.x, dy = py - it.y;
+    const d = Math.hypot(dx, dy);
+    if (d < radius) {
+      it.groundedAt = null;
+      it.holder = null;
+      it.x += (dx / (d || 1)) * 420 * (dt / 1000);
+      it.y += (dy / (d || 1)) * 420 * (dt / 1000);
+      if (d < 22) {
+        items.splice(i, 1);
+        sfx.play('pop');
+      }
+    }
+  }
+  // Притягиваем Артёмов потоком воздуха
+  for (const a of artems) {
+    const dx = px - a.x, dy = py - (a.y + a.height()*0.5);
+    const d = Math.hypot(dx, dy);
+    if (d < radius && d > 10) {
+      a.vx += (dx / d) * 1400 * (dt / 1000);
+      a.vy += (dy / d) * 1400 * (dt / 1000);
+    }
+  }
+  if (Math.random() < 0.35) {
+    const ang = rand(0, Math.PI * 2), r = rand(40, 140);
+    spawnParticle(px + Math.cos(ang)*r, py + Math.sin(ang)*r, {
+      vx: -Math.cos(ang)*220, vy: -Math.sin(ang)*220,
+      color: '#a8dadc', size: 3, gravity: 0, life: 300
+    });
+  }
+}
+
+function pointerDown(e){
+  if(e.target !== canvas) return;
+  e.preventDefault();
+  sfx.init();
+  const p = getPosFromEvent(e);
+  const t = now();
+
+  // Если выбран инструмент спавна предмета
+  if (['poopBox', 'virus', 'moon', 'dark'].includes(activeTool)) {
+    const it = new Item(activeTool, p.x, p.y);
+    it.vy = -80;
+    items.push(it);
+    sfx.play('pop');
+    return;
+  }
+
+  activePointer = {
+    id: 'mouse', startX: p.x, startY: p.y,
+    lastX: p.x, lastY: p.y, lastT: t,
+    art: null, moved: false, artCandidate: null
+  };
+
+  if (activeTool === 'hand') {
+    const a = hitTestArtem(p.x, p.y);
+    if(a) activePointer.artCandidate = a;
+  }
+}
+
+function pointerMove(e){
+  if(!activePointer) return;
+  const p = getPosFromEvent(e);
+  const t = now();
+  const dt = Math.max(1, t - activePointer.lastT);
+  const dx = p.x - activePointer.lastX, dy = p.y - activePointer.lastY;
+
+  if (activeTool === 'hand') {
+    const moveDist = Math.hypot(p.x - activePointer.startX, p.y - activePointer.startY);
+    if(moveDist > 8 && activePointer.artCandidate && !activePointer.moved){
+      activePointer.moved = true;
+      activePointer.artCandidate.pickUp(activePointer.id, activePointer.startX, activePointer.startY);
+      activePointer.art = activePointer.artCandidate;
+    }
+    if(activePointer.art) activePointer.art.updateWhileHeld(p.x, p.y, dx, dy, dt);
+  }
+
+  activePointer.lastX = p.x;
+  activePointer.lastY = p.y;
+  activePointer.lastT = t;
+}
+
+function pointerUp(e){
+  if(!activePointer) return;
+  const p = getPosFromEvent(e);
+  const dx = p.x - activePointer.lastX, dy = p.y - activePointer.lastY;
+
+  if (activeTool === 'hand') {
+    if(activePointer.art){
+      if(activePointer.moved){
+        const pxVel = dx * 28, pyVel = dy * 28, angVel = dx * 0.012;
+        activePointer.art.release(pxVel, pyVel, angVel);
+      } else {
+        activePointer.art.vy = -720;
+        activePointer.art.vx += (Math.random() - 0.5) * 90;
+        activePointer.art.walkTarget = null;
+        sfx.play('jump');
+      }
+    } else if(activePointer.artCandidate && !activePointer.moved){
+      activePointer.artCandidate.vy = -720;
+      activePointer.artCandidate.vx += (Math.random() - 0.5) * 90;
+      activePointer.artCandidate.walkTarget = null;
+      sfx.play('jump');
+    }
+  }
+  activePointer = null;
+}
+
+/* ======= Основной цикл обновления и рендеринга ======= */
+let lastSpawnItemAt = now();
+let nextItemSpawnIn = rand(ITEM_SPAWN_MIN, ITEM_SPAWN_MAX);
+setInterval(saveGame, AUTOSAVE_INTERVAL);
+
+function update(dt){
+  if (activePointer && activeTool === 'vacuum') {
+    applyVacuumAt(activePointer.lastX, activePointer.lastY, dt);
+  }
+
+  for(const a of artems) a.applyPhysics(dt);
+  for(const a of artems) a.applyAI();
+  for(const it of items) it.applyPhysics(dt);
+
+  // Взаимодействие предметов и Артёмов
+  for(const it of items.slice()){
+    if(it.holder || it.beingEaten) continue;
+    for(const a of artems){
+      if(a.opacity <= 0) continue;
+      const sp = SPRITES[a.spriteIndexForState()];
+      const w = sp.w * a.scale * a.sizeGrow, h = sp.h * a.scale * a.sizeGrow;
+      const left = a.x - w/2, top = a.y;
+      if(it.x >= left - 6 && it.x <= left + w + 6 && it.y >= top - 6 && it.y <= top + h + 6){
+        if(pixelOpaqueAtSprite(sp, left, top, w, h, it.x, it.y)){
+          if(it.type === 'dark'){
+            it.explodeFragmentsAt(it.x, it.y);
+            const idx = items.indexOf(it);
+            if(idx >= 0) items.splice(idx, 1);
+            explodeArtemAndRemove(a);
+            totalBlackHoleKills++;
+            break;
+          }
+          const sIdx = a.spriteIndexForState();
+          if(sIdx === 0 || sIdx === 1){
+            it.holder = a;
+            it.spawnedAt = now();
+            break;
+          } else {
+            a.vx *= 0.2; a.vy += 400; a.angularV += (Math.random() - 0.5) * 3;
+            a.spriteFallSnap('bottom');
+            a.registerFall();
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  // Обработка удерживаемых Артёмами предметов (съедение или бросок)
+  for(const it of items.slice()){
+    if(it.holder && !it.beingEaten){
+      const holder = it.holder;
+      if(now() - it.spawnedAt > 950){
+        if(Math.random() < 0.65){
+          it.startEatingAnimation(holder);
+          setTimeout(()=>{
+            if(it.type === 'poopBox') spawnArtem(holder.x, holder.y, true);
+            if(it.type === 'virus'){
+              sfx.play('sick');
+              holder.tintUntil = now() + 4500;
+              holder.state = 'sad';
+              holder.spriteIndex = 3;
+              setTimeout(()=>{
+                if(holder.dead) return;
+                holder.spriteIndex = 4;
+                setTimeout(()=>{
+                  if(holder.dead) return;
+                  holder.state = 'walk';
+                  holder.pickRandomWalkTarget();
+                }, 2000);
+              }, 2000);
+            }
+            if(it.type === 'moon'){
+              sfx.play('jump');
+              holder.gravDisabledUntil = now() + Math.round(rand(14000, 45000));
+              holder.vx += rand(-120, 120);
+              holder.vy = -rand(90, 180);
+            }
+            const idx = items.indexOf(it);
+            if(idx >= 0) items.splice(idx, 1);
+          }, 580);
+        } else {
+          // Артём передумал и бросил предмет
+          it.holder = null;
+          it.vx = rand(-260, 260);
+          it.vy = rand(-220, -80);
+          it.spawnedAt = now();
+          it.groundedAt = null;
+        }
+      }
+    }
+  }
+
+  // Очистка старых предметов с земли
+  const t = now();
+  for(let i = items.length - 1; i >= 0; i--){
+    const it = items[i];
+    if(it.groundedAt && (t - it.groundedAt >= ITEM_GROUND_LIFETIME_MS)){
+      items.splice(i, 1);
+      continue;
+    }
+    if(it.y > canvas.clientHeight + 300) items.splice(i, 1);
+  }
+
+  // Любовь и размножение при долгой близости
+  for(let i = 0; i < artems.length; i++){
+    const a = artems[i];
+    for(let j = i + 1; j < artems.length; j++){
+      const b = artems[j];
+      if(a.opacity <= 0 || b.opacity <= 0) continue;
+      const d = Math.hypot(a.x - b.x, a.y - b.y);
+      if(d < PROXIMITY_DISTANCE){
+        const key = b.id;
+        const start = a.proximityTimers.get(key) || t;
+        a.proximityTimers.set(key, start);
+        if(t - start >= PROXIMITY_REQUIRE_MS){
+          const N = Math.max(1, artems.length);
+          const prob = Math.min(0.35, 1.5 / (N * 0.6));
+          if(Math.random() < prob && a.state !== 'inlove' && b.state !== 'inlove'){
+            a.state = 'inlove'; b.state = 'inlove';
+            a.vx = 0; b.vx = 0;
+            setTimeout(()=>{
+              if(a.dead || b.dead) return;
+              const midX = (a.x + b.x) / 2, midY = (a.y + b.y) / 2 - 20;
+              spawnArtem(midX, midY, true);
+              a.state = 'walk'; b.state = 'walk';
+              a.pickRandomWalkTarget(); b.pickRandomWalkTarget();
+            }, 2600);
+          }
+          a.proximityTimers.set(key, t + 15000);
+        }
+      } else {
+        a.proximityTimers.delete(b.id);
+      }
+    }
+  }
+
+  // Авто-спавн предметов
+  if(t - lastSpawnItemAt > nextItemSpawnIn){
+    spawnRandomItem();
+    lastSpawnItemAt = t;
+    nextItemSpawnIn = rand(ITEM_SPAWN_MIN, ITEM_SPAWN_MAX);
+  }
+
+  // Обновление живой статистики в шапке
+  let spaceCnt = 0, sickCnt = 0, loveCnt = 0;
+  for (const a of artems) {
+    if (a.gravDisabledUntil > t) spaceCnt++;
+    if ((a.tintUntil && a.tintUntil > t) || a.state === 'sad') sickCnt++;
+    if (a.state === 'inlove') loveCnt++;
+  }
+  document.getElementById('statPop').textContent = artems.length;
+  document.getElementById('statSpace').textContent = spaceCnt;
+  document.getElementById('statSick').textContent = sickCnt;
+  document.getElementById('statLove').textContent = loveCnt;
+}
+
+function draw(dt){
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  ctx.clearRect(0, 0, w, h);
+
+  // Приятный градиентный фон + пол
+  const grad = ctx.createLinearGradient(0, 0, 0, h);
+  grad.addColorStop(0, '#FFF5E8');
+  grad.addColorStop(1, '#FFE4C4');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, h);
+
+  // Линия пола
+  ctx.fillStyle = 'rgba(139, 90, 43, 0.12)';
+  ctx.fillRect(0, h - 10, w, 10);
+
+  // Предметы на фоне
+  for(const it of items) if(!it.holder) it.draw();
+
+  // Артёмы
+  for(const a of artems) a.draw();
+
+  // Предметы в руках
+  for(const it of items) if(it.holder) it.draw();
+
+  // Частицы и эмодзи
+  updateAndDrawParticles(dt);
+}
+
+let lastFrame = performance.now();
+function loop(t){
+  const dt = Math.min(60, t - lastFrame);
+  lastFrame = t;
+  update(dt);
+  draw(dt);
+  requestAnimationFrame(loop);
+}
+
+/* ======= Привязка кнопок интерфейса ======= */
+document.getElementById('backBtn').addEventListener('click', ()=>{ saveGame(); location.href='glist.html'; });
+document.getElementById('spawnBtn').addEventListener('click', ()=>{ spawnArtem(rand(50, canvas.clientWidth - 50), 60); });
+document.getElementById('delBtn').addEventListener('click', ()=>{
+  if(artems.length) {
+    const a = artems[artems.length - 1];
+    explodeArtemAndRemove(a);
+    sfx.play('pop');
+  }
+});
+document.getElementById('clearItemsBtn').addEventListener('click', ()=>{
+  items = [];
+  showToast('Карта очищена', 'Все разбросанные предметы удалены', '🧹');
+});
+document.getElementById('saveBtn').addEventListener('click', ()=>{
+  saveGame();
+  showToast('Игра сохранена', 'Прогресс записан в память браузера', '💾');
+});
+document.getElementById('muteBtn').addEventListener('click', (e)=>{
+  sfx.muted = !sfx.muted;
+  e.currentTarget.textContent = sfx.muted ? '🔇' : '🔊';
+});
+
+// Переключение инструментов в нижней панели
+document.querySelectorAll('#bottomDock .tool-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#bottomDock .tool-btn').forEach(b => b.classList.remove('active-tool'));
+    btn.classList.add('active-tool');
+    activeTool = btn.getAttribute('data-tool');
+  });
+});
+
+/* ======= Система достижений (IndexedDB + Модальное окно) ======= */
+const ACHIEVEMENTS_CATALOG = [
+  { title: "Чистота и порядок", text: "Чем меньше Артёмов, тем ярче жизнь (0 на карте).", icon: "🧼" },
+  { title: "Грязь и уныние", text: "Зачем вы расплодили 100 Артёмов?!", icon: "🏭" },
+  { title: "Какашки космонавты", text: "3 или более Артёмов парят в невесомости одновременно.", icon: "🚀" },
+  { title: "Эпидемия", text: "5 Артёмов одновременно грустят или болеют вирусом.", icon: "🦠" },
+  { title: "Купидон", text: "Пара Артёмов влюбилась друг в друга.", icon: "💘" },
+  { title: "Горизонт событий", text: "Чёрная дыра поглотила хотя бы одного Артёма.", icon: "⚫" }
+];
+
+async function ach_initDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open("AchievementsDB", 1);
+    req.onerror = () => reject(req.error);
+    req.onsuccess = () => resolve(req.result);
+    req.onupgradeneeded = (ev) => {
+      const db = ev.target.result;
+      if (!db.objectStoreNames.contains("achievements")) {
+        db.createObjectStore("achievements", { keyPath: "title" });
+      }
+    };
+  });
+}
+
+async function ach_getAllUnlocked() {
+  try {
+    const db = await ach_initDB();
+    const tx = db.transaction(["achievements"], "readonly");
+    const store = tx.objectStore("achievements");
+    return await new Promise((res) => {
+      const r = store.getAll();
+      r.onsuccess = () => res(r.result || []);
+      r.onerror = () => res([]);
+    });
+  } catch(e) { return []; }
+}
+
+async function ach_updateUI() {
+  const unlocked = await ach_getAllUnlocked();
+  const unlockedTitles = new Set(unlocked.map(u => u.title));
+  document.getElementById('achCountText').textContent = `${unlockedTitles.size}/${ACHIEVEMENTS_CATALOG.length}`;
+
+  const container = document.getElementById('achListContainer');
+  container.innerHTML = '';
+  for (const item of ACHIEVEMENTS_CATALOG) {
+    const isUnl = unlockedTitles.has(item.title);
+    const card = document.createElement('div');
+    card.className = 'ach-card' + (isUnl ? ' unlocked' : '');
+    card.innerHTML = `
+      <div class="ach-icon">${isUnl ? item.icon : '🔒'}</div>
+      <div>
+        <div style="font-weight:700;font-size:14px">${item.title}</div>
+        <div style="font-size:12px;color:#555">${item.text}</div>
+      </div>
+    `;
+    container.appendChild(card);
+  }
+}
+
+async function ach_addAchievement(title, text, icon = '🏆') {
+  try {
+    const db = await ach_initDB();
+    const tx = db.transaction(["achievements"], "readwrite");
+    const store = tx.objectStore("achievements");
+    const getReq = store.get(title);
+
+    return await new Promise((resolve) => {
+      getReq.onsuccess = () => {
+        if (!getReq.result) {
+          const record = { title, text, image: icon, earnedAt: Date.now() };
+          const addReq = store.add(record);
+          addReq.onsuccess = () => {
+            sfx.play('ach');
+            showToast(`Достижение: ${title}`, text, icon);
+            ach_updateUI();
+            resolve(true);
+          };
+          addReq.onerror = () => resolve(false);
+        } else {
+          resolve(false);
+        }
+      };
+      getReq.onerror = () => resolve(false);
+    });
+  } catch (err) { return false; }
+}
+
+async function ach_checkAndAddAchievement() {
+  if (!Array.isArray(artems)) return;
+  const t = Date.now();
+
+  if (artems.length === 0) {
+    await ach_addAchievement("Чистота и порядок", "Чем меньше Артёмов, тем ярче жизнь.", "🧼");
+  }
+  if (artems.length >= 100) {
+    await ach_addAchievement("Грязь и уныние", "Зачем вы расплодили столько Артёмов?!", "🏭");
+  }
+  const flyingCount = artems.filter(a => a && a.gravDisabledUntil > t).length;
+  if (flyingCount >= 3) {
+    await ach_addAchievement("Какашки космонавты", "Космический мусор Артём", "🚀");
+  }
+  const sickCount = artems.filter(a => a && ((a.tintUntil && a.tintUntil > t) || a.state === 'sad')).length;
+  if (sickCount >= 5) {
+    await ach_addAchievement("Эпидемия", "5 Артёмов загрустили или заразились одновременно.", "🦠");
+  }
+  if (artems.some(a => a && a.state === 'inlove')) {
+    await ach_addAchievement("Купидон", "Любовь витает в воздухе!", "💘");
+  }
+  if (totalBlackHoleKills >= 1) {
+    await ach_addAchievement("Горизонт событий", "Чёрная дыра поглотила Артёма.", "⚫");
+  }
+}
+
+document.getElementById('achBtn').addEventListener('click', () => {
+  ach_updateUI();
+  document.getElementById('achModal').classList.add('open');
+});
+document.getElementById('closeAchModal').addEventListener('click', () => {
+  document.getElementById('achModal').classList.remove('open');
+});
+document.getElementById('achModal').addEventListener('click', (e) => {
+  if(e.target.id === 'achModal') document.getElementById('achModal').classList.remove('open');
+});
+
+const ach_intervalId = setInterval(ach_checkAndAddAchievement, 2500);
+window.ach_stop = function() { clearInterval(ach_intervalId); };
+window.ach_runOnce = function() { ach_checkAndAddAchievement(); };
+
+/* ======= Старт игры ======= */
+loadImages(SPRITE_FILES).then(sarr => {
+  SPRITES = sarr;
+  if(!loadGame()) spawnArtem(canvas.clientWidth / 2, canvas.clientHeight - 120);
+  for(const a of artems){
+    if(a.state === 'walk' && !a.walkTarget) a.pickRandomWalkTarget();
+    if(a.state === 'stand' && !a.standUntil) a.standUntil = now() + rand(1000, 6000);
+  }
+  const startMsgs = [
+    '💡 TIP: Береги Артёмов (или используй панель инструментов снизу!)',
+    '💡 TIP: Тапни по Артёму, чтобы подбросить, или зажми и раскрути!',
+    '💡 TIP: Артёмы размножаются коробками 💩 и от большой любви ❤️',
+    '💡 TIP: Если картинок artem1..5.png нет рядом, включён встроенный пиксель-арт!'
+  ];
+  showTip(choose(startMsgs), 6000);
+  ach_updateUI();
+  setTimeout(ach_checkAndAddAchievement, 1000);
+  requestAnimationFrame(loop);
+});
+
+window.addEventListener('beforeunload', saveGame);
+window.addEventListener('popstate', saveGame);
+</script>
+</body>
+</html>

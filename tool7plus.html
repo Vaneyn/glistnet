@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>G-list OS</title>
+  <style>
+    body {
+      background-color: black;
+      color: lime;
+      font-family: monospace;
+    }
+    input, button {
+      background-color: black;
+      color: lime;
+      border: 1px solid lime;
+      padding: 5px;
+    }
+    #error-output {
+      color: red;
+      white-space: pre;
+    }
+    .checkbox-container {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+    }
+    .checkbox {
+      width: 16px;
+      height: 16px;
+      border: 2px solid lime;
+      display: inline-block;
+      margin-right: 5px;
+      position: relative;
+    }
+    .checkbox.checked::after {
+      content: '\2713';
+      font-size: 14px;
+      color: lime;
+      position: absolute;
+      top: 0;
+      left: 2px;
+    }
+  </style>
+</head>
+<body>
+  <button onclick="runTool('glist')">НАЗАД</button>
+  <button onclick="runTool('clear')">ОЧИСТКА</button>
+  
+  <h1>G-list OS v1.81</h1>
+  <div>
+    <textarea id="input-data" rows="10" cols="40"></textarea>
+    <br>
+    <label class="checkbox-container" onclick="toggleFullscreen()">
+      <div id="fullscreen-checkbox" class="checkbox"></div>
+      Выполнить во весь экран
+    </label>
+    <br>
+    <button onclick="runCode()">Выполнить код</button>
+  </div>
+  
+  <div id="console"></div>
+  <div id="error-output"></div>
+  
+  <script>
+    let fullscreenMode = false;
+    
+    function toggleFullscreen() {
+      fullscreenMode = !fullscreenMode;
+      document.getElementById("fullscreen-checkbox").classList.toggle("checked", fullscreenMode);
+    }
+    
+    function runTool(toolName) {
+      if (toolName === "clear") {
+        document.getElementById("console").innerHTML = "";
+        document.getElementById("error-output").innerHTML = "";
+      } else {
+        var url = toolName + ".html";
+        window.open(url, "_blank");
+      }
+    }
+    
+    function runCode() {
+      var input = document.getElementById("input-data").value;
+      document.getElementById("error-output").innerHTML = "";
+      
+      if (fullscreenMode) {
+        // Заменяем содержимое текущего окна, как в вашем примере
+        document.open();
+        document.write(input);
+        document.close();
+      } else {
+        // Выводим в iframe, как было раньше
+        var iframe = document.createElement("iframe");
+        iframe.setAttribute("id", "result-iframe");
+        iframe.style.width = "100%";
+        iframe.style.height = "400px";
+        document.body.appendChild(iframe);
+        
+        var doc = iframe.contentWindow.document;
+        doc.open();
+        doc.write(input);
+        doc.close();
+      }
+    }
+    
+    window.onerror = function(message, source, lineno, colno, error) {
+      var errorMessage = `Ошибка: ${message} в ${source}:${lineno}:${colno}`;
+      if (error && error.stack) {
+        errorMessage += "\n" + error.stack;
+      }
+      document.getElementById("error-output").textContent += errorMessage + "\n";
+      return true;
+    };
+  </script>
+</body>
+</html>

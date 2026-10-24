@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Постоянная Капрекара</title>
+  <style>
+    body {
+      background-color: black;
+      color: green;
+      font-family: monospace;
+      font-size: 14px;
+      padding: 20px;
+    }
+
+    input {
+      background-color: black;
+      color: green;
+      border: none;
+      border-bottom: 1px solid green;
+      font-family: monospace;
+      font-size: 14px;
+      padding: 5px;
+      margin-bottom: 10px;
+      width: 200px;
+    }
+
+    #output {
+      white-space: pre;
+    }
+  </style>
+</head>
+<body>
+  <h1>Постоянная Капрекара</h1>
+  <p></p>⠀
+  <p>Феномен постоянной Капрекара. 6174 — таинственное «число великой радости» или непреодолимая стена?
+
+Невидимая стена
+
+Для начала возьмём любое четырёхзначное число, которое больше 1000 и меньше 9999. Главное условие — нельзя, чтобы все цифры в числе были одинаковыми. Например, 5555 не подходит. А ещё оно должно быть в десятичной системе счисления.
+
+Проделаем с числом следующие действия:
+
+Расставим все цифры в числе по убыванию — от наибольшей к наименьшей.
+Например, 5707 преобразуем в 7750. Так мы получим новое число A.
+
+Теперь сделаем наоборот: расставим все цифры в числе по возрастанию — от наименьшей к наибольшей.
+Например, 5707 преобразуем в 0577 или просто 577. Так мы получим новое число B.
+
+Вычитаем из числа A число B.
+В нашем примере: 7750 − 577 = 7173.
+
+Повторяем все шаги с полученным результатом вычитания.
+
+На первый взгляд может показаться, что можно просто бесконечно повторять эти действия. Так себе задачка, ну разве что, потренируемся в устном счёте. Но не тут-то было! Довольно быстро мы получим число 6174, а дальше внезапно упрёмся в невидимую стену. Ведь разность 7641 и 1467 будет равна тому же самому заколдованному числу 6174.
+
+Вы спросите, неужели всегда? В том-то и дело, что всегда!
+
+Например, возьмём исходное число 3871.
+
+8731 − 1378 = 7353
+
+7533 − 3357 = 4176
+
+7641 − 1467 = 6174
+
+На третьем шаге мы уже получили 6174. Количество шагов для разных чисел будет разным, но результат будет неизменным. Долго считать не придётся — вам потребуется сделать не более 7 итераций (например, для числа 6810).</p>⠀
+
+  <label for="number">Введите число (от 1000 до 9999):</label>
+  <p></p>⠀
+  <br>
+  <input type="number" id="number" min="1000" max="9999">
+  <br>
+  <button onclick="calculate()">Вычислить</button>
+  <br>
+  <pre id="output"></pre>
+	<script>
+		function runTool(toolName) {
+			var url = toolName + ".html";
+			window.open(url, "_blank");
+		}
+	</script>
+	<button onclick="runTool('glist')">НАЗАД</button>
+  <script>
+    function calculate() {
+      var numberInput = document.getElementById("number");
+      var number = parseInt(numberInput.value);
+
+      var output = document.getElementById("output");
+      output.innerHTML = "";
+
+      function formatOutput(text) {
+        output.innerHTML += text + "\n";
+      }
+
+      if (number >= 1000 && number <= 9999) {
+        while (number !== 6174) {
+          var descending = String(number).split("").sort(function (a, b) { return b - a; }).join("");
+          var ascending = String(number).split("").sort().join("");
+          var result = descending - ascending;
+
+          formatOutput(descending + " - " + ascending + " = " + result);
+
+          number = result;
+        }
+      } else {
+        formatOutput("Пожалуйста, введите число от 1000 до 9999.");
+      }
+    }
+  </script>
+
+</body>
+</html>

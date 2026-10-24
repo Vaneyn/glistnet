@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Игра: Дуель</title>
+  <style>
+    body {
+      background-color: #333;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      user-select: none;
+    }
+    #gameArea {
+      position: relative;
+      width: 500px;
+      height: 500px;
+      border: 2px solid #fff;
+      background-color: #000;
+    }
+    .button {
+      position: absolute;
+      width: 100px;
+      height: 100px;
+      opacity: 0.5;
+      cursor: pointer;
+    }
+    #leftButton {
+      background: url('left.jpg') no-repeat center center / cover;
+      bottom: 10px;
+      left: 10px;
+    }
+    #rightButton {
+      background: url('left.jpg') no-repeat center center / cover;
+      bottom: 10px;
+      left: 120px;
+      transform: scaleX(-1);
+    }
+    #fireButton {
+      background: url('fire.jpg') no-repeat center center / cover;
+      bottom: 10px;
+      right: 10px;
+    }
+    .sprite {
+      position: absolute;
+      width: 50px;
+      height: 50px;
+      background: url('player.png') no-repeat center center / cover;
+    }
+    #player {
+      bottom: 120px;
+      left: 225px;
+    }
+    #bot {
+      top: 10px;
+      left: 225px;
+    }
+    .bullet {
+      position: absolute;
+      width: 10px;
+      height: 20px;
+      background-color: red;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="gameArea">
+	<script>
+			function run(tool){
+				var url=tool+".html";
+				window.open(url,"_blank");
+			}
+		</script>
+		<button onclick="run('glist')">НАЗАД</button>
+
+    <div id="player" class="sprite"></div>
+    <div id="bot" class="sprite"></div>
+    <div id="leftButton" class="button" onclick="movePlayer(-100)"></div>
+    <div id="rightButton" class="button" onclick="movePlayer(100)"></div>
+    <div id="fireButton" class="button" onclick="fire()"></div>
+  </div>
+  <script>
+    const gameArea = document.getElementById('gameArea');
+    const player = document.getElementById('player');
+    const bot = document.getElementById('bot');
+    let canFire = true;
+
+   function movePlayer(offset) {
+  const newPosition = player.offsetLeft + offset;
+  if (newPosition >= 0 && newPosition <= 325) {
+    player.style.left = newPosition + 'px';
+  } else if (newPosition > 325) {
+    player.style.left = '325px'; // Ограничение справа
+  } else if (newPosition < 25) {
+    player.style.left = '25px'; // Ограничение слева
+  }
+}
+
+    function fire() {
+      if (!canFire) return;
+      canFire = false;
+      setTimeout(() => canFire = true, 5000);
+
+      const bullet = document.createElement('div');
+      bullet.className = 'bullet';
+      bullet.style.left = player.offsetLeft + 20 + 'px';
+      bullet.style.bottom = '140px';
+      gameArea.appendChild(bullet);
+
+      const playerPos = player.offsetLeft;
+
+      const bulletInterval = setInterval(() => {
+        bullet.style.bottom = parseInt(bullet.style.bottom) + 5 + 'px';
+        if (parseInt(bullet.style.bottom) > 500) {
+          clearInterval(bulletInterval);
+          bullet.remove();
+        }
+        if (parseInt(bullet.style.bottom) >= 450 && playerPos === bot.offsetLeft) {
+          alert('Вы выиграли!');
+          resetGame();
+          clearInterval(bulletInterval);
+          bullet.remove();
+        }
+      }, 10);
+    }
+
+    function botFire() {
+      const botBullet = document.createElement('div');
+      botBullet.className = 'bullet';
+      botBullet.style.left = bot.offsetLeft + 20 + 'px';
+      botBullet.style.top = '60px';
+      gameArea.appendChild(botBullet);
+
+      const botPos = bot.offsetLeft;
+
+      const botBulletInterval = setInterval(() => {
+        botBullet.style.top = parseInt(botBullet.style.top) + 5 + 'px';
+        if (parseInt(botBullet.style.top) > 400) {
+          clearInterval(botBulletInterval);
+          botBullet.remove();
+        }
+        if (parseInt(botBullet.style.top) >= 350 && botPos === player.offsetLeft) {
+          alert('Вы проиграли!');
+          resetGame();
+          clearInterval(botBulletInterval);
+          botBullet.remove();
+        }
+      }, 10);
+    }
+
+function botMove() {
+  const directions = [-100, 0, 100];
+  const randomDir = directions[Math.floor(Math.random() * directions.length)];
+  const newPosition = bot.offsetLeft + randomDir;
+  if (newPosition >= 0 && newPosition <= 325) {
+    bot.style.left = newPosition + 'px';
+  } else if (newPosition > 325) {
+    bot.style.left = '325px'; // Ограничение справа
+  } else if (newPosition < 25) {
+    bot.style.left = '25px'; // Ограничение слева
+  }
+
+  if (bot.offsetLeft === player.offsetLeft) {
+    setTimeout(botFire, 100 + Math.random() * 1000);
+  }
+}
+
+    function resetGame() {
+      player.style.left = '125px';
+      bot.style.left = '325px';
+      canFire = true;
+    }
+
+    setInterval(botMove, 700);
+  </script>
+</body>
+</html>

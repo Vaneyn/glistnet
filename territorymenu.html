@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Меню игры "Захват клеток"</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            overflow: hidden; /* Запретить прокрутку */
+            animation: gradientAnimation 10s ease infinite;
+            background: linear-gradient(135deg, #00ff7f, #8a2be2);
+            background-size: 400% 400%;
+        }
+
+        @keyframes gradientAnimation {
+            0% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        .menu {
+            text-align: center;
+            color: white;
+        }
+
+        .button {
+            display: inline-block;
+            padding: 20px 30px;
+            margin: 10px;
+            border: none;
+            border-radius: 5px;
+            background-color: rgba(0, 123, 255, 0.7);
+            color: white;
+            text-decoration: none;
+            font-size: 18px;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+
+        .button:hover {
+            background-color: rgba(0, 123, 255, 1);
+            transform: scale(1.05);
+        }
+
+        @media (max-width: 600px) {
+            .button {
+                width: 75%;
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="menu">
+        <h1>Меню игры "Захват клеток"</h1>
+       <a class="button" href="territory3.html">Новая игра</a>
+        <a class="button" href="glist.html">↩️ Назад</a>
+    </div>
+</body>
+</html>

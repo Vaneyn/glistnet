@@ -1,0 +1,183 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Конвертер изображений</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+            margin: 0;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        input[type="file"] {
+            margin-bottom: 10px;
+        }
+        canvas {
+            display: none;
+        }
+        select, input[type="number"] {
+            margin-bottom: 10px;
+            padding: 5px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Конвертер изображений</h1>
+        <input type="file" id="fileInput" accept="image/*" multiple>
+        <br>
+        <label for="colors">Количество цветов:</label>
+        <select id="colors">
+            <option value="2">2</option>
+            <option value="4">4</option>
+            <option value="8">8</option>
+            <option value="16">16</option>
+            <option value="32">32</option>
+            <option value="64">64</option>
+            <option value="128" selected>128</option>
+            <option value="256">256</option>
+            <option value="512">512</option>
+            <option value="1024">1024</option>
+        </select>
+        <br>
+        <label for="resolution">Процент разрешения:</label>
+        <input type="number" id="resolution" min="1" max="100" value="25">
+        <br>
+        <label for="format">Формат:</label>
+        <select id="format">
+            <option value="image/jpeg" selected>JPEG</option>
+            <option value="image/png">PNG</option>
+        </select>
+        <br>
+        <input type="checkbox" id="useColors" checked>
+        <label for="useColors">Использовать цветовую палитру</label>
+        <br>
+        <button onclick="convertImages()">Конвертировать и сохранить</button>
+        <div id="outputPath"></div>
+        <canvas id="canvas"></canvas>
+    </div>
+    <script>
+        function convertImages() {
+            const fileInput = document.getElementById('fileInput');
+            const files = fileInput.files;
+            if (!files.length) {
+                alert('Пожалуйста, выберите один или несколько файлов изображений.');
+                return;
+            }
+
+            const colors = parseInt(document.getElementById('colors').value);
+            const resolutionPercentage = parseInt(document.getElementById('resolution').value) / 100;
+            const format = document.getElementById('format').value;
+            const useColors = document.getElementById('useColors').checked;
+            const outputPath = document.getElementById('outputPath');
+            outputPath.innerHTML = '';
+
+            Array.from(files).forEach((file, index) => {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const img = new Image();
+                    img.onload = function() {
+                        const canvas = document.getElementById('canvas');
+                        const ctx = canvas.getContext('2d');
+                        
+                        const newWidth = img.width * resolutionPercentage;
+                        const newHeight = img.height * resolutionPercentage;
+                        canvas.width = newWidth;
+                        canvas.height = newHeight;
+
+                        ctx.drawImage(img, 0, 0, newWidth, newHeight);
+                        const imageData = ctx.getImageData(0, 0, newWidth, newHeight);
+                        const data = imageData.data;
+
+                        if (useColors) {
+                            // Используем палитру цветов
+                            const palette = generateColorPalette(colors);
+                            for (let i = 0; i < data.length; i += 4) {
+                                const color = findClosestColor(palette, data[i], data[i + 1], data[i + 2]);
+                                data[i] = color[0];
+                                data[i + 1] = color[1];
+                                data[i + 2] = color[2];
+                            }
+                        } else {
+                            // Ч/б изображение
+                            for (let i = 0; i < data.length; i += 4) {
+                                const avg = 0.3 * data[i] + 0.59 * data[i + 1] + 0.11 * data[i + 2];
+                                const gray = Math.round(avg / (256 / colors)) * (256 / colors); // Convert to specified levels of gray
+                                data[i] = data[i + 1] = data[i + 2] = gray;
+                            }
+                        }
+
+                        ctx.putImageData(imageData, 0, 0);
+
+                        canvas.toBlob(function(blob) {
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `converted-image-${index + 1}.${format === 'image/jpeg' ? 'jpg' : 'png'}`;
+                            a.textContent = `Скачать конвертированное изображение ${index + 1}`;
+                            outputPath.appendChild(a);
+                            outputPath.appendChild(document.createElement('br'));
+                        }, format);
+                    };
+                    img.src = event.target.result;
+                };
+                reader.onerror = function(error) {
+                    console.error('Ошибка чтения файла:', error);
+                    alert('Не удалось прочитать файл. Пожалуйста, попробуйте снова.');
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function generateColorPalette(numColors) {
+            const palette = [];
+            for (let i = 0; i < numColors; i++) {
+                const hue = (i / numColors) * 360;
+                const color = hslToRgb(hue, 100, 50);
+                palette.push(color);
+            }
+            return palette;
+        }
+
+        function findClosestColor(palette, r, g, b) {
+            let minDistance = Infinity;
+            let closestColor = palette[0];
+            for (const color of palette) {
+                const distance = Math.sqrt(
+                    Math.pow(color[0] - r, 2) +
+                    Math.pow(color[1] - g, 2) +
+                    Math.pow(color[2] - b, 2)
+                );
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closestColor = color;
+                }
+            }
+            return closestColor;
+        }
+
+        function hslToRgb(h, s, l) {
+            s /= 100;
+            l /= 100;
+            const k = n => (n + h / 30) % 12;
+            const a = s * Math.min(l, 1 - l);
+            const f = n => l - a * Math.max(Math.min(k(n) - 3, 9 - k(n), 1), -1);
+            return [Math.round(f(0) * 255), Math.round(f(8) * 255), Math.round(f(4) * 255)];
+        }
+    </script>
+</body>
+</html>

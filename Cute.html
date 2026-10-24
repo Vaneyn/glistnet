@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Песик 🔒 Кошечка</title>
+  <style>
+    :root {
+      --bg1: #090909;
+      --bg2: #000000;
+      --card: rgba(18, 18, 18, 0.82);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --text: #f4f4f4;
+      --muted: #a8a8b6;
+      --pink: #ff4fa3;
+      --pink2: #ff86c8;
+      --glow: rgba(255, 79, 163, 0.42);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background:
+        radial-gradient(circle at top, rgba(255, 79, 163, 0.14), transparent 34%),
+        radial-gradient(circle at bottom right, rgba(255, 79, 163, 0.12), transparent 28%),
+        linear-gradient(180deg, var(--bg1) 0%, var(--bg2) 100%);
+      color: var(--text);
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px);
+      background-size: 22px 22px;
+      opacity: 0.18;
+      mix-blend-mode: screen;
+    }
+
+    .hearts {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .heart {
+      position: absolute;
+      left: var(--x);
+      bottom: -10vh;
+      font-size: var(--size);
+      opacity: 0;
+      filter: drop-shadow(0 0 10px rgba(255, 79, 163, 0.35));
+      animation: floatUp var(--duration) linear infinite;
+      animation-delay: var(--delay);
+      user-select: none;
+    }
+
+    @keyframes floatUp {
+      0%   { transform: translateY(0) translateX(0) scale(0.8) rotate(0deg); opacity: 0; }
+      8%   { opacity: 0.95; }
+      50%  { transform: translateY(-55vh) translateX(var(--drift)) scale(1) rotate(16deg); opacity: 0.88; }
+      100% { transform: translateY(-120vh) translateX(calc(var(--drift) * 1.4)) scale(1.15) rotate(34deg); opacity: 0; }
+    }
+
+    .wrap {
+      position: relative;
+      z-index: 1;
+      width: min(920px, calc(100% - 28px));
+      margin: 0 auto;
+      padding: 34px 0 56px;
+    }
+
+    .top {
+      text-align: center;
+      padding: 30px 12px 12px;
+    }
+
+    .title {
+      margin: 18px 0 10px;
+      font-size: clamp(2.2rem, 6vw, 4.8rem);
+      line-height: 1;
+      font-weight: 900;
+      letter-spacing: -0.04em;
+      background: linear-gradient(180deg, #fff 0%, #ffd5ea 36%, #ff75b5 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      text-shadow: 0 0 18px rgba(255, 79, 163, 0.12);
+    }
+
+    .subtitle {
+      margin: 0 auto;
+      max-width: 38rem;
+      color: var(--muted);
+      font-size: clamp(1rem, 2.6vw, 1.25rem);
+      line-height: 1.5;
+    }
+
+    .cards {
+      display: grid;
+      gap: 18px;
+      margin-top: 34px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 28px;
+      padding: 28px 22px;
+      box-shadow:
+        0 16px 40px rgba(0, 0, 0, 0.35),
+        inset 0 0 0 1px rgba(255,255,255,0.02);
+      backdrop-filter: blur(10px);
+      overflow: visible;
+    }
+
+    .card h2 {
+      margin: 0 0 20px;
+      text-align: center;
+      font-size: clamp(1.3rem, 3.6vw, 2.2rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+    }
+
+    .grid3, .grid4 {
+      display: grid;
+      gap: 16px;
+    }
+
+    .grid3 { grid-template-columns: repeat(3, 1fr); }
+    .grid4 { grid-template-columns: repeat(4, 1fr); }
+
+    .stat {
+      text-align: center;
+      padding: 8px 6px;
+    }
+
+    .num {
+      display: block;
+      font-weight: 900;
+      line-height: 0.95;
+      font-size: clamp(3rem, 9vw, 5.5rem);
+      color: var(--pink);
+      -webkit-text-stroke: 1.2px rgba(255, 255, 255, 0.9);
+      text-shadow:
+        0 0 3px rgba(255,255,255,0.9),
+        0 0 10px rgba(255, 79, 163, 0.95),
+        0 0 18px rgba(255, 79, 163, 0.85),
+        0 0 30px rgba(255, 79, 163, 0.65),
+        0 0 44px rgba(255, 79, 163, 0.4);
+      filter: drop-shadow(0 0 10px rgba(255, 79, 163, 0.25));
+    }
+
+    .label {
+      display: block;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: clamp(0.95rem, 2.4vw, 1.15rem);
+    }
+
+    .accent {
+      color: var(--pink2);
+      text-shadow: 0 0 12px rgba(255, 134, 200, 0.18);
+    }
+
+    .big-heart {
+      text-align: center;
+      font-size: clamp(2rem, 6vw, 3rem);
+      margin-top: 14px;
+      filter: drop-shadow(0 0 12px rgba(255,79,163,0.28));
+    }
+
+    .countdown {
+      text-align: center;
+      margin: 0 0 18px;
+      color: var(--text);
+      font-size: clamp(1.05rem, 3vw, 1.8rem);
+      font-weight: 800;
+    }
+
+    .small-note {
+      margin-top: 14px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .game {
+      display: block;
+      margin: 0 auto;
+      background: #000;
+      border-radius: 18px;
+      width: min(100%, 420px);
+      height: auto;
+      touch-action: none;
+    }
+
+    /* ---------- музыкальная кнопка ---------- */
+    .music-btn {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, #ffb6d9, #ff4fa3);
+      border: 2px solid rgba(255, 255, 255, 0.35);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 20px var(--glow);
+      color: white;
+      font-size: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 999;
+      transition: transform 0.2s ease, box-shadow 0.2s;
+      backdrop-filter: blur(6px);
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .music-btn:hover {
+      transform: scale(1.08);
+      box-shadow: 0 0 28px var(--pink), 0 0 15px var(--pink2);
+    }
+
+    .music-btn.playing {
+      animation: heartPulse 1.6s infinite;
+      background: radial-gradient(circle at 30% 30%, #ffe0f0, #ff6eb0);
+      border-color: rgba(255, 255, 255, 0.6);
+    }
+
+    @keyframes heartPulse {
+      0% { box-shadow: 0 0 20px var(--glow), 0 0 8px var(--pink); transform: scale(1); }
+      50% { box-shadow: 0 0 38px var(--pink), 0 0 25px var(--pink2); transform: scale(1.05); }
+      100% { box-shadow: 0 0 20px var(--glow), 0 0 8px var(--pink); transform: scale(1); }
+    }
+
+    .music-btn span {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      filter: drop-shadow(0 2px 6px rgba(0,0,0,0.3));
+    }
+
+    @media (max-width: 700px) {
+      .wrap { width: min(100% - 18px, 920px); padding-top: 18px; }
+      .card { padding: 22px 16px; border-radius: 22px; }
+      .grid3, .grid4 { grid-template-columns: 1fr; }
+      .music-btn {
+        width: 60px;
+        height: 60px;
+        font-size: 32px;
+        bottom: 18px;
+        right: 18px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- фоновые сердечки -->
+  <div class="hearts" id="hearts"></div>
+
+  <!-- скрытое аудио (loop) -->
+  <audio id="bgMusic" loop preload="auto" src="123.mp3"></audio>
+
+  <!-- круглая кнопка с сердечком и нотой -->
+  <button class="music-btn" id="musicToggle" title="Включить / выключить музыку">
+    <span>🎵</span>
+  </button>
+
+  <main class="wrap">
+    <section class="top">
+      <h1 class="title">Песик 🔒 Кошечка</h1>
+      <p class="subtitle">Временно далеко. Навсегда вместе</p>
+    </section>
+
+    <section class="cards">
+      <article class="card">
+        <h2>Мы вместе уже</h2>
+        <div class="grid3" id="elapsedGrid">
+          <div class="stat"><span class="num" id="years">0</span><span class="label">лет</span></div>
+          <div class="stat"><span class="num" id="months">0</span><span class="label">месяцев</span></div>
+          <div class="stat"><span class="num" id="days">0</span><span class="label">дней</span></div>
+        </div>
+      </article>
+
+      <article class="card">
+        <h2 id="nextMonthTitle">До следующего целого месяца</h2>
+        <div class="countdown" id="countdownText">—</div>
+        <div class="grid4">
+          <div class="stat"><span class="num" id="cdDays">0</span><span class="label">дней</span></div>
+          <div class="stat"><span class="num" id="cdHours">0</span><span class="label">часов</span></div>
+          <div class="stat"><span class="num" id="cdMinutes">0</span><span class="label">минут</span></div>
+          <div class="stat"><span class="num" id="cdSeconds">0</span><span class="label">секунд</span></div>
+        </div>
+      </article>
+
+      <article class="card">
+        <h2>Скучаю. Жду. Верю. Люблю 💏</h2>
+        <div class="big-heart">💗</div>
+      </article>
+
+      <article class="card">
+        <h2>Соедини нас 💞</h2>
+        <canvas id="gameCanvas" class="game" width="420" height="260"></canvas>
+        <p class="small-note">Перетащи мальчика или девочку друг к другу</p>
+      </article>
+    </section>
+
+    <p class="small-note" id="exactDateNote"></p>
+  </main>
+
+  <script>
+    (function(){
+      "use strict";
+
+      // ---------- ДАТЫ И ТАЙМЕРЫ ----------
+      const START_DATE = new Date(2025, 4, 29, 0, 0, 0); // 29 мая 2025
+
+      function pad(n) {
+        return String(n).padStart(2, '0');
+      }
+
+      function daysInMonth(year, monthIndex) {
+        return new Date(year, monthIndex + 1, 0).getDate();
+      }
+
+      function addMonthsClamped(date, months) {
+        const y = date.getFullYear();
+        const m = date.getMonth() + months;
+        const d = date.getDate();
+        const targetYear = y + Math.floor(m / 12);
+        const targetMonth = ((m % 12) + 12) % 12;
+        const targetDay = Math.min(d, daysInMonth(targetYear, targetMonth));
+        return new Date(
+          targetYear,
+          targetMonth,
+          targetDay,
+          date.getHours(),
+          date.getMinutes(),
+          date.getSeconds(),
+          date.getMilliseconds()
+        );
+      }
+
+      function diffYMD(start, end) {
+        let years = end.getFullYear() - start.getFullYear();
+        let months = end.getMonth() - start.getMonth();
+        let days = end.getDate() - start.getDate();
+
+        if (days < 0) {
+          const prevMonth = new Date(end.getFullYear(), end.getMonth(), 0);
+          days += prevMonth.getDate();
+          months -= 1;
+        }
+        if (months < 0) {
+          months += 12;
+          years -= 1;
+        }
+        return { years, months, days };
+      }
+
+      function updateCounters() {
+        const now = new Date();
+        const ymd = diffYMD(START_DATE, now);
+        document.getElementById('years').textContent = ymd.years;
+        document.getElementById('months').textContent = ymd.months;
+        document.getElementById('days').textContent = ymd.days;
+
+        const totalMonthsSinceStart = (now.getFullYear() - START_DATE.getFullYear()) * 12 + (now.getMonth() - START_DATE.getMonth());
+        const nextWholeMonthNumber = totalMonthsSinceStart + 1;
+        const nextAnniversary = addMonthsClamped(START_DATE, nextWholeMonthNumber);
+        const remainingMs = Math.max(0, nextAnniversary - now);
+
+        const totalSeconds = Math.floor(remainingMs / 1000);
+        const cdDays = Math.floor(totalSeconds / 86400);
+        const cdHours = Math.floor((totalSeconds % 86400) / 3600);
+        const cdMinutes = Math.floor((totalSeconds % 3600) / 60);
+        const cdSeconds = totalSeconds % 60;
+
+        document.getElementById('cdDays').textContent = cdDays;
+        document.getElementById('cdHours').textContent = pad(cdHours);
+        document.getElementById('cdMinutes').textContent = pad(cdMinutes);
+        document.getElementById('cdSeconds').textContent = pad(cdSeconds);
+
+        const monthWord =
+          nextWholeMonthNumber % 10 === 1 && nextWholeMonthNumber % 100 !== 11 ? 'месяц' :
+          [2, 3, 4].includes(nextWholeMonthNumber % 10) && ![12, 13, 14].includes(nextWholeMonthNumber % 100) ? 'месяца' :
+          'месяцев';
+
+        document.getElementById('nextMonthTitle').textContent = `До ${nextWholeMonthNumber} ${monthWord} осталось`;
+
+        const parts = [];
+        if (cdDays > 0) parts.push(`${cdDays} дн.`);
+        parts.push(`${pad(cdHours)}:${pad(cdMinutes)}:${pad(cdSeconds)}`);
+        document.getElementById('countdownText').textContent = parts.join(' ');
+
+        document.getElementById('exactDateNote').textContent =
+          `Отсчёт идёт от 29.05.2025.`;
+      }
+
+      // ---------- ПАРЯЩИЕ СЕРДЕЧКИ ----------
+      function createHearts() {
+        const container = document.getElementById('hearts');
+        const emojis = ['💗', '💖', '💕', '💞', '💘'];
+
+        for (let i = 0; i < 26; i++) {
+          const span = document.createElement('span');
+          span.className = 'heart';
+          span.textContent = emojis[i % emojis.length];
+          span.style.setProperty('--x', `${Math.random() * 100}vw`);
+          span.style.setProperty('--size', `${14 + Math.random() * 28}px`);
+          span.style.setProperty('--duration', `${8 + Math.random() * 10}s`);
+          span.style.setProperty('--delay', `${-(Math.random() * 18)}s`);
+          span.style.setProperty('--drift', `${(Math.random() * 2 - 1) * 18}vw`);
+          span.style.opacity = (0.45 + Math.random() * 0.45).toFixed(2);
+          container.appendChild(span);
+        }
+      }
+
+      // ---------- ИГРА "СОЕДИНИ НАС" ----------
+      const canvas = document.getElementById('gameCanvas');
+      const ctx = canvas.getContext('2d');
+
+      const boy = { x: 90, y: 130, r: 26 };
+      const girl = { x: 330, y: 130, r: 26 };
+
+      let active = null;
+      let showUnion = false;
+      let confetti = [];
+      let resultUntil = 0;
+      let prevConnected = false;
+
+      function drawAvatar(x, y, emoji, size) {
+        ctx.font = `${size}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(emoji, x, y);
+      }
+
+      function drawGame() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        if (showUnion) {
+          drawAvatar(canvas.width / 2 - 28, canvas.height / 2 + 8, '🤵', 34);
+          drawAvatar(canvas.width / 2 + 28, canvas.height / 2 + 8, '👰', 34);
+          drawAvatar(canvas.width / 2, canvas.height / 2 - 40, '💍', 40);
+
+          if (Date.now() < resultUntil) {
+            ctx.save();
+            ctx.font = 'bold 22px Arial';
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowColor = 'rgba(255, 79, 163, 0.85)';
+            ctx.shadowBlur = 12;
+            ctx.fillText('муж и жена', canvas.width / 2, 28);
+            ctx.restore();
+          }
+        } else {
+          drawAvatar(boy.x, boy.y, '👦', 30);
+          drawAvatar(girl.x, girl.y, '👧', 30);
+        }
+
+        for (const c of confetti) {
+          ctx.save();
+          ctx.globalAlpha = Math.max(0, Math.min(1, c.life / 220));
+          ctx.font = `${c.size}px Arial`;
+          ctx.fillText(c.emoji, c.x, c.y);
+          ctx.restore();
+        }
+      }
+
+      function updateConfetti() {
+        confetti.forEach(c => {
+          c.x += c.vx;
+          c.y += c.vy;
+          c.vy += c.gravity;
+          c.life -= 1;
+        });
+        confetti = confetti.filter(c =>
+          c.life > 0 &&
+          c.x > -40 &&
+          c.x < canvas.width + 40 &&
+          c.y < canvas.height + 60
+        );
+      }
+
+      function createConfetti() {
+        const emojis = ['🌸', '🌺', '🌷', '🌼', '💐'];
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+
+        for (let i = 0; i < 42; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = 0.8 + Math.random() * 2.2;
+          confetti.push({
+            x: centerX + (Math.random() - 0.5) * canvas.width * 0.95,
+            y: centerY + (Math.random() - 0.5) * canvas.height * 0.95,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed - 1,
+            gravity: 0.025 + Math.random() * 0.03,
+            size: 12 + Math.random() * 10,
+            emoji: emojis[Math.floor(Math.random() * emojis.length)],
+            life: 180 + Math.floor(Math.random() * 100)
+          });
+        }
+      }
+
+      function distance(a, b) {
+        return Math.hypot(a.x - b.x, a.y - b.y);
+      }
+
+      function canvasPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+          x: (e.clientX - rect.left) * (canvas.width / rect.width),
+          y: (e.clientY - rect.top) * (canvas.height / rect.height)
+        };
+      }
+
+      function pickActive(pos) {
+        if (distance(pos, boy) <= boy.r + 12) return 'boy';
+        if (distance(pos, girl) <= girl.r + 12) return 'girl';
+        return null;
+      }
+
+      function moveTo(pos) {
+        if (active === 'boy') {
+          boy.x = pos.x;
+          boy.y = pos.y;
+        } else if (active === 'girl') {
+          girl.x = pos.x;
+          girl.y = pos.y;
+        }
+
+        const connected = distance(boy, girl) < 62;
+        if (connected && !prevConnected) {
+          showUnion = true;
+          resultUntil = Date.now() + 2600;
+          createConfetti();
+          setTimeout(() => { showUnion = false; }, 2600);
+        }
+        prevConnected = connected;
+      }
+
+      canvas.addEventListener('pointerdown', (e) => {
+        const pos = canvasPos(e);
+        active = pickActive(pos);
+        if (!active) return;
+        canvas.setPointerCapture(e.pointerId);
+        moveTo(pos);
+      });
+
+      canvas.addEventListener('pointermove', (e) => {
+        if (!active) return;
+        e.preventDefault();
+        moveTo(canvasPos(e));
+      });
+
+      function stopDrag() {
+        active = null;
+      }
+
+      canvas.addEventListener('pointerup', stopDrag);
+      canvas.addEventListener('pointercancel', stopDrag);
+
+      // ---------- МУЗЫКАЛЬНАЯ КНОПКА ----------
+      const audio = document.getElementById('bgMusic');
+      const musicBtn = document.getElementById('musicToggle');
+
+      musicBtn.addEventListener('click', () => {
+        if (audio.paused) {
+          audio.play().then(() => {
+            musicBtn.classList.add('playing');
+          }).catch(err => {
+            // Автоплей может быть заблокирован, но после клика обычно работает.
+            console.warn('Не удалось воспроизвести аудио:', err);
+          });
+        } else {
+          audio.pause();
+          musicBtn.classList.remove('playing');
+        }
+      });
+
+      // ---------- ИНИЦИАЛИЗАЦИЯ И ЦИКЛЫ ----------
+      createHearts();
+      updateCounters();
+      drawGame();
+
+      setInterval(updateCounters, 1000);
+
+      function mainLoop() {
+        updateConfetti();
+        drawGame();
+        requestAnimationFrame(mainLoop);
+      }
+
+      mainLoop();
+
+      // Дополнительно: если аудио не загрузилось — кнопка всё равно работает.
+      window.addEventListener('load', () => {
+        // Предзагрузка уже сделана через preload="auto"
+      });
+
+    })();
+  </script>
+</body>
+</html>

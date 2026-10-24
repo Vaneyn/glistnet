@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>G-list OS v1.91</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      background-color: #0a0a0a;
+      background-image: 
+        radial-gradient(circle at center, #002200 0%, #000 80%),
+        linear-gradient(to right, rgba(0, 80, 0, 0.1) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(0, 80, 0, 0.1) 1px, transparent 1px);
+      background-size: 100% 100%, 20px 20px, 20px 20px;
+      color: #0f0;
+      font-family: 'Courier New', monospace;
+      min-height: 100vh;
+      padding: 10px;
+      overflow-x: hidden;
+    }
+    
+    .container {
+      max-width: 98%;
+      margin: 0 auto;
+      border: 2px solid #0f0;
+      background-color: rgba(0, 20, 0, 0.85);
+      box-shadow: 0 0 20px rgba(0, 255, 0, 0.4);
+      position: relative;
+      padding: 15px;
+    }
+    
+    h1 {
+      color: #0f0;
+      text-align: center;
+      text-shadow: 0 0 8px #0f0;
+      border-bottom: 2px solid #0f0;
+      padding-bottom: 10px;
+      margin: 5px 0 15px;
+      font-size: 1.8em;
+    }
+    
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 15px;
+    }
+    
+    button {
+      background-color: #001100;
+      color: #0f0;
+      border: 1px solid #0f0;
+      padding: 8px 14px;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 0 5px rgba(0, 255, 0, 0.3);
+      flex-grow: 1;
+      min-width: 120px;
+    }
+    
+    button:hover {
+      background-color: #003300;
+      box-shadow: 0 0 10px rgba(0, 255, 0, 0.6);
+    }
+    
+    button:active {
+      background-color: #002200;
+      transform: translateY(1px);
+    }
+    
+    textarea {
+      background-color: #001100;
+      color: #0f0;
+      border: 1px solid #0f0;
+      padding: 12px;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      width: 100%;
+      box-sizing: border-box;
+      resize: vertical;
+      margin-bottom: 12px;
+      box-shadow: inset 0 0 8px rgba(0, 255, 0, 0.3);
+    }
+    
+    #js-code {
+      background-color: #3d2800;
+      color: #ffd700;
+      border-color: #b5651d;
+    }
+    
+    .panel {
+      margin: 15px 0;
+      padding: 15px;
+      border: 1px solid #0f0;
+      background-color: rgba(0, 20, 0, 0.6);
+    }
+    
+    .panel-title {
+      margin-top: 0;
+      color: #0f0;
+      border-bottom: 1px solid #0f0;
+      padding-bottom: 8px;
+      font-size: 1.3em;
+      text-shadow: 0 0 4px #0f0;
+    }
+    
+    .checkbox-container {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      margin: 10px 0;
+    }
+    
+    .checkbox {
+      width: 18px;
+      height: 18px;
+      border: 2px solid #0f0;
+      display: inline-block;
+      margin-right: 10px;
+      position: relative;
+      background-color: #001100;
+    }
+    
+    .checkbox.checked::after {
+      content: '\2713';
+      font-size: 16px;
+      color: #0f0;
+      position: absolute;
+      top: -3px;
+      left: 2px;
+    }
+    
+    #console {
+      min-height: 80px;
+      max-height: 200px;
+      overflow-y: auto;
+      padding: 12px;
+      background-color: #001100;
+      border: 1px solid #0f0;
+      margin-top: 15px;
+      font-family: 'Courier New', monospace;
+      white-space: pre-wrap;
+      font-size: 14px;
+    }
+    
+    #error-output {
+      color: #f00;
+      white-space: pre-wrap;
+      padding: 12px;
+      background-color: rgba(30, 0, 0, 0.7);
+      border: 1px solid #f00;
+      margin-top: 15px;
+      font-family: 'Courier New', monospace;
+      max-height: 180px;
+      overflow-y: auto;
+      font-size: 14px;
+    }
+    
+    .dropdown {
+      position: relative;
+      display: inline-block;
+    }
+    
+    .dropdown-content {
+      display: none;
+      position: absolute;
+      background-color: #002200;
+      min-width: 220px;
+      box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.7);
+      z-index: 100;
+      border: 1px solid #0f0;
+      left: 0;
+      top: 100%;
+      margin-top: 5px;
+    }
+    
+    .dropdown-content div {
+      color: #0f0;
+      padding: 12px 16px;
+      text-decoration: none;
+      display: block;
+      cursor: pointer;
+      border-bottom: 1px solid #0f0;
+      background-color: #001100;
+      font-size: 14px;
+      transition: background-color 0.2s;
+    }
+    
+    .dropdown-content div:hover {
+      background-color: #003300;
+      text-shadow: 0 0 5px #0f0;
+    }
+    
+    .dropdown-content div:last-child {
+      border-bottom: none;
+    }
+    
+    .show {
+      display: block;
+    }
+    
+    .js-panel {
+      margin-top: 20px;
+    }
+    
+    .js-controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 12px;
+      position: relative;
+    }
+    
+    .retro-glow {
+      text-shadow: 0 0 6px #0f0;
+    }
+    
+    .status-bar {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 15px;
+      padding-top: 8px;
+      border-top: 1px solid #0f0;
+      font-size: 13px;
+      color: #0a0;
+    }
+    
+    .result-container {
+      margin-top: 15px;
+      border: 1px solid #0f0;
+      padding: 12px;
+      background-color: #001100;
+    }
+    
+    .result-title {
+      margin-top: 0;
+      color: #0f0;
+      font-size: 16px;
+      margin-bottom: 8px;
+      text-shadow: 0 0 4px #0f0;
+    }
+    
+    .fullscreen-warning {
+      color: #ff0;
+      background-color: rgba(50, 50, 0, 0.5);
+      padding: 8px;
+      margin: 10px 0;
+      border: 1px solid #ff0;
+      font-size: 14px;
+      text-align: center;
+    }
+    
+    #result-iframe {
+      width: 100%;
+      height: 380px;
+      border: 1px solid #0f0;
+      margin-top: 15px;
+      background-color: white;
+      display: none;
+    }
+    
+    @media (max-width: 768px) {
+      .container {
+        padding: 10px;
+      }
+      
+      button {
+        min-width: 100px;
+        padding: 7px 10px;
+        font-size: 13px;
+      }
+      
+      textarea {
+        padding: 10px;
+        font-size: 13px;
+      }
+      
+      .panel {
+        padding: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 class="retro-glow">G-list OS <span class="version">v1.91</span></h1>
+    
+    <div class="toolbar">
+      <button onclick="runTool('glist')">НАЗАД</button>
+      <button onclick="runTool('clear')">ОЧИСТИТЬ ВСЁ</button>
+      <button onclick="runCode()">ВЫПОЛНИТЬ КОД</button>
+    </div>
+    
+    <div class="panel">
+      <h2 class="panel-title">HTML  редактор</h2>
+      <textarea id="input-data" rows="8" placeholder="Введите HTML  код здесь..."></textarea>
+      
+      <div class="checkbox-container" onclick="toggleFullscreen()">
+        <div id="fullscreen-checkbox" class="checkbox"></div>
+        <span>Выполнить во весь экран</span>
+      </div>
+      
+      <div id="fullscreen-warning" class="fullscreen-warning" style="display: none;">
+        Внимание: В полноэкранном режиме текущее окно будет перезаписано! Бойтесь наверное, хз... 
+      </div>
+    </div>
+    
+    <div class="panel js-panel">
+      <h2 class="panel-title">JavaScript консоль <span class="retro-glow"></span></h2>
+      
+      <div class="js-controls">
+        <div class="dropdown">
+          <button onclick="toggleDropdown()">Базовые</button>
+          <div id="basicDropdown" class="dropdown-content">
+            <div onclick="insertBasicCode('showConsole')">Показ консоли</div>
+            <div onclick="insertBasicCode('clearConsole')">Очистка консоли</div>
+            <div onclick="insertBasicCode('loadJS')">Исполнение JS по ссылке</div>
+          </div>
+        </div>
+        <button onclick="runJavaScript()">Выполнить JS</button>
+      </div>
+      
+      <textarea id="js-code" rows="4" placeholder="Введите JavaScript код здесь..."></textarea>
+    </div>
+    
+    <div id="console"></div>
+    <div id="error-output"></div>
+    
+    <div class="result-container">
+      <h3 class="result-title">Результат выполнения:</h3>
+      <iframe id="result-iframe"></iframe>
+    </div>
+    
+    <div class="status-bar">
+      <span id="status">Система готова к работе</span>
+      <span>Версия: 1.91</span>
+    </div>
+  </div>
+  
+  <script>
+    let fullscreenMode = false;
+    
+    // Инициализация системы
+    function initSystem() {
+      logToConsole('Система G-list OS v1.91 инициализирована');
+      logToConsole('Готов');
+      document.getElementById('status').textContent = 'Система готова';
+    }
+    
+    // Логирование в консоль
+    function logToConsole(message) {
+      const consoleDiv = document.getElementById('console');
+      consoleDiv.innerHTML += '> ' + message + '\n';
+      consoleDiv.scrollTop = consoleDiv.scrollHeight;
+    }
+    
+    // Показать/скрыть выпадающее меню
+    function toggleDropdown() {
+      document.getElementById('basicDropdown').classList.toggle('show');
+    }
+    
+    // Закрыть выпадающее меню при клике вне его
+    window.addEventListener('click', function(event) {
+      if (!event.target.closest('.dropdown')) {
+        document.getElementById('basicDropdown').classList.remove('show');
+      }
+    });
+    
+    // Вставить базовый код в JS поле
+    function insertBasicCode(type) {
+      const jsTextarea = document.getElementById('js-code');
+      let code = '';
+      
+      switch(type) {
+        case 'showConsole':
+          code = `// Показать консоль
+function showConsole() {
+  const consoleDiv = document.getElementById('console');
+  consoleDiv.style.display = 'block';
+  logToConsole('Консоль активирована');
+}
+showConsole();`;
+          break;
+          
+        case 'clearConsole':
+          code = `// Очистить консоль
+function clearConsole() {
+  document.getElementById('console').innerHTML = '';
+  logToConsole('Консоль очищена');
+}
+clearConsole();`;
+          break;
+          
+        case 'loadJS':
+          code = `// Загрузить и выполнить JS по URL
+function loadJSFromUrl(url) {
+  fetch(url)
+    .then(response => response.text())
+    .then(code => {
+      try {
+        eval(code);
+        logToConsole('Код успешно выполнен: ' + url);
+      } catch (error) {
+        logToConsole('Ошибка выполнения: ' + error.message);
+      }
+    })
+    .catch(error => {
+      logToConsole('Ошибка загрузки: ' + error.message);
+    });
+}
+
+// Пример использования:
+// loadJSFromUrl('https://example.com/script.js');`;
+          break;
+      }
+      
+      jsTextarea.value = code;
+      toggleDropdown();
+    }
+    
+    // Выполнить JavaScript код
+    function runJavaScript() {
+      const jsCode = document.getElementById('js-code').value;
+      document.getElementById('error-output').innerHTML = '';
+      document.getElementById('status').textContent = 'Выполнение JavaScript...';
+      
+      try {
+        // Перехватываем console.log для вывода в нашу консоль
+        const originalConsoleLog = console.log;
+        console.log = function(...args) {
+          logToConsole(args.map(arg => 
+            typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+          ).join(' '));
+          originalConsoleLog.apply(console, args);
+        };
+        
+        eval(jsCode);
+        logToConsole('JavaScript код успешно выполнен');
+        
+        console.log = originalConsoleLog;
+      } catch (error) {
+        const errorMessage = `Ошибка JavaScript: ${error.message}`;
+        document.getElementById('error-output').textContent = errorMessage;
+        logToConsole(errorMessage);
+      }
+      
+      document.getElementById('status').textContent = 'JavaScript выполнен';
+    }
+    
+    // Переключить полноэкранный режим
+    function toggleFullscreen() {
+      fullscreenMode = !fullscreenMode;
+      const checkbox = document.getElementById('fullscreen-checkbox');
+      checkbox.classList.toggle('checked', fullscreenMode);
+      
+      const warning = document.getElementById('fullscreen-warning');
+      warning.style.display = fullscreenMode ? 'block' : 'none';
+      
+      logToConsole(fullscreenMode ? 
+        'Включен полноэкранный режим' : 
+        'Выключен полноэкранный режим');
+    }
+    
+    // Выполнить инструмент
+    function runTool(toolName) {
+      if (toolName === "clear") {
+        document.getElementById('console').innerHTML = '';
+        document.getElementById('error-output').innerHTML = '';
+        document.getElementById('input-data').value = '';
+        document.getElementById('js-code').value = '';
+        logToConsole('Все данные очищены');
+        document.getElementById('status').textContent = 'Данные очищены';
+      } else {
+        const url = toolName + '.html';
+        window.open(url, '_blank');
+      }
+    }
+    
+    // Выполнить основной код (рабочая версия из исходного кода)
+    function runCode() {
+      var input = document.getElementById("input-data").value;
+      document.getElementById("error-output").innerHTML = "";
+      
+      if (fullscreenMode) {
+        // Полноэкранный режим - перезаписать текущий документ
+        document.open();
+        document.write(input);
+        document.close();
+      } else {
+        // Режим iframe
+        var iframe = document.getElementById("result-iframe");
+        iframe.style.display = "block";
+        iframe.style.height = "400px";
+        
+        var doc = iframe.contentWindow.document;
+        doc.open();
+        doc.write(input);
+        doc.close();
+      }
+    }
+    
+    // Глобальная обработка ошибок
+    window.onerror = function(message, source, lineno, colno, error) {
+      let errorMessage = `Ошибка: ${message} в ${source}:${lineno}:${colno}`;
+      if (error && error.stack) {
+        errorMessage += "\n" + error.stack;
+      }
+      
+      document.getElementById('error-output').textContent += errorMessage + "\n";
+      logToConsole(errorMessage);
+      return true;
+    };
+    
+    // Инициализация при загрузке
+    window.onload = initSystem;
+  </script>
+</body>
+</html>

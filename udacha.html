@@ -1,0 +1,132 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Алгоритм проверки удачливости</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background-color: #f2f2f2;
+        margin: 0;
+        padding: 20px;
+    }
+
+    h1 {
+        color: #333;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+
+    button {
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        font-size: 16px;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+
+    button:hover {
+        background-color: #45a049;
+    }
+
+    p {
+        font-size: 16px;
+        color: #333;
+        margin-bottom: 10px;
+    }
+
+    #outcome {
+        font-size: 20px;
+        font-weight: bold;
+    }
+
+    canvas {
+        margin-top: 20px;
+        border: 1px solid #ccc;
+    }
+</style>
+</head>
+<body>
+	<script>
+			function run(tool){
+				var url=tool+".html";
+				window.open(url,"_blank");
+			}
+		</script>
+		<button onclick="run('glist')">НАЗАД</button>
+    <button onclick="start()">Старт</button>
+    <p id="outcome"></p>
+    <canvas id="chart" width="400" height="200"></canvas>
+    <script>
+        function start() {
+            var greenCount = 0;
+            var redCount = 0;
+            var blueCount = 0;
+            var totalThrows = 0;
+
+            var chartData = [0, 0, 0]; // [greenCount, redCount, blueCount]
+            var chartLabels = ['Зеленый', 'Красный', 'Синий'];
+
+            var canvas = document.getElementById('chart');
+            var ctx = canvas.getContext('2d');
+            var chartHeight = canvas.height - 20;
+            var barWidth = 80;
+            var barMargin = 10;
+
+    function updateChart() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    var total = greenCount + redCount + blueCount;
+    var greenPercentage = (greenCount / total * 100).toFixed(3);
+    var redPercentage = (redCount / total * 100).toFixed(3);
+    var bluePercentage = (blueCount / total * 100).toFixed(3);
+
+    var maxCount = Math.max(...chartData);
+    var scaleFactor = maxCount > 0 ? chartHeight / maxCount : 1;
+
+    for (var i = 0; i < chartData.length; i++) {
+        var barHeight = chartData[i] * scaleFactor;
+        var x = (barWidth + barMargin) * i;
+        var y = canvas.height - barHeight;
+
+        ctx.fillStyle = chartLabels[i];
+        ctx.fillRect(x, y, barWidth, barHeight);
+
+        ctx.fillStyle = '#000';
+        ctx.fillText(chartData[i] + ' (' + [greenPercentage, redPercentage, bluePercentage][i] + '%)', x, y - 5);
+    }
+}
+
+            function simulateThrow() {
+                var random = Math.random();
+        if (random < 0.50) {
+    redCount++;
+} else if (random < 0.99) {
+    greenCount++;
+} else {
+    blueCount++;
+}
+
+                totalThrows++;
+                chartData = [greenCount, redCount, blueCount];
+
+                document.getElementById('outcome').innerHTML = 'Зеленый: ' + greenCount +
+                    ' | Красный: ' + redCount + ' | Синий: ' + blueCount + ' | Всего: ' + totalThrows;
+
+                updateChart();
+
+                if (totalThrows < 10000) {
+                    setTimeout(simulateThrow, 0);
+                }
+            }
+
+            simulateThrow();
+        }
+    </script>
+</body>
+</html>
+```
+
+Пример кода создает кнопку "Старт" и при ее нажатии запускает алгоритм проверки удачливости. Результаты, включая количество выпадений зеленого, красного и синего исходов, отображаются на экране. Кроме того, используется поле Canvas для визуализации процентного распределения результатов в виде диаграммы, которая обновляется после каждого броска.

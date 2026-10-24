@@ -1,0 +1,148 @@
+Тестирование запросов на сервер
+
+
+User
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Тестирование запросов на сервер</title>
+  </head>
+  <style>
+    body {
+      color: white;
+      background-color: grey;
+    }
+
+    button {
+      background-color: #4caf50;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+      font-family: Arial, sans-serif;
+    }
+
+    textarea {
+      width: 100%;
+      height: 200px;
+      background-color: #f2f2f2;
+      border: none;
+      padding: 10px;
+      font-size: 16px;
+      font-family: Arial, sans-serif;
+    }
+  </style>
+ <!-- Строка текущей скорости -->
+    <div id="speed">Текущая скорость: 0 в секунду</div>
+  
+
+  <body>
+    <h1>Тестирование запросов на сервер</h1>
+    <label for="url">URL-адрес:</label>
+    <input type="text" id="url" name="url"><br><br>
+    <button onclick="testRequests()">Тестировать</button>
+    <button onclick="testMethod()">Test method</button>
+    <button onclick="runTool('glist')">НАЗАД</button>
+
+    <div id="results"></div>
+	<script>
+		function runTool(toolName) {
+			var url = toolName + ".html";
+			window.open(url, "_blank");
+		}
+	</script>
+    <script>
+    
+      function testRequests() {
+        const url = document.getElementById("url").value;
+        const requests = [
+          { type: "GET", url },
+          { type: "POST", url },
+          { type: "HEAD", url },
+          { type: "OPTIONS", url },
+        ];
+
+        const results = [];
+        let completedRequests = 0;
+        let totalResponseTime = 0;
+
+        for (let i = 0; i < 10; i++) {
+          requests.forEach((request) => {
+            const startTime = Date.now();
+            fetch(url, { method: request.type })
+              .then((response) => {
+                const responseTime = Date.now() - startTime;
+                results.push({ type: request.type, responseTime });
+                totalResponseTime += responseTime;
+                completedRequests++;
+                if (completedRequests === requests.length * 10) {
+                  const averageResponseTime = totalResponseTime / results.length;
+                  let fastestRequestType = "";
+                  let fastestRatio = 0;
+                  results.forEach((result) => {
+                    const ratio = result.responseTime / averageResponseTime;
+                    if (ratio > fastestRatio) {
+                      fastestRequestType = result.type;
+                      fastestRatio = ratio;
+                    }
+                  });
+                  const output = `Среднее время ответа: ${averageResponseTime} мс.<br>
+                      Тип запроса с наибольшим отношением скорости обработки к скорости отправки: <span style="color: red">${fastestRequestType}</span><br>
+                      Текущая скорость отправки пакетов: ${Math.round((completedRequests / (requests.length * 10 * 0.1)) * 10) / 10} в секунду`;
+                  document.getElementById("results").innerHTML = output;
+                }
+              })
+              .catch((error) => {
+                completedRequests++;
+                if (completedRequests === requests.length * 10) {
+                  const averageResponseTime = totalResponseTime / results.length;
+                  let fastestRequestType= "";
+                  let fastestRatio = 0;
+                  results.forEach((result) => {
+                    const ratio = result.responseTime / averageResponseTime;
+                    if (ratio > fastestRatio) {
+                      fastestRequestType = result.type;
+                      fastestRatio = ratio;
+                    }
+                  });
+                  const output = `Среднее время ответа: ${averageResponseTime} мс.<br>
+                      Тип запроса с наибольшим отношением скорости обработки к скорости отправки: <span style="color: red">${fastestRequestType}</span><br>
+                      Текущая скорость отправки пакетов: ${Math.round((completedRequests / (requests.length * 10 * 0.1)) * 10) / 10} в секунду`;
+                  document.getElementById("results").innerHTML = output;
+                }
+              });
+          });
+        }
+      }
+
+function testMethod() {
+  const url = document.getElementById("url").value;
+  let count = 0;
+setInterval(() => {
+  const startTime = Date.now();
+  fetch(url, { method: "GET" })
+    .then(() => {
+      const endTime = Date.now();
+      const responseTime = endTime - startTime;
+      const speed = Math.round(10000 / responseTime);
+      document.getElementById("speed").innerText = `Speed: ${speed} запросов/с`;
+    });
+}, 1300);
+
+  setInterval(() => {
+    count++;
+    const img = new Image();
+    img.src = url + `?rand=${Math.random()}`; // добавляем случайный параметр, чтобы избежать кэширования
+  }, 0); // 0.5 миллисекунды между отправками запросов
+
+  setInterval(() => {
+    count++;
+    const output = `Ответ на запрос ${count}: отправлен`;
+    document.getElementById("results").innerHTML += `<br>${output}`;
+  }, 2000); // вывод результата каждые 2 секунды
+}
+
+    </script>
+  </body>
+</html>

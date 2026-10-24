@@ -1,0 +1,2184 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Worm Surfers 3D: Cyber Overdrive</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+            background-color: #0b0b1a;
+            font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+            touch-action: none;
+            color: #ffffff;
+        }
+        #container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* Верхняя панель возврата и системных кнопок */
+        #top-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 42px;
+            z-index: 9999;
+            display: flex;
+            background: linear-gradient(90deg, rgba(8,10,24,0.92), rgba(18,22,48,0.92));
+            border-bottom: 2px solid #00f5d4;
+            box-shadow: 0 2px 15px rgba(0, 245, 212, 0.3);
+        }
+        .sys-btn {
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-size: 15px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            cursor: pointer;
+            padding: 0 16px;
+            transition: background 0.2s, color 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .sys-btn:hover, .sys-btn:active {
+            background: rgba(0, 245, 212, 0.2);
+            color: #00f5d4;
+        }
+        #backBtn {
+            flex: 1;
+            text-align: left;
+            justify-content: flex-start;
+            border-right: 1px solid rgba(0, 245, 212, 0.25);
+        }
+        .top-action-btn {
+            border-left: 1px solid rgba(0, 245, 212, 0.25);
+            min-width: 48px;
+            font-size: 16px;
+        }
+
+        /* HUD - Игровые показатели */
+        #hud {
+            position: absolute;
+            top: 52px;
+            left: 0;
+            width: 100%;
+            z-index: 15;
+            pointer-events: none;
+            padding: 0 14px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .hud-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            max-width: 680px;
+            gap: 8px;
+        }
+        .hud-pill {
+            background: rgba(10, 14, 30, 0.78);
+            border: 1.5px solid #00f5d4;
+            border-radius: 18px;
+            padding: 6px 14px;
+            font-size: 16px;
+            font-weight: 800;
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), inset 0 0 10px rgba(0, 245, 212, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            text-shadow: 0 1px 3px #000;
+        }
+        .hud-pill.coins {
+            border-color: #ffd166;
+            color: #ffd166;
+        }
+        .hud-pill.gems {
+            border-color: #ff4d94;
+            color: #ff85b3;
+        }
+        .hud-pill.altitude {
+            border-color: #38bdf8;
+            color: #7dd3fc;
+            font-size: 14px;
+        }
+
+        /* Полоса комбо и множителя */
+        #comboBanner {
+            margin-top: 8px;
+            font-size: 18px;
+            font-weight: 900;
+            color: #ffbe0b;
+            text-shadow: 0 0 10px rgba(255, 190, 11, 0.8), 1px 1px 2px #000;
+            opacity: 0;
+            transform: scale(0.8);
+            transition: opacity 0.2s, transform 0.2s;
+        }
+        #comboBanner.active {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        /* Активные бонусы (прогресс-бары) */
+        #powerupBarContainer {
+            margin-top: 8px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .pu-badge {
+            background: rgba(12, 16, 36, 0.85);
+            border: 1px solid #fff;
+            border-radius: 12px;
+            padding: 4px 10px;
+            font-size: 12px;
+            font-weight: bold;
+            display: flex;
+            flex-direction: column;
+            min-width: 95px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.6);
+        }
+        .pu-badge-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 3px;
+        }
+        .pu-progress-bg {
+            width: 100%;
+            height: 5px;
+            background: rgba(255,255,255,0.18);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .pu-progress-fill {
+            height: 100%;
+            width: 100%;
+            background: #00f5d4;
+            transition: width 0.08s linear;
+        }
+
+        /* Предупреждение об атаке Босса Хомяка */
+        #bossWarning {
+            position: absolute;
+            top: 135px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 0, 76, 0.88);
+            border: 2px solid #fff;
+            color: #fff;
+            padding: 6px 20px;
+            border-radius: 20px;
+            font-weight: 900;
+            font-size: 15px;
+            letter-spacing: 1px;
+            z-index: 25;
+            display: none;
+            box-shadow: 0 0 20px rgba(255, 0, 76, 0.9);
+            animation: pulseWarn 0.4s infinite alternate;
+            pointer-events: none;
+        }
+        @keyframes pulseWarn {
+            from { transform: translateX(-50%) scale(0.95); }
+            to { transform: translateX(-50%) scale(1.06); }
+        }
+
+        /* Всплывающие надписи (+Монеты, НА ПЛАТФОРМЕ!, СЛАЙД!) */
+        #floatingTexts {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 18;
+            overflow: hidden;
+        }
+        .float-txt {
+            position: absolute;
+            font-weight: 900;
+            font-size: 20px;
+            text-shadow: 0 2px 6px rgba(0,0,0,0.9);
+            pointer-events: none;
+            white-space: nowrap;
+            transform: translate(-50%, -50%);
+        }
+
+        /* Экранные кнопки управления */
+        .ctrl-btn {
+            position: absolute;
+            bottom: 22px;
+            width: 78px;
+            height: 78px;
+            background: radial-gradient(circle, rgba(0,245,212,0.28) 0%, rgba(0,119,182,0.38) 100%);
+            border: 2.5px solid #00f5d4;
+            border-radius: 50%;
+            z-index: 20;
+            color: #fff;
+            font-size: 32px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.6), 0 0 12px rgba(0,245,212,0.3);
+            transition: transform 0.1s, background 0.1s;
+        }
+        .ctrl-btn:active {
+            background: rgba(0, 245, 212, 0.65);
+            transform: scale(0.92);
+        }
+        #leftButton { left: 18px; }
+        #rightButton { right: 18px; }
+        #jumpButton {
+            bottom: 112px;
+            right: 22px;
+            width: 68px;
+            height: 68px;
+            font-size: 24px;
+            border-color: #ffd166;
+            background: radial-gradient(circle, rgba(255,209,102,0.28) 0%, rgba(255,153,0,0.38) 100%);
+        }
+        #slideButton {
+            bottom: 112px;
+            left: 22px;
+            width: 68px;
+            height: 68px;
+            font-size: 24px;
+            border-color: #ff4d94;
+            background: radial-gradient(circle, rgba(255,77,148,0.28) 0%, rgba(180,20,90,0.38) 100%);
+        }
+
+        /* Модальные окна (Game Over, Магазин, Миссии) */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(6, 8, 20, 0.88);
+            backdrop-filter: blur(5px);
+            z-index: 5000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .modal-card {
+            background: linear-gradient(145deg, #131836, #0c0f24);
+            border: 2px solid #00f5d4;
+            border-radius: 24px;
+            max-width: 520px;
+            width: 100%;
+            max-height: 86vh;
+            overflow-y: auto;
+            padding: 24px;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8), 0 0 25px rgba(0, 245, 212, 0.25);
+        }
+        .modal-card h1 {
+            margin: 0 0 8px 0;
+            font-size: 30px;
+            color: #ff3366;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            text-shadow: 0 0 12px rgba(255, 51, 102, 0.6);
+        }
+        .modal-card h2 {
+            margin: 0 0 14px 0;
+            font-size: 24px;
+            color: #00f5d4;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin: 16px 0 22px 0;
+        }
+        .stat-box {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(0, 245, 212, 0.3);
+            border-radius: 14px;
+            padding: 10px;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #94a3b8;
+            text-transform: uppercase;
+        }
+        .stat-val {
+            font-size: 22px;
+            font-weight: 900;
+            color: #00f5d4;
+            margin-top: 2px;
+        }
+        .btn-row {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .primary-btn {
+            padding: 13px 28px;
+            font-size: 18px;
+            font-weight: 800;
+            background: linear-gradient(90deg, #00f5d4, #00bbf9);
+            color: #06101e;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 245, 212, 0.4);
+            transition: transform 0.15s;
+        }
+        .primary-btn:active {
+            transform: scale(0.95);
+        }
+        .secondary-btn {
+            padding: 12px 22px;
+            font-size: 16px;
+            font-weight: 800;
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border: 1.5px solid #00f5d4;
+            border-radius: 25px;
+            cursor: pointer;
+        }
+
+        /* Карточки магазина и улучшений */
+        .shop-section-title {
+            text-align: left;
+            font-size: 15px;
+            color: #ffd166;
+            margin: 14px 0 8px 0;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .shop-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .shop-item {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 14px;
+            padding: 10px 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            text-align: left;
+        }
+        .shop-item-info {
+            flex: 1;
+            padding-right: 10px;
+        }
+        .shop-item-title {
+            font-weight: 800;
+            font-size: 15px;
+            color: #fff;
+        }
+        .shop-item-desc {
+            font-size: 12px;
+            color: #94a3b8;
+            margin-top: 2px;
+        }
+        .shop-buy-btn {
+            padding: 8px 14px;
+            border-radius: 12px;
+            border: none;
+            font-weight: 800;
+            font-size: 13px;
+            cursor: pointer;
+            background: #ffd166;
+            color: #111;
+            min-width: 95px;
+        }
+        .shop-buy-btn.equipped {
+            background: #00f5d4;
+            color: #051923;
+        }
+        .shop-buy-btn:disabled {
+            background: #334155;
+            color: #64748b;
+            cursor: not-allowed;
+        }
+    </style>
+    <script>
+        function run(tool) { window.open(tool + ".html", "_blank"); }
+    </script>
+    <script src="newthreejs.txt"></script>
+</head>
+<body>
+    <!-- Верхняя системная панель -->
+    <div id="top-bar">
+        <button id="backBtn" class="sys-btn" onclick="run('glist')">&#9664; НАЗАД</button>
+        <button id="shopOpenBtn" class="sys-btn top-action-btn" title="Магазин и скины">МАГАЗИН</button>
+        <button id="missionsOpenBtn" class="sys-btn top-action-btn" title="Миссии">МИССИИ</button>
+        <button id="soundToggleBtn" class="sys-btn top-action-btn" title="Звук">ЗВУК: ВКЛ</button>
+        <button id="pauseToggleBtn" class="sys-btn top-action-btn" title="Пауза">II</button>
+    </div>
+
+    <!-- Игровой HUD -->
+    <div id="hud">
+        <div class="hud-row">
+            <div class="hud-pill" id="stepCounter">Шаги: 0</div>
+            <div class="hud-pill altitude" id="altitudeIndicator">Ярус: 1 (Земля)</div>
+            <div class="hud-pill coins" id="coinCounter">&#9733; 0</div>
+            <div class="hud-pill gems" id="gemCounter">&#9830; 0</div>
+        </div>
+        <div id="comboBanner">КОМБО x2!</div>
+        <div id="powerupBarContainer"></div>
+    </div>
+
+    <!-- Предупреждение о лазерной атаке Хомяка -->
+    <div id="bossWarning">&#9888; ХОМЯК ЗАРЯЖАЕТ ЛАЗЕР! МЕНЯЙ ПОЛОСУ! &#9888;</div>
+
+    <!-- Контейнер всплывающего текста -->
+    <div id="floatingTexts"></div>
+
+    <!-- 3D Сцена -->
+    <div id="container"></div>
+
+    <!-- Кнопки управления для тач-экранов и мыши -->
+    <div id="slideButton" class="ctrl-btn" title="Рывок вниз / Слайд">&#9660;</div>
+    <div id="jumpButton" class="ctrl-btn" title="Прыжок / Двойной прыжок">&#9650;</div>
+    <div id="leftButton" class="ctrl-btn" title="Влево">&#9664;</div>
+    <div id="rightButton" class="ctrl-btn" title="Вправо">&#9654;</div>
+
+    <!-- Экран окончания игры -->
+    <div id="gameOverScreen" class="modal-overlay">
+        <div class="modal-card">
+            <h1 id="gameOverTitle">ХОМЯК ДОГНАЛ!</h1>
+            <div style="color:#94a3b8; font-size:14px;" id="gameOverSubtitle">Твой червяк попал в лапы грызуна. Звучит пошло, но...</div>
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <div class="stat-label">Пройдено шагов</div>
+                    <div class="stat-val" id="finalScore">0</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Рекорд</div>
+                    <div class="stat-val" id="bestScoreVal" style="color:#ffd166;">0</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Собрано монет</div>
+                    <div class="stat-val" id="runCoinsVal" style="color:#ffd166;">0</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Кристаллы</div>
+                    <div class="stat-val" id="runGemsVal" style="color:#ff85b3;">0</div>
+                </div>
+            </div>
+            <div class="btn-row">
+                <button id="restartBtn" class="primary-btn">ИГРАТЬ СНОВА</button>
+                <button id="goShopBtn" class="secondary-btn">МАГАЗИН</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно Магазина и Прокачки -->
+    <div id="shopModal" class="modal-overlay">
+        <div class="modal-card">
+            <h2>КИБЕР-ЛАБОРАТОРИЯ</h2>
+            <div style="display:flex; justify-content:center; gap:20px; margin-bottom:10px; font-weight:bold;">
+                <span style="color:#ffd166;">&#9733; Монеты: <span id="shopCoinsText">0</span></span>
+                <span style="color:#ff85b3;">&#9830; Кристаллы: <span id="shopGemsText">0</span></span>
+            </div>
+
+            <div class="shop-section-title">Скины Червяка</div>
+            <div id="skinsList" class="shop-list"></div>
+
+            <div class="shop-section-title">Прокачка Бонусов</div>
+            <div id="upgradesList" class="shop-list"></div>
+
+            <div class="btn-row" style="margin-top:18px;">
+                <button id="closeShopBtn" class="primary-btn">ПРОДОЛЖИТЬ</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно Миссий -->
+    <div id="missionsModal" class="modal-overlay">
+        <div class="modal-card">
+            <h2>БОЕВЫЕ ЗАДАНИЯ</h2>
+            <div style="font-size:13px; color:#94a3b8; margin-bottom:12px;">
+                Выполняй миссии в забегах и получай кристаллы и монеты!
+            </div>
+            <div id="missionsList" class="shop-list"></div>
+            <div class="btn-row" style="margin-top:18px;">
+                <button id="closeMissionsBtn" class="primary-btn">ЗАКРЫТЬ</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // =========================================================================
+        // 1. СИСТЕМА СОХРАНЕНИЙ, СКИНОВ И ПРОКАЧКИ (SaveManager)
+        // =========================================================================
+        var SKINS_CATALOG = [
+            { id: 'cyber_neon', name: 'Неоновый Стример', desc: 'Классический бирюзово-голубой кибер-червь', price: 0, currency: 'coins', headColor: 0x00f5d4, bodyColor: 0x00bbf9, stripeColor: 0x7209b7, hornType: 'antenna' },
+            { id: 'solar_dragon', name: 'Золотой Дракон', desc: 'Сияющая золотая чешуя и корона чемпиона', price: 150, currency: 'coins', headColor: 0xffd166, bodyColor: 0xf77f00, stripeColor: 0xd62828, hornType: 'crown' },
+            { id: 'toxic_viper', name: 'Кислотный Вайпер', desc: 'Ядовито-зеленый корпус с шипами', price: 320, currency: 'coins', headColor: 0x80ffdb, bodyColor: 0x38b000, stripeColor: 0x004b23, hornType: 'spikes' },
+            { id: 'crimson_mecha', name: 'Багровый Меха', desc: 'Бронированный титановый сплав', price: 550, currency: 'coins', headColor: 0xff2a85, bodyColor: 0x9b00e8, stripeColor: 0x240046, hornType: 'visor' },
+            { id: 'cosmic_void', name: 'Космический Воздухан', desc: 'Элитный скин за кристаллы, в нетрадиционных цветах', price: 15, currency: 'gems', headColor: 0xffffff, bodyColor: 0x4cc9f0, stripeColor: 0xf72585, hornType: 'halo' }
+        ];
+
+        var UPGRADES_CATALOG = [
+            { id: 'magnet', name: 'Импульсный Магнит', desc: 'Увеличивает длительность и радиус притяжения монет', baseCost: 80, maxLevel: 5 },
+            { id: 'jetpack', name: 'Турбо-Джетпак', desc: 'Продлевает время полета над трассой и скорость', baseCost: 100, maxLevel: 5 },
+            { id: 'shield', name: 'Плазменный Щит', desc: 'Увеличивает время работы энергетической брони', baseCost: 90, maxLevel: 5 },
+            { id: 'multiplier', name: 'Квантовый Множитель', desc: 'Повышает длительность бонуса 2X Очков и Монет', baseCost: 110, maxLevel: 5 }
+        ];
+
+        var SaveData = {
+            coins: 0,
+            gems: 0,
+            bestSteps: 0,
+            equippedSkin: 'cyber_neon',
+            unlockedSkins: { 'cyber_neon': true },
+            upgrades: { magnet: 1, jetpack: 1, shield: 1, multiplier: 1 },
+            missions: [
+                { id: 'm_platforms', title: 'Покоритель Высоты: Запрыгни на 8 подъемных платформ', progress: 0, target: 8, rewardCoins: 120, claimed: false },
+                { id: 'm_coins', title: 'Золотая Лихорадка: Собери 100 монет', progress: 0, target: 100, rewardCoins: 180, claimed: false },
+                { id: 'm_steps', title: 'Марафонец: Пробеги 1000 шагов за один забег', progress: 0, target: 1000, rewardCoins: 250, claimed: false },
+                { id: 'm_smash', title: 'Таран: Разрушь 6 препятствий щитом или джетпаком', progress: 0, target: 6, rewardCoins: 200, claimed: false }
+            ]
+        };
+
+        function loadSaveData() {
+            try {
+                var raw = localStorage.getItem('worm_surfers_3d_pro_save');
+                if (raw) {
+                    var parsed = JSON.parse(raw);
+                    if (typeof parsed.coins === 'number') SaveData.coins = parsed.coins;
+                    if (typeof parsed.gems === 'number') SaveData.gems = parsed.gems;
+                    if (typeof parsed.bestSteps === 'number') SaveData.bestSteps = parsed.bestSteps;
+                    if (parsed.equippedSkin) SaveData.equippedSkin = parsed.equippedSkin;
+                    if (parsed.unlockedSkins) SaveData.unlockedSkins = parsed.unlockedSkins;
+                    if (parsed.upgrades) {
+                        for (var k in parsed.upgrades) SaveData.upgrades[k] = parsed.upgrades[k];
+                    }
+                    if (parsed.missions && parsed.missions.length === SaveData.missions.length) {
+                        SaveData.missions = parsed.missions;
+                    }
+                }
+            } catch (e) {}
+        }
+
+        function saveGameData() {
+            try {
+                localStorage.setItem('worm_surfers_3d_pro_save', JSON.stringify(SaveData));
+            } catch (e) {}
+        }
+
+        loadSaveData();
+
+        // =========================================================================
+        // 2. ПРОЦЕДУРНЫЙ WEB AUDIO СИНТЕЗАТОР (Музыка + SFX без внешних файлов)
+        // =========================================================================
+        var SoundEngine = (function() {
+            var ctx = null;
+            var enabled = true;
+            var musicTimer = null;
+            var arpIndex = 0;
+            var bassNotes = [110, 110, 130.81, 146.83, 98, 98, 130.81, 164.81];
+            var arpNotes = [220, 277.18, 329.63, 440, 329.63, 277.18, 523.25, 440];
+
+            function initContext() {
+                if (!ctx) {
+                    var AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) ctx = new AudioCtx();
+                }
+                if (ctx && ctx.state === 'suspended') {
+                    ctx.resume();
+                }
+            }
+
+            function playTone(freq, type, duration, vol, slideFreq) {
+                if (!enabled) return;
+                initContext();
+                if (!ctx) return;
+                try {
+                    var now = ctx.currentTime;
+                    var osc = ctx.createOscillator();
+                    var gain = ctx.createGain();
+                    osc.type = type || 'sine';
+                    osc.frequency.setValueAtTime(freq, now);
+                    if (slideFreq) {
+                        osc.frequency.exponentialRampToValueAtTime(slideFreq, now + duration);
+                    }
+                    gain.gain.setValueAtTime(vol || 0.12, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + duration);
+                } catch (e) {}
+            }
+
+            return {
+                unlock: function() { initContext(); },
+                toggle: function() {
+                    enabled = !enabled;
+                    return enabled;
+                },
+                isEnabled: function() { return enabled; },
+                jump: function(isDouble) {
+                    playTone(isDouble ? 340 : 220, 'sine', 0.18, 0.14, isDouble ? 680 : 480);
+                },
+                slide: function() {
+                    playTone(300, 'triangle', 0.16, 0.15, 95);
+                },
+                coin: function() {
+                    playTone(880, 'sine', 0.08, 0.1, 1320);
+                    setTimeout(function() { playTone(1320, 'sine', 0.12, 0.09, 1760); }, 55);
+                },
+                gem: function() {
+                    playTone(587.33, 'triangle', 0.1, 0.14, 880);
+                    setTimeout(function() { playTone(1174.66, 'sine', 0.22, 0.14, 1567.98); }, 80);
+                },
+                powerup: function() {
+                    var notes = [330, 440, 554.37, 659.25, 880];
+                    for (var i = 0; i < notes.length; i++) {
+                        (function(idx) {
+                            setTimeout(function() { playTone(notes[idx], 'sawtooth', 0.12, 0.08); }, idx * 50);
+                        })(i);
+                    }
+                },
+                spring: function() {
+                    playTone(160, 'sawtooth', 0.35, 0.15, 780);
+                },
+                elevator: function() {
+                    playTone(260, 'triangle', 0.25, 0.12, 520);
+                },
+                smash: function() {
+                    playTone(120, 'sawtooth', 0.25, 0.2, 45);
+                },
+                laserWarn: function() {
+                    playTone(740, 'square', 0.12, 0.09, 370);
+                },
+                gameOver: function() {
+                    playTone(300, 'sawtooth', 0.25, 0.16, 180);
+                    setTimeout(function() { playTone(180, 'sawtooth', 0.45, 0.18, 75); }, 200);
+                },
+                startMusic: function() {
+                    if (musicTimer) return;
+                    musicTimer = setInterval(function() {
+                        if (!enabled || isGameOver || isPaused) return;
+                        initContext();
+                        if (!ctx) return;
+                        var bNote = bassNotes[Math.floor(arpIndex / 2) % bassNotes.length];
+                        var aNote = arpNotes[arpIndex % arpNotes.length];
+                        playTone(bNote, 'triangle', 0.19, 0.045);
+                        if (arpIndex % 2 === 0) {
+                            playTone(aNote, 'sine', 0.12, 0.03);
+                        }
+                        arpIndex++;
+                    }, 185);
+                }
+            };
+        })();
+
+        // =========================================================================
+        // 3. ГЕНЕРАТОР ПРОЦЕДУРНЫХ ВЫСОКОДЕТАЛИЗИРОВАННЫХ ТЕКСТУР (TextureFactory)
+        // =========================================================================
+        var TextureFactory = (function() {
+            function makeThreeTexture(canvas, repeatX, repeatY) {
+                var tex = new THREE.Texture(canvas);
+                tex.needsUpdate = true;
+                if (repeatX && repeatY) {
+                    tex.wrapS = THREE.RepeatWrapping;
+                    tex.wrapT = THREE.RepeatWrapping;
+                    tex.repeat.set(repeatX, repeatY);
+                }
+                return tex;
+            }
+
+            return {
+                // Текстура кибер-трассы с микро-разметкой и неоновыми прожилками
+                createRoadTexture: function() {
+                    var c = document.createElement('canvas');
+                    c.width = 512; c.height = 512;
+                    var g = c.getContext('2d');
+                    g.fillStyle = '#141829';
+                    g.fillRect(0, 0, 512, 512);
+
+                    // Сетка микросхемы на асфальте
+                    g.strokeStyle = 'rgba(0, 245, 212, 0.09)';
+                    g.lineWidth = 2;
+                    for (var y = 0; y < 512; y += 64) {
+                        g.beginPath(); g.moveTo(0, y); g.lineTo(512, y); g.stroke();
+                    }
+                    for (var x = 0; x < 512; x += 64) {
+                        g.beginPath(); g.moveTo(x, 0); g.lineTo(x, 512); g.stroke();
+                    }
+
+                    // Разделители трех полос
+                    g.fillStyle = '#00f5d4';
+                    g.shadowColor = '#00f5d4';
+                    g.shadowBlur = 12;
+                    for (var dashY = 20; dashY < 512; dashY += 128) {
+                        g.fillRect(168, dashY, 8, 70);
+                        g.fillRect(336, dashY, 8, 70);
+                    }
+                    g.shadowBlur = 0;
+
+                    // Боковые энергетические полосы
+                    g.fillStyle = '#ff2a85';
+                    g.fillRect(6, 0, 10, 512);
+                    g.fillRect(496, 0, 10, 512);
+                    return makeThreeTexture(c, 1, 14);
+                },
+
+                // Текстура подъемной платформы (карбон + стрелки подъема + неоновая рамка)
+                createElevatorTexture: function() {
+                    var c = document.createElement('canvas');
+                    c.width = 256; c.height = 512;
+                    var g = c.getContext('2d');
+                    g.fillStyle = '#1b263b';
+                    g.fillRect(0, 0, 256, 512);
+
+                    // Рифленая металлическая решетка
+                    g.fillStyle = '#283856';
+                    for (var y = 0; y < 512; y += 16) {
+                        for (var x = 0; x < 256; x += 16) {
+                            if ((x + y) % 32 === 0) g.fillRect(x + 2, y + 2, 10, 10);
+                        }
+                    }
+
+                    // Неоновый контур
+                    g.strokeStyle = '#00f5d4';
+                    g.lineWidth = 10;
+                    g.strokeRect(5, 5, 246, 502);
+
+                    // Светящиеся шевроны (стрелки вперед/вверх)
+                    g.strokeStyle = '#ffd166';
+                    g.lineWidth = 10;
+                    for (var cy = 80; cy < 480; cy += 110) {
+                        g.beginPath();
+                        g.moveTo(55, cy + 40);
+                        g.lineTo(128, cy);
+                        g.lineTo(201, cy + 40);
+                        g.stroke();
+                    }
+                    return makeThreeTexture(c, 1, 1);
+                },
+
+                // Текстура батута / джамп-пада
+                createJumpPadTexture: function() {
+                    var c = document.createElement('canvas');
+                    c.width = 256; c.height = 256;
+                    var g = c.getContext('2d');
+                    g.fillStyle = '#10002b';
+                    g.fillRect(0, 0, 256, 256);
+
+                    var rings = ['#7b2cbf', '#c77dff', '#00f5d4', '#ffd166'];
+                    for (var i = 0; i < rings.length; i++) {
+                        g.beginPath();
+                        g.arc(128, 128, 110 - i * 24, 0, Math.PI * 2);
+                        g.lineWidth = 12;
+                        g.strokeStyle = rings[i];
+                        g.stroke();
+                    }
+                    return makeThreeTexture(c, 1, 1);
+                },
+
+                // Текстура индустриального препятствия с аварийными полосами
+                createHazardTexture: function(primaryHex, secondaryHex) {
+                    var c = document.createElement('canvas');
+                    c.width = 256; c.height = 256;
+                    var g = c.getContext('2d');
+                    g.fillStyle = primaryHex || '#ff2a55';
+                    g.fillRect(0, 0, 256, 256);
+
+                    g.fillStyle = secondaryHex || '#1a1a2e';
+                    for (var i = -256; i < 512; i += 48) {
+                        g.beginPath();
+                        g.moveTo(i, 0);
+                        g.lineTo(i + 24, 0);
+                        g.lineTo(i + 24 + 256, 256);
+                        g.lineTo(i + 256, 256);
+                        g.closePath();
+                        g.fill();
+                    }
+                    g.strokeStyle = '#ffffff';
+                    g.lineWidth = 6;
+                    g.strokeRect(4, 4, 248, 248);
+                    return makeThreeTexture(c, 1, 1);
+                },
+
+                // Процедурная резервная текстура Хомяка (если Hamster.png не загрузится локально)
+                createFallbackHamsterTexture: function() {
+                    var c = document.createElement('canvas');
+                    c.width = 256; c.height = 256;
+                    var g = c.getContext('2d');
+                    g.clearRect(0, 0, 256, 256);
+
+                    // Уши
+                    g.fillStyle = '#e07a5f';
+                    g.beginPath(); g.arc(65, 60, 36, 0, Math.PI * 2); g.fill();
+                    g.beginPath(); g.arc(191, 60, 36, 0, Math.PI * 2); g.fill();
+                    g.fillStyle = '#ffcad4';
+                    g.beginPath(); g.arc(65, 60, 20, 0, Math.PI * 2); g.fill();
+                    g.beginPath(); g.arc(191, 60, 20, 0, Math.PI * 2); g.fill();
+
+                    // Голова и пухлые щеки
+                    g.fillStyle = '#f4a261';
+                    g.beginPath(); g.arc(128, 135, 85, 0, Math.PI * 2); g.fill();
+                    g.fillStyle = '#fae1dd';
+                    g.beginPath(); g.arc(82, 160, 44, 0, Math.PI * 2); g.fill();
+                    g.beginPath(); g.arc(174, 160, 44, 0, Math.PI * 2); g.fill();
+
+                    // Кибер-глаза
+                    g.fillStyle = '#ff0055';
+                    g.beginPath(); g.arc(92, 118, 16, 0, Math.PI * 2); g.fill();
+                    g.beginPath(); g.arc(164, 118, 16, 0, Math.PI * 2); g.fill();
+                    g.fillStyle = '#ffffff';
+                    g.beginPath(); g.arc(88, 113, 5, 0, Math.PI * 2); g.fill();
+                    g.beginPath(); g.arc(160, 113, 5, 0, Math.PI * 2); g.fill();
+
+                    // Грозные брови
+                    g.strokeStyle = '#3d1e05';
+                    g.lineWidth = 8;
+                    g.beginPath(); g.moveTo(68, 95); g.lineTo(112, 108); g.stroke();
+                    g.beginPath(); g.moveTo(188, 95); g.lineTo(144, 108); g.stroke();
+
+                    // Нос и резцы
+                    g.fillStyle = '#ff4d6d';
+                    g.beginPath(); g.arc(128, 142, 10, 0, Math.PI * 2); g.fill();
+                    g.fillStyle = '#ffffff';
+                    g.fillRect(116, 158, 11, 22);
+                    g.fillRect(129, 158, 11, 22);
+                    return makeThreeTexture(c, 1, 1);
+                }
+            };
+        })();
+
+        // =========================================================================
+        // 4. ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ СОСТОЯНИЯ И ИНИЦИАЛИЗАЦИЯ СЦЕНЫ
+        // =========================================================================
+        var container = document.getElementById('container');
+        var stepCounter = document.getElementById('stepCounter');
+        var coinCounter = document.getElementById('coinCounter');
+        var gemCounter = document.getElementById('gemCounter');
+        var altitudeIndicator = document.getElementById('altitudeIndicator');
+        var comboBanner = document.getElementById('comboBanner');
+        var powerupBarContainer = document.getElementById('powerupBarContainer');
+        var bossWarningEl = document.getElementById('bossWarning');
+        var floatingTextsEl = document.getElementById('floatingTexts');
+
+        var gameOverScreen = document.getElementById('gameOverScreen');
+        var finalScore = document.getElementById('finalScore');
+        var bestScoreVal = document.getElementById('bestScoreVal');
+        var runCoinsVal = document.getElementById('runCoinsVal');
+        var runGemsVal = document.getElementById('runGemsVal');
+        var restartBtn = document.getElementById('restartBtn');
+
+        var leftButtonEl = document.getElementById('leftButton');
+        var rightButtonEl = document.getElementById('rightButton');
+        var jumpButtonEl = document.getElementById('jumpButton');
+        var slideButtonEl = document.getElementById('slideButton');
+
+        // Флаги и физические параметры
+        var isGameOver = false;
+        var isPaused = false;
+        var lanes = [-2.5, 0, 2.5];
+        var playerLane = 1;
+        var targetX = lanes[playerLane];
+
+        var playerY = 0;
+        var currentGroundY = 0; // Динамическая высота опоры (0 = дорога, >0 = на подъемной платформе/мосту)
+        var jumpVelocity = 0;
+        var jumpCount = 0;
+        var maxJumps = 2; // Доступен двойной прыжок!
+        var isSliding = false;
+        var slideTimer = 0;
+
+        var GRAVITY = 0.0145;
+        var JUMP_VELOCITY = 0.255;
+        var baseSpeed = 0.48;
+        var speed = baseSpeed;
+        var maxSpeed = 1.35;
+
+        var steps = 0;
+        var runCoins = 0;
+        var runGems = 0;
+        var comboCount = 0;
+        var comboTimer = 0;
+
+        var spawnTimer = 0;
+        var platformSpawnTimer = 0;
+        var collectibleSpawnTimer = 0;
+        var animTick = 0;
+
+        // Активные таймеры бонусов (в кадрах, 60 кадров ~ 1 сек)
+        var activePowerups = {
+            magnet: 0,
+            magnetMax: 1,
+            shield: 0,
+            shieldMax: 1,
+            jetpack: 0,
+            jetpackMax: 1,
+            multiplier: 0,
+            multiplierMax: 1
+        };
+
+        // Коллекции игровых объектов
+        var obstacles = [];
+        var platforms = [];
+        var collectibles = [];
+        var particles = [];
+        var floatingLabels = [];
+        var sceneryObjects = [];
+        var trailHistory = []; // Буфер 3D-позиций для реалистичного изгиба червяка по высоте и ширине
+
+        // Инициализация Three.js сцены
+        var scene = new THREE.Scene();
+        scene.fog = new THREE.Fog(0x0b0b1a, 28, 145);
+
+        var camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 170);
+        var renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setClearColor(0x0b0b1a);
+        if (renderer.setPixelRatio) {
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+        }
+        container.appendChild(renderer.domElement);
+
+        // Трехточечное освещение для глубокого объема 3D-моделей
+        var ambientLight = new THREE.AmbientLight(0xdbeafe, 0.72);
+        scene.add(ambientLight);
+
+        var dirLight = new THREE.DirectionalLight(0xffffff, 0.78);
+        dirLight.position.set(14, 28, 18);
+        scene.add(dirLight);
+
+        var neonPointLight = new THREE.PointLight(0x00f5d4, 1.1, 28);
+        neonPointLight.position.set(0, 4, 2);
+        scene.add(neonPointLight);
+// =========================================================================
+        // 5. ДЕКОРАЦИИ ОКРУЖЕНИЯ (Небоскребы, Арки, Неоновые линии)
+        // =========================================================================
+        var horizonGroup = new THREE.Group();
+        scene.add(horizonGroup);
+
+        var bldGeo = new THREE.BoxGeometry(3.5, 30, 3.5);
+        var bldMat = new THREE.MeshLambertMaterial({ color: 0x11162b });
+        var windowGlowMat = new THREE.MeshBasicMaterial({ color: 0x00f5d4 });
+
+        for (var i = 0; i < 22; i++) {
+            var bX = (i % 2 === 0) ? -14 - (i * 2.2) : 14 + (i * 2.2);
+            var bZ = -i * 12;
+            var bld = new THREE.Mesh(bldGeo, bldMat);
+            bld.position.set(bX, 10, bZ);
+            horizonGroup.add(bld);
+
+            // Неоновые антенны на крышах
+            if (i % 3 === 0) {
+                var ant = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 8), windowGlowMat);
+                ant.position.set(bX, 19, bZ);
+                horizonGroup.add(ant);
+            }
+        }
+
+        // Неоновые арки над трассой
+        var arches = [];
+        var archGeo = new THREE.BoxGeometry(9.6, 0.4, 0.4);
+        var archMat = new THREE.MeshBasicMaterial({ color: 0x7209b7 });
+        for (var a = 0; a < 8; a++) {
+            var arcGroup = new THREE.Group();
+            var topBar = new THREE.Mesh(archGeo, archMat);
+            topBar.position.y = 5;
+            arcGroup.add(topBar);
+
+            var colGeo = new THREE.CylinderGeometry(0.2, 0.2, 5);
+            var leftCol = new THREE.Mesh(colGeo, archMat);
+            leftCol.position.set(-4.6, 2.5, 0);
+            arcGroup.add(leftCol);
+            var rightCol = new THREE.Mesh(colGeo, archMat);
+            rightCol.position.set(4.6, 2.5, 0);
+            arcGroup.add(rightCol);
+
+            arcGroup.position.z = -a * 22;
+            scene.add(arcGroup);
+            arches.push(arcGroup);
+        }
+
+        // =========================================================================
+        // 6. ДОРОГА И ЭЛЕМЕНТЫ МИРА
+        // =========================================================================
+        var roadTexture = TextureFactory.createRoadTexture();
+        var roadMaterial = new THREE.MeshLambertMaterial({ map: roadTexture, roughness: 0.4 });
+        var road = new THREE.Mesh(new THREE.PlaneGeometry(9.2, 220), roadMaterial);
+        road.rotation.x = -Math.PI / 2;
+        road.position.z = -90;
+        scene.add(road);
+
+        // Светящиеся бортики трассы
+        var borderGeo = new THREE.BoxGeometry(0.35, 0.6, 220);
+        var borderMat = new THREE.MeshBasicMaterial({ color: 0x00f5d4 });
+        var leftBorder = new THREE.Mesh(borderGeo, borderMat);
+        leftBorder.position.set(-4.75, 0.3, -90);
+        scene.add(leftBorder);
+        var rightBorder = new THREE.Mesh(borderGeo, borderMat);
+        rightBorder.position.set(4.75, 0.3, -90);
+        scene.add(rightBorder);
+
+        // =========================================================================
+        // 7. СОЗДАНИЕ И НАСТРОЙКА ЧЕРВЯКА С УЧЕТОМ СКИНОВ
+        // =========================================================================
+        var playerGroup = new THREE.Group();
+        scene.add(playerGroup);
+
+        var wormSegments = [];
+        var segmentCount = 7;
+        var activeSkinConfig = SKINS_CATALOG[0];
+
+        function applyCurrentSkin() {
+            for (var i = 0; i < SKINS_CATALOG.length; i++) {
+                if (SKINS_CATALOG[i].id === SaveData.equippedSkin) {
+                    activeSkinConfig = SKINS_CATALOG[i];
+                    break;
+                }
+            }
+
+            var headMat = new THREE.MeshLambertMaterial({ color: activeSkinConfig.headColor, roughness: 0.3 });
+            var bodyMat1 = new THREE.MeshLambertMaterial({ color: activeSkinConfig.bodyColor, roughness: 0.3 });
+            var bodyMat2 = new THREE.MeshLambertMaterial({ color: activeSkinConfig.stripeColor, roughness: 0.3 });
+
+            for (var s = 0; s < wormSegments.length; s++) {
+                var seg = wormSegments[s];
+                seg.material = (s === 0) ? headMat : (s % 2 === 0 ? bodyMat1 : bodyMat2);
+            }
+        }
+
+        for (var s = 0; s < segmentCount; s++) {
+            var radius = 0.5 - (s * 0.038);
+            var segGeo = new THREE.SphereGeometry(radius, 12, 12);
+            var segMat = new THREE.MeshLambertMaterial({ color: s === 0 ? 0x00f5d4 : 0x00bbf9 });
+            var seg = new THREE.Mesh(segGeo, segMat);
+            seg.position.set(0, radius, s * 0.38);
+
+            // Глаза на голове
+            if (s === 0) {
+                var eyeGeo = new THREE.SphereGeometry(0.11, 8, 8);
+                var eyeMat = new THREE.MeshBasicMaterial({ color: 0x050505 });
+                var le = new THREE.Mesh(eyeGeo, eyeMat); le.position.set(-0.21, 0.22, -0.38); seg.add(le);
+                var re = new THREE.Mesh(eyeGeo, eyeMat); re.position.set(0.21, 0.22, -0.38); seg.add(re);
+
+                // Антенна / корона
+                var hornGeo = new THREE.ConeGeometry(0.08, 0.4, 6);
+                var hornMat = new THREE.MeshBasicMaterial({ color: 0xffd166 });
+                var horn = new THREE.Mesh(hornGeo, hornMat);
+                horn.position.set(0, 0.45, -0.1);
+                seg.add(horn);
+            }
+            playerGroup.add(seg);
+            wormSegments.push(seg);
+        }
+        applyCurrentSkin();
+
+        // 3D Модель Джетпака и Щита на спине червяка
+        var jetpackGroup = new THREE.Group();
+        var tankGeo = new THREE.CylinderGeometry(0.18, 0.22, 0.8, 8);
+        var tankMat = new THREE.MeshLambertMaterial({ color: 0x334155 });
+        var leftTank = new THREE.Mesh(tankGeo, tankMat); leftTank.position.set(-0.3, 0.3, 0.5); jetpackGroup.add(leftTank);
+        var rightTank = new THREE.Mesh(tankGeo, tankMat); rightTank.position.set(0.3, 0.3, 0.5); jetpackGroup.add(rightTank);
+        var flameGeo = new THREE.ConeGeometry(0.15, 0.5, 6);
+        var flameMat = new THREE.MeshBasicMaterial({ color: 0x00f5d4 });
+        var flame = new THREE.Mesh(flameGeo, flameMat); flame.rotation.x = Math.PI; flame.position.set(0, -0.3, 0.5); jetpackGroup.add(flame);
+        jetpackGroup.visible = false;
+        playerGroup.add(jetpackGroup);
+
+        var shieldSphere = new THREE.Mesh(
+            new THREE.SphereGeometry(1.3, 16, 16),
+            new THREE.MeshBasicMaterial({ color: 0x00f5d4, transparent: true, opacity: 0.32, wireframe: true })
+        );
+        shieldSphere.visible = false;
+        playerGroup.add(shieldSphere);
+
+        // =========================================================================
+        // 8. БОСС ХОМЯК С ТЕКСТУРОЙ И ЛАЗЕРНОЙ АТАКОЙ
+        // =========================================================================
+        var HAMSTER_BASE_Y = 1.05;
+        var HAMSTER_BOB = 0.22;
+
+        var hamsterTexture = null;
+        try {
+            if (THREE.TextureLoader) {
+                hamsterTexture = new THREE.TextureLoader().load('Hamster.png');
+            } else if (THREE.ImageUtils) {
+                hamsterTexture = THREE.ImageUtils.loadTexture('Hamster.png');
+            }
+        } catch (e) { hamsterTexture = null; }
+
+        if (!hamsterTexture) {
+            hamsterTexture = TextureFactory.createFallbackHamsterTexture();
+        }
+
+        var hamsterMat = new THREE.MeshBasicMaterial({
+            map: hamsterTexture,
+            color: 0xffffff,
+            transparent: true,
+            side: THREE.DoubleSide
+        });
+        var hamster = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 2.8), hamsterMat);
+        hamster.position.set(0, HAMSTER_BASE_Y, 4.8);
+        scene.add(hamster);
+
+        // Лазерный луч босса
+        var laserBeam = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.12, 0.12, 50, 8),
+            new THREE.MeshBasicMaterial({ color: 0xff0055, transparent: true, opacity: 0.8 })
+        );
+        laserBeam.rotation.x = Math.PI / 2;
+        laserBeam.position.set(0, 1.2, -15);
+        laserBeam.visible = false;
+        scene.add(laserBeam);
+
+        // =========================================================================
+        // 9. ДВИЖОК ЧАСТИЦ (Искры, Монеты, Взрывы)
+        // =========================================================================
+        function spawnParticles(x, y, z, colorHex, count) {
+            for (var i = 0; i < count; i++) {
+                var pGeo = new THREE.BoxGeometry(0.15, 0.15, 0.15);
+                var pMat = new THREE.MeshBasicMaterial({ color: colorHex || 0x00f5d4 });
+                var p = new THREE.Mesh(pGeo, pMat);
+                p.position.set(x, y, z);
+                p.userData = {
+                    vx: (Math.random() - 0.5) * 0.25,
+                    vy: Math.random() * 0.25 + 0.05,
+                    vz: (Math.random() - 0.5) * 0.25,
+                    life: 1.0
+                };
+                scene.add(p);
+                particles.push(p);
+            }
+        }
+
+        // =========================================================================
+        // 10. ВСПЛЫВАЮЩИЕ НАДПИСИ (Floating Labels)
+        // =========================================================================
+        function showFloatingText(text, colorHex) {
+            var el = document.createElement('div');
+            el.className = 'float-txt';
+            el.style.color = colorHex || '#00f5d4';
+            el.innerHTML = text;
+            el.style.left = (window.innerWidth / 2 + (Math.random() * 120 - 60)) + 'px';
+            el.style.top = (window.innerHeight * 0.42) + 'px';
+            floatingTextsEl.appendChild(el);
+
+            var startTime = Date.now();
+            var duration = 900;
+
+            function animLabel() {
+                var elapsed = Date.now() - startTime;
+                var progress = elapsed / duration;
+                if (progress < 1) {
+                    el.style.transform = 'translate(-50%, ' + (-120 * progress) + 'px) scale(' + (1 + progress * 0.3) + ')';
+                    el.style.opacity = (1 - progress);
+                    requestAnimationFrame(animLabel);
+                } else {
+                    el.remove();
+                }
+            }
+            requestAnimationFrame(animLabel);
+        }
+
+        // =========================================================================
+        // 11. ГЕНЕРАТОР ПЛАТФОРМ, ПРЕПЯТСТВИЙ И КОЛЛЕКЦИОННЫХ ПРЕДМЕТОВ
+        // =========================================================================
+        var elevatorTexture = TextureFactory.createElevatorTexture();
+        var elevatorMat = new THREE.MeshLambertMaterial({ map: elevatorTexture });
+
+        var jumpPadTexture = TextureFactory.createJumpPadTexture();
+        var jumpPadMat = new THREE.MeshLambertMaterial({ map: jumpPadTexture });
+
+        function createPlatform(type) { // type: 'elevator', 'ramp', 'jumppad'
+            var lane = Math.floor(Math.random() * lanes.length);
+            var zPos = -75 - Math.random() * 25;
+            var platGroup = new THREE.Group();
+
+            if (type === 'elevator') {
+                var mesh = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.4, 3.5), elevatorMat);
+                mesh.position.set(0, 0.2, 0);
+                platGroup.add(mesh);
+                platGroup.userData = { type: 'elevator', lane: lane, width: 2.4, depth: 3.5, height: 1.8, active: true };
+            } else if (type === 'jumppad') {
+                var mesh = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.25, 2.2), jumpPadMat);
+                mesh.position.set(0, 0.12, 0);
+                platGroup.add(mesh);
+                platGroup.userData = { type: 'jumppad', lane: lane, width: 2.2, depth: 2.2, active: true };
+            } else { // ramp
+                var rampGeo = new THREE.BoxGeometry(2.2, 0.3, 4.5);
+                var rampMat = new THREE.MeshLambertMaterial({ color: 0x7209b7 });
+                var mesh = new THREE.Mesh(rampGeo, rampMat);
+                mesh.rotation.x = -0.32;
+                mesh.position.set(0, 0.4, 0);
+                platGroup.add(mesh);
+                platGroup.userData = { type: 'ramp', lane: lane, width: 2.2, depth: 4.5, active: true };
+            }
+
+            platGroup.position.set(lanes[lane], 0, zPos);
+            scene.add(platGroup);
+            platforms.push(platGroup);
+        }
+
+        function createObstacle() {
+            var lane = Math.floor(Math.random() * lanes.length);
+            var r = Math.random();
+            var obs, height = 1.1, width = 1.9, depth = 1.2;
+
+            if (r < 0.35) {
+                // Низкий барьер (нужно перепрыгнуть)
+                obs = new THREE.Mesh(new THREE.BoxGeometry(width, 0.7, depth), new THREE.MeshLambertMaterial({ color: 0xff3366 }));
+                obs.position.set(lanes[lane], 0.35, -70);
+                obs.userData = { type: 'barrier', height: 0.7, depth: depth, lane: lane };
+            } else if (r < 0.65) {
+                // Высокая стена с проходом под ней (нужен слайд / рывок вниз)
+                obs = new THREE.Mesh(new THREE.BoxGeometry(width, 2.4, depth), new THREE.MeshLambertMaterial({ color: 0xff0055 }));
+                obs.position.set(lanes[lane], 2.2, -70);
+                obs.userData = { type: 'wall', minY: 1.1, depth: depth, lane: lane };
+            } else {
+                // Кибер-тумба
+                obs = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.8, 1.4, 10), new THREE.MeshLambertMaterial({ color: 0xffaa00 }));
+                obs.position.set(lanes[lane], 0.7, -70);
+                obs.userData = { type: 'pillar', height: 1.4, depth: 1.2, lane: lane };
+            }
+
+            scene.add(obs);
+            obstacles.push(obs);
+        }
+
+        function createCollectible() {
+            var lane = Math.floor(Math.random() * lanes.length);
+            var isGem = Math.random() < 0.18;
+            var cGeo = isGem ? new THREE.OctahedronGeometry(0.38) : new THREE.CylinderGeometry(0.35, 0.35, 0.12, 14);
+            var cMat = new THREE.MeshBasicMaterial({ color: isGem ? 0xff4d94 : 0xffd166 });
+            var col = new THREE.Mesh(cGeo, cMat);
+            if (!isGem) col.rotation.x = Math.PI / 2;
+            col.position.set(lanes[lane], 0.8 + (Math.random() < 0.4 ? 1.5 : 0), -65);
+            col.userData = { type: isGem ? 'gem' : 'coin', lane: lane };
+            scene.add(col);
+            collectibles.push(col);
+        }
+
+        function createPowerupBox() {
+            var lane = Math.floor(Math.random() * lanes.length);
+            var pTypes = ['magnet', 'jetpack', 'shield', 'multiplier'];
+            var pType = pTypes[Math.floor(Math.random() * pTypes.length)];
+            var box = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0x00f5d4, wireframe: true }));
+            box.position.set(lanes[lane], 1.2, -70);
+            box.userData = { type: 'powerup', pType: pType, lane: lane };
+            scene.add(box);
+            collectibles.push(box);
+        }
+// =========================================================================
+        // 12. СИСТЕМА МИССИЙ, МАГАЗИНА И ОБНОВЛЕНИЯ HUD
+        // =========================================================================
+        function updateMissionProgress(missionId, amount) {
+            var changed = false;
+            for (var i = 0; i < SaveData.missions.length; i++) {
+                var m = SaveData.missions[i];
+                if (m.id === missionId && !m.claimed) {
+                    m.progress += amount;
+                    if (m.progress >= m.target) {
+                        m.progress = m.target;
+                        m.claimed = true;
+                        SaveData.coins += m.rewardCoins;
+                        SaveData.gems += 2;
+                        SoundEngine.powerup();
+                        showFloatingText('МИССИЯ ВЫПОЛНЕНА! +' + m.rewardCoins + ' ★', '#00f5d4');
+                    }
+                    changed = true;
+                }
+            }
+            if (changed) saveGameData();
+        }
+
+        function updateHUD() {
+            stepCounter.innerHTML = 'Шаги: ' + Math.floor(steps);
+            coinCounter.innerHTML = '&#9733; ' + (SaveData.coins + runCoins);
+            gemCounter.innerHTML = '&#9830; ' + (SaveData.gems + runGems);
+
+            if (activePowerups.jetpack > 0) {
+                altitudeIndicator.innerHTML = 'Ярус: стратосфера (Джетпак)';
+                altitudeIndicator.style.borderColor = '#ffbe0b';
+                altitudeIndicator.style.color = '#ffbe0b';
+            } else if (currentGroundY > 0.3 || playerY > 1.4) {
+                altitudeIndicator.innerHTML = 'Ярус: 2 (Платформа ' + playerY.toFixed(1) + 'м)';
+                altitudeIndicator.style.borderColor = '#00f5d4';
+                altitudeIndicator.style.color = '#00f5d4';
+            } else {
+                altitudeIndicator.innerHTML = 'Ярус: 1 (Трасса)';
+                altitudeIndicator.style.borderColor = '#38bdf8';
+                altitudeIndicator.style.color = '#7dd3fc';
+            }
+
+            var totalMult = (activePowerups.multiplier > 0 ? 2 : 1) * (comboCount >= 10 ? 2 : 1);
+            if (comboCount >= 3 || activePowerups.multiplier > 0) {
+                comboBanner.className = 'active';
+                comboBanner.innerHTML = 'КОМБО x' + comboCount + (totalMult > 1 ? ' (МНОЖИТЕЛЬ ' + totalMult + 'X!)' : '');
+            } else {
+                comboBanner.className = '';
+            }
+        }
+
+        function renderPowerupBars() {
+            var html = '';
+            var list = [
+                { key: 'jetpack', label: 'ДЖЕТПАК', color: '#ffbe0b' },
+                { key: 'shield', label: 'ЩИТ', color: '#00f5d4' },
+                { key: 'magnet', label: 'МАГНИТ', color: '#ff4d94' },
+                { key: 'multiplier', label: '2X БОНУС', color: '#a855f7' }
+            ];
+            for (var i = 0; i < list.length; i++) {
+                var item = list[i];
+                var timeLeft = activePowerups[item.key];
+                if (timeLeft > 0) {
+                    var maxT = activePowerups[item.key + 'Max'] || 300;
+                    var pct = Math.max(0, Math.min(100, (timeLeft / maxT) * 100));
+                    var secs = (timeLeft / 60).toFixed(1);
+                    html += '<div class="pu-badge" style="border-color:' + item.color + '">';
+                    html += '<div class="pu-badge-header"><span style="color:' + item.color + '">' + item.label + '</span><span>' + secs + 'с</span></div>';
+                    html += '<div class="pu-progress-bg"><div class="pu-progress-fill" style="width:' + pct + '%;background:' + item.color + '"></div></div>';
+                    html += '</div>';
+                }
+            }
+            powerupBarContainer.innerHTML = html;
+        }
+
+        function activatePowerup(pType) {
+            var lvl = SaveData.upgrades[pType] || 1;
+            var durationFrames = (340 + lvl * 95); // от ~7 до ~14 секунд при 60 FPS
+            activePowerups[pType + 'Max'] = durationFrames;
+            activePowerups[pType] = durationFrames;
+            SoundEngine.powerup();
+
+            var titles = {
+                magnet: 'МАГНИТ АКТИВИРОВАН!',
+                jetpack: 'ТУРБО-ДЖЕТПАК!',
+                shield: 'ПЛАЗМЕННЫЙ ЩИТ!',
+                multiplier: 'МНОЖИТЕЛЬ 2X!'
+            };
+            showFloatingText(titles[pType] || 'БОНУС!', '#ffbe0b');
+            renderPowerupBars();
+        }
+
+        // Отрисовка магазина и скинов
+        var shopModal = document.getElementById('shopModal');
+        var missionsModal = document.getElementById('missionsModal');
+        var shopCoinsText = document.getElementById('shopCoinsText');
+        var shopGemsText = document.getElementById('shopGemsText');
+        var skinsListEl = document.getElementById('skinsList');
+        var upgradesListEl = document.getElementById('upgradesList');
+        var missionsListEl = document.getElementById('missionsList');
+
+        function renderShopUI() {
+            shopCoinsText.innerHTML = SaveData.coins;
+            shopGemsText.innerHTML = SaveData.gems;
+
+            var skinsHtml = '';
+            for (var i = 0; i < SKINS_CATALOG.length; i++) {
+                var sk = SKINS_CATALOG[i];
+                var unlocked = !!SaveData.unlockedSkins[sk.id];
+                var equipped = (SaveData.equippedSkin === sk.id);
+                var canAfford = sk.currency === 'gems' ? (SaveData.gems >= sk.price) : (SaveData.coins >= sk.price);
+                var priceLabel = sk.currency === 'gems' ? (sk.price + ' ♦') : (sk.price + ' ★');
+
+                skinsHtml += '<div class="shop-item">';
+                skinsHtml += '<div class="shop-item-info">';
+                skinsHtml += '<div class="shop-item-title">' + sk.name + '</div>';
+                skinsHtml += '<div class="shop-item-desc">' + sk.desc + '</div>';
+                skinsHtml += '</div>';
+                if (equipped) {
+                    skinsHtml += '<button class="shop-buy-btn equipped" disabled>ВЫБРАНО</button>';
+                } else if (unlocked) {
+                    skinsHtml += '<button class="shop-buy-btn" onclick="selectSkin(\'' + sk.id + '\')">ВЫБРАТЬ</button>';
+                } else {
+                    skinsHtml += '<button class="shop-buy-btn" ' + (canAfford ? '' : 'disabled') + ' onclick="buySkin(\'' + sk.id + '\')">' + priceLabel + '</button>';
+                }
+                skinsHtml += '</div>';
+            }
+            skinsListEl.innerHTML = skinsHtml;
+
+            var upgHtml = '';
+            for (var u = 0; u < UPGRADES_CATALOG.length; u++) {
+                var up = UPGRADES_CATALOG[u];
+                var curLvl = SaveData.upgrades[up.id] || 1;
+                var isMax = curLvl >= up.maxLevel;
+                var cost = up.baseCost * curLvl;
+                var canBuy = !isMax && (SaveData.coins >= cost);
+
+                upgHtml += '<div class="shop-item">';
+                upgHtml += '<div class="shop-item-info">';
+                upgHtml += '<div class="shop-item-title">' + up.name + ' (Ур. ' + curLvl + '/' + up.maxLevel + ')</div>';
+                upgHtml += '<div class="shop-item-desc">' + up.desc + '</div>';
+                upgHtml += '</div>';
+                if (isMax) {
+                    upgHtml += '<button class="shop-buy-btn equipped" disabled>МАКС.</button>';
+                } else {
+                    upgHtml += '<button class="shop-buy-btn" ' + (canBuy ? '' : 'disabled') + ' onclick="buyUpgrade(\'' + up.id + '\')">' + cost + ' ★</button>';
+                }
+                upgHtml += '</div>';
+            }
+            upgradesListEl.innerHTML = upgHtml;
+        }
+
+        window.selectSkin = function(skinId) {
+            if (SaveData.unlockedSkins[skinId]) {
+                SaveData.equippedSkin = skinId;
+                saveGameData();
+                applyCurrentSkin();
+                SoundEngine.coin();
+                renderShopUI();
+            }
+        };
+
+        window.buySkin = function(skinId) {
+            for (var i = 0; i < SKINS_CATALOG.length; i++) {
+                var sk = SKINS_CATALOG[i];
+                if (sk.id === skinId) {
+                    if (sk.currency === 'gems' && SaveData.gems >= sk.price) {
+                        SaveData.gems -= sk.price;
+                        SaveData.unlockedSkins[skinId] = true;
+                        SaveData.equippedSkin = skinId;
+                    } else if (sk.currency === 'coins' && SaveData.coins >= sk.price) {
+                        SaveData.coins -= sk.price;
+                        SaveData.unlockedSkins[skinId] = true;
+                        SaveData.equippedSkin = skinId;
+                    }
+                    saveGameData();
+                    applyCurrentSkin();
+                    SoundEngine.powerup();
+                    renderShopUI();
+                    updateHUD();
+                    break;
+                }
+            }
+        };
+
+        window.buyUpgrade = function(upgId) {
+            for (var i = 0; i < UPGRADES_CATALOG.length; i++) {
+                var up = UPGRADES_CATALOG[i];
+                if (up.id === upgId) {
+                    var curLvl = SaveData.upgrades[upgId] || 1;
+                    var cost = up.baseCost * curLvl;
+                    if (curLvl < up.maxLevel && SaveData.coins >= cost) {
+                        SaveData.coins -= cost;
+                        SaveData.upgrades[upgId] = curLvl + 1;
+                        saveGameData();
+                        SoundEngine.powerup();
+                        renderShopUI();
+                        updateHUD();
+                    }
+                    break;
+                }
+            }
+        };
+
+        function renderMissionsUI() {
+            var html = '';
+            for (var i = 0; i < SaveData.missions.length; i++) {
+                var m = SaveData.missions[i];
+                var pct = Math.min(100, Math.floor((m.progress / m.target) * 100));
+                html += '<div class="shop-item">';
+                html += '<div class="shop-item-info">';
+                html += '<div class="shop-item-title">' + m.title + '</div>';
+                html += '<div class="shop-item-desc">Прогресс: ' + Math.floor(m.progress) + ' / ' + m.target + ' (' + pct + '%)</div>';
+                html += '</div>';
+                html += '<button class="shop-buy-btn ' + (m.claimed ? 'equipped' : '') + '" disabled>' + (m.claimed ? 'ВЫПОЛНЕНО' : ('+' + m.rewardCoins + ' ★')) + '</button>';
+                html += '</div>';
+            }
+            missionsListEl.innerHTML = html;
+        }
+
+        // =========================================================================
+        // 13. УПРАВЛЕНИЕ (Клавиатура, Свайпы, Двойной прыжок, Рывок вниз)
+        // =========================================================================
+        function moveLeft() {
+            if (isGameOver || isPaused) return;
+            SoundEngine.unlock();
+            SoundEngine.startMusic();
+            if (playerLane > 0) {
+                playerLane--;
+                targetX = lanes[playerLane];
+            }
+        }
+
+        function moveRight() {
+            if (isGameOver || isPaused) return;
+            SoundEngine.unlock();
+            SoundEngine.startMusic();
+            if (playerLane < 2) {
+                playerLane++;
+                targetX = lanes[playerLane];
+            }
+        }
+
+        function tryJump() {
+            if (isGameOver || isPaused) return;
+            SoundEngine.unlock();
+            SoundEngine.startMusic();
+            if (activePowerups.jetpack > 0) return;
+
+            if (jumpCount < maxJumps) {
+                isSliding = false;
+                slideTimer = 0;
+                jumpCount++;
+                var isDouble = (jumpCount === 2);
+                jumpVelocity = isDouble ? (JUMP_VELOCITY * 0.92) : JUMP_VELOCITY;
+                SoundEngine.jump(isDouble);
+                spawnParticles(playerGroup.position.x, playerY + 0.2, 0, isDouble ? 0xffd166 : 0x00f5d4, 8);
+                if (isDouble) showFloatingText('ДВОЙНОЙ ПРЫЖОК!', '#ffd166');
+            }
+        }
+
+        function trySlide() {
+            if (isGameOver || isPaused) return;
+            SoundEngine.unlock();
+            SoundEngine.startMusic();
+            if (activePowerups.jetpack > 0) return;
+
+            isSliding = true;
+            slideTimer = 34; // ~0.55 сек пригнувшись
+            SoundEngine.slide();
+
+            // Если в воздухе — стремительный удар вниз (Slam)
+            if (playerY > currentGroundY + 0.1) {
+                jumpVelocity = -0.38;
+                showFloatingText('УДАР ВНИЗ!', '#ff4d94');
+                spawnParticles(playerGroup.position.x, playerY, 0, 0xff4d94, 10);
+            }
+        }
+
+        function bindControlBtn(el, fn) {
+            if ('ontouchstart' in window) {
+                el.addEventListener('touchstart', function(e) { e.stopPropagation(); fn(); }, { passive: true });
+            } else {
+                el.addEventListener('mousedown', function(e) { e.stopPropagation(); fn(); });
+            }
+        }
+        bindControlBtn(leftButtonEl, moveLeft);
+        bindControlBtn(rightButtonEl, moveRight);
+        bindControlBtn(jumpButtonEl, tryJump);
+        bindControlBtn(slideButtonEl, trySlide);
+
+        // Кнопки верхнего бара и модальных окон
+        document.getElementById('shopOpenBtn').addEventListener('click', function() {
+            isPaused = true;
+            renderShopUI();
+            shopModal.style.display = 'flex';
+        });
+        document.getElementById('goShopBtn').addEventListener('click', function() {
+            gameOverScreen.style.display = 'none';
+            isPaused = true;
+            renderShopUI();
+            shopModal.style.display = 'flex';
+        });
+        document.getElementById('closeShopBtn').addEventListener('click', function() {
+            shopModal.style.display = 'none';
+            if (isGameOver) {
+                resetGame();
+            } else {
+                isPaused = false;
+            }
+        });
+        document.getElementById('missionsOpenBtn').addEventListener('click', function() {
+            isPaused = true;
+            renderMissionsUI();
+            missionsModal.style.display = 'flex';
+        });
+        document.getElementById('closeMissionsBtn').addEventListener('click', function() {
+            missionsModal.style.display = 'none';
+            if (!isGameOver) isPaused = false;
+        });
+
+        var soundToggleBtn = document.getElementById('soundToggleBtn');
+        soundToggleBtn.addEventListener('click', function() {
+            var state = SoundEngine.toggle();
+            soundToggleBtn.innerHTML = state ? 'ЗВУК: ВКЛ' : 'ЗВУК: ВЫКЛ';
+        });
+
+        var pauseToggleBtn = document.getElementById('pauseToggleBtn');
+        pauseToggleBtn.addEventListener('click', function() {
+            if (isGameOver) return;
+            isPaused = !isPaused;
+            pauseToggleBtn.innerHTML = isPaused ? '▶' : 'II';
+            if (isPaused) showFloatingText('ПАУЗА', '#ffd166');
+        });
+
+        restartBtn.addEventListener('click', function() { resetGame(); });
+
+        // Свайпы по экрану (включая свайп вниз для слайда/удара)
+        var swipeStartX = 0, swipeStartY = 0, swipeStartT = 0;
+        var swipeHandled = true;
+
+        container.addEventListener('touchstart', function(e) {
+            var t = e.changedTouches[0];
+            swipeStartX = t.clientX;
+            swipeStartY = t.clientY;
+            swipeStartT = Date.now();
+            swipeHandled = false;
+        }, { passive: true });
+
+        container.addEventListener('touchmove', function(e) {
+            if (swipeHandled || isGameOver || isPaused) return;
+            var t = e.changedTouches[0];
+            var dx = t.clientX - swipeStartX;
+            var dy = t.clientY - swipeStartY;
+            var absDx = Math.abs(dx), absDy = Math.abs(dy);
+
+            if (absDx > 28 && absDx > absDy) {
+                if (dx < 0) moveLeft(); else moveRight();
+                swipeHandled = true;
+            } else if (absDy > 32 && absDy > absDx) {
+                if (dy < 0) tryJump(); else trySlide();
+                swipeHandled = true;
+            }
+        }, { passive: true });
+
+        container.addEventListener('touchend', function(e) {
+            if (swipeHandled || isGameOver || isPaused) return;
+            var t = e.changedTouches[0];
+            var dx = t.clientX - swipeStartX;
+            var dy = t.clientY - swipeStartY;
+            var dt = Date.now() - swipeStartT;
+            if (Math.abs(dx) < 20 && Math.abs(dy) < 20 && dt < 280) tryJump();
+            swipeHandled = true;
+        }, { passive: true });
+
+        document.addEventListener('keydown', function(e) {
+            var k = e.key;
+            if (k === 'ArrowLeft' || k === 'a' || k === 'A' || k === 'ф' || k === 'Ф') moveLeft();
+            else if (k === 'ArrowRight' || k === 'd' || k === 'D' || k === 'в' || k === 'В') moveRight();
+            else if (k === ' ' || k === 'ArrowUp' || k === 'w' || k === 'W' || k === 'ц' || k === 'Ц') {
+                e.preventDefault(); tryJump();
+            } else if (k === 'ArrowDown' || k === 's' || k === 'S' || k === 'ы' || k === 'Ы') {
+                e.preventDefault(); trySlide();
+            }
+        });
+
+        // =========================================================================
+        // 14. БОСС ХОМЯК: ЛАЗЕРНАЯ АТАКА И ПОВЕДЕНИЕ
+        // =========================================================================
+        var bossAttackTimer = 0;
+        var bossState = 'idle'; // 'idle', 'warning', 'firing'
+        var bossTargetLane = 1;
+
+        function updateBossHamster() {
+            if (bossState === 'idle') {
+                // Обычное преследование за игроком
+                hamster.position.x += (playerGroup.position.x - hamster.position.x) * 0.08;
+                hamster.position.y = HAMSTER_BASE_Y + Math.abs(Math.sin(animTick * 1.3)) * HAMSTER_BOB;
+                hamster.rotation.z = Math.cos(animTick * 1.3) * 0.08;
+
+                bossAttackTimer += 1;
+                if (bossAttackTimer > 420 && steps > 80) { // Каждые ~7 секунд
+                    bossState = 'warning';
+                    bossAttackTimer = 0;
+                    bossTargetLane = playerLane;
+                    bossWarningEl.style.display = 'block';
+                    SoundEngine.laserWarn();
+                }
+            } else if (bossState === 'warning') {
+                // Хомяк фиксируется на выбранной полосе и трясется, заряжая лазер
+                var targetLaneX = lanes[bossTargetLane];
+                hamster.position.x += (targetLaneX - hamster.position.x) * 0.22;
+                hamster.position.y = HAMSTER_BASE_Y + 0.35 + Math.sin(animTick * 6) * 0.08;
+                bossAttackTimer += 1;
+
+                if (bossAttackTimer === 35) SoundEngine.laserWarn();
+
+                if (bossAttackTimer > 75) {
+                    bossState = 'firing';
+                    bossAttackTimer = 0;
+                    bossWarningEl.style.display = 'none';
+                    laserBeam.visible = true;
+                    laserBeam.position.x = lanes[bossTargetLane];
+                    laserBeam.position.y = 0.85;
+                    SoundEngine.smash();
+                }
+            } else if (bossState === 'firing') {
+                bossAttackTimer += 1;
+                laserBeam.scale.x = 1 + Math.sin(animTick * 8) * 0.35;
+                laserBeam.scale.z = 1 + Math.cos(animTick * 8) * 0.35;
+
+                // Проверка попадания игрока под лазер Хомяка
+                if (Math.abs(playerGroup.position.x - laserBeam.position.x) < 0.85 && playerY < 1.35) {
+                    if (activePowerups.shield > 0) {
+                        activePowerups.shield = 0;
+                        SoundEngine.smash();
+                        showFloatingText('ЩИТ ОТРАЗИЛ ЛАЗЕР!', '#00f5d4');
+                        bossState = 'idle';
+                        laserBeam.visible = false;
+                    } else if (activePowerups.jetpack <= 0) {
+                        triggerGameOver('ПОДЖАРЕН ЛАЗЕРОМ ХОМЯКА!');
+                    }
+                }
+
+                if (bossAttackTimer > 38) {
+                    bossState = 'idle';
+                    bossAttackTimer = 0;
+                    laserBeam.visible = false;
+                }
+            }
+        }
+
+        // =========================================================================
+        // 15. ФИЗИКА ПОДЪЕМНЫХ ПЛАТФОРМ, ПРЕПЯТСТВИЙ И БОНУСОВ
+        // =========================================================================
+        function updatePlatformsAndCollisions() {
+            currentGroundY = 0;
+
+            // 1. Обработка платформ (Гидравлические лифты, Рампы, Джамп-пады)
+            for (var p = platforms.length - 1; p >= 0; p--) {
+                var plat = platforms[p];
+                var pData = plat.userData;
+                plat.position.z += speed;
+
+                // Анимация гидравлического подъема при приближении червяка
+                if (pData.type === 'elevator') {
+                    if (plat.position.z > -32 && plat.position.z < 8) {
+                        if (plat.position.y < pData.height) {
+                            plat.position.y = Math.min(pData.height, plat.position.y + 0.085);
+                        }
+                    }
+                }
+
+                // Проверка нахождения червяка на платформе
+                var dz = Math.abs(plat.position.z - playerGroup.position.z);
+                var dx = Math.abs(plat.position.x - playerGroup.position.x);
+
+                if (dx < (pData.width * 0.5 + 0.25) && dz < (pData.depth * 0.5 + 0.35)) {
+                    if (pData.type === 'jumppad') {
+                        if (playerY < 0.7 && jumpVelocity <= 0.05) {
+                            jumpVelocity = JUMP_VELOCITY * 1.55;
+                            jumpCount = 1;
+                            SoundEngine.spring();
+                            spawnParticles(playerGroup.position.x, 0.4, 0, 0xc77dff, 16);
+                            showFloatingText('СУПЕР-БАТУТ!', '#c77dff');
+                        }
+                    } else if (pData.type === 'ramp') {
+                        // Плавный заезд по наклонной эстакаде
+                        var rampProgress = (plat.position.z - playerGroup.position.z + pData.depth * 0.5) / pData.depth;
+                        var rampTop = Math.max(0.2, Math.min(1.65, rampProgress * 1.65));
+                        if (playerY >= rampTop - 0.55) {
+                            currentGroundY = Math.max(currentGroundY, rampTop);
+                        }
+                    } else if (pData.type === 'elevator') {
+                        var surfaceY = plat.position.y + 0.4;
+                        if (playerY >= surfaceY - 0.55 && jumpVelocity <= 0.08) {
+                            currentGroundY = Math.max(currentGroundY, surfaceY);
+                            if (!pData.visited) {
+                                pData.visited = true;
+                                SoundEngine.elevator();
+                                showFloatingText('НА ПОДЪЕМНИКЕ! +25', '#00f5d4');
+                                steps += 25;
+                                updateMissionProgress('m_platforms', 1);
+                            }
+                        } else if (playerY < surfaceY - 0.55 && dz < pData.depth * 0.42) {
+                            // Лобовой удар в торец поднятой платформы, если не запрыгнул
+                            if (activePowerups.shield > 0 || activePowerups.jetpack > 0) {
+                                activePowerups.shield = 0;
+                                SoundEngine.smash();
+                                spawnParticles(plat.position.x, 1.0, plat.position.z, 0x00f5d4, 18);
+                                scene.remove(plat);
+                                platforms.splice(p, 1);
+                                continue;
+                            } else {
+                                triggerGameOver('ВРЕЗАЛСЯ В ПОДЪЕМНИК!');
+                                return;
+                            }
+                        }
+                    }
+                }
+
+                if (plat.position.z > 15) {
+                    scene.remove(plat);
+                    platforms.splice(p, 1);
+                }
+            }
+
+            // 2. Обработка препятствий
+            for (var o = obstacles.length - 1; o >= 0; o--) {
+                var obs = obstacles[o];
+                var oData = obs.userData;
+                obs.position.z += speed;
+
+                var dzObs = Math.abs(obs.position.z - playerGroup.position.z);
+                var dxObs = Math.abs(obs.position.x - playerGroup.position.x);
+
+                if (dzObs < (oData.depth * 0.5 + 0.25) && dxObs < 0.88) {
+                    var hit = false;
+                    if (oData.type === 'wall') {
+                        // Высокая балка: нужно проскользнуть (isSliding) или перелететь на джетпаке
+                        if (!isSliding && playerY < 2.5) hit = true;
+                    } else {
+                        // Обычный барьер или тумба: нужно перепрыгнуть
+                        if (playerY < oData.height - 0.15) hit = true;
+                    }
+
+                    if (hit) {
+                        if (activePowerups.jetpack > 0 || activePowerups.shield > 0) {
+                            if (activePowerups.shield > 0 && activePowerups.jetpack <= 0) {
+                                activePowerups.shield = 0;
+                            }
+                            SoundEngine.smash();
+                            spawnParticles(obs.position.x, obs.position.y, obs.position.z, 0xff3366, 20);
+                            showFloatingText('ТАРАН! +30', '#ffbe0b');
+                            steps += 30;
+                            updateMissionProgress('m_smash', 1);
+                            scene.remove(obs);
+                            obstacles.splice(o, 1);
+                            continue;
+                        } else {
+                            triggerGameOver('ХОМЯК ДОГНАЛ!');
+                            return;
+                        }
+                    }
+                }
+
+                if (obs.position.z > 14) {
+                    scene.remove(obs);
+                    obstacles.splice(o, 1);
+                }
+            }
+
+            // 3. Обработка монет, кристаллов и коробок с бонусами (+ Магнит)
+            var magnetRadius = activePowerups.magnet > 0 ? (9.5 + (SaveData.upgrades.magnet || 1) * 2.0) : 0;
+
+            for (var c = collectibles.length - 1; c >= 0; c--) {
+                var col = collectibles[c];
+                var cData = col.userData;
+                col.position.z += speed;
+                col.rotation.y += 0.07;
+
+                // Притяжение монет магнитом
+                if (cData.type === 'coin' && magnetRadius > 0) {
+                    var distZ = Math.abs(col.position.z - playerGroup.position.z);
+                    if (distZ < magnetRadius) {
+                        col.position.x += (playerGroup.position.x - col.position.x) * 0.24;
+                        col.position.y += ((playerY + 0.5) - col.position.y) * 0.24;
+                        col.position.z += (playerGroup.position.z - col.position.z) * 0.18;
+                    }
+                }
+
+                var dzCol = Math.abs(col.position.z - playerGroup.position.z);
+                var dxCol = Math.abs(col.position.x - playerGroup.position.x);
+                var dyCol = Math.abs(col.position.y - (playerY + 0.5));
+
+                if (dzCol < 1.05 && dxCol < 1.05 && dyCol < 1.35) {
+                    if (cData.type === 'coin') {
+                        var coinGain = (activePowerups.multiplier > 0 ? 2 : 1);
+                        runCoins += coinGain;
+                        comboCount++;
+                        comboTimer = 150;
+                        SoundEngine.coin();
+                        spawnParticles(col.position.x, col.position.y, col.position.z, 0xffd166, 6);
+                        updateMissionProgress('m_coins', coinGain);
+                    } else if (cData.type === 'gem') {
+                        runGems += 1;
+                        SoundEngine.gem();
+                        spawnParticles(col.position.x, col.position.y, col.position.z, 0xff4d94, 12);
+                        showFloatingText('+1 КРИСТАЛЛ ♦', '#ff85b3');
+                    } else if (cData.type === 'powerup') {
+                        activatePowerup(cData.pType);
+                        spawnParticles(col.position.x, col.position.y, col.position.z, 0x00f5d4, 16);
+                    }
+                    scene.remove(col);
+                    collectibles.splice(c, 1);
+                    continue;
+                }
+
+                if (col.position.z > 12) {
+                    scene.remove(col);
+                    collectibles.splice(c, 1);
+                }
+            }
+        }
+
+        // =========================================================================
+        // 16. ЗАВЕРШЕНИЕ ИГРЫ И ПЕРЕЗАПУСК
+        // =========================================================================
+        var gameOverTitleEl = document.getElementById('gameOverTitle');
+
+        function triggerGameOver(reasonText) {
+            if (isGameOver) return;
+            isGameOver = true;
+            SoundEngine.gameOver();
+
+            bossWarningEl.style.display = 'none';
+            laserBeam.visible = false;
+
+            hamster.position.z = 1.3;
+            hamster.position.x = playerGroup.position.x;
+            hamster.position.y = HAMSTER_BASE_Y;
+
+            var finalStepsInt = Math.floor(steps);
+            if (finalStepsInt > SaveData.bestSteps) {
+                SaveData.bestSteps = finalStepsInt;
+            }
+            SaveData.coins += runCoins;
+            SaveData.gems += runGems;
+
+            // Проверка миссии на шаги за один забег
+            for (var i = 0; i < SaveData.missions.length; i++) {
+                var m = SaveData.missions[i];
+                if (m.id === 'm_steps' && !m.claimed) {
+                    m.progress = Math.max(m.progress, finalStepsInt);
+                    if (m.progress >= m.target) {
+                        m.progress = m.target;
+                        m.claimed = true;
+                        SaveData.coins += m.rewardCoins;
+                    }
+                }
+            }
+            saveGameData();
+
+            gameOverTitleEl.innerHTML = reasonText || 'ХОМЯК ДОГНАЛ!';
+            finalScore.innerHTML = finalStepsInt;
+            bestScoreVal.innerHTML = SaveData.bestSteps;
+            runCoinsVal.innerHTML = '+' + runCoins;
+            runGemsVal.innerHTML = '+' + runGems;
+            gameOverScreen.style.display = 'flex';
+        }
+
+        function resetGame() {
+            for (var i = 0; i < obstacles.length; i++) scene.remove(obstacles[i]);
+            for (var p = 0; p < platforms.length; p++) scene.remove(platforms[p]);
+            for (var c = 0; c < collectibles.length; c++) scene.remove(collectibles[c]);
+            obstacles = [];
+            platforms = [];
+            collectibles = [];
+            trailHistory = [];
+
+            playerLane = 1;
+            targetX = lanes[1];
+            playerGroup.position.set(0, 0, 0);
+            playerY = 0;
+            currentGroundY = 0;
+            jumpVelocity = 0;
+            jumpCount = 0;
+            isSliding = false;
+            slideTimer = 0;
+
+            speed = baseSpeed;
+            steps = 0;
+            runCoins = 0;
+            runGems = 0;
+            comboCount = 0;
+            comboTimer = 0;
+
+            activePowerups.magnet = 0;
+            activePowerups.shield = 0;
+            activePowerups.jetpack = 0;
+            activePowerups.multiplier = 0;
+            renderPowerupBars();
+
+            bossState = 'idle';
+            bossAttackTimer = 0;
+            bossWarningEl.style.display = 'none';
+            laserBeam.visible = false;
+
+            hamster.position.set(0, HAMSTER_BASE_Y, 4.8);
+            hamster.rotation.z = 0;
+
+            isGameOver = false;
+            isPaused = false;
+            pauseToggleBtn.innerHTML = 'II';
+            gameOverScreen.style.display = 'none';
+            updateHUD();
+        }
+
+        // =========================================================================
+        // 17. ГЛАВНЫЙ ИГРОВОЙ ЦИКЛ (60 FPS)
+        // =========================================================================
+        camera.position.set(0, 4.5, 7.6);
+        camera.lookAt(new THREE.Vector3(0, 1.0, -6));
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (!isGameOver && !isPaused) {
+                animTick += 0.18;
+
+                // 1. Обновление таймеров бонусов и комбо
+                var puChanged = false;
+                var puKeys = ['magnet', 'shield', 'jetpack', 'multiplier'];
+                for (var k = 0; k < puKeys.length; k++) {
+                    var key = puKeys[k];
+                    if (activePowerups[key] > 0) {
+                        activePowerups[key]--;
+                        if (activePowerups[key] % 6 === 0 || activePowerups[key] === 0) puChanged = true;
+                    }
+                }
+                if (puChanged) renderPowerupBars();
+
+                jetpackGroup.visible = (activePowerups.jetpack > 0);
+                shieldSphere.visible = (activePowerups.shield > 0);
+                if (shieldSphere.visible) {
+                    shieldSphere.rotation.y += 0.05;
+                    shieldSphere.rotation.x += 0.03;
+                }
+
+                if (comboTimer > 0) {
+                    comboTimer--;
+                    if (comboTimer === 0) comboCount = 0;
+                }
+
+                if (slideTimer > 0) {
+                    slideTimer--;
+                    if (slideTimer === 0) isSliding = false;
+                }
+
+                // 2. Горизонтальное перемещение червяка
+                playerGroup.position.x += (targetX - playerGroup.position.x) * 0.22;
+
+                // 3. Многоуровневая вертикальная физика (Платформы, Прыжки, Джетпак)
+                if (activePowerups.jetpack > 0) {
+                    var jetTargetY = 4.2;
+                    playerY += (jetTargetY - playerY) * 0.12;
+                    jumpVelocity = 0;
+                    jumpCount = 0;
+                    // Реактивная струя джетпака
+                    if (Math.floor(animTick * 5) % 2 === 0) {
+                        spawnParticles(playerGroup.position.x, playerY - 0.2, 0.6, 0xffbe0b, 1);
+                    }
+                } else {
+                    playerY += jumpVelocity;
+                    jumpVelocity -= GRAVITY;
+
+                    if (playerY <= currentGroundY) {
+                        playerY = currentGroundY;
+                        jumpVelocity = 0;
+                        jumpCount = 0;
+                    }
+                }
+
+                // Запись истории 3D-координат головы для волнообразного следования сегментов хвоста
+                trailHistory.unshift({ x: playerGroup.position.x, y: playerY });
+                if (trailHistory.length > 40) trailHistory.pop();
+
+                // 4. Анимация сегментов червяка (с учетом высоты прыжка и слайда)
+                var slideScaleY = isSliding ? 0.52 : 1.0;
+                for (var s = 0; s < wormSegments.length; s++) {
+                    var seg = wormSegments[s];
+                    var baseRadius = 0.5 - (s * 0.038);
+                    var histIdx = Math.min(trailHistory.length - 1, s * 3);
+                    var histPos = trailHistory[histIdx] || { x: playerGroup.position.x, y: playerY };
+
+                    var waveX = Math.sin(animTick * 1.6 - s * 0.65) * 0.13 * (s / wormSegments.length + 0.25);
+                    var waveY = (playerY > currentGroundY + 0.05)
+                        ? 0
+                        : Math.abs(Math.cos(animTick * 1.6 - s * 0.55)) * 0.11;
+
+                    // Сегменты плавно изгибаются в 3D пространстве вслед за головой
+                    seg.position.x = (histPos.x - playerGroup.position.x) + waveX;
+                    seg.position.y = histPos.y + (baseRadius * slideScaleY) + waveY;
+                    seg.scale.set(isSliding ? 1.22 : 1.0, slideScaleY, 1.0);
+                }
+
+                // 5. Плавное следование камеры за высотой червяка
+                var camTargetY = 4.4 + playerY * 0.45;
+                camera.position.y += (camTargetY - camera.position.y) * 0.1;
+                camera.position.x += (playerGroup.position.x * 0.25 - camera.position.x) * 0.1;
+                neonPointLight.position.set(playerGroup.position.x, playerY + 3.5, 2);
+
+                // 6. Движение текстуры дороги и неоновых арок
+                if (roadTexture.offset) {
+                    roadTexture.offset.y -= speed * 0.065;
+                }
+                for (var a = 0; a < arches.length; a++) {
+                    arches[a].position.z += speed;
+                    if (arches[a].position.z > 12) arches[a].position.z -= 176;
+                }
+
+                // 7. Генерация объектов мира (Платформы, Препятствия, Монеты, Бонусы)
+                spawnTimer += speed;
+                if (spawnTimer > 17) {
+                    spawnTimer = 0;
+                    createObstacle();
+                    if (Math.random() < 0.38) createObstacle();
+                }
+
+                platformSpawnTimer += speed;
+                if (platformSpawnTimer > 26) {
+                    platformSpawnTimer = 0;
+                    var pRand = Math.random();
+                    var pType = pRand < 0.5 ? 'elevator' : (pRand < 0.8 ? 'ramp' : 'jumppad');
+                    createPlatform(pType);
+                }
+
+                collectibleSpawnTimer += speed;
+                if (collectibleSpawnTimer > 9) {
+                    collectibleSpawnTimer = 0;
+                    if (Math.random() < 0.11) {
+                        createPowerupBox();
+                    } else {
+                        createCollectible();
+                    }
+                }
+
+                // 8. Обновление платформ, столкновений, босса и частиц
+                updatePlatformsAndCollisions();
+                updateBossHamster();
+
+                for (var pt = particles.length - 1; pt >= 0; pt--) {
+                    var pObj = particles[pt];
+                    pObj.position.x += pObj.userData.vx;
+                    pObj.position.y += pObj.userData.vy;
+                    pObj.position.z += pObj.userData.vz + speed * 0.5;
+                    pObj.userData.vy -= 0.01;
+                    pObj.userData.life -= 0.04;
+                    pObj.scale.setScalar(Math.max(0.01, pObj.userData.life));
+                    if (pObj.userData.life <= 0) {
+                        scene.remove(pObj);
+                        particles.splice(pt, 1);
+                    }
+                }
+
+                // 9. Начисление шагов и ускорение
+                var stepMult = (activePowerups.multiplier > 0 ? 2 : 1);
+                var effectiveSpeed = activePowerups.jetpack > 0 ? (speed * 1.45) : speed;
+                steps += effectiveSpeed * 0.55 * stepMult;
+
+                if (speed < maxSpeed) speed += 0.00016;
+                updateHUD();
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', function() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }, false);
+
+        updateHUD();
+        animate();
+    </script>
+</body>
+</html>

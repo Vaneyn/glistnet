@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Аналог Paint для Android</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+      background-color: #f0f0f0;
+      font-family: Arial, sans-serif;
+    }
+    /* Вертикальный flex-контейнер: панель вверху, холст - остальное */
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+    /* Панель инструментов */
+    #toolbar {
+      flex: 0 0 auto;
+      background-color: #ddd;
+      display: flex;
+      flex-direction: column;
+      transition: max-height 0.3s ease;
+    }
+    /* Верхняя строка с кнопкой сворачивания */
+    #toolbarHeader {
+      display: flex;
+      justify-content: flex-end;
+      padding: 4px;
+      background-color: #ccc;
+    }
+    #toolbarHeader button {
+      padding: 2px 6px;
+      font-size: 16px;
+      cursor: pointer;
+      background: none;
+      border: none;
+    }
+    /* Блок с основными элементами панели */
+    #toolbarControls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      padding: 4px;
+      font-size: 14px;
+    }
+    #toolbarControls > * {
+      margin: 2px;
+    }
+    #toolbarControls button {
+      padding: 4px 8px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    #toolbarControls input[type="range"],
+    #toolbarControls input[type="number"],
+    #toolbarControls input[type="color"],
+    #toolbarControls select {
+      vertical-align: middle;
+    }
+    /* Контейнер для холста */
+    #canvas-container {
+      flex: 1 1 auto;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background-color: #999;
+    }
+    /* Сам холст масштабируется под размеры контейнера */
+    canvas {
+      border: 1px solid #333;
+      background-color: #fff;
+      width: 100%;
+      height: auto;
+      max-width: 100%;
+      max-height: 100%;
+      touch-action: none;
+    }
+    /* Свернутая панель */
+    #toolbar.collapsed #toolbarControls {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="toolbar">
+    <!-- Верхняя строка с кнопкой сворачивания -->
+    <div id="toolbarHeader">
+      <button id="toggleToolbar" title="Свернуть/развернуть панель">&#9650;</button>
+    </div>
+    
+    <!-- Основные элементы панели -->
+    <div id="toolbarControls">
+      <!-- Кнопка Назад -->
+      <button id="backBtn">Назад</button>
+
+      <!-- Выбор инструмента -->
+      <button id="brushBtn">Кисть</button>
+      <button id="fillBtn">Заливка</button>
+      <button id="eraserBtn">Ластик</button>
+      
+      <!-- Размер кисти -->
+      <label for="brushSize">Размер кисти:</label>
+      <input type="range" id="brushSize" min="1" max="50" value="5">
+      
+      <!-- Цветовая палитра -->
+      <button class="colorBtn" data-color="#000000" style="background:#000000; width:24px; height:24px;"></button>
+      <button class="colorBtn" data-color="#ff0000" style="background:#ff0000; width:24px; height:24px;"></button>
+      <button class="colorBtn" data-color="#00ff00" style="background:#00ff00; width:24px; height:24px;"></button>
+      <button class="colorBtn" data-color="#0000ff" style="background:#0000ff; width:24px; height:24px;"></button>
+      <button class="colorBtn" data-color="#ffff00" style="background:#ffff00; width:24px; height:24px;"></button>
+      
+      <!-- Пользовательский выбор цвета -->
+      <input type="color" id="colorPicker" value="#000000">
+      
+      <!-- Выбор разрешения -->
+      <label for="resolutionSelect">Разрешение:</label>
+      <select id="resolutionSelect">
+        <option value="320,480">320 x 480</option>
+        <option value="480,800" selected>480 x 800</option>
+        <option value="720,1280">720 x 1280</option>
+        <option value="1080,1920">1080 x 1920</option>
+      </select>
+      
+      <!-- Кастомное разрешение -->
+      <label>Свой размер:</label>
+      <input type="number" id="customWidth" placeholder="ширина" min="50" style="width:60px;">
+      <input type="number" id="customHeight" placeholder="высота" min="50" style="width:60px;">
+      <button id="applyCustomResolution">Применить</button>
+      
+      <!-- Очистка холста -->
+      <button id="clearBtn">Мусорка</button>
+      
+      <!-- Открытие файла рисунка -->
+      <label for="openFile">Открыть рисунок:</label>
+      <input type="file" id="openFile" accept="image/*">
+    </div>
+  </div>
+
+  <div id="canvas-container">
+    <canvas id="drawingCanvas"></canvas>
+  </div>
+
+  <script>
+    // Получение элементов
+    const canvas = document.getElementById("drawingCanvas");
+    const ctx = canvas.getContext("2d");
+
+    const backBtn = document.getElementById("backBtn");
+    const brushBtn = document.getElementById("brushBtn");
+    const fillBtn  = document.getElementById("fillBtn");
+    const eraserBtn= document.getElementById("eraserBtn");
+    const clearBtn = document.getElementById("clearBtn");
+    const applyCustomResolution = document.getElementById("applyCustomResolution");
+    const openFile = document.getElementById("openFile");
+    const toggleToolbar = document.getElementById("toggleToolbar");
+    const toolbar = document.getElementById("toolbar");
+
+    const brushSizeInput = document.getElementById("brushSize");
+    const colorPicker = document.getElementById("colorPicker");
+    const colorBtns = document.querySelectorAll(".colorBtn");
+    const resolutionSelect = document.getElementById("resolutionSelect");
+    const customWidth = document.getElementById("customWidth");
+    const customHeight = document.getElementById("customHeight");
+
+    // Глобальные переменные
+    let drawing = false;
+    let currentTool = "brush";  // допустимые: brush, fill, eraser
+    let currentColor = colorPicker.value;
+    let brushSize = parseInt(brushSizeInput.value, 10);
+    let canvasWidth = 480;
+    let canvasHeight = 800;
+
+    // Функция установки размера холста (фактическое разрешение сохраняется в canvas.width/height)
+    function setCanvasSize(width, height) {
+      canvasWidth = width;
+      canvasHeight = height;
+      canvas.width = canvasWidth;
+      canvas.height = canvasHeight;
+      // Заполняем фон белым
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+    }
+
+    // Инициализация холста с выбранным разрешением
+    (function initCanvas() {
+      const [w, h] = resolutionSelect.value.split(",").map(Number);
+      setCanvasSize(w, h);
+    })();
+
+    // Обработчики смены разрешения из списка
+    resolutionSelect.addEventListener("change", () => {
+      const [w, h] = resolutionSelect.value.split(",").map(Number);
+      setCanvasSize(w, h);
+    });
+
+    // Обработчик кастомного разрешения
+    applyCustomResolution.addEventListener("click", () => {
+      const w = parseInt(customWidth.value, 10);
+      const h = parseInt(customHeight.value, 10);
+      if (isNaN(w) || isNaN(h) || w < 50 || h < 50) {
+        alert("Введите корректные значения (числа не менее 50) для ширины и высоты.");
+        return;
+      }
+      setCanvasSize(w, h);
+    });
+
+    // Кнопка "Назад" перенаправляет на glist.html
+    backBtn.addEventListener("click", () => {
+      window.location.href = "glist.html";
+    });
+
+    // Сворачивание/разворачивание панели
+    toggleToolbar.addEventListener("click", () => {
+      toolbar.classList.toggle("collapsed");
+      // Изменяем символ кнопки
+      if (toolbar.classList.contains("collapsed")) {
+        toggleToolbar.innerHTML = "&#9660;"; // ▼
+      } else {
+        toggleToolbar.innerHTML = "&#9650;"; // ▲
+      }
+    });
+
+    // Выбор инструмента и обновление стилей кнопок
+    function updateToolStyles() {
+      [brushBtn, fillBtn, eraserBtn].forEach(btn => btn.style.border = "");
+      if (currentTool === "brush") brushBtn.style.border = "2px solid blue";
+      if (currentTool === "fill")  fillBtn.style.border = "2px solid blue";
+      if (currentTool === "eraser") eraserBtn.style.border = "2px solid blue";
+    }
+    brushBtn.addEventListener("click", () => {
+      currentTool = "brush";
+      updateToolStyles();
+    });
+    fillBtn.addEventListener("click", () => {
+      currentTool = "fill";
+      updateToolStyles();
+    });
+    eraserBtn.addEventListener("click", () => {
+      currentTool = "eraser";
+      updateToolStyles();
+    });
+
+    // Обновление цвета и размера кисти
+    colorPicker.addEventListener("change", e => {
+      currentColor = e.target.value;
+    });
+    colorBtns.forEach(btn => {
+      btn.addEventListener("click", () => {
+        currentColor = btn.getAttribute("data-color");
+        colorPicker.value = currentColor;
+      });
+    });
+    brushSizeInput.addEventListener("input", () => {
+      brushSize = parseInt(brushSizeInput.value, 10);
+    });
+
+    // Очистка холста (мусорка) с подтверждением
+    clearBtn.addEventListener("click", () => {
+      if (confirm("Вы действительно хотите очистить холст?")) {
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+    });
+
+    // Функция получения координат относительно холста с учётом масштабирования CSS
+    function getCanvasCoordinates(e) {
+      let rect = canvas.getBoundingClientRect();
+      let clientX, clientY;
+      if (e.touches && e.touches.length > 0) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+      } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+      }
+      return {
+        x: Math.floor((clientX - rect.left) * (canvas.width / rect.width)),
+        y: Math.floor((clientY - rect.top) * (canvas.height / rect.height))
+      };
+    }
+
+    // Реализация Flood Fill (заливка)
+    function floodFill(startX, startY, fillColor) {
+      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imgData.data;
+      const width = canvas.width;
+      const height = canvas.height;
+      const pixelStack = [[startX, startY]];
+
+      // Цвет стартовой точки
+      const offset = (startY * width + startX) * 4;
+      const startColor = [
+        data[offset],
+        data[offset + 1],
+        data[offset + 2],
+        data[offset + 3]
+      ];
+
+      // Преобразование заливочного цвета в RGBA
+      const fillColorRGB = hexToRgba(fillColor);
+
+      // Если начальный цвет совпадает с цветом заливки, выходим
+      if (colorsMatch(startColor, fillColorRGB)) {
+        return;
+      }
+
+      function matchPixel(x, y) {
+        const i = (y * width + x) * 4;
+        return colorsMatch(startColor, [data[i], data[i+1], data[i+2], data[i+3]]);
+      }
+
+      while(pixelStack.length) {
+        const [x, y] = pixelStack.pop();
+        let currentY = y;
+        let i = (currentY * width + x) * 4;
+        while (currentY >= 0 && matchPixel(x, currentY)) {
+          currentY--;
+          i -= width * 4;
+        }
+        currentY++;
+        i += width * 4;
+        let reachLeft = false, reachRight = false;
+        while (currentY < height && matchPixel(x, currentY)) {
+          // Заливка
+          setPixel(data, i, fillColorRGB);
+          if (x > 0) {
+            if (matchPixel(x-1, currentY)){
+              if (!reachLeft) {
+                pixelStack.push([x-1, currentY]);
+                reachLeft = true;
+              }
+            } else {
+              reachLeft = false;
+            }
+          }
+          if (x < width - 1) {
+            if (matchPixel(x+1, currentY)){
+              if (!reachRight) {
+                pixelStack.push([x+1, currentY]);
+                reachRight = true;
+              }
+            } else {
+              reachRight = false;
+            }
+          }
+          currentY++;
+          i += width * 4;
+        }
+      }
+      ctx.putImageData(imgData, 0, 0);
+    }
+
+    // Установка цвета пикселя в ImageData
+    function setPixel(data, index, color) {
+      data[index]   = color[0];
+      data[index+1] = color[1];
+      data[index+2] = color[2];
+      data[index+3] = color[3];
+    }
+
+    // Сравнение цветов
+    function colorsMatch(a, b) {
+      return a[0] === b[0] &&
+             a[1] === b[1] &&
+             a[2] === b[2] &&
+             a[3] === b[3];
+    }
+
+    // Преобразование HEX в массив RGBA
+    function hexToRgba(hex) {
+      if(hex.startsWith("#")){
+        hex = hex.substring(1);
+      }
+      if(hex.length === 3){
+        hex = hex.split("").map(c => c + c).join("");
+      }
+      const intVal = parseInt(hex, 16);
+      return [
+        (intVal >> 16) & 255,
+        (intVal >> 8) & 255,
+        intVal & 255,
+        255
+      ];
+    }
+
+    // Рисование кистью/ластиком
+    let lastPos = {x: 0, y: 0};
+    function startDrawing(e) {
+      e.preventDefault();
+      const pos = getCanvasCoordinates(e);
+      if (currentTool === "fill") {
+        floodFill(pos.x, pos.y, currentColor);
+      } else {
+        drawing = true;
+        lastPos = pos;
+        draw(pos.x, pos.y, false);
+      }
+    }
+    function draw(x, y, isMoving) {
+      if (!isMoving) {
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+      }
+      ctx.lineTo(x, y);
+      ctx.strokeStyle = (currentTool === "eraser") ? "#fff" : currentColor;
+      ctx.lineWidth = brushSize;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.stroke();
+    }
+    function continueDrawing(e) {
+      if (!drawing) return;
+      e.preventDefault();
+      const pos = getCanvasCoordinates(e);
+      draw(pos.x, pos.y, true);
+      lastPos = pos;
+    }
+    function stopDrawing(e) {
+      if (!drawing) return;
+      e.preventDefault();
+      ctx.closePath();
+      drawing = false;
+    }
+
+    // События для мыши
+    canvas.addEventListener("mousedown", startDrawing);
+    canvas.addEventListener("mousemove", continueDrawing);
+    canvas.addEventListener("mouseup", stopDrawing);
+    canvas.addEventListener("mouseout", stopDrawing);
+    // События для touch-устройств
+    canvas.addEventListener("touchstart", startDrawing);
+    canvas.addEventListener("touchmove", continueDrawing);
+    canvas.addEventListener("touchend", stopDrawing);
+    canvas.addEventListener("touchcancel", stopDrawing);
+
+    // Блокировка прокрутки для touch-устройств
+    document.body.addEventListener("touchmove", function(e) {
+      e.preventDefault();
+    }, {passive: false});
+
+    // Обработка открытия файла рисунка
+    openFile.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        const img = new Image();
+        img.onload = function() {
+          // Подгоняем изображение под размеры холста
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        }
+        img.src = evt.target.result;
+      }
+      reader.readAsDataURL(file);
+    });
+  </script>
+</body>
+</html>

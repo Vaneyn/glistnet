@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Кодировка символов // Циклический декодер</title>
+  <style>
+    :root {
+      --bg-main: #161618;
+      --bg-card: #202024;
+      --bg-input: #2a2a30;
+      --bg-hover: #34343c;
+      --border: #383842;
+      --text-main: #e4e4e7;
+      --text-muted: #9ca3af;
+      --accent: #a1a1aa;
+      --highlight: #f4f4f5;
+      --gold: #eab308;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 32px 16px;
+      line-height: 1.5;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 760px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
+    }
+
+    /* Шапка */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .header h1 {
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      color: var(--highlight);
+    }
+
+    .btn {
+      background: var(--bg-input);
+      color: var(--text-main);
+      border: 1px solid var(--border);
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn:hover {
+      background: var(--bg-hover);
+      border-color: var(--accent);
+    }
+
+    .btn:active {
+      transform: translateY(1px);
+    }
+
+    /* Основная сетка */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 200px 1fr;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    @media (max-width: 600px) {
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Карточка превью символа */
+    .symbol-preview {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      position: relative;
+      cursor: pointer;
+      user-select: none;
+      min-height: 190px;
+      transition: border-color 0.2s;
+    }
+
+    .symbol-preview:hover {
+      border-color: var(--accent);
+    }
+
+    .symbol-preview .char {
+      font-size: 76px;
+      line-height: 1.1;
+      color: var(--highlight);
+      margin-bottom: 12px;
+      word-break: break-all;
+      text-align: center;
+    }
+
+    .symbol-preview .copy-hint {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+
+    /* Поля управления */
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .control-group label {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    input[type="text"],
+    input[type="number"] {
+      width: 100%;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      color: var(--highlight);
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 15px;
+      font-family: "JetBrains Mono", Consolas, monospace;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    input[type="text"]:focus,
+    input[type="number"]:focus {
+      border-color: var(--accent);
+    }
+
+    /* Ползунок */
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      outline: none;
+      margin: 6px 0;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--text-main);
+      cursor: pointer;
+      border: 2px solid var(--bg-main);
+    }
+
+    /* Техническая панель (мета-данные) */
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+
+    .meta-box {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      padding: 10px 14px;
+      border-radius: 8px;
+    }
+
+    .meta-box .meta-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 2px;
+    }
+
+    .meta-box .meta-val {
+      font-family: "JetBrains Mono", Consolas, monospace;
+      font-size: 14px;
+      color: var(--highlight);
+      word-break: break-all;
+    }
+
+    /* Секция круговорота кодов */
+    .cycles-section {
+      border-top: 1px solid var(--border);
+      padding-top: 20px;
+    }
+
+    .cycles-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .cycles-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--highlight);
+    }
+
+    .cycles-subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+    }
+
+    .cycles-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
+      gap: 8px;
+      max-height: 240px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .cycles-list::-webkit-scrollbar {
+      width: 6px;
+    }
+    .cycles-list::-webkit-scrollbar-track {
+      background: var(--bg-input);
+      border-radius: 4px;
+    }
+    .cycles-list::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 4px;
+    }
+
+    .cycle-chip {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-family: "JetBrains Mono", Consolas, monospace;
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: all 0.15s;
+    }
+
+    .cycle-chip:hover {
+      background: var(--bg-hover);
+      border-color: var(--accent);
+    }
+
+    .cycle-chip.active {
+      background: #3f3f46;
+      border-color: var(--highlight);
+    }
+
+    .cycle-chip .cycle-index {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .cycles-actions {
+      margin-top: 12px;
+      display: flex;
+      gap: 10px;
+    }
+
+    /* Уведомление о достижении */
+    .achievement-toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #27272a;
+      border: 1px solid var(--gold);
+      color: var(--highlight);
+      padding: 14px 18px;
+      border-radius: 10px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      animation: slideIn 0.3s ease forwards;
+      max-width: 340px;
+    }
+
+    .achievement-icon {
+      width: 36px;
+      height: 36px;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
+
+    .achievement-body h4 {
+      font-size: 14px;
+      color: var(--gold);
+      margin-bottom: 2px;
+    }
+
+    .achievement-body p {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-15px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="header">
+      <h1>Кодировка символов <span style="color: var(--text-muted); font-weight: 400;">// 16-bit Cycle</span></h1>
+      <button class="btn" onclick="run('glist')">← НАЗАД</button>
+    </div>
+
+    <div class="main-grid">
+      <!-- Карточка отображения символа -->
+      <div class="symbol-preview" onclick="copySymbol()" title="Нажмите, чтобы скопировать символ">
+        <div class="char" id="charDisplay">A</div>
+        <div class="copy-hint" id="copyHint">Нажмите для копирования</div>
+      </div>
+
+      <!-- Поля ввода -->
+      <div class="controls">
+        <div class="control-group">
+          <label for="symbolInput">
+            <span>Символ</span>
+            <span id="charNameHint">Берется 1-й символ строки</span>
+          </label>
+          <input type="text" id="symbolInput" value="A" placeholder="Введите символ..." oninput="onSymbolInput()" />
+        </div>
+
+        <div class="control-group">
+          <label for="numberInput">
+            <span>Любое число (код)</span>
+            <span>Можно вводить гигантские числа</span>
+          </label>
+          <div class="input-row">
+            <input type="number" id="numberInput" value="65" min="0" max="9007199254740991" oninput="onNumberInput()" />
+            <button class="btn" onclick="stepNumber(-1)" title="-1">-1</button>
+            <button class="btn" onclick="stepNumber(1)" title="+1">+1</button>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <label for="slider">
+            <span>Позиция внутри круга (0 — 65535)</span>
+            <span id="sliderValLabel">65</span>
+          </label>
+          <input type="range" id="slider" min="0" max="65535" value="65" oninput="onSliderInput()" />
+          <div class="input-row" style="margin-top: 4px;">
+            <button class="btn" onclick="stepNumber(-65536)" title="Минус один полный круг (-65536)">⟲ -1 круг</button>
+            <button class="btn" onclick="stepNumber(65536)" title="Плюс один полный круг (+65536)">⟳ +1 круг</button>
+            <button class="btn" onclick="jumpToRandomCycle()" style="margin-left: auto;">🎲 Случайный виток</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Техническая информация -->
+    <div class="meta-grid">
+      <div class="meta-box">
+        <div class="meta-label">Базовый код (mod 65536)</div>
+        <div class="meta-val" id="metaBase">65</div>
+      </div>
+      <div class="meta-box">
+        <div class="meta-label">Номер круга (виток)</div>
+        <div class="meta-val" id="metaCycle">0</div>
+      </div>
+      <div class="meta-box">
+        <div class="meta-label">HEX / BIN (базовый)</div>
+        <div class="meta-val" id="metaHex">0x0041 / 1000001</div>
+      </div>
+      <div class="meta-box">
+        <div class="meta-label">Выражение JS</div>
+        <div class="meta-val" id="metaJS">String.fromCharCode(65)</div>
+      </div>
+    </div>
+
+    <!-- Список эквивалентных кодов -->
+    <div class="cycles-section">
+      <div class="cycles-header">
+        <div class="cycles-title">Таблица эквивалентных кодов для этого символа</div>
+        <div style="font-size: 12px; color: var(--text-muted);">Формула: <code>База + 65536 × N</code></div>
+      </div>
+      <div class="cycles-subtitle">
+        В JavaScript <code>String.fromCharCode()</code> обрезает число до 16 бит (делит по модулю на 65536). Поэтому все числа ниже превращаются в один и тот же символ:
+      </div>
+      <div class="cycles-list" id="cyclesList"></div>
+      <div class="cycles-actions">
+        <button class="btn" onclick="loadMoreCycles()">Показать еще +24 витка</button>
+        <button class="btn" onclick="resetCyclesView()">Сбросить к началу (0 виток)</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const MODULO = 65536;
+    let currentNumber = 65;
+    let displayedCyclesCount = 24;
+
+    const symbolInput = document.getElementById("symbolInput");
+    const numberInput = document.getElementById("numberInput");
+    const slider = document.getElementById("slider");
+    const charDisplay = document.getElementById("charDisplay");
+    const sliderValLabel = document.getElementById("sliderValLabel");
+    const metaBase = document.getElementById("metaBase");
+    const metaCycle = document.getElementById("metaCycle");
+    const metaHex = document.getElementById("metaHex");
+    const metaJS = document.getElementById("metaJS");
+    const cyclesList = document.getElementById("cyclesList");
+
+    function run(tool) {
+      window.open(tool + ".html", "_blank");
+    }
+
+    // Нормализация отрицательных и дробных чисел к [0..65535]
+    function getBaseCode(num) {
+      const n = Math.trunc(Number(num) || 0);
+      return ((n % MODULO) + MODULO) % MODULO;
+    }
+
+    // Когда вводим символ
+    function onSymbolInput() {
+      const val = symbolInput.value;
+      if (!val) return;
+      const baseCode = val.charCodeAt(0);
+      currentNumber = baseCode;
+      displayedCyclesCount = 24;
+      renderAll("symbol");
+    }
+
+    // Когда вводим число
+    function onNumberInput() {
+      const raw = numberInput.value;
+      if (raw === "") return;
+      currentNumber = Math.trunc(Number(raw));
+      renderAll("number");
+    }
+
+    // Когда двигаем ползунок (меняет позицию внутри текущего круга)
+    function onSliderInput() {
+      const baseOffset = Number(slider.value);
+      const currentCycle = Math.floor(currentNumber / MODULO);
+      currentNumber = currentCycle * MODULO + baseOffset;
+      renderAll("slider");
+    }
+
+    // Шаг числа кнопками
+    function stepNumber(delta) {
+      currentNumber = Math.max(0, currentNumber + delta);
+      renderAll("step");
+    }
+
+    // Случайный виток для текущего символа
+    function jumpToRandomCycle() {
+      const baseCode = getBaseCode(currentNumber);
+      const randomCycle = Math.floor(Math.random() * 100000) + 1;
+      currentNumber = baseCode + randomCycle * MODULO;
+      renderAll("random");
+    }
+
+    // Выбор конкретного числа из списка витков
+    function selectCycleNumber(num) {
+      currentNumber = num;
+      renderAll("chip");
+    }
+
+    function loadMoreCycles() {
+      displayedCyclesCount += 24;
+      renderCyclesList(getBaseCode(currentNumber), Math.floor(currentNumber / MODULO));
+    }
+
+    function resetCyclesView() {
+      currentNumber = getBaseCode(currentNumber);
+      displayedCyclesCount = 24;
+      renderAll("reset");
+    }
+
+    // Копирование символа
+    function copySymbol() {
+      const char = String.fromCharCode(currentNumber);
+      navigator.clipboard.writeText(char).then(() => {
+        const hint = document.getElementById("copyHint");
+        hint.textContent = "Скопировано!";
+        hint.style.color = "#eab308";
+        setTimeout(() => {
+          hint.textContent = "Нажмите для копирования";
+          hint.style.color = "";
+        }, 1500);
+      });
+    }
+
+    // Главная функция обновления интерфейса
+    function renderAll(source) {
+      const baseCode = getBaseCode(currentNumber);
+      const cycle = Math.floor(currentNumber / MODULO);
+      const char = String.fromCharCode(currentNumber);
+
+      if (source !== "symbol") {
+        symbolInput.value = char;
+      }
+      if (source !== "number") {
+        numberInput.value = currentNumber;
+      }
+      if (source !== "slider") {
+        slider.value = baseCode;
+      }
+
+      if (baseCode <= 32 || (baseCode >= 127 && baseCode <= 159)) {
+        charDisplay.textContent = `[0x${baseCode.toString(16).toUpperCase()}]`;
+        charDisplay.style.fontSize = "32px";
+      } else {
+        charDisplay.textContent = char;
+        charDisplay.style.fontSize = "76px";
+      }
+
+      sliderValLabel.textContent = baseCode;
+      metaBase.textContent = baseCode;
+      metaCycle.textContent = `${cycle.toLocaleString("ru-RU")} виток`;
+      metaHex.textContent = `0x${baseCode.toString(16).toUpperCase().padStart(4, "0")} / ${baseCode.toString(2)}`;
+      metaJS.textContent = `String.fromCharCode(${currentNumber})`;
+
+      renderCyclesList(baseCode, cycle);
+      checkAndAddAchievement(baseCode);
+    }
+
+    // Отрисовка списка эквивалентных кодов
+    function renderCyclesList(baseCode, activeCycle) {
+      cyclesList.innerHTML = "";
+
+      const cyclesToRender = new Set();
+      for (let i = 0; i < displayedCyclesCount; i++) {
+        cyclesToRender.add(i);
+      }
+      if (activeCycle >= displayedCyclesCount) {
+        for (let i = Math.max(0, activeCycle - 2); i <= activeCycle + 3; i++) {
+          cyclesToRender.add(i);
+        }
+      }
+
+      const sortedCycles = Array.from(cyclesToRender).sort((a, b) => a - b);
+
+      sortedCycles.forEach((cIndex) => {
+        const val = baseCode + cIndex * MODULO;
+        const chip = document.createElement("div");
+        chip.className = "cycle-chip" + (val === currentNumber ? " active" : "");
+        chip.onclick = () => selectCycleNumber(val);
+
+        chip.innerHTML = `
+          <span>${val.toLocaleString("ru-RU")}</span>
+          <span class="cycle-index">#${cIndex}</span>
+        `;
+        cyclesList.appendChild(chip);
+      });
+    }
+
+    // ================= СИСТЕМА ДОСТИЖЕНИЙ (IndexedDB) =================
+
+    function initDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open("AchievementsDB", 1);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result);
+        request.onupgradeneeded = (event) => {
+          const db = event.target.result;
+          if (!db.objectStoreNames.contains("achievements")) {
+            db.createObjectStore("achievements", { keyPath: "title" });
+          }
+        };
+      });
+    }
+
+    async function addAchievement(title, text, image = "button.png") {
+      try {
+        const db = await initDB();
+        const transaction = db.transaction(["achievements"], "readwrite");
+        const objectStore = transaction.objectStore("achievements");
+        const checkRequest = objectStore.get(title);
+
+        return new Promise((resolve) => {
+          checkRequest.onsuccess = () => {
+            if (!checkRequest.result) {
+              const newAchievement = { title, text, image: image || "button.png" };
+              objectStore.add(newAchievement).onsuccess = () => {
+                showAchievementToast(title, text, newAchievement.image);
+                resolve(true);
+              };
+            } else {
+              resolve(false);
+            }
+          };
+        });
+      } catch (error) {
+        console.error("IndexedDB Error:", error);
+        return false;
+      }
+    }
+
+    function showAchievementToast(title, text, image) {
+      const toast = document.createElement("div");
+      toast.className = "achievement-toast";
+      toast.innerHTML = `
+        <img class="achievement-icon" src="${image}" alt="icon" onerror="this.style.display='none'" />
+        <div class="achievement-body">
+          <h4>Достижение: ${title}</h4>
+          <p>${text}</p>
+        </div>
+      `;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 4000);
+    }
+
+    async function checkAndAddAchievement(baseCode) {
+      // 9773 — ☭ (Серп и молот)
+      if (baseCode === 9773) {
+        await addAchievement(
+          "Нашел Ленина",
+          "Он разложился на символ и на цифровой код..",
+          "button.png"
+        );
+      }
+    }
+
+    // Инициализация при старте
+    renderAll("init");
+  </script>
+</body>
+</html>

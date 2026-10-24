@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>Tower Bloxx 3D — fixed hitboxes</title>
+    <!-- предполагается, что newthreejs.txt содержит билд three.js -->
+    <script src="newthreejs.txt"></script>
+    <style>
+        *{box-sizing:border-box;margin:0;padding:0}
+        html,body,#gameContainer{height:100%}
+        body{font-family:Arial,Helvetica,sans-serif;background:linear-gradient(to bottom,#87CEEB,#4682B4);overflow:hidden}
+        #gameContainer{position:relative}
+        #ui{position:absolute;left:12px;top:12px;z-index:200;color:#fff;text-shadow:1px 1px 3px rgba(0,0,0,.6);display:flex;gap:12px;align-items:flex-start}
+        .panel{background:rgba(0,0,0,0.18);padding:10px;border-radius:10px}
+        .score-section h1{font-size:1.2rem;margin-bottom:6px}
+        .info-section{text-align:right}
+        #backBtn{position:absolute;left:12px;top:12px;z-index:220;padding:8px 12px;border-radius:8px;background:#333;color:#fff;text-decoration:none}
+        #gameOverlay{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);z-index:300}
+        .overlay-content{background:#fff;padding:28px;border-radius:12px;max-width:360px;text-align:center}
+        .game-button{background:#5D5CDE;color:#fff;border:0;padding:12px 18px;border-radius:30px;cursor:pointer;font-weight:700}
+        .drop-button-container{position:absolute;left:50%;transform:translateX(-50%);bottom:28px;z-index:210}
+        .drop-button{padding:16px 28px;font-size:1.1rem;border-radius:60px}
+        @media (max-width:768px){#ui{flex-direction:column;left:10px;top:10px}}
+    </style>
+</head>
+<body>
+    <div id="gameContainer"></div>
+
+    <a id="backBtn" href="glist.html">← Назад</a>
+
+    <div id="ui">
+        <div class="panel score-section">
+            <h1>Башня: <span id="score">0</span></h1>
+            <div>Промахи: <span id="misses">0</span>/3</div>
+            <div>Точность: <span id="accuracy">100%</span></div>
+        </div>
+        <div class="panel info-section">
+            <div style="font-weight:700">Tower Bloxx 3D</div>
+            <div style="font-size:.85rem;opacity:.9">Нажмите ПРОБЕЛ или кнопку</div>
+        </div>
+    </div>
+
+    <div id="gameOverlay">
+        <div class="overlay-content">
+            <h2 id="overlayTitle"></h2>
+            <p id="overlayText"></p>
+            <button id="restartBtn" class="game-button" style="margin-top:10px">Начать заново</button>
+        </div>
+    </div>
+
+    <div class="drop-button-container">
+        <button id="dropBtn" class="game-button drop-button">СБРОСИТЬ БЛОК</button>
+    </div>
+
+<script>
+/* ========== GLOBALS ========== */
+let scene, camera, renderer;
+let tower = [], currentBlock = null;
+let score = 0, misses = 0, totalAttempts = 0;
+let towerShake = 0, shakePhase = 0;
+let particles = [], clouds = [], skyObjects = [];
+const MAX_MISSES = 3;
+
+/* ========== INIT THREE ========== */
+function initThree(){
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 1000);
+    renderer = new THREE.WebGLRenderer({antialias:true,alpha:true});
+    renderer.setSize(innerWidth,innerHeight);
+    renderer.setPixelRatio(devicePixelRatio || 1);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    document.getElementById('gameContainer').appendChild(renderer.domElement);
+
+    renderer.setClearColor(0x87CEEB, 0.9);
+    scene.fog = new THREE.Fog(0x87CEEB, 50, 200);
+
+    const ambient = new THREE.AmbientLight(0xffffff, 0.45);
+    scene.add(ambient);
+
+    const dir = new THREE.DirectionalLight(0xffffff, 1.1);
+    dir.position.set(10,30,10);
+    dir.castShadow = true;
+    dir.shadow.mapSize.width = dir.shadow.mapSize.height = 2048;
+    scene.add(dir);
+
+    createClouds();
+    createSkyObjects();
+    createGround();
+
+    camera.position.set(8,8,8);
+    camera.lookAt(0,1,0);
+}
+
+/* ========== SCENE OBJECTS (clouds/sky/ground) ========== */
+function createClouds(){
+    const geo = new THREE.SphereGeometry(4,8,6);
+    const mat = new THREE.MeshLambertMaterial({color:0xffffff,transparent:true,opacity:0.6});
+    for(let i=0;i<8;i++){
+        const c = new THREE.Mesh(geo,mat);
+        c.position.set((Math.random()-0.5)*100,20+Math.random()*30,(Math.random()-0.5)*100);
+        c.scale.setScalar(0.5+Math.random()*0.5);
+        c.moveSpeed = 0.005 + Math.random()*0.01;
+        c.rotSpeed = 0.001 + Math.random()*0.002;
+        clouds.push(c); scene.add(c);
+    }
+}
+function createSkyObjects(){
+    // упрощённо: пара декоративных объектов
+    const s = new THREE.Mesh(new THREE.SphereGeometry(8,16,12), new THREE.MeshPhongMaterial({color:0xF5F5DC,transparent:true,opacity:0.8}));
+    s.position.set(150,120,-200);
+    scene.add(s); skyObjects.push({obj:s, type:'moon', rotSpeed:0.005});
+}
+function createGround(){
+    const g = new THREE.Mesh(new THREE.PlaneGeometry(50,50), new THREE.MeshLambertMaterial({color:0x3CB371,transparent:true,opacity:0.8}));
+    g.rotation.x = -Math.PI/2; g.position.y = -2; g.receiveShadow = true; scene.add(g);
+}
+
+/* ========== BASE BLOCK & NORMAL BLOCK ========== */
+function createBaseBlock(){
+    const geometry = new THREE.BoxGeometry(2,2,2);
+    const material = new THREE.MeshPhongMaterial({color:0x8B4513, shininess:30});
+    const block = new THREE.Mesh(geometry, material);
+    block.position.set(0,1,0);
+    block.castShadow = true;
+    block.receiveShadow = true;
+
+    // добавим дверь как дочерний объект (как было)
+    const doorGeom = new THREE.BoxGeometry(0.6,1.2,0.1);
+    const doorMat = new THREE.MeshPhongMaterial({color:0x4A4A4A});
+    const door = new THREE.Mesh(doorGeom, doorMat);
+    door.position.set(0,-0.2,1.01);
+    block.add(door);
+
+    scene.add(block);
+    tower.push(block);
+}
+
+function createBlock(level){
+    const colors = [0xFF6B6B,0x4ECDC4,0x45B7D1,0x96CEB4,0xFFA07A,0xDDA0DD,0xF0E68C];
+    const geo = new THREE.BoxGeometry(2,2,2);
+    const mat = new THREE.MeshPhongMaterial({color:colors[level%colors.length], shininess:50});
+    const block = new THREE.Mesh(geo, mat);
+
+    const towerHeight = tower.length * 2;
+    block.position.set(0, towerHeight + 6, 0);
+    block.castShadow = true;
+    block.receiveShadow = true;
+
+    // swinging properties
+    block.swinging = true;
+    block.falling = false;
+    block.swingAngle = 0;
+    block.swingSpeed = 0.03 + level * 0.0025; // чуть мягче прирост скорости
+    block.ropeLength = 8;
+
+    // children windows (как раньше) — добавляем ради вида (не влияют на AABB корректно)
+    const windowGeom = new THREE.BoxGeometry(0.6,0.6,0.05);
+    const windowMat = new THREE.MeshPhongMaterial({color:0x87CEEB,transparent:true,opacity:0.8});
+    const frameGeom = new THREE.BoxGeometry(0.65,0.65,0.08);
+    const frameMat = new THREE.MeshPhongMaterial({color:0x2F4F4F});
+    for (let side=0;side<4;side++){
+        const frame = new THREE.Mesh(frameGeom, frameMat);
+        const win = new THREE.Mesh(windowGeom, windowMat);
+        const angle = (side*Math.PI)/2;
+        const radius = 1.01;
+        frame.position.set(Math.sin(angle)*radius, 0.3, Math.cos(angle)*radius);
+        frame.rotation.y = angle;
+        win.position.set(0,0,0.03);
+        frame.add(win);
+        block.add(frame);
+    }
+
+    scene.add(block);
+    return block;
+}
+
+/* ========== SWING LOGIC ========== */
+function swingBlock(){
+    if(!currentBlock || gameState !== 'playing' || !currentBlock.swinging) return;
+    currentBlock.swingAngle += currentBlock.swingSpeed;
+    // горизонтальный маятник
+    currentBlock.position.x = Math.sin(currentBlock.swingAngle) * 4;
+    currentBlock.position.y = tower.length * 2 + 6;
+    currentBlock.position.z = 0;
+    currentBlock.rotation.z = Math.sin(currentBlock.swingAngle) * 0.12; // небольшое скручивания
+}
+
+/* ========== DROP & COLLISION ========== */
+let gameState = 'playing';
+
+// кнопка броска
+function dropBlock(){
+    if(!currentBlock || gameState !== 'playing' || !currentBlock.swinging) return;
+    currentBlock.swinging = false;
+    currentBlock.falling = true;
+    currentBlock.fallVelocity = 0; // положительная — скорость падения
+    currentBlock.targetY = tower.length * 2 + 1; // высота центра блока на новой позиции
+    currentBlock.finalX = currentBlock.position.x;
+    currentBlock.finalZ = currentBlock.position.z;
+    currentBlock.finalRotationZ = currentBlock.rotation.z;
+    // фиксируем ориентацию — но оставим небольшую ротацию для вычислений (OBB->AABB учитывает её)
+}
+
+/* unify "gravity" parameters */
+const GRAVITY = 0.28;
+
+/* Обновление падающего текущего блока с корректным столкновением */
+function updateFallingBlock(){
+    if(!currentBlock || !currentBlock.falling) return;
+
+    // интегратор: увеличиваем скорость, опускаем объект
+    currentBlock.fallVelocity += GRAVITY;
+    currentBlock.position.y -= currentBlock.fallVelocity;
+
+    // если достиг поверхности приближающейся башни — делаем проверку столкновения
+    if(currentBlock.position.y <= currentBlock.targetY + 0.05){
+        // фиксируем позицию по Y
+        currentBlock.position.y = currentBlock.targetY;
+        currentBlock.falling = false;
+
+        // определяем верхний блок башни
+        const topBlock = tower[tower.length - 1];
+        if(!topBlock){
+            // странный кейс — ставим просто в центр
+            placeBlockDirect( currentBlock );
+            return;
+        }
+
+        // compute world AABBs (учтут позицию и ротацию)
+        const boxCurr = new THREE.Box3().setFromObject(currentBlock);
+        const boxTop  = new THREE.Box3().setFromObject(topBlock);
+
+        // intersection
+        const intersection = boxCurr.clone().intersect(boxTop);
+        const size = new THREE.Vector3();
+        intersection.getSize(size);
+
+        // минимальный порог пересечения по осям (малая погрешность)
+        const EPS = 0.01;
+
+        // общий размер по горизонтали блока (2x2)
+        const blockArea = 2 * 2;
+        const intersectArea = Math.max(0, size.x) * Math.max(0, size.z);
+        const areaFraction = Math.max(0, Math.min(1, intersectArea / blockArea));
+
+        totalAttempts++; // считаем попытку
+
+        if(size.x <= EPS || size.z <= EPS || intersectArea <= 0.01){
+            // промах — блок падает в пропасть
+            misses++;
+            updateMisses();
+            createMissParticles(currentBlock.position);
+            // превратить текущий блок в падающий кусок
+            animateFallingBlock(currentBlock);
+            // не добавляем в tower
+            if(misses >= MAX_MISSES){
+                gameOver();
+                return;
+            }
+            // подготовим следующий блок
+            setTimeout(()=>{ if(gameState==='playing') nextBlock(); }, 800);
+            updateAccuracy();
+            return;
+        }
+
+        // если почти полное попадание
+        if(areaFraction >= 0.9){
+            // ставим ровно по центру пересечения, выравниваем ротацию
+            const center = new THREE.Vector3();
+            intersection.getCenter(center);
+            currentBlock.position.x = center.x;
+            currentBlock.position.z = center.z;
+            currentBlock.rotation.x = 0;
+            currentBlock.rotation.y = 0;
+            currentBlock.rotation.z = 0;
+            currentBlock.scale.set(1,1,1);
+
+            tower.push(currentBlock);
+            score++;
+            createSuccessParticles(currentBlock.position);
+            updateScore();
+            updateAccuracy();
+
+            // небольшой эффект тряски если попадание смещено
+            if(areaFraction < 0.98) towerShake += (1 - areaFraction) * 0.25;
+
+            setTimeout(()=>{ if(gameState==='playing') nextBlock(); }, 500);
+            return;
+        }
+
+        // частичное попадание — отрезаем по пересечению (вставляем уменьшенный блок), отрезанную часть — падающую
+        // вычислим новые размеры и центр
+        const intersectCenter = new THREE.Vector3();
+        intersection.getCenter(intersectCenter);
+
+        const newSizeX = size.x;
+        const newSizeZ = size.z;
+        const newScaleX = Math.max(0.05, newSizeX / 2);
+        const newScaleZ = Math.max(0.05, newSizeZ / 2);
+
+        // создаём "поставленный" кусок (мы изменим текущий блок)
+        // сохраняем материал
+        const placedMaterial = currentBlock.material;
+        // compute placed center relative to world
+        currentBlock.position.x = intersectCenter.x;
+        currentBlock.position.z = intersectCenter.z;
+        currentBlock.rotation.set(0,0,0);
+        currentBlock.scale.x = newScaleX;
+        currentBlock.scale.z = newScaleZ;
+
+        // создаём падающую часть (если есть)
+        const originalHalfX = 1 * (currentBlock.scale.x ? (2*currentBlock.scale.x) : 1); // not used, compute piece dimension directly
+        const pieceWidth = Math.max(0, 2 - newSizeX);
+        if(pieceWidth > 0.05){
+            // создаём геометрию для отрубленного куска
+            const pieceGeom = new THREE.BoxGeometry(pieceWidth, 2, newSizeZ || 2);
+            const pieceMat = placedMaterial.clone ? placedMaterial.clone() : placedMaterial;
+            const piece = new THREE.Mesh(pieceGeom, pieceMat);
+            piece.castShadow = true;
+            piece.receiveShadow = true;
+
+            // вычислим сторону, где оказался отрезок: сравним центры
+            const origCenter = new THREE.Box3().setFromObject(currentBlock).getCenter(new THREE.Vector3());
+            const beforeCenter = new THREE.Vector3(currentBlock.finalX || currentBlock.position.x, currentBlock.targetY, currentBlock.finalZ || currentBlock.position.z);
+            // направление: если intersectCenter.x > beforeCenter.x — кусок справа, иначе слева
+            const dir = (intersectCenter.x >= (currentBlock.finalX || beforeCenter.x)) ? 1 : -1;
+
+            // позиционируем кусок рядом с поставленным блоком (в мире)
+            const placedHalf = newSizeX / 2;
+            const pieceHalf = pieceWidth / 2;
+            piece.position.x = intersectCenter.x + dir * (placedHalf + pieceHalf);
+            piece.position.y = currentBlock.targetY;
+            piece.position.z = intersectCenter.z;
+            piece.rotation.set( (Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4 );
+
+            // задаём параметры падения для куска
+            piece.missedFall = true;
+            piece.fallVelocity = -0.1;
+            piece.rotationVelocity = {
+                x: (Math.random()-0.5) * 0.15,
+                y: (Math.random()-0.5) * 0.15,
+                z: (Math.random()-0.5) * 0.15
+            };
+            scene.add(piece);
+        }
+
+        // финальная логика — ставим уменьшенный блок в башню
+        tower.push(currentBlock);
+        score++;
+        towerShake += (1 - areaFraction) * 0.35; // чем меньше площадь — тем сильнее трясёт
+        createImpactParticles(currentBlock.position);
+        updateScore();
+        updateAccuracy();
+
+        setTimeout(()=>{ if(gameState==='playing') nextBlock(); }, 700);
+    }
+}
+
+/* Помещает блок без хитбокса (резерв) */
+function placeBlockDirect(block){
+    block.position.x = 0; block.position.z = 0;
+    block.rotation.set(0,0,0);
+    block.scale.set(1,1,1);
+    tower.push(block);
+    score++; totalAttempts++;
+    updateScore(); updateAccuracy();
+    setTimeout(()=>{ if(gameState==='playing') nextBlock(); }, 400);
+}
+
+/* ========== PARTICLES ========== */
+function createSuccessParticles(position){
+    for(let i=0;i<16;i++){
+        const g = new THREE.SphereGeometry(0.05,4,4);
+        const m = new THREE.MeshBasicMaterial({color:0xFFD700,transparent:true,opacity:1});
+        const p = new THREE.Mesh(g,m);
+        p.position.copy(position);
+        p.velocity = new THREE.Vector3((Math.random()-0.5)*0.3,Math.random()*0.3+0.1,(Math.random()-0.5)*0.3);
+        p.life = 50;
+        particles.push(p); scene.add(p);
+    }
+}
+function createImpactParticles(position){
+    for(let i=0;i<10;i++){
+        const g = new THREE.SphereGeometry(0.03,4,4);
+        const m = new THREE.MeshBasicMaterial({color:0xFF4500,transparent:true,opacity:1});
+        const p = new THREE.Mesh(g,m);
+        p.position.copy(position);
+        p.velocity = new THREE.Vector3((Math.random()-0.5)*0.2,Math.random()*0.2,(Math.random()-0.5)*0.2);
+        p.life = 40;
+        particles.push(p); scene.add(p);
+    }
+}
+function createMissParticles(position){
+    for(let i=0;i<12;i++){
+        const g = new THREE.SphereGeometry(0.04,4,4);
+        const m = new THREE.MeshBasicMaterial({color:0xFF0000,transparent:true,opacity:1});
+        const p = new THREE.Mesh(g,m);
+        p.position.copy(position);
+        p.velocity = new THREE.Vector3((Math.random()-0.5)*0.4,Math.random()*0.2+0.05,(Math.random()-0.5)*0.4);
+        p.life = 45;
+        particles.push(p); scene.add(p);
+    }
+}
+
+/* ========== FALLING (missed) BLOCK ANIMATION ========== */
+function animateFallingBlock(block){
+    // превращаем блок в падающий: добавляем случайную вращательную скорость, стартовую скорость вниз
+    block.missedFall = true;
+    block.fallVelocity = -0.1; // в updateFallingBlocks будет использоваться
+    block.rotationVelocity = {
+        x: (Math.random()-0.5) * 0.25,
+        y: (Math.random()-0.5) * 0.25,
+        z: (Math.random()-0.5) * 0.25
+    };
+}
+
+/* ========== UPDATE PARTICLES & FALLING PIECES ========== */
+function updateParticles(){
+    for(let i=particles.length-1;i>=0;i--){
+        const p = particles[i];
+        p.position.add(p.velocity);
+        p.velocity.y -= 0.01;
+        p.life--;
+        p.material.opacity = Math.max(0, p.life / 60);
+        if(p.life <= 0){ scene.remove(p); particles.splice(i,1); }
+    }
+}
+
+function updateFallingBlocks(){
+    // блоки, которые помечены как missedFall будут падать и вращаться
+    for(let i=tower.length-1;i>=0;i--){
+        const b = tower[i];
+        if(b && b.missedFall){
+            b.position.y += b.fallVelocity;
+            b.fallVelocity -= 0.02;
+            b.rotation.x += b.rotationVelocity.x;
+            b.rotation.y += b.rotationVelocity.y;
+            b.rotation.z += b.rotationVelocity.z;
+
+            if(b.position.y < -12){
+                scene.remove(b);
+                tower.splice(i,1);
+            }
+        }
+    }
+
+    // текущий block, если промах (мы могли вызвать animateFallingBlock для currentBlock)
+    if(currentBlock && currentBlock.missedFall){
+        currentBlock.position.y += currentBlock.fallVelocity;
+        currentBlock.fallVelocity -= 0.02;
+        currentBlock.rotation.x += currentBlock.rotationVelocity.x;
+        currentBlock.rotation.y += currentBlock.rotationVelocity.y;
+        currentBlock.rotation.z += currentBlock.rotationVelocity.z;
+
+        if(currentBlock.position.y < -12){
+            // полностью удалим его из сцены
+            try{ scene.remove(currentBlock); } catch(e){}
+            currentBlock = null;
+        }
+    }
+}
+
+/* ========== TOWER SHAKE ========== */
+function shakeTower(){
+    if(towerShake > 0.001){
+        shakePhase += 0.12;
+        const shakeAmount = towerShake * Math.sin(shakePhase);
+        tower.forEach((block, index) => {
+            if(index > 0){
+                const heightMultiplier = index / Math.max(1, tower.length);
+                block.rotation.z = shakeAmount * 0.06 * heightMultiplier;
+                if(index > tower.length / 2){
+                    block.position.x += Math.sin(shakePhase + index) * towerShake * 0.02;
+                }
+            }
+        });
+        towerShake *= 0.96;
+    }
+}
+
+/* ========== CAMERA ========== */
+function updateCamera(){
+    const towerHeight = tower.length * 2;
+    const targetY = towerHeight + 1;
+    camera.position.set(8, targetY + 6, 8);
+    camera.lookAt(0, targetY, 0);
+}
+
+/* ========== UI UPDATES ========== */
+function updateScore(){ document.getElementById('score').textContent = score; }
+function updateMisses(){ document.getElementById('misses').textContent = misses; }
+function updateAccuracy(){
+    const acc = totalAttempts > 0 ? Math.round((score / totalAttempts) * 100) : 100;
+    document.getElementById('accuracy').textContent = acc + '%';
+}
+
+/* ========== GAME OVER / RESTART ========== */
+function gameOver(){
+    gameState = 'gameOver';
+    document.getElementById('overlayTitle').textContent = 'Игра окончена!';
+    document.getElementById('overlayText').textContent = `Вы построили башню высотой ${score} этажей!`;
+    document.getElementById('gameOverlay').style.display = 'flex';
+}
+
+function restartGame(){
+    gameState = 'playing';
+    score = 0; misses = 0; totalAttempts = 0;
+    towerShake = 0; shakePhase = 0;
+
+    // очистка сцены
+    tower.forEach(b => { try{ scene.remove(b); }catch(e){} });
+    if(currentBlock) try{ scene.remove(currentBlock); }catch(e){}
+    tower = []; currentBlock = null;
+
+    camera.position.set(8,8,8); camera.lookAt(0,1,0);
+
+    createBaseBlock();
+    nextBlock();
+
+    updateScore(); updateMisses(); updateAccuracy();
+    document.getElementById('gameOverlay').style.display = 'none';
+}
+
+/* ========== NEXT BLOCK ========== */
+function nextBlock(){
+    currentBlock = createBlock(tower.length);
+    updateCamera();
+}
+
+/* ========== CLOUDS & SKY ANIMATION ========== */
+function animateClouds(){
+    clouds.forEach((c,i)=>{
+        c.position.x += c.moveSpeed * (i%2===0?1:-1);
+        c.rotation.y += c.rotSpeed;
+        if(c.position.x > 80) c.position.x = -80;
+        if(c.position.x < -80) c.position.x = 80;
+    });
+}
+function animateSkyObjects(){
+    skyObjects.forEach(s=>{
+        if(s.type === 'moon'){
+            s.obj.rotation.y += s.rotSpeed;
+            s.obj.position.x += Math.sin(Date.now() * 0.0001) * 0.01;
+        }
+    });
+}
+
+/* ========== GAME LOOP ========== */
+function animate(){
+    requestAnimationFrame(animate);
+    swingBlock();
+    updateFallingBlock();
+    updateFallingBlocks();
+    shakeTower();
+    updateParticles();
+    animateClouds();
+    animateSkyObjects();
+    renderer.render(scene, camera);
+}
+
+/* ========== EVENTS ========== */
+document.getElementById('dropBtn').addEventListener('click', dropBlock);
+document.getElementById('restartBtn').addEventListener('click', restartGame);
+document.addEventListener('keydown', (e)=>{ if(e.code === 'Space'){ e.preventDefault(); if(gameState==='playing') dropBlock(); } });
+
+window.addEventListener('resize', ()=>{
+    camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+});
+
+/* ========== INIT GAME ========== */
+initThree();
+createBaseBlock();
+nextBlock();
+animate();
+
+</script>
+</body>
+</html>

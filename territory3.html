@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Захват Зон</title>
+    <style>
+        /* Базовый сброс и защита от выделений в WebView */
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #161618;
+            color: #d4d4d8;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            overflow: hidden;
+        }
+
+        /* Основной контейнер */
+        .app {
+            width: 100%;
+            max-width: 480px;
+            height: 100%;
+            margin: 0 auto;
+            padding: 10px 12px;
+            display: table;
+        }
+        .app-inner {
+            display: table-cell;
+            vertical-align: middle;
+        }
+
+        /* Верхняя панель: Назад + Сложность */
+        .top-bar {
+            width: 100%;
+            margin-bottom: 8px;
+            overflow: hidden;
+        }
+        .btn-back {
+            float: left;
+            background: #27272a;
+            color: #a1a1aa;
+            border: 1px solid #3f3f46;
+            padding: 6px 12px;
+            font-size: 12px;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .btn-back:active {
+            background: #3f3f46;
+            color: #ffffff;
+        }
+        .diff-group {
+            float: right;
+            background: #202023;
+            border: 1px solid #323236;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .btn-diff {
+            float: left;
+            background: transparent;
+            color: #71717a;
+            border: none;
+            padding: 6px 10px;
+            font-size: 12px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .btn-diff.active {
+            background: #52525b;
+            color: #f4f4f5;
+        }
+
+        /* Статистика и полоса прогресса */
+        .status-box {
+            background: #202023;
+            border: 1px solid #2e2e33;
+            border-radius: 4px;
+            padding: 8px 10px;
+            margin-bottom: 10px;
+        }
+        .stats-row {
+            width: 100%;
+            overflow: hidden;
+            font-size: 12px;
+            margin-bottom: 6px;
+        }
+        .stat-player {
+            float: left;
+            color: #e4e4e7;
+            font-weight: bold;
+        }
+        .stat-turn {
+            float: left;
+            width: 34%;
+            text-align: center;
+            color: #71717a;
+        }
+        .stat-enemy {
+            float: right;
+            color: #9f6b6b;
+            font-weight: bold;
+            text-align: right;
+        }
+        .progress-track {
+            width: 100%;
+            height: 4px;
+            background: #3a2525;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            width: 50%;
+            background: #a1a1aa;
+            -webkit-transition: width 0.2s ease;
+            transition: width 0.2s ease;
+        }
+
+        /* Игровое поле (Таблица для идеальной совместимости) */
+        .board-wrap {
+            position: relative;
+            width: 100%;
+            background: #121214;
+            border: 1px solid #2e2e33;
+            border-radius: 4px;
+            padding: 2px;
+        }
+        .grid-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+        .grid-table td {
+            width: 10%;
+            text-align: center;
+            vertical-align: middle;
+            border: 1px solid #18181b;
+            cursor: pointer;
+            position: relative;
+            padding: 0;
+        }
+        .cell-num {
+            font-size: 14px;
+            font-weight: bold;
+            line-height: 1;
+            display: block;
+            pointer-events: none;
+        }
+        .cell-dot {
+            display: block;
+            font-size: 8px;
+            line-height: 8px;
+            margin-top: 1px;
+            opacity: 0.65;
+            pointer-events: none;
+        }
+
+        /* Состояния выделения клеток */
+        .grid-table td.selected {
+            border: 2px solid #ffffff !important;
+            background-color: #6b7280 !important;
+            color: #ffffff !important;
+        }
+        .grid-table td.target-move {
+            border: 1px dashed #a1a1aa !important;
+        }
+        .grid-table td.target-attack {
+            border: 1px solid #c25959 !important;
+        }
+
+        /* Подсказка и управление внизу */
+        .hint-bar {
+            text-align: center;
+            font-size: 12px;
+            color: #71717a;
+            height: 18px;
+            line-height: 18px;
+            margin: 8px 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .controls-row {
+            width: 100%;
+            overflow: hidden;
+        }
+        .btn-main {
+            float: left;
+            width: 72%;
+            background: #d4d4d8;
+            color: #18181b;
+            border: none;
+            padding: 12px 0;
+            font-size: 14px;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .btn-main:active {
+            background: #a1a1aa;
+        }
+        .btn-main:disabled {
+            background: #27272a;
+            color: #52525b;
+            cursor: default;
+        }
+        .btn-reset {
+            float: right;
+            width: 25%;
+            background: #27272a;
+            color: #a1a1aa;
+            border: 1px solid #3f3f46;
+            padding: 11px 0;
+            font-size: 12px;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+        .btn-reset:active {
+            background: #3f3f46;
+            color: #ffffff;
+        }
+
+        /* Модальное окно конца игры */
+        .overlay {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(18, 18, 20, 0.92);
+            text-align: center;
+            padding-top: 28%;
+            z-index: 10;
+        }
+        .overlay.visible {
+            display: block;
+        }
+        .overlay-title {
+            font-size: 22px;
+            font-weight: bold;
+            color: #f4f4f5;
+            margin-bottom: 8px;
+            letter-spacing: 1px;
+        }
+        .overlay-sub {
+            font-size: 13px;
+            color: #a1a1aa;
+            margin-bottom: 20px;
+        }
+        .btn-overlay {
+            background: #e4e4e7;
+            color: #18181b;
+            border: none;
+            padding: 10px 24px;
+            font-size: 13px;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+<body>
+
+<div class="app">
+    <div class="app-inner">
+
+        <!-- Верхняя панель -->
+        <div class="top-bar">
+            <button class="btn-back" onclick="runTool('glist')">&#8592; Назад</button>
+            <div class="diff-group" id="diffGroup">
+                <button class="btn-diff" data-diff="1">Легко</button>
+                <button class="btn-diff active" data-diff="2">Норма</button>
+                <button class="btn-diff" data-diff="3">Сложно</button>
+            </div>
+        </div>
+
+        <!-- Панель статуса -->
+        <div class="status-box">
+            <div class="stats-row">
+                <div class="stat-player" id="statPlayer">ВЫ: 50 (0)</div>
+                <div class="stat-turn" id="statTurn">Ход 1</div>
+                <div class="stat-enemy" id="statEnemy">ИИ: 50 (0)</div>
+            </div>
+            <div class="progress-track">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+
+        <!-- Игровое поле -->
+        <div class="board-wrap" id="boardWrap">
+            <table class="grid-table" id="gridTable"></table>
+
+            <!-- Оверлей победы/поражения -->
+            <div class="overlay" id="overlay">
+                <div class="overlay-title" id="overlayTitle">ПОБЕДА</div>
+                <div class="overlay-sub" id="overlaySub">Все секторы под вашим контролем</div>
+                <button class="btn-overlay" id="btnPlayAgain">Играть снова</button>
+            </div>
+        </div>
+
+        <!-- Строка подсказки -->
+        <div class="hint-bar" id="hintBar">Выберите свою светлую зону (от 2 ед.) для маневра</div>
+
+        <!-- Нижние кнопки -->
+        <div class="controls-row">
+            <button class="btn-main" id="btnEndTurn">Завершить ход (+1)</button>
+            <button class="btn-reset" id="btnReset">Сброс</button>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    // Совместимая функция перехода назад из оригинала
+    function runTool(toolName) {
+        var url = toolName + ".html";
+        window.open(url, "_blank");
+    }
+
+    (function() {
+        var GRID_SIZE = 10;
+        var MAX_UNITS = 10;
+        var OWNER_PLAYER = 1;
+        var OWNER_ENEMY = 2;
+
+        // Палитра для игрока (Холодный светло-серый градиент по силе 1..10)
+        var PLAYER_BG = [
+            '', '#2b2d31', '#33363b', '#3b3f46', '#434851', '#4c525c',
+            '#555c68', '#5e6673', '#687180', '#727c8c', '#7c8799'
+        ];
+        // Палитра для ИИ (Тёмный графитово-багровый градиент по силе 1..10)
+        var ENEMY_BG = [
+            '', '#221c1d', '#292022', '#312427', '#39282c', '#422c31',
+            '#4b3036', '#54353c', '#5e3942', '#683e48', '#73434e'
+        ];
+
+        var board = [];
+        var domCells = [];
+        var selected = null;
+        var difficulty = 2; // 1 - Легко, 2 - Норма, 3 - Сложно
+        var turnNumber = 1;
+        var isBusy = false;
+        var gameOver = false;
+
+        // Элементы DOM
+        var gridTable = document.getElementById('gridTable');
+        var boardWrap = document.getElementById('boardWrap');
+        var statPlayer = document.getElementById('statPlayer');
+        var statEnemy = document.getElementById('statEnemy');
+        var statTurn = document.getElementById('statTurn');
+        var progressFill = document.getElementById('progressFill');
+        var hintBar = document.getElementById('hintBar');
+        var btnEndTurn = document.getElementById('btnEndTurn');
+        var btnReset = document.getElementById('btnReset');
+        var diffGroup = document.getElementById('diffGroup');
+        var overlay = document.getElementById('overlay');
+        var overlayTitle = document.getElementById('overlayTitle');
+        var overlaySub = document.getElementById('overlaySub');
+        var btnPlayAgain = document.getElementById('btnPlayAgain');
+
+        // Построение DOM-таблицы один раз
+        function createGridDOM() {
+            gridTable.innerHTML = '';
+            domCells = [];
+            for (var r = 0; r < GRID_SIZE; r++) {
+                var tr = document.createElement('tr');
+                domCells[r] = [];
+                for (var c = 0; c < GRID_SIZE; c++) {
+                    var td = document.createElement('td');
+                    td.setAttribute('data-r', r);
+                    td.setAttribute('data-c', c);
+
+                    var numSpan = document.createElement('span');
+                    numSpan.className = 'cell-num';
+                    var dotSpan = document.createElement('span');
+                    dotSpan.className = 'cell-dot';
+
+                    td.appendChild(numSpan);
+                    td.appendChild(dotSpan);
+                    tr.appendChild(td);
+                    domCells[r][c] = {
+                        td: td,
+                        num: numSpan,
+                        dot: dotSpan
+                    };
+                }
+                gridTable.appendChild(tr);
+            }
+            adjustBoardSize();
+        }
+
+        // Подгонка высоты ячеек под квадрат на любых экранах без vw/vh багов
+        function adjustBoardSize() {
+            var width = boardWrap.clientWidth - 4;
+            var maxH = (window.innerHeight || document.documentElement.clientHeight) - 190;
+            var size = width < maxH ? width : maxH;
+            if (size < 220) size = 220;
+            var cellPx = Math.floor(size / GRID_SIZE);
+
+            for (var r = 0; r < GRID_SIZE; r++) {
+                for (var c = 0; c < GRID_SIZE; c++) {
+                    if (domCells[r] && domCells[r][c]) {
+                        domCells[r][c].td.style.height = cellPx + 'px';
+                    }
+                }
+            }
+        }
+
+        // Инициализация новой партии
+        function initGame() {
+            selected = null;
+            turnNumber = 1;
+            isBusy = false;
+            gameOver = false;
+            btnEndTurn.disabled = false;
+            overlay.className = 'overlay';
+
+            // Настройка баланса в зависимости от сложности
+            var playerChance = difficulty === 1 ? 0.54 : (difficulty === 2 ? 0.50 : 0.45);
+            var enemyBonus = difficulty === 3 ? 1 : 0;
+
+            board = [];
+            var pCount = 0;
+            var eCount = 0;
+
+            for (var r = 0; r < GRID_SIZE; r++) {
+                board[r] = [];
+                for (var c = 0; c < GRID_SIZE; c++) {
+                    var isPlayer = Math.random() < playerChance;
+                    var owner = isPlayer ? OWNER_PLAYER : OWNER_ENEMY;
+                    var baseUnits = Math.floor(Math.random() * 4) + 1;
+                    if (!isPlayer && enemyBonus > 0 && Math.random() < 0.4) {
+                        baseUnits = Math.min(MAX_UNITS, baseUnits + enemyBonus);
+                    }
+                    if (isPlayer && difficulty === 1 && Math.random() < 0.3) {
+                        baseUnits = Math.min(MAX_UNITS, baseUnits + 1);
+                    }
+                    board[r][c] = {
+                        owner: owner,
+                        count: baseUnits
+                    };
+                    if (owner === OWNER_PLAYER) pCount++; else eCount++;
+                }
+            }
+
+            // Страховка на случай полного перекоса рандома
+            if (pCount === 0) board[0][0].owner = OWNER_PLAYER;
+            if (eCount === 0) board[GRID_SIZE - 1][GRID_SIZE - 1].owner = OWNER_ENEMY;
+
+            renderAll();
+            setHint('Выберите свою светлую зону (от 2 ед.) для маневра');
+        }
+
+        // Отрисовка одной клетки
+        function renderCell(r, c) {
+            var data = board[r][c];
+            var dom = domCells[r][c];
+            var count = data.count;
+            if (count < 1) count = 1;
+            if (count > MAX_UNITS) count = MAX_UNITS;
+
+            dom.num.innerText = count;
+
+            if (data.owner === OWNER_PLAYER) {
+                dom.td.style.backgroundColor = PLAYER_BG[count];
+                dom.num.style.color = count >= 8 ? '#ffffff' : '#e4e4e7';
+                dom.dot.innerText = count === MAX_UNITS ? 'MAX' : '•';
+                dom.dot.style.color = '#d4d4d8';
+            } else {
+                dom.td.style.backgroundColor = ENEMY_BG[count];
+                dom.num.style.color = '#d6a3a8';
+                dom.dot.innerText = count === MAX_UNITS ? 'MAX' : '▪';
+                dom.dot.style.color = '#9f6b6b';
+            }
+        }
+
+        // Отрисовка всего поля и статистики
+        function renderAll() {
+            for (var r = 0; r < GRID_SIZE; r++) {
+                for (var c = 0; c < GRID_SIZE; c++) {
+                    renderCell(r, c);
+                }
+            }
+            updateHighlights();
+            updateStats();
+        }
+
+        // Подсветка выбранной клетки и соседних целей
+        function updateHighlights() {
+            for (var r = 0; r < GRID_SIZE; r++) {
+                for (var c = 0; c < GRID_SIZE; c++) {
+                    domCells[r][c].td.className = '';
+                }
+            }
+            if (!selected) return;
+
+            var sr = selected.r;
+            var sc = selected.c;
+            domCells[sr][sc].td.className = 'selected';
+
+            var neighbors = getOrthogonalNeighbors(sr, sc);
+            for (var i = 0; i < neighbors.length; i++) {
+                var nr = neighbors[i].r;
+                var nc = neighbors[i].c;
+                if (board[nr][nc].owner === OWNER_PLAYER) {
+                    if (board[nr][nc].count < MAX_UNITS) {
+                        domCells[nr][nc].td.className = 'target-move';
+                    }
+                } else {
+                    domCells[nr][nc].td.className = 'target-attack';
+                }
+            }
+        }
+
+        // Обновление верхней панели статистики
+        function updateStats() {
+            var pZones = 0, eZones = 0, pUnits = 0, eUnits = 0;
+            for (var r = 0; r < GRID_SIZE; r++) {
+                for (var c = 0; c < GRID_SIZE; c++) {
+                    if (board[r][c].owner === OWNER_PLAYER) {
+                        pZones++;
+                        pUnits += board[r][c].count;
+                    } else {
+                        eZones++;
+                        eUnits += board[r][c].count;
+                    }
+                }
+            }
+
+            statPlayer.innerText = 'ВЫ: ' + pZones + ' (' + pUnits + ')';
+            statEnemy.innerText = 'ИИ: ' + eZones + ' (' + eUnits + ')';
+            statTurn.innerText = 'Ход ' + turnNumber;
+            progressFill.style.width = pZones + '%';
+
+            if (pZones === 0 || eZones === 0) {
+                endGame(pZones > 0);
+            }
+        }
+
+        function endGame(playerWon) {
+            gameOver = true;
+            btnEndTurn.disabled = true;
+            overlay.className = 'overlay visible';
+            if (playerWon) {
+                overlayTitle.innerText = 'ПОБЕДА';
+                overlaySub.innerText = 'Все секторы захвачены за ' + turnNumber + ' ход(ов)';
+            } else {
+                overlayTitle.innerText = 'ПОРАЖЕНИЕ';
+                overlaySub.innerText = 'Противник вытеснил ваши силы';
+            }
+        }
+
+        function setHint(text) {
+            hintBar.innerText = text;
+        }
+
+        // Соседние клетки по вертикали и горизонтали
+        function getOrthogonalNeighbors(r, c) {
+            var list = [];
+            if (r > 0) list.push({ r: r - 1, c: c });
+            if (r < GRID_SIZE - 1) list.push({ r: r + 1, c: c });
+            if (c > 0) list.push({ r: r, c: c - 1 });
+            if (c < GRID_SIZE - 1) list.push({ r: r, c: c + 1 });
+            return list;
+        }
+
+        function isOrthogonal(r1, c1, r2, c2) {
+            return (Math.abs(r1 - r2) + Math.abs(c1 - c2)) === 1;
+        }
+
+        // Механика боя (вероятностная, как в оригинале)
+        function executeAttack(ar, ac, dr, dc) {
+            var attacker = board[ar][ac];
+            var defender = board[dr][dc];
+            if (attacker.count <= 1) return false;
+
+            var atkUnits = attacker.count - 1;
+            var defUnits = defender.count;
+
+            while (atkUnits > 0 && defUnits > 0) {
+                var chance = atkUnits / (atkUnits + defUnits);
+                if (Math.random() < chance) {
+                    defUnits--;
+                } else {
+                    atkUnits--;
+                }
+            }
+
+            var captured = false;
+            if (defUnits <= 0) {
+                defender.owner = attacker.owner;
+                defender.count = atkUnits;
+                attacker.count = 1;
+                captured = true;
+            } else {
+                defender.count = defUnits;
+                attacker.count = atkUnits + 1;
+            }
+
+            renderCell(ar, ac);
+            renderCell(dr, dc);
+            return captured;
+        }
+
+        // Механика перемещения своих сил
+        function executeMove(fr, fc, tr, tc) {
+            var fromCell = board[fr][fc];
+            var toCell = board[tr][tc];
+            if (fromCell.count <= 1 || toCell.count >= MAX_UNITS) return false;
+
+            var movable = fromCell.count - 1;
+            var space = MAX_UNITS - toCell.count;
+            var transfer = movable <= space ? movable : space;
+
+            toCell.count += transfer;
+            fromCell.count -= transfer;
+
+            renderCell(fr, fc);
+            renderCell(tr, tc);
+            return true;
+        }
+
+        // Обработка клика по таблице (делегирование)
+        gridTable.onclick = function(e) {
+            if (isBusy || gameOver) return;
+            var target = e.target || e.srcElement;
+            while (target && target !== gridTable && target.tagName !== 'TD') {
+                target = target.parentNode;
+            }
+            if (!target || target.tagName !== 'TD') return;
+
+            var r = parseInt(target.getAttribute('data-r'), 10);
+            var c = parseInt(target.getAttribute('data-c'), 10);
+            var clicked = board[r][c];
+
+            // Если уже выбрана своя клетка
+            if (selected) {
+                var sr = selected.r;
+                var sc = selected.c;
+
+                // Повторный клик снимает выделение
+                if (sr === r && sc === c) {
+                    selected = null;
+                    updateHighlights();
+                    setHint('Выделение снято');
+                    return;
+                }
+
+                // Клик по соседней клетке
+                if (isOrthogonal(sr, sc, r, c)) {
+                    if (clicked.owner === OWNER_PLAYER) {
+                        if (clicked.count < MAX_UNITS) {
+                            executeMove(sr, sc, r, c);
+                            // Удобно: если в новой клетке > 1 юнита, переводим фокус на неё
+                            selected = board[r][c].count > 1 ? { r: r, c: c } : null;
+                            updateHighlights();
+                            updateStats();
+                            setHint('Силы перегруппированы');
+                            return;
+                        } else {
+                            // Если в целевой клетке уже 10, просто переключаем выбор на неё
+                            selected = { r: r, c: c };
+                            updateHighlights();
+                            setHint('В этой зоне максимум сил (10). Выберите направление.');
+                            return;
+                        }
+                    } else {
+                        var won = executeAttack(sr, sc, r, c);
+                        selected = (won && board[r][c].count > 1) ? { r: r, c: c } : null;
+                        updateHighlights();
+                        updateStats();
+                        setHint(won ? 'Сектор захвачен!' : 'Штурм отбит защитниками');
+                        return;
+                    }
+                }
+            }
+
+            // Выбор другой своей клетки
+            if (clicked.owner === OWNER_PLAYER) {
+                if (clicked.count > 1) {
+                    selected = { r: r, c: c };
+                    updateHighlights();
+                    setHint('Зона выбрана (' + clicked.count + ' ед.). Укажите соседнюю цель.');
+                } else {
+                    selected = null;
+                    updateHighlights();
+                    setHint('Нужно минимум 2 ед. в зоне (1 остаётся для гарнизона)');
+                }
+            } else {
+                selected = null;
+                updateHighlights();
+                setHint('Это зона противника. Сначала выберите свою светлую зону.');
+            }
+        };
+
+        // Логика хода ИИ в зависимости от уровня сложности
+        function runEnemyTurn() {
+            // Уровень 1 (Легко): атакует только при перевесе >= 3, максимум 4 атаки за ход
+            // Уровень 2 (Норма): атакует при перевесе >= 2, укрепляет границу
+            // Уровень 3 (Сложно): атакует при перевесе >= 1, активно подтягивает тылы к фронту
+            var minAdvantage = difficulty === 1 ? 3 : (difficulty === 2 ? 2 : 1);
+            var maxMoves = difficulty === 1 ? 4 : (difficulty === 2 ? 12 : 30);
+            var movesDone = 0;
+
+            // Фаза 1: Атака выгодных целей
+            var keepAttacking = true;
+            while (keepAttacking && movesDone < maxMoves) {
+                keepAttacking = false;
+                var bestAction = null;
+                var bestScore = -999;
+
+                for (var r = 0; r < GRID_SIZE; r++) {
+                    for (var c = 0; c < GRID_SIZE; c++) {
+                        var cell = board[r][c];
+                        if (cell.owner === OWNER_ENEMY && cell.count > 1) {
+                            var neighbors = getOrthogonalNeighbors(r, c);
+                            for (var i = 0; i < neighbors.length; i++) {
+                                var nr = neighbors[i].r;
+                                var nc = neighbors[i].c;
+                                var target = board[nr][nc];
+                                if (target.owner === OWNER_PLAYER) {
+                                    var diff = cell.count - target.count;
+                                    if (diff >= minAdvantage && diff > bestScore) {
+                                        bestScore = diff;
+                                        bestAction = { ar: r, ac: c, dr: nr, dc: nc };
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (bestAction) {
+                    executeAttack(bestAction.ar, bestAction.ac, bestAction.dr, bestAction.dc);
+                    movesDone++;
+                    keepAttacking = true;
+                }
+            }
+
+            // Фаза 2: Перегруппировка тыловых резервов к границе (для Норма и Сложно)
+            if (difficulty >= 2) {
+                var reinforceLimit = difficulty === 3 ? 8 : 3;
+                var reinforced = 0;
+                for (var r2 = 0; r2 < GRID_SIZE; r2++) {
+                    for (var c2 = 0; c2 < GRID_SIZE; c2++) {
+                        if (reinforced >= reinforceLimit) break;
+                        var src = board[r2][c2];
+                        if (src.owner === OWNER_ENEMY && src.count > 3) {
+                            var nbs = getOrthogonalNeighbors(r2, c2);
+                            var hasPlayerNeighbor = false;
+                            for (var k = 0; k < nbs.length; k++) {
+                                if (board[nbs[k].r][nbs[k].c].owner === OWNER_PLAYER) {
+                                    hasPlayerNeighbor = true;
+                                    break;
+                                }
+                            }
+                            // Если клетка в тылу, двигаем её силы к соседней пограничной клетке
+                            if (!hasPlayerNeighbor) {
+                                for (var m = 0; m < nbs.length; m++) {
+                                    var tr = nbs[m].r;
+                                    var tc = nbs[m].c;
+                                    var dst = board[tr][tc];
+                                    if (dst.owner === OWNER_ENEMY && dst.count < MAX_UNITS) {
+                                        var dstNbs = getOrthogonalNeighbors(tr, tc);
+                                        var dstIsFront = false;
+                                        for (var f = 0; f < dstNbs.length; f++) {
+                                            if (board[dstNbs[f].r][dstNbs[f].c].owner === OWNER_PLAYER) {
+                                                dstIsFront = true;
+                                                break;
+                                            }
+                                        }
+                                        if (dstIsFront) {
+                                            executeMove(r2, c2, tr, tc);
+                                            reinforced++;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Фаза 3: Прирост +1 во всех секторах в конце раунда
+            for (var gr = 0; gr < GRID_SIZE; gr++) {
+                for (var gc = 0; gc < GRID_SIZE; gc++) {
+                    if (board[gr][gc].count < MAX_UNITS) {
+                        board[gr][gc].count += 1;
+                    }
+                }
+            }
+
+            turnNumber++;
+            renderAll();
+        }
+
+        // Кнопка завершения хода
+        btnEndTurn.onclick = function() {
+            if (isBusy || gameOver) return;
+            isBusy = true;
+            selected = null;
+            updateHighlights();
+            btnEndTurn.disabled = true;
+            setHint('Противник совершает манёвры...');
+
+            setTimeout(function() {
+                runEnemyTurn();
+                isBusy = false;
+                if (!gameOver) {
+                    btnEndTurn.disabled = false;
+                    setHint('Ваш ход. Все зоны получили +1 резерв.');
+                }
+            }, 180);
+        };
+
+        // Сброс и рестарт
+        btnReset.onclick = function() {
+            initGame();
+        };
+        btnPlayAgain.onclick = function() {
+            initGame();
+        };
+
+        // Переключение сложности
+        diffGroup.onclick = function(e) {
+            var target = e.target || e.srcElement;
+            if (!target || !target.getAttribute('data-diff')) return;
+            difficulty = parseInt(target.getAttribute('data-diff'), 10);
+
+            var buttons = diffGroup.getElementsByTagName('button');
+            for (var i = 0; i < buttons.length; i++) {
+                buttons[i].className = buttons[i] === target ? 'btn-diff active' : 'btn-diff';
+            }
+            initGame();
+        };
+
+        window.onresize = function() {
+            adjustBoardSize();
+        };
+
+        // Запуск
+        createGridDOM();
+        initGame();
+    })();
+</script>
+
+</body>
+</html>

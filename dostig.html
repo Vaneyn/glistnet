@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Достижения G-list</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #1a1a1a, #2d2d2d);
+            color: #fff;
+            margin: 0;
+            padding: 15px;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            color: #ffd700;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+            margin: 0;
+        }
+
+        .back-button {
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.3s ease;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .back-button:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .back-button::before {
+            content: "←";
+            font-size: 20px;
+            color: #ffd700;
+        }
+
+        .achievements-container {
+            max-width: 700px;
+            margin: 0 auto;
+            padding-bottom: 20px;
+        }
+
+        .achievement-panel {
+            display: flex;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            margin: 10px 0;
+            padding: 15px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+            transition: transform 0.3s ease;
+            cursor: pointer;
+        }
+
+        .achievement-panel:hover {
+            transform: translateY(-3px);
+        }
+
+        .achievement-image {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-right: 15px;
+        }
+
+        .achievement-content {
+            flex: 1;
+        }
+
+        .achievement-title {
+            font-size: 20px;
+            margin: 0 0 8px 0;
+            color: #ffd700;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        }
+
+        .achievement-text {
+            font-size: clamp(12px, 1.8vw, 16px);
+            margin: 0;
+            line-height: 1.3;
+            color: #e0e0e0;
+        }
+
+        .notification {
+            position: fixed;
+            top: 15px;
+            left: 5%;
+            width: 90%; /* Почти вся ширина экрана */
+            background: #ffd700;
+            color: #1a1a1a;
+            padding: 10px 15px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+            animation: slideDown 0.5s ease-out, slideUp 0.5s 2s ease-in forwards;
+            box-sizing: border-box;
+        }
+
+        .notification img {
+            width: 30px;
+            height: 30px;
+            margin-right: 10px;
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+
+        .notification span {
+            flex: 1;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .confirm-dialog {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.9);
+            color: #1a1a1a;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            text-align: center;
+        }
+
+        .confirm-dialog button {
+            margin: 10px 5px;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s ease;
+        }
+
+        .confirm-dialog .yes {
+            background: #ff4444;
+            color: #fff;
+        }
+
+        .confirm-dialog .yes:hover {
+            background: #cc3333;
+        }
+
+        .confirm-dialog .no {
+            background: #ffd700;
+            color: #1a1a1a;
+        }
+
+        .confirm-dialog .no:hover {
+            background: #e6c200;
+        }
+
+        @keyframes slideDown {
+            from { top: -100px; }
+            to { top: 15px; }
+        }
+
+        @keyframes slideUp {
+            from { top: 15px; }
+            to { top: -100px; }
+        }
+
+        @media (max-width: 600px) {
+            .achievement-panel {
+                flex-direction: column;
+                padding: 10px;
+            }
+
+            .achievement-image {
+                width: 80px;
+                height: 80px;
+                margin: 0 auto 10px;
+            }
+
+            .achievement-title {
+                font-size: 18px;
+                text-align: center;
+            }
+
+            .achievement-text {
+                font-size: 14px;
+                text-align: center;
+            }
+
+            .achievements-container {
+                max-width: 100%;
+                padding: 0 10px;
+            }
+
+            .header h1 {
+                font-size: 24px;
+            }
+
+            .confirm-dialog {
+                width: 80%;
+                padding: 15px;
+            }
+
+            .notification {
+                padding: 8px 10px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button class="back-button" onclick="window.location.href='glist.html'"></button>
+    <div class="header">
+        <h1>Достижения G-list</h1>
+    </div>
+    <div class="achievements-container" id="achievementsList"></div>
+
+    <script>
+        // Инициализация IndexedDB
+        function initDB() {
+            return new Promise((resolve, reject) => {
+                const dbName = "AchievementsDB";
+                const request = indexedDB.open(dbName, 1);
+
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => resolve(request.result);
+
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+                    const objectStore = db.createObjectStore("achievements", { keyPath: "title" });
+                    objectStore.createIndex("title", "title", { unique: true });
+                };
+            });
+        }
+
+        // Функция отображения достижений
+        async function displayAchievements() {
+            const db = await initDB();
+            const transaction = db.transaction(["achievements"], "readonly");
+            const objectStore = transaction.objectStore("achievements");
+            const request = objectStore.getAll();
+
+            return new Promise((resolve, reject) => {
+                request.onsuccess = () => {
+                    const achievements = request.result;
+                    const container = document.getElementById("achievementsList");
+                    container.innerHTML = "";
+
+                    achievements.forEach(achievement => {
+                        const panel = document.createElement("div");
+                        panel.className = "achievement-panel";
+
+                        const img = document.createElement("img");
+                        img.className = "achievement-image";
+                        img.src = achievement.image || "button.png";
+                        img.alt = achievement.title;
+
+                        const content = document.createElement("div");
+                        content.className = "achievement-content";
+
+                        const title = document.createElement("h2");
+                        title.className = "achievement-title";
+                        title.textContent = achievement.title;
+
+                        const text = document.createElement("p");
+                        text.className = "achievement-text";
+                        text.textContent = achievement.text;
+
+                        content.appendChild(title);
+                        content.appendChild(text);
+                        panel.appendChild(img);
+                        panel.appendChild(content);
+                        container.appendChild(panel);
+
+                        // Обработка тройного клика
+                        let clickCount = 0;
+                        let clickTimer = null;
+
+                        panel.addEventListener("click", () => {
+                            clickCount++;
+                            if (clickCount === 1) {
+                                clickTimer = setTimeout(() => {
+                                    clickCount = 0;
+                                }, 500);
+                            }
+                            if (clickCount === 3) {
+                                clearTimeout(clickTimer);
+                                clickCount = 0;
+                                confirmDelete(achievement.title);
+                            }
+                        });
+                    });
+                    resolve();
+                };
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        // Функция добавления достижения
+        async function addAchievement(title, text, image = false) {
+            try {
+                const db = await initDB();
+                const transaction = db.transaction(["achievements"], "readwrite");
+                const objectStore = transaction.objectStore("achievements");
+
+                const checkRequest = objectStore.get(title);
+
+                return new Promise((resolve) => {
+                    checkRequest.onsuccess = async () => {
+                        if (!checkRequest.result) {
+                            const newAchievement = {
+                                title: title,
+                                text: text,
+                                image: image || "button.png"
+                            };
+
+                            const addRequest = objectStore.add(newAchievement);
+                            
+                            addRequest.onsuccess = async () => {
+                                await displayAchievements();
+                                showNotification(title, newAchievement.image);
+                                resolve(true);
+                            };
+                            addRequest.onerror = () => resolve(false);
+                        } else {
+                            resolve(false);
+                        }
+                    };
+                });
+            } catch (error) {
+                console.error("Error adding achievement:", error);
+                return false;
+            }
+        }
+
+        // Функция удаления достижения
+        async function deleteAchievement(title) {
+            try {
+                const db = await initDB();
+                const transaction = db.transaction(["achievements"], "readwrite");
+                const objectStore = transaction.objectStore("achievements");
+
+                const deleteRequest = objectStore.delete(title);
+
+                return new Promise((resolve) => {
+                    deleteRequest.onsuccess = async () => {
+                        await displayAchievements();
+                        resolve(true);
+                    };
+                    deleteRequest.onerror = () => resolve(false);
+                });
+            } catch (error) {
+                console.error("Error deleting achievement:", error);
+                return false;
+            }
+        }
+
+        // Функция подтверждения удаления
+        function confirmDelete(title) {
+            const dialog = document.createElement("div");
+            dialog.className = "confirm-dialog";
+
+            const message = document.createElement("p");
+            message.textContent = `Удалить "${title}"?`;
+
+            const yesButton = document.createElement("button");
+            yesButton.className = "yes";
+            yesButton.textContent = "Да";
+            yesButton.onclick = async () => {
+                await deleteAchievement(title);
+                document.body.removeChild(dialog);
+            };
+
+            const noButton = document.createElement("button");
+            noButton.className = "no";
+            noButton.textContent = "Нет";
+            noButton.onclick = () => {
+                document.body.removeChild(dialog);
+            };
+
+            dialog.appendChild(message);
+            dialog.appendChild(yesButton);
+            dialog.appendChild(noButton);
+            document.body.appendChild(dialog);
+        }
+
+        // Функция показа уведомления
+        function showNotification(title, image) {
+            const notification = document.createElement("div");
+            notification.className = "notification";
+
+            const img = document.createElement("img");
+            img.src = image;
+            img.alt = title;
+
+            const text = document.createElement("span");
+            text.textContent = `Новое достижение: ${title}`;
+
+            notification.appendChild(img);
+            notification.appendChild(text);
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+
+        // Инициализация
+        (async () => {
+            await displayAchievements();
+            await addAchievement(
+                "Первый Шаг",
+                "Поздравляю с получением первого достижения! Оно выдаётся за то, что вы смогли нажать на кнопку и попасть сюда.",
+                "button.png"
+            );
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+
+
+
+
+
+        })();
+    </script>
+</body>
+</html>

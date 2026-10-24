@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Tank Battle – Один игрок</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <style>
+    body { 
+      margin: 0; 
+      padding: 0; 
+      overflow: hidden; 
+      background: #222; 
+      color: #fff; 
+      font-family: sans-serif;
+    }
+    #gameCanvas { background: #333; }
+    .fireBtn {
+      position: absolute;
+      width: 90px;
+      height: 90px;
+      background: rgba(255,0,0,0.3);
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 24px;
+      color: white;
+      right: 20px;
+      bottom: 20px;
+      z-index: 20;
+      user-select: none;
+    }
+    #stats {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(0,0,0,0.5);
+      padding: 10px;
+      border-radius: 5px;
+      z-index: 20;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+    #backBtn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(0,0,0,0.5);
+      padding: 5px 10px;
+      border-radius: 5px;
+      z-index: 20;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="gameCanvas"></div>
+  <div id="stats">
+    <div>Счёт: <span id="score">0</span></div>
+    <div>Последний бонус: <span id="lastBonus">нет</span></div>
+<div id="toggleSound" style="font-size: 24px; cursor: pointer;"> Аудио: 🔊</div>
+    <div>Характеристики:</div>
+
+    <div id="playerStats"></div>
+  </div>
+  <div id="backBtn">Назад</div>
+
+
+  <div id="fireBtn" class="fireBtn">🔥</div>
+
+  <!-- фоновая музыка -->
+  <audio id="bgMusic" src="Geometry.m4a" loop></audio>
+
+<script src="konva.min.js"></script>
+<script>
+  // --- фоновая музыка ---
+  const bg = document.getElementById('bgMusic');
+  bg.volume = 0.3;
+  bg.play().catch(()=>{/* на мобилах нужен тап */});
+const bgMusic = document.getElementById('bgMusic');
+const toggleSoundBtn = document.getElementById('toggleSound');
+
+toggleSoundBtn.addEventListener('click', () => {
+    bgMusic.muted = !bgMusic.muted;
+    toggleSoundBtn.textContent = bgMusic.muted ? '🔇' : '🔊';
+});
+
+  // --- размеры мира и канвы ---
+  const viewWidth = window.innerWidth;
+  const viewHeight = window.innerHeight;
+  const worldWidth = 2500;
+  const worldHeight = 2500;
+
+  // --- инициализация Konva ---
+  const stage = new Konva.Stage({
+    container: 'gameCanvas',
+    width: viewWidth,
+    height: viewHeight
+  });
+  const layer = new Konva.Layer();
+  stage.add(layer);
+  const worldGroup = new Konva.Group();
+  layer.add(worldGroup);
+
+  window.addEventListener('resize', () => {
+    stage.width(window.innerWidth);
+    stage.height(window.innerHeight);
+  });
+
+  // --------------------------- классы ---------------------------
+
+  class Tank {
+    constructor(x, y, color, isPlayer = false) {
+      this.x = x; this.y = y; this.color = color;
+      this.rotate = 0; this.speed = 0; this.durability = 100;
+      this.baseMaxSpeed = isPlayer ? 2 : 1.5;
+      this.baseReloadTime = 5;
+      this.baseBulletDamage = 1;
+      this.baseBulletPenetration = isPlayer ? 35 : 35;
+      this.reload = 0;
+      this.size = 30; this.barrelLength = 20;
+      this.recalcStats();
+      this.body = new Konva.Rect({
+        x: this.x+this.size/2, y: this.y+this.size/2,
+        width: this.size, height: this.size,
+        fill: this.color,
+        offset: { x: this.size/2, y: this.size/2 }
+      });
+      worldGroup.add(this.body);
+      this.barrel = new Konva.Rect({
+        x: this.x+this.size/2, y: this.y+this.size/2,
+        width: this.barrelLength, height: 6,
+        fill: '#000',
+        offset: { x: 0, y: 3 }
+      });
+      worldGroup.add(this.barrel);
+      this.isPlayer = isPlayer;
+    }
+    recalcStats() {
+      const eff = Math.max(this.durability,1);
+      this.maxSpeed = this.baseMaxSpeed * (eff/100);
+      this.reloadTime = this.baseReloadTime * (100/eff);
+      this.bulletDamage = this.baseBulletDamage * (eff/100);
+      this.bulletPenetration = this.baseBulletPenetration * (eff/100);
+    }
+    update() {
+      this.recalcStats();
+      if (this.speed) {
+        let nx = this.x + Math.cos(this.rotate)*this.speed;
+        let ny = this.y + Math.sin(this.rotate)*this.speed;
+        if (nx>=0 && nx<=worldWidth-this.size &&
+            ny>=0 && ny<=worldHeight-this.size &&
+            !collisionWithObstacles(nx,ny,this.size)) {
+          this.x = nx; this.y = ny;
+        }
+      }
+      if (this.reload>0) this.reload -= 0.02;
+      const cx = this.x+this.size/2, cy = this.y+this.size/2;
+      this.body.position({ x:cx, y:cy });
+      this.body.rotation(this.rotate*180/Math.PI);
+      this.barrel.position({ x:cx, y:cy });
+      this.barrel.rotation(this.rotate*180/Math.PI);
+      if (!this.isPlayer) {
+        let red = Math.floor(50 + (this.durability/100)*205);
+        this.body.fill(`rgb(${red},0,0)`);
+      }
+    }
+    fire() {
+      if (this.reload<=0) {
+        this.reload = this.reloadTime;
+        const cx = this.x+this.size/2, cy = this.y+this.size/2;
+        return new Bullet(
+          cx+Math.cos(this.rotate)*this.barrelLength,
+          cy+Math.sin(this.rotate)*this.barrelLength,
+          this.rotate,
+          this.bulletDamage,
+          this.bulletPenetration,
+          this.isPlayer?'player':'enemy'
+        );
+      }
+      return null;
+    }
+    takeHit(bullet) {
+      if (Math.random()*100 < bullet.penetration) {
+        const dmg = Math.floor((Math.random()*200+1)*bullet.damage);
+        this.durability -= dmg;
+      }
+    }
+    destroy() {
+      this.body.destroy(); this.barrel.destroy();
+    }
+  }
+
+  class Bullet {
+    constructor(x,y,angle,damage,penetration,owner) {
+      this.x = x; this.y = y; this.angle = angle;
+      this.speed = 5; this.size = 5;
+      this.damage = damage; this.penetration = penetration;
+      this.owner = owner;
+      this.shape = new Konva.Circle({
+        x: this.x, y: this.y,
+        radius: this.size,
+        fill: 'yellow'
+      });
+      worldGroup.add(this.shape);
+    }
+    update() {
+      this.x += Math.cos(this.angle)*this.speed;
+      this.y += Math.sin(this.angle)*this.speed;
+      this.shape.position({ x:this.x, y:this.y });
+    }
+    destroy() { this.shape.destroy(); }
+  }
+
+  class Bonus {
+    constructor(x,y,type) {
+      this.x = x; this.y = y; this.type = type;
+      const colors = { reload:'#0ff', speed:'#0f0', durability:'#ff0', damage:'#f0f', penetration:'#f90' };
+      this.shape = new Konva.Circle({
+        x: this.x, y: this.y,
+        radius: 10,
+        fill: colors[type]||'#fff'
+      });
+      worldGroup.add(this.shape);
+    }
+    destroy() { this.shape.destroy(); }
+  }
+
+  class Obstacle {
+    constructor(x,y,w,h) {
+      this.x = x; this.y = y; this.width = w; this.height = h;
+      this.shape = new Konva.Rect({
+        x: this.x, y: this.y,
+        width: this.width, height: this.height,
+        fill: '#555'
+      });
+      worldGroup.add(this.shape);
+    }
+  }
+
+  class Joystick {
+    constructor(x,y,maxR) {
+      this.x = x; this.y = y; this.maxRadius = maxR;
+      this.base = new Konva.Circle({
+        x:this.x, y:this.y,
+        radius:this.maxRadius,
+        stroke:'#fff', strokeWidth:3, opacity:0.5
+      });
+      layer.add(this.base);
+      this.handle = new Konva.Circle({
+        x:this.x, y:this.y,
+        radius:25, fill:'#fff', draggable:true
+      });
+      layer.add(this.handle);
+      this.handle.on('dragmove', () => {
+        const dx = this.handle.x()-this.x, dy = this.handle.y()-this.y;
+        const dist = Math.hypot(dx,dy);
+        if (dist>this.maxRadius) {
+          const ang = Math.atan2(dy,dx);
+          this.handle.x(this.x+Math.cos(ang)*this.maxRadius);
+          this.handle.y(this.y+Math.sin(ang)*this.maxRadius);
+        }
+      });
+      this.handle.on('dragend', () => {
+        this.handle.to({ x:this.x, y:this.y, duration:0.2 });
+      });
+    }
+    getDirection() {
+      return { x:this.handle.x()-this.x, y:this.handle.y()-this.y };
+    }
+  }
+
+  // ------------------ переменные ------------------
+
+  let score = 0;
+  let lastBonusText = 'нет';
+  let gameOver = false;
+  let playerHitCount = 0;
+  const originalBaseSpeed = 2;
+
+  const player = new Tank(worldWidth/2-15, worldHeight/2-15, '#00f', true);
+  const playerBullets = [];
+  const enemyBullets = [];
+  const enemies = [];
+  const bonuses = [];
+  const obstacles = [];
+
+  // спавн препятствий
+  const numObs = Math.floor(Math.random()*5)+3;
+  for (let i=0; i<numObs; i++) {
+    const w = 100+Math.random()*100, h = 100+Math.random()*100;
+    const x = Math.random()*(worldWidth-w), y = Math.random()*(worldHeight-h);
+    if (Math.hypot((x+w/2)-(worldWidth/2),(y+h/2)-(worldHeight/2))<200) { i--; continue; }
+    obstacles.push(new Obstacle(x,y,w,h));
+  }
+
+  const joystick = new Joystick(80, viewHeight-80, 65);
+
+  document.getElementById('fireBtn').addEventListener('touchstart', () => {
+    const b = player.fire(); if (b) playerBullets.push(b);
+  });
+  document.getElementById('fireBtn').addEventListener('mousedown', () => {
+    const b = player.fire(); if (b) playerBullets.push(b);
+  });
+  document.getElementById('backBtn').addEventListener('click', () => {
+    window.location.href = 'glist.html';
+  });
+
+  function rectsIntersect(x1,y1,w1,h1, x2,y2,w2,h2) {
+    return !(x2>w1+x1 || x2+w2<x1 || y2>y1+h1 || y2+h2<y1);
+  }
+  function collisionWithObstacles(nx,ny,sz) {
+    return obstacles.some(o => rectsIntersect(nx,ny,sz,sz,o.x,o.y,o.width,o.height));
+  }
+  function bulletHitsObstacle(b) {
+    return obstacles.some(o =>
+      b.x>o.x && b.x<o.x+o.width &&
+      b.y>o.y && b.y<o.y+o.height
+    );
+  }
+
+  let enemySpawnTimer = 0;
+  let enemySpawnInterval = 15 + Math.random()*10;
+
+  function spawnEnemy() {
+    const margin = 50, ts = 30;
+    const side = Math.floor(Math.random()*4);
+    let x,y;
+    if (side===0) { x=Math.random()*(worldWidth-2*margin-ts)+margin; y=margin; }
+    if (side===1) { x=worldWidth-margin-ts; y=Math.random()*(worldHeight-2*margin-ts)+margin; }
+    if (side===2) { x=Math.random()*(worldWidth-2*margin-ts)+margin; y=worldHeight-margin-ts; }
+    if (side===3) { x=margin; y=Math.random()*(worldHeight-2*margin-ts)+margin; }
+    enemies.push(new Tank(x,y,'#f00',false));
+  }
+
+  // обёртка takeHit, считаем попадания
+  const origTakeHit = player.takeHit.bind(player);
+  player.takeHit = function(b) {
+    origTakeHit(b);
+    playerHitCount++;
+  };
+
+  // ------------------ игровой цикл ------------------
+
+  function update() {
+    if (gameOver) return;
+    enemySpawnTimer += 0.02;
+    if (enemySpawnTimer>enemySpawnInterval) {
+      spawnEnemy();
+      enemySpawnTimer=0;
+      enemySpawnInterval=10+Math.random()*10;
+    }
+    const dir = joystick.getDirection();
+    const mag = Math.hypot(dir.x,dir.y);
+    if (mag>0) {
+      player.speed = mag * player.maxSpeed / joystick.maxRadius;
+      player.rotate = Math.atan2(dir.y,dir.x);
+    } else player.speed = 0;
+    player.update();
+
+    // игрок стреляет
+    playerBullets.forEach((b,i) => {
+      b.update();
+      if (bulletHitsObstacle(b)) { b.destroy(); playerBullets.splice(i,1); return; }
+      enemies.forEach((e,ei) => {
+        const dx = b.x-(e.x+e.size/2), dy = b.y-(e.y+e.size/2);
+        if (Math.hypot(dx,dy)<e.size/2+b.size) {
+          e.takeHit(b);
+          b.destroy();
+          playerBullets.splice(i,1);
+        }
+      });
+      if (b.x<0||b.x>worldWidth||b.y<0||b.y>worldHeight) {
+        b.destroy(); playerBullets.splice(i,1);
+      }
+    });
+
+    // враги
+    enemies.forEach((e,ei) => {
+      e.rotate += (Math.random()-0.5)*0.05;
+      e.speed = e.maxSpeed;
+      e.update();
+      if (e.reload<=0) {
+        let ang = Math.atan2((player.y+player.size/2)-(e.y+e.size/2),(player.x+player.size/2)-(e.x+e.size/2));
+        ang += (Math.random()-0.5)*0.4;
+        e.rotate = ang;
+        const bl = e.fire();
+        if (bl) enemyBullets.push(bl);
+      }
+      if (e.durability<1) {
+        const types = ['reload','speed','durability','damage','penetration'];
+        bonuses.push(new Bonus(e.x+e.size/2,e.y+e.size/2,types[Math.floor(Math.random()*types.length)]));
+        e.destroy();
+        enemies.splice(ei,1);
+        score++;
+      }
+    });
+
+    // пули врагов
+    enemyBullets.forEach((b,i) => {
+      b.update();
+      if (bulletHitsObstacle(b)) { b.destroy(); enemyBullets.splice(i,1); return; }
+      const dx = b.x-(player.x+player.size/2), dy = b.y-(player.y+player.size/2);
+      if (Math.hypot(dx,dy)<player.size/2+b.size) {
+        player.takeHit(b);
+        b.destroy();
+        enemyBullets.splice(i,1);
+      }
+      if (b.x<0||b.x>worldWidth||b.y<0||b.y>worldHeight) {
+        b.destroy(); enemyBullets.splice(i,1);
+      }
+    });
+
+    // сбор бонусов
+    bonuses.forEach((bon,i) => {
+      const dx = bon.shape.x()-(player.x+player.size/2), dy = bon.shape.y()-(player.y+player.size/2);
+      if (Math.hypot(dx,dy)<player.size/2+10) {
+        applyBonus(bon.type);
+        lastBonusText = bon.type;
+        bon.destroy();
+        bonuses.splice(i,1);
+      }
+    });
+
+    // смерть
+    if (player.durability<1) {
+      alert('Игра окончена. Счёт: '+score);
+      gameOver = true;
+      player.destroy();
+      enemies.forEach(e=>e.destroy());
+    }
+
+    // камера и зум
+    const scale = 0.6;
+    worldGroup.scale({ x:scale, y:scale });
+    let offX = viewWidth/2 - (player.x+player.size/2)*scale;
+    let offY = viewHeight/2 - (player.y+player.size/2)*scale;
+    offX = Math.min(0, Math.max(viewWidth-worldWidth*scale, offX));
+    offY = Math.min(0, Math.max(viewHeight-worldHeight*scale, offY));
+    worldGroup.position({ x:offX, y:offY });
+  }
+
+  function draw() {
+    document.getElementById('score').innerText = score;
+    document.getElementById('lastBonus').innerText = lastBonusText;
+    document.getElementById('playerStats').innerHTML =
+      'Прочность: '+player.durability.toFixed(0)+'<br>'+
+      'Скорость: '+player.maxSpeed.toFixed(2)+'<br>'+
+      'Перезарядка: '+player.reloadTime.toFixed(2)+'<br>'+
+      'Сила снаряда: '+(player.bulletDamage*100).toFixed(0)+'%<br>'+
+      'Пробиваемость: '+player.bulletPenetration.toFixed(0)+'%';
+    layer.batchDraw();
+  }
+
+  function applyBonus(type) {
+    switch(type){
+      case 'reload':    player.baseReloadTime   *=0.85; break;
+      case 'speed':     player.baseMaxSpeed     *=1.05; break;
+      case 'durability':player.durability       +=10;   break;
+      case 'damage':    player.baseBulletDamage *=1.35; break;
+      case 'penetration':player.baseBulletPenetration+=10;break;
+    }
+  }
+
+  // --------------- IndexedDB и достижения ---------------
+
+  function initDB(){
+    return new Promise((res,rej)=>{
+      const rq = indexedDB.open("AchievementsDB",1);
+      rq.onerror = ()=>rej(rq.error);
+      rq.onsuccess = ()=>res(rq.result);
+      rq.onupgradeneeded = e=>{
+        e.target.result.createObjectStore("achievements",{ keyPath:"title" });
+      };
+    });
+  }
+
+  async function addAchievement(title,text,image=false){
+    try{
+      const db = await initDB();
+      const tx = db.transaction(["achievements"],"readwrite");
+      const store = tx.objectStore("achievements");
+      const g = store.get(title);
+      return new Promise(r=>{
+        g.onsuccess = ()=>{
+          if(!g.result){
+            store.add({ title,text,image:image||"button.png" }).onsuccess=()=>{
+              const d = document.createElement("div");
+              d.textContent = title;
+              Object.assign(d.style,{
+                position:"fixed",top:"15px",left:"5%",
+                width:"90%",background:"#ffd700",
+                color:"#1a1a1a",padding:"10px",
+                borderRadius:"8px",
+                boxShadow:"0 3px 10px rgba(0,0,0,0.3)",
+                zIndex:"1000"
+              });
+              document.body.appendChild(d);
+              setTimeout(()=>d.remove(),3000);
+              r(true);
+            };
+          } else r(false);
+        };
+      });
+    }catch(e){ console.error(e); return false; }
+  }
+
+  // 1) Танкист 1
+  async function checkAndAddAchievement1(){
+    if(score>=1){
+      const ok = await addAchievement(
+        "Танкист 1",
+        "Ты смог уничтожить кого-то, при этом даже не себя.",
+        "button.png"
+      );
+      if(ok) console.log("Танкист 1 получен!");
+    }
+  }
+  setInterval(checkAndAddAchievement1,1000);
+
+  // 2) Танкист 2
+  async function checkAndAddAchievement2(){
+    if(score>=10){
+      const ok = await addAchievement(
+        "Танкист 2",
+        "Ты смог уничтожить 10 танков противника, нанеся урон силам противника. Победа не за горами!",
+        "button.png"
+      );
+      if(ok) console.log("Танкист 2 получен!");
+    }
+  }
+  setInterval(checkAndAddAchievement2,1000);
+
+  // 3) Танкист 3
+  async function checkAndAddAchievement3(){
+    if(score>=100){
+      const ok = await addAchievement(
+        "Танкист 3",
+        "Ты смог уничтожить 100 танков противника, это победа! Можешь считать себя мастером танчиков",
+        "goldentank.png"
+      );
+      if(ok) console.log("Танкист 3 получен!");
+    }
+  }
+  setInterval(checkAndAddAchievement3,1000);
+
+  // 4) Живучий
+  async function checkAndAddAchievement4(){
+    if(playerHitCount>=10 && !gameOver){
+      const ok = await addAchievement(
+        "Живучий",
+        "Ты выжил после 10 попаданий в танчиках, Колобанов в истории Glist!",
+        "button.png"
+      );
+      if(ok) console.log("Живучий получен!");
+    }
+  }
+  setInterval(checkAndAddAchievement4,1000);
+
+  // 5) Турботабуретка
+  async function checkAndAddAchievement5(){
+    if(player.baseMaxSpeed>=originalBaseSpeed*10){
+      const ok = await addAchievement(
+        "Турботабуретка",
+        "Ты разогнался до 1000% в танчиках. Что ты в бензобак залил, ирод?",
+        "button.png"
+      );
+      if(ok) console.log("Турботабуретка получена!");
+    }
+  }
+  setInterval(checkAndAddAchievement5,1000);
+
+  // 6) Лузер
+  async function checkAndAddAchievement6(){
+    if(gameOver && score===0){
+      const ok = await addAchievement(
+        "Лузер",
+        "Помер, не уничтожив ни одного врага... Поооолный провал!",
+        "button.png"
+      );
+      if(ok) console.log("Лузер получен!");
+    }
+  }
+  setInterval(checkAndAddAchievement6,1000);
+
+  // --- старт цикла ---
+  function gameLoop(){
+    update();
+    draw();
+    if(!gameOver) requestAnimationFrame(gameLoop);
+  }
+  gameLoop();
+
+</script>
+</body>
+</html>

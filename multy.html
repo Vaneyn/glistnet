@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Кубик Гравити Фолз</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f5f5f5;
+        }
+        #result {
+            font-size: 24px;
+            margin: 20px 0;
+            display: none; /* Скрыть изначально */
+        }
+        .button {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 5px;
+            background-color: #4CAF50;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .button:hover {
+            background-color: #45a049;
+        }
+        .fade-out {
+            animation: fadeOut 0.5s forwards;
+        }
+        .fade-in {
+            animation: fadeIn 0.5s forwards;
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="result"></div>
+    <button id="roll-button" class="button">Бросить кубик</button>
+    
+    <button onclick="run('glist')">НАЗАД</button>
+
+    <script>
+        const rollButton = document.getElementById('roll-button');
+        const resultDiv = document.getElementById('result');
+
+        rollButton.addEventListener('click', async () => {
+            rollButton.classList.add('fade-out'); // Применяем анимацию исчезновения
+
+            // Ждем, пока анимация завершится
+            setTimeout(async () => {
+                rollButton.style.display = 'none'; // Скрываем кнопку
+                try {
+                    const result = await getRandomItem(); // Получаем случайный предмет
+                    resultDiv.textContent = result; // Отображаем результат
+                    resultDiv.style.display = 'block'; // Показываем результат
+                } catch (error) {
+                    resultDiv.textContent = 'Ошибка: Не удалось получить ответ от API.'; // Обработка ошибки
+                    resultDiv.style.display = 'block';
+                }
+
+                // Появление кнопки снова с небольшой задержкой для корректной анимации
+                setTimeout(() => {
+                    rollButton.style.display = 'block'; // Снова показываем кнопку
+                    rollButton.classList.remove('fade-out');
+                    rollButton.classList.add('fade-in');
+                }, 100);  // Короткая задержка для запуска анимации
+            }, 500);  // Длительность анимации fade-out
+        });
+
+        async function getRandomItem() {
+            const randomId = generateRandomId(); // Генерируем случайный идентификатор
+            const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer YOUR_OPENROUTER_KEY',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: 'meta-llama/llama-4-scout:free',
+                    messages: [
+                        { role: 'user', content: `Возьми это за ключ для генерации случайностей: ${randomId}` },
+                        { role: 'assistant', content: `Случайность учтена. Я готов к генерации случайного чего-либо` },  // Исправлена опечатка
+                        { role: 'user', content: 'Назови случайный предмет. Будь максимально краток, по возможности. Ничего не поясняй. Избегай обычных бытовых предметов, которые легко приходят в голову. Итак, твой ответ:' }
+                    ]
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('API запрос не удался');
+            }
+
+            const data = await response.json();
+            return data.choices[0].message.content.trim(); // Возвращаем результат
+        }
+
+        function generateRandomId() {
+            const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЧЩИЬЙЪЭЮЯ#0123456789!@#$%^&*()_+[]{}|;:,.<>!¿‽?';
+            const length = Math.floor(Math.random() * 100) + 10; // Длина от 10 до 110
+            let result = '';
+            for (let i = 0; i < length; i++) {
+                result += characters.charAt(Math.floor(Math.random() * characters.length));
+            }
+            return result;
+        }
+
+        function run(tool) {
+            var url = tool + ".html";
+            window.open(url, "_blank");
+        }
+    </script>
+</body>
+</html>

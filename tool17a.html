@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Пример работы с IndexedDB</title>
+  <style>
+    body {
+      background-color: #999;
+    }
+    h1 {
+      color: #fff;
+      text-align: center;
+    }
+    #btn {
+      display: block;
+      margin: 0 auto;
+      background-color: #ccc;
+      color: #fff;
+      border: none;
+      padding: 10px 20px;
+      font-size: 18px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>Пример работы с IndexedDB</h1>
+  <div id="content">
+    <p>Количество GM: <span id="gmValue"></span></p>
+<button onclick="runTool('glist')">НАЗАД</button>
+  </div>
+	<script>
+		function runTool(toolName) {
+			var url = toolName + ".html";
+			window.open(url, "_blank");
+		}
+	</script>
+  <script>
+    // Открываем базу данных IndexedDB
+    const request = indexedDB.open('myDatabase', 1);
+
+    // Создаем хранилище объектов для хранения значений GM
+    request.onupgradeneeded = event => {
+      const db = event.target.result;
+      const objectStore = db.createObjectStore('GM', { keyPath: 'id' });
+      objectStore.createIndex('value', 'value', { unique: false });
+    };
+
+    request.onsuccess = event => {
+      const db = event.target.result;
+
+      // Получаем значение переменной GM из хранилища объектов
+      const transaction = db.transaction(['GM'], 'readonly');
+      const objectStore = transaction.objectStore('GM');
+      const request = objectStore.get('1');
+
+      request.onsuccess = event => {
+        let gmValue = 0;
+
+        // Если значение найдено, используем его
+        if (event.target.result) {
+          gmValue = event.target.result.value;
+        }
+
+        // Отображаем значение переменной GM на странице
+        document.getElementById('gmValue').innerText = gmValue;
+      };
+    };
+
+    // Сохраняем значение переменной GM в хранилище объектов
+    const saveGMValue = gmValue => {
+      const request = indexedDB.open('myDatabase', 1);
+
+      request.onsuccess = event => {
+        const db = event.target.result;
+
+        const transaction = db.transaction(['GM'], 'readwrite');
+        const objectStore = transaction.objectStore('GM');
+
+        // Обновляем значение переменной GM в хранилище объектов
+        const request = objectStore.put({ id: '1', value: gmValue });
+
+        request.onsuccess = () => {
+          console.log('Value saved successfully');
+        };
+
+        request.onerror = () => {
+          console.error('Value not saved');
+        };
+      };
+    };
+
+
+
+  </script>
+</body>
+</html>

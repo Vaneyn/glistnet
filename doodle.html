@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doodle Jump - Мобильная игра</title>
+<style>
+        :root {
+            --primary-color: #5D5CDE;
+            --bg-light: #e0e0e0;
+            --bg-dark: #121212;
+            --text-light: #000000;
+            --text-dark: #00ff00;
+            --gray-600: #4b5563;
+            --gray-300: #d1d5db;
+            --gray-800: #1f2937;
+            --gray-400: #9ca3af;
+            --gray-500: #6b7280;
+            --crt-green: #00ff00;
+            --crt-blue: #0088ff;
+            --crt-glow: rgba(0, 255, 0, 0.15);
+            --scan-line: rgba(0, 255, 0, 0.05);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+            touch-action: manipulation;
+        }
+
+        body {
+            background: var(--bg-light);
+            color: var(--text-light);
+            overscroll-behavior: none;
+            position: relative;
+        }
+
+        .dark {
+            --bg-light: #181818;
+            --text-light: #FFFFFF;
+            --gray-600: #9ca3af;
+            --gray-300: #374151;
+            --gray-800: #374151;
+            --gray-400: #6b7280;
+            --gray-500: #9ca3af;
+        }
+
+        .container {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header Styles */
+        .header {
+            background: var(--primary-color);
+            color: white;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .back-btn {
+            color: white;
+            text-decoration: none;
+            transition: color 0.2s ease;
+            display: flex;
+            align-items: center;
+        }
+
+        .back-btn:hover {
+            color: #e5e7eb;
+        }
+
+        .back-btn svg {
+            width: 24px;
+            height: 24px;
+        }
+
+        .title {
+            font-size: 1.25rem;
+            font-weight: bold;
+        }
+
+        .score-container {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .score-item {
+            text-align: right;
+        }
+
+        .score-label {
+            font-size: 0.875rem;
+            opacity: 0.75;
+        }
+
+        .score-value {
+            font-size: 1.125rem;
+            font-weight: bold;
+        }
+
+        /* Game Area */
+        .game-area {
+            flex: 1;
+            position: relative;
+            background: linear-gradient(to bottom, #bae6fd, #e0f2fe);
+        }
+
+        .dark .game-area {
+            background: linear-gradient(to bottom, #1e3a8a, #1e40af);
+        }
+
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+        }
+
+        /* Overlay Screens */
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal {
+            background: var(--bg-light);
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            text-align: center;
+            max-width: 24rem;
+            margin: 0 1rem;
+            color: var(--text-light);
+        }
+
+        .dark .modal {
+            background: var(--gray-800);
+        }
+
+        .modal h2 {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+            color: var(--text-light);
+        }
+
+        .modal p {
+            margin-bottom: 1rem;
+            color: var(--gray-600);
+        }
+
+        .dark .modal p {
+            color: var(--gray-300);
+        }
+
+        /* Start Screen */
+        .start-screen {
+            background: linear-gradient(to bottom, #bae6fd, #e0f2fe);
+        }
+
+        .dark .start-screen {
+            background: linear-gradient(to bottom, #1e3a8a, #1e40af);
+        }
+
+        .start-content {
+            text-align: center;
+            max-width: 24rem;
+            margin: 0 1rem;
+        }
+
+        .start-content h2 {
+            font-size: 1.875rem;
+            font-weight: bold;
+            margin-bottom: 1.5rem;
+            color: var(--text-light);
+        }
+
+        .dark .start-content h2 {
+            color: var(--text-light);
+        }
+
+        .description {
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            color: var(--gray-600);
+        }
+
+        .dark .description {
+            color: var(--gray-300);
+        }
+
+        .controls {
+            font-size: 0.875rem;
+            margin-bottom: 1rem;
+            color: var(--gray-500);
+        }
+
+        .dark .controls {
+            color: var(--gray-400);
+        }
+
+        .features {
+            font-size: 0.75rem;
+            margin-bottom: 1.5rem;
+            color: var(--gray-500);
+        }
+
+        .dark .features {
+            color: var(--gray-400);
+        }
+
+        /* Buttons */
+        .btn {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.2s ease;
+        }
+
+        .btn:hover {
+            background: #7c3aed;
+        }
+
+        .btn-restart {
+            padding: 0.75rem 1.5rem;
+        }
+
+        /* Mobile Controls */
+        .mobile-controls {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 8rem;
+            display: flex;
+        }
+
+        .mobile-btn {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.2);
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            transition: background-color 0.2s ease;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .mobile-btn:active {
+            background: rgba(0, 0, 0, 0.4);
+        }
+
+        /* Utilities */
+        .hidden {
+            display: none !important;
+        }
+
+        .font-bold {
+            font-weight: bold;
+        }
+
+        /* Responsive Design */
+        @media (min-width: 768px) {
+            .mobile-controls {
+                display: none;
+            }
+        }
+
+        /* Input font size for mobile */
+        input, button {
+            font-size: 16px;
+        }
+
+        /* Prevent text selection on game elements */
+        .game-area, .mobile-controls {
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Dark mode detection -->
+    <script>
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+        }
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+            if (event.matches) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        });
+    </script>
+
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-left">
+                <a href="glist.html" class="back-btn">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                    </svg>
+                </a>
+                <h1 class="title">Doodle Глист</h1>
+            </div>
+            <div class="score-container">
+                <div class="score-item">
+                    <div class="score-label">Счет</div>
+                    <div id="score" class="score-value">0</div>
+                </div>
+                <div class="score-item">
+                    <div class="score-label">Рекорд</div>
+                    <div id="highScore" class="score-value">0</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Canvas -->
+        <div class="game-area">
+            <canvas id="gameCanvas"></canvas>
+            
+            <!-- Game Over Screen -->
+            <div id="gameOverScreen" class="overlay hidden">
+                <div class="modal">
+                    <h2>Игра окончена!</h2>
+                    <p>Ваш счет: <span id="finalScore" class="font-bold">0</span></p>
+                    <p>Лучший результат: <span id="finalHighScore" class="font-bold">0</span></p>
+                    <button id="restartBtn" class="btn btn-restart">Играть снова</button>
+                </div>
+            </div>
+
+            <!-- Start Screen -->
+            <div id="startScreen" class="overlay start-screen">
+                <div class="start-content">
+                    <h2>Doodle Глист</h2>
+                    <p class="description">Прыгайте по платформам и набирайте очки!</p>
+                    <p class="controls">
+                        ПК: стрелки ← → или A/D<br>
+                        Мобильные: касания по краям экрана
+                    </p>
+                    <p class="features">
+                        🟢 Обычные • ⚪ Исчезают • 🟤 Какашки • 🔵 Движутся<br>
+                        🌀 Пружина • 🚀 Ракетный ранец
+                    </p>
+                    <button id="startBtn" class="btn">Начать игру</button>
+                </div>
+            </div>
+
+            <!-- Mobile Controls -->
+            <div id="mobileControls" class="mobile-controls">
+                <button id="leftBtn" class="mobile-btn">←</button>
+                <button id="rightBtn" class="mobile-btn">→</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class DoodleJump {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.resizeCanvas();
+                
+                this.gameState = 'start'; // start, playing, gameOver
+                this.score = 0;
+                this.highScore = localStorage.getItem('doodleHighScore') || 0;
+                this.camera = { y: 0 };
+                
+                this.player = {
+                    x: 0,
+                    y: 0,
+                    width: 40,
+                    height: 40,
+                    vx: 0,
+                    vy: 0,
+                    grounded: false,
+                    jumpPower: -15,
+                    gravity: 0.5,
+                    maxVx: 8
+                };
+                
+                this.platforms = [];
+                this.powerUps = [];
+                this.effects = []; // For poop emoji and other effects
+                this.jetpackActive = false;
+                this.jetpackTimer = 0;
+                this.keys = {};
+                this.touches = {};
+                
+                // Try to load character image
+                this.playerImage = new Image();
+                this.playerImageLoaded = false;
+                this.playerImage.onload = () => {
+                    this.playerImageLoaded = true;
+                };
+                this.playerImage.onerror = () => {
+                    this.playerImageLoaded = false;
+                };
+                this.playerImage.src = 'glist.png';
+                
+                this.setupEventListeners();
+                this.reset();
+                this.updateUI();
+                this.gameLoop();
+            }
+            
+            resizeCanvas() {
+                const rect = this.canvas.getBoundingClientRect();
+                this.canvas.width = rect.width * window.devicePixelRatio;
+                this.canvas.height = rect.height * window.devicePixelRatio;
+                this.ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+                this.canvas.style.width = rect.width + 'px';
+                this.canvas.style.height = rect.height + 'px';
+                
+                this.gameWidth = rect.width;
+                this.gameHeight = rect.height;
+            }
+            
+            setupEventListeners() {
+                // Resize handler
+                window.addEventListener('resize', () => this.resizeCanvas());
+                
+                // Keyboard controls
+                document.addEventListener('keydown', (e) => {
+                    this.keys[e.code] = true;
+                    if (e.code === 'Space' && this.gameState === 'start') {
+                        this.startGame();
+                    }
+                });
+                
+                document.addEventListener('keyup', (e) => {
+                    this.keys[e.code] = false;
+                });
+                
+                // Mobile touch controls
+                const leftBtn = document.getElementById('leftBtn');
+                const rightBtn = document.getElementById('rightBtn');
+                
+                leftBtn.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    this.touches.left = true;
+                });
+                
+                leftBtn.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    this.touches.left = false;
+                });
+                
+                rightBtn.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    this.touches.right = true;
+                });
+                
+                rightBtn.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    this.touches.right = false;
+                });
+                
+                // Mouse events for desktop
+                leftBtn.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    this.touches.left = true;
+                });
+                
+                leftBtn.addEventListener('mouseup', (e) => {
+                    e.preventDefault();
+                    this.touches.left = false;
+                });
+                
+                rightBtn.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    this.touches.right = true;
+                });
+                
+                rightBtn.addEventListener('mouseup', (e) => {
+                    e.preventDefault();
+                    this.touches.right = false;
+                });
+                
+                // UI buttons
+                document.getElementById('startBtn').addEventListener('click', () => this.startGame());
+                document.getElementById('restartBtn').addEventListener('click', () => this.startGame());
+                
+                // Prevent context menu on long press
+                this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+            }
+            
+            reset() {
+                this.player.x = this.gameWidth / 2;
+                this.player.y = this.gameHeight - 100;
+                this.player.vx = 0;
+                this.player.vy = 0;
+                this.player.grounded = false;
+                
+                this.camera.y = 0;
+                this.score = 0;
+                this.powerUps = [];
+                this.effects = [];
+                this.jetpackActive = false;
+                this.jetpackTimer = 0;
+                
+                // Generate initial platforms
+                this.platforms = [];
+                
+                // Starting platform
+                this.platforms.push({
+                    x: this.gameWidth / 2 - 50,
+                    y: this.gameHeight - 50,
+                    width: 100,
+                    height: 20,
+                    type: 'normal',
+                    used: false,
+                    vx: 0
+                });
+                
+                // Generate initial platforms with more density
+                this.generatePlatforms(this.gameHeight - 50, 0);
+            }
+            
+            generatePlatforms(startY, level) {
+                const spacing = 120;
+                
+                for (let i = 1; i <= 30; i++) {
+                    const y = startY - i * spacing;
+                    const currentLevel = Math.floor(i / 5);
+                    const numPlatforms = Math.max(1, Math.min(3, 4 - Math.floor(currentLevel / 3)));
+                    
+                    for (let j = 0; j < numPlatforms; j++) {
+                        const platform = this.createRandomPlatform(y, currentLevel);
+                        this.platforms.push(platform);
+                        
+                        // Add power-ups with small chance - пружины реже в 2 раза, ранец в 3 раза
+                        if (Math.random() < 0.06 && i > 3) {
+                            this.addPowerUp(platform);
+                        }
+                    }
+                }
+            }
+            
+            createRandomPlatform(y, level) {
+                const x = Math.random() * (this.gameWidth - 80);
+                let type = 'normal';
+                
+                // Special platform chances increase with level
+                const rand = Math.random();
+                if (level > 1) {
+                    if (rand < 0.08) type = 'white';
+                    else if (rand < 0.15) type = 'brown';
+                    else if (rand < 0.22) type = 'blue';
+                }
+                
+                const platform = {
+                    x: x,
+                    y: y,
+                    width: 80,
+                    height: 15,
+                    type: type,
+                    used: false,
+                    vx: type === 'blue' ? (Math.random() > 0.5 ? 1 : -1) * (0.8 + Math.random() * 0.7) : 0,
+                    startX: x,
+                    moveRange: 120
+                };
+                
+                return platform;
+            }
+            
+            addPowerUp(platform) {
+                const rand = Math.random();
+                let type = rand < 0.75 ? 'spring' : 'jetpack'; // Пружины 75%, ранец 25%
+                
+                this.powerUps.push({
+                    x: platform.x + platform.width / 2 - 15,
+                    y: platform.y - 30,
+                    width: 30,
+                    height: 30,
+                    type: type,
+                    collected: false
+                });
+            }
+            
+            startGame() {
+                this.gameState = 'playing';
+                this.reset();
+                this.updateUI();
+                document.getElementById('startScreen').classList.add('hidden');
+                document.getElementById('gameOverScreen').classList.add('hidden');
+            }
+            
+            gameOver() {
+                this.gameState = 'gameOver';
+                
+                if (this.score > this.highScore) {
+                    this.highScore = this.score;
+                    localStorage.setItem('doodleHighScore', this.highScore);
+                }
+                
+                document.getElementById('finalScore').textContent = this.score;
+                document.getElementById('finalHighScore').textContent = this.highScore;
+                document.getElementById('gameOverScreen').classList.remove('hidden');
+                this.updateUI();
+            }
+            
+            update() {
+                if (this.gameState !== 'playing') return;
+                
+                // Handle input
+                const leftPressed = this.keys['ArrowLeft'] || this.keys['KeyA'] || this.touches.left;
+                const rightPressed = this.keys['ArrowRight'] || this.keys['KeyD'] || this.touches.right;
+                
+                if (leftPressed) {
+                    this.player.vx = Math.max(this.player.vx - 0.5, -this.player.maxVx);
+                } else if (rightPressed) {
+                    this.player.vx = Math.min(this.player.vx + 0.5, this.player.maxVx);
+                } else {
+                    this.player.vx *= 0.9; // Friction
+                }
+                
+                // Handle jetpack
+                if (this.jetpackActive) {
+                    this.jetpackTimer -= 1/60; // Assuming 60 FPS
+                    this.player.vy = Math.min(this.player.vy, -8); // Keep going up
+                    
+                    if (this.jetpackTimer <= 0) {
+                        this.jetpackActive = false;
+                    }
+                } else {
+                    // Apply gravity
+                    this.player.vy += this.player.gravity;
+                }
+                
+                // Update position
+                this.player.x += this.player.vx;
+                this.player.y += this.player.vy;
+                
+                // Wrap around screen horizontally
+                if (this.player.x < -this.player.width/2) {
+                    this.player.x = this.gameWidth - this.player.width/2;
+                } else if (this.player.x > this.gameWidth - this.player.width/2) {
+                    this.player.x = -this.player.width/2;
+                }
+                
+                // Update moving platforms
+                for (let platform of this.platforms) {
+                    if (platform.type === 'blue') {
+                        platform.x += platform.vx;
+                        
+                        // Bounce off walls or reverse at range
+                        if (platform.x <= 0 || platform.x >= this.gameWidth - platform.width || 
+                            Math.abs(platform.x - platform.startX) > platform.moveRange) {
+                            platform.vx *= -1;
+                        }
+                    }
+                }
+                
+                // Platform collision
+                this.player.grounded = false;
+                for (let platform of this.platforms) {
+                    if (this.player.vy > 0 && // Falling
+                        this.player.x + this.player.width > platform.x &&
+                        this.player.x < platform.x + platform.width &&
+                        this.player.y + this.player.height > platform.y &&
+                        this.player.y + this.player.height < platform.y + platform.height + 10) {
+                        
+                        // Handle different platform types
+                        if (platform.type === 'white' && platform.used) {
+                            continue; // Skip disappeared platforms
+                        }
+                        
+                        this.player.y = platform.y - this.player.height;
+                        this.player.vy = this.player.jumpPower;
+                        this.player.grounded = true;
+                        
+                        // Handle special platform effects
+                        if (!platform.used) {
+                            if (platform.type === 'white') {
+                                platform.used = true; // Platform will disappear
+                            } else if (platform.type === 'brown') {
+                                platform.used = true;
+                                this.addPoopEffect();
+                            }
+                        }
+                        
+                        break;
+                    }
+                }
+                
+                // Power-up collision
+                for (let powerUp of this.powerUps) {
+                    if (!powerUp.collected &&
+                        this.player.x + this.player.width > powerUp.x &&
+                        this.player.x < powerUp.x + powerUp.width &&
+                        this.player.y + this.player.height > powerUp.y &&
+                        this.player.y < powerUp.y + powerUp.height) {
+                        
+                        powerUp.collected = true;
+                        
+                        if (powerUp.type === 'spring') {
+                            this.player.vy = this.player.jumpPower * 2.5; // Super jump
+                        } else if (powerUp.type === 'jetpack') {
+                            this.jetpackActive = true;
+                            this.jetpackTimer = 5; // 5 seconds
+                        }
+                    }
+                }
+                
+                // Update effects
+                this.effects = this.effects.filter(effect => {
+                    effect.timer -= 1/60;
+                    return effect.timer > 0;
+                });
+                
+                // Update camera to follow player going up
+                const targetCameraY = Math.min(this.camera.y, this.player.y - this.gameHeight * 0.6);
+                this.camera.y = targetCameraY;
+                
+                // Update score based on height
+                const newScore = Math.max(this.score, Math.floor((this.gameHeight - this.player.y - 100) / 10));
+                this.score = newScore;
+                
+                // Generate new platforms as we go higher
+                const highestPlatform = Math.min(...this.platforms.map(p => p.y));
+                if (highestPlatform > this.camera.y - this.gameHeight) {
+                    const level = Math.floor(-highestPlatform / 600);
+                    for (let i = 0; i < 8; i++) {
+                        const platform = this.createRandomPlatform(highestPlatform - 120 - i * 120, level);
+                        this.platforms.push(platform);
+                        
+                        if (Math.random() < 0.05) {
+                            this.addPowerUp(platform);
+                        }
+                    }
+                }
+                
+                // Remove platforms and power-ups that are too far below
+                this.platforms = this.platforms.filter(p => p.y < this.camera.y + this.gameHeight + 200);
+                this.powerUps = this.powerUps.filter(p => p.y < this.camera.y + this.gameHeight + 200);
+                
+                // Game over if player falls too far
+                if (this.player.y > this.camera.y + this.gameHeight + 100) {
+                    this.gameOver();
+                }
+                
+                this.updateUI();
+            }
+            
+            addPoopEffect() {
+                this.effects.push({
+                    type: 'poop',
+                    x: Math.random() * (this.gameWidth - 100),
+                    y: Math.random() * this.gameHeight,
+                    timer: 7
+                });
+            }
+            
+            draw() {
+                // Clear canvas
+                this.ctx.fillStyle = '#87CEEB';
+                this.ctx.fillRect(0, 0, this.gameWidth, this.gameHeight);
+                
+                // Save context for camera transform
+                this.ctx.save();
+                this.ctx.translate(0, -this.camera.y);
+                
+                // Draw platforms
+                for (let platform of this.platforms) {
+                    if (platform.y > this.camera.y - 50 && platform.y < this.camera.y + this.gameHeight + 50) {
+                        this.drawPlatform(platform);
+                    }
+                }
+                
+                // Draw power-ups
+                for (let powerUp of this.powerUps) {
+                    if (!powerUp.collected && powerUp.y > this.camera.y - 50 && powerUp.y < this.camera.y + this.gameHeight + 50) {
+                        this.drawPowerUp(powerUp);
+                    }
+                }
+                
+                // Draw player
+                this.drawPlayer();
+                
+                // Restore context
+                this.ctx.restore();
+                
+                // Draw effects (not affected by camera)
+                for (let effect of this.effects) {
+                    this.drawEffect(effect);
+                }
+                
+                // Draw jetpack indicator
+                if (this.jetpackActive) {
+                    this.ctx.fillStyle = 'rgba(255, 100, 100, 0.8)';
+                    this.ctx.fillRect(10, 10, 200 * (this.jetpackTimer / 5), 10);
+                    this.ctx.strokeStyle = '#ff0000';
+                    this.ctx.strokeRect(10, 10, 200, 10);
+                    this.ctx.fillStyle = '#fff';
+                    this.ctx.font = '12px Arial';
+                    this.ctx.fillText('🚀 РАКЕТНЫЙ РАНЕЦ', 10, 35);
+                }
+            }
+            
+            drawPlatform(platform) {
+                if (platform.type === 'white' && platform.used) {
+                    return; // Don't draw disappeared platforms
+                }
+                
+                this.ctx.save();
+                
+                // Shadow
+                this.ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+                this.ctx.fillRect(platform.x + 2, platform.y + 2, platform.width, platform.height);
+                
+                // Platform color based on type
+                let color = '#4ADE80'; // Green for normal
+                if (platform.type === 'white') color = '#FFFFFF';
+                else if (platform.type === 'brown') color = '#8B4513';
+                else if (platform.type === 'blue') color = '#3B82F6';
+                
+                this.ctx.fillStyle = color;
+                this.ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
+                
+                // Highlight
+                let highlightColor = '#86EFAC';
+                if (platform.type === 'white') highlightColor = '#F3F4F6';
+                else if (platform.type === 'brown') highlightColor = '#A0522D';
+                else if (platform.type === 'blue') highlightColor = '#60A5FA';
+                
+                this.ctx.fillStyle = highlightColor;
+                this.ctx.fillRect(platform.x, platform.y, platform.width, 3);
+                
+                // Add border for special platforms
+                if (platform.type !== 'normal') {
+                    this.ctx.strokeStyle = platform.type === 'white' ? '#D1D5DB' : 
+                                         platform.type === 'brown' ? '#654321' : '#1D4ED8';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.strokeRect(platform.x, platform.y, platform.width, platform.height);
+                }
+                
+                this.ctx.restore();
+            }
+            
+            drawPowerUp(powerUp) {
+                this.ctx.save();
+                this.ctx.font = '20px Arial';
+                this.ctx.textAlign = 'center';
+                
+                if (powerUp.type === 'spring') {
+                    // Draw spring
+                    this.ctx.fillStyle = '#FF6B6B';
+                    this.ctx.fillRect(powerUp.x + 5, powerUp.y + 15, 20, 10);
+                    this.ctx.fillRect(powerUp.x + 8, powerUp.y + 10, 14, 5);
+                    this.ctx.fillRect(powerUp.x + 11, powerUp.y + 5, 8, 5);
+                    
+                    // Spring coils
+                    this.ctx.strokeStyle = '#FF6B6B';
+                    this.ctx.lineWidth = 2;
+                    for (let i = 0; i < 3; i++) {
+                        this.ctx.beginPath();
+                        this.ctx.arc(powerUp.x + 15, powerUp.y + 20 - i * 3, 8, 0, Math.PI);
+                        this.ctx.stroke();
+                    }
+                } else if (powerUp.type === 'jetpack') {
+                    // Draw jetpack
+                    this.ctx.fillStyle = '#666';
+                    this.ctx.fillRect(powerUp.x + 8, powerUp.y + 5, 14, 20);
+                    this.ctx.fillStyle = '#FF4444';
+                    this.ctx.fillRect(powerUp.x + 6, powerUp.y + 25, 6, 8);
+                    this.ctx.fillRect(powerUp.x + 18, powerUp.y + 25, 6, 8);
+                    this.ctx.fillStyle = '#FFA500';
+                    this.ctx.fillRect(powerUp.x + 6, powerUp.y + 28, 6, 5);
+                    this.ctx.fillRect(powerUp.x + 18, powerUp.y + 28, 6, 5);
+                }
+                
+                this.ctx.restore();
+            }
+            
+            drawPlayer() {
+                this.ctx.save();
+                
+                if (this.playerImageLoaded) {
+                    // Draw image if loaded
+                    this.ctx.drawImage(
+                        this.playerImage,
+                        this.player.x,
+                        this.player.y,
+                        this.player.width,
+                        this.player.height
+                    );
+                } else {
+                    // Draw programmatic character
+                    const centerX = this.player.x + this.player.width / 2;
+                    const centerY = this.player.y + this.player.height / 2;
+                    
+                    // Body (circle)
+                    this.ctx.fillStyle = '#5D5CDE';
+                    this.ctx.beginPath();
+                    this.ctx.arc(centerX, centerY + 5, 15, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    
+                    // Head (smaller circle)
+                    this.ctx.fillStyle = '#FFD700';
+                    this.ctx.beginPath();
+                    this.ctx.arc(centerX, centerY - 8, 10, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    
+                    // Eyes
+                    this.ctx.fillStyle = '#000';
+                    this.ctx.fillRect(centerX - 6, centerY - 10, 3, 3);
+                    this.ctx.fillRect(centerX + 3, centerY - 10, 3, 3);
+                    
+                    // Smile
+                    this.ctx.strokeStyle = '#000';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.beginPath();
+                    this.ctx.arc(centerX, centerY - 8, 6, 0.2, Math.PI - 0.2);
+                    this.ctx.stroke();
+                    
+                    // Simple legs
+                    this.ctx.strokeStyle = '#5D5CDE';
+                    this.ctx.lineWidth = 3;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(centerX - 8, centerY + 15);
+                    this.ctx.lineTo(centerX - 12, centerY + 25);
+                    this.ctx.moveTo(centerX + 8, centerY + 15);
+                    this.ctx.lineTo(centerX + 12, centerY + 25);
+                    this.ctx.stroke();
+                }
+                
+                // Draw jetpack flames if active
+                if (this.jetpackActive) {
+                    const centerX = this.player.x + this.player.width / 2;
+                    const centerY = this.player.y + this.player.height;
+                    
+                    this.ctx.fillStyle = '#FF4444';
+                    this.ctx.fillRect(centerX - 8, centerY, 4, 15);
+                    this.ctx.fillRect(centerX + 4, centerY, 4, 15);
+                    this.ctx.fillStyle = '#FFA500';
+                    this.ctx.fillRect(centerX - 8, centerY + 10, 4, 8);
+                    this.ctx.fillRect(centerX + 4, centerY + 10, 4, 8);
+                }
+                
+                this.ctx.restore();
+            }
+            
+            drawEffect(effect) {
+                if (effect.type === 'poop') {
+                    this.ctx.font = '40px Arial';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.fillText('💩', effect.x + 50, effect.y + 30);
+                }
+            }
+            
+            updateUI() {
+                document.getElementById('score').textContent = this.score;
+                document.getElementById('highScore').textContent = this.highScore;
+            }
+            
+            gameLoop() {
+                this.update();
+                this.draw();
+                requestAnimationFrame(() => this.gameLoop());
+            }
+        }
+        
+        // Start the game when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new DoodleJump();
+        });
+    </script>
+</body>
+</html>

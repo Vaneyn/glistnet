@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>game</title>
+  <style>
+    body {
+      margin: 0;
+      
+      padding: 0;
+      background-image: url('zastavka1.jpg');
+      background-size: 100%;
+      background-repeat: no-repeat;
+    }
+    
+    #header {
+      width: 100%;
+      height: 200px;
+      background-image: url('Duel.png');
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+    }
+    
+    #start-button {
+      display: block;
+      margin: 250px auto;
+      width: 200px;
+      height: 200px;
+      background-image: url('startgame.png');
+      background-size: contain;
+      background-repeat: no-repeat;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="header"></div>
+  <div id="start-button" onclick="startGame()"></div>
+
+  <script>
+    function startGame() {
+      window.location.href = "pistolet.html";
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Пример 3D-сцены</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<style>
+		body {
+			margin: 0;
+			padding: 0;
+			overflow: hidden;
+		}
+		canvas {
+			width: 20%;
+			height: 100%;
+			display: block;
+		}
+		#my-button {
+  position: absolute;
+  top: 10px; /* расположение сверху */
+  left: 10px; /* расположение слева */
+  z-index: 100; /* установите z-index выше, чем у canvas */
+}
+
+	</style>
+</head>
+<body>
+<div id="canvas-container">
+  <canvas id="my-canvas"></canvas>
+<button onclick="runTool('glist')">НАЗАД</button>
+</div>
+	<script>
+		function runTool(toolName) {
+			var url = toolName + ".html";
+			window.open(url, "_blank");
+		}
+	</script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.7.0/gsap.min.js"></script>
+
+	<script>
+		// Создаем сцену, камеру и рендерер
+		var scene = new THREE.Scene();
+		var camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+		var renderer = new THREE.WebGLRenderer({ antialias: true });
+		renderer.setSize( window.innerWidth, window.innerHeight );
+		document.body.appendChild( renderer.domElement );
+
+		// Создаем геометрию и материал
+		var geometry = new THREE.BoxGeometry();
+		var material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
+
+		// Создаем куб и добавляем его на сцену
+		var cube = new THREE.Mesh( geometry, material );
+		scene.add( cube );
+
+
+		// Устанавливаем позицию камеры
+		camera.position.z = 5;
+
+		// Создаем функцию для анимации сцены
+		function animate() {
+			requestAnimationFrame( animate );
+			cube.rotation.x += 0.01;
+			cube.rotation.y += 0.01;
+			renderer.render( scene, camera );
+		}
+		animate();
+
+		// Добавляем обработчики событий для перемещения по сцене
+		window.addEventListener('keydown', function(event) {
+			switch (event.keyCode) {
+				case 37: // влево
+					camera.position.x -= 0.1;
+					break;
+				case 38: // вверх
+					camera.position.y += 0.1;
+					break;
+				case 39: // вправо
+					camera.position.x += 0.1;
+					break;
+				case 40: // вниз
+					camera.position.y -= 0.1;
+					break;
+			}
+		});
+
+		var swipe = { start: {}, end: {} };
+		window.addEventListener('touchstart', function(event) {
+			swipe.start.x = event.touches[0].clientX;
+			swipe.start.y = event.touches[0].clientY;
+});
+	window.addEventListener('touchmove', function(event) {
+//		event.preventDefault();
+		swipe.end.x = event.touches[0].clientX;
+		swipe.end.y = event.touches[0].clientY;
+		var deltaX = swipe.end.x - swipe.start.x;
+		var deltaY = swipe.end.y - swipe.start.y;
+
+		if (Math.abs(deltaX) > Math.abs(deltaY)) {
+			// Перемещение по горизонтали
+			if (deltaX > 0) {
+				camera.position.x += 0.1;
+			} else {
+				camera.position.x -= 0.1;
+			}
+		} else {
+			// Перемещение по вертикали
+			if (deltaY > 0) {
+				camera.position.y -= 0.1;
+			} else {
+				camera.position.y += 0.1;
+			}
+		}
+
+		swipe.start.x = swipe.end.x;
+		swipe.start.y = swipe.end.y;
+	});
+
+</script>
+</body>
+</html>

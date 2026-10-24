@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LocalStorage / IndexedDB: Экспорт / Импорт</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      background: #f0f0f0;
+      color: #333;
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      padding: 20px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    h1 { margin: 0 0 12px; font-size: 1.5rem; }
+    h2 { margin: 0 0 10px; font-size: 1.15rem; }
+    h3 { margin: 0 0 8px; font-size: 1rem; }
+
+    .note {
+      background: #fff3cd;
+      border: 1px solid #ffe08a;
+      border-radius: 6px;
+      padding: 10px 14px;
+      margin-bottom: 16px;
+      font-size: .88rem;
+      line-height: 1.45;
+    }
+    .note b { color: #8a5a00; }
+
+    .section {
+      background: #fff;
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.12);
+    }
+
+    textarea {
+      width: 100%;
+      height: 180px;
+      background: #e9e9e9;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 10px;
+      resize: vertical;
+      font-family: ui-monospace, Consolas, monospace;
+      font-size: 12px;
+      word-break: break-all;
+    }
+
+    button {
+      margin: 5px 5px 12px 0;
+      padding: 9px 18px;
+      border: none;
+      border-radius: 4px;
+      background: #888;
+      color: #fff;
+      cursor: pointer;
+      font-size: .9rem;
+    }
+    button:hover { background: #666; }
+    button.mini {
+      padding: 4px 10px;
+      font-size: .78rem;
+      margin: 0 4px 6px 0;
+      background: #9aa4ad;
+    }
+    button.mini:hover { background: #7d8790; }
+
+    /* ---- переключатель ---- */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: #fff;
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.12);
+      cursor: pointer;
+      user-select: none;
+      font-weight: 600;
+    }
+    .toggle-row input { width: 18px; height: 18px; cursor: pointer; }
+    .toggle-row small {
+      font-weight: 400;
+      color: #777;
+      margin-left: auto;
+      font-size: .8rem;
+      text-align: right;
+    }
+
+    /* ---- панель выбора ---- */
+    #selectivePanel {
+      background: #fff;
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.12);
+    }
+    .panel-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+    @media (max-width: 780px) {
+      .panel-grid { grid-template-columns: 1fr; }
+    }
+    .tree {
+      max-height: 280px;
+      overflow: auto;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 8px;
+      background: #fafafa;
+      font-size: .85rem;
+    }
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 2px 4px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .row:hover { background: #eef3ff; }
+    .row input[type="checkbox"] { flex: none; cursor: pointer; }
+    .row .name {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-family: ui-monospace, Consolas, monospace;
+    }
+    .row .meta {
+      color: #999;
+      font-size: .72rem;
+      white-space: nowrap;
+    }
+    details.store { margin-left: 18px; }
+    details.store > summary { font-family: ui-monospace, Consolas, monospace; }
+    details.db > summary { font-family: ui-monospace, Consolas, monospace; font-weight: 600; }
+    details summary { padding: 2px 4px; border-radius: 4px; }
+    details summary:hover { background: #eef3ff; }
+    details summary .meta { color: #999; font-size: .72rem; font-weight: 400; margin-left: 4px; }
+    .records { margin-left: 18px; }
+    .empty { color: #999; font-style: italic; padding: 4px; }
+    summary input[type="checkbox"] { cursor: pointer; }
+  </style>
+</head>
+<body>
+
+  <h1>Экспорт / Импорт данных</h1>
+
+  <div class="note">
+    ⚠️ <b>Будьте аккуратны!</b> Использование этой экспериментальной функции способно повредить и уничтожить
+    данные Glist. Не все, но большую часть: рекорды, сохранения. Однако вы можете сохранить и восстановить
+    свои рекорды и данные с помощью этого инструмента. Советую использовать перед обновлениями.
+    Данные ассистента, СкВОсты, плеера и некоторых других записаны в IndexedDB
+    <br><br>
+    Теперь поддерживаются <b>две</b> системы хранения: <b>LocalStorage</b> и <b>IndexedDB</b> — у каждой своё
+    поле и свои кнопки. При включении <b>выборочного режима</b> можно отметить галочками конкретные ключи,
+    базы, хранилища и записи.
+  </div>
+
+  <label class="toggle-row">
+    <input type="checkbox" id="selective">
+    <span>Выборочный режим</span>
+    <small>отметьте нужные элементы ниже<br>импорт в этом режиме не удаляет лишнее</small>
+  </label>
+
+  <div id="selectivePanel" hidden>
+    <div class="panel-grid">
+      <div class="panel">
+        <h3>LocalStorage</h3>
+        <div class="toolbar">
+          <button class="mini" id="lsRefresh">Обновить</button>
+          <button class="mini" id="lsAll">Выбрать всё</button>
+          <button class="mini" id="lsNone">Снять всё</button>
+        </div>
+        <div id="lsTree" class="tree"></div>
+      </div>
+      <div class="panel">
+        <h3>IndexedDB</h3>
+        <div class="toolbar">
+          <button class="mini" id="idbRefresh">Обновить</button>
+          <button class="mini" id="idbAll">Выбрать всё</button>
+          <button class="mini" id="idbNone">Снять всё</button>
+          <button class="mini" id="idbAdd">+ БД вручную</button>
+        </div>
+        <div id="idbTree" class="tree"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>LocalStorage</h2>
+    <button id="exportBtn">Экспорт</button>
+    <button id="importBtn">Импорт</button>
+    <textarea id="dataArea" placeholder="Здесь появится закодированный JSON…"></textarea>
+  </div>
+
+  <div class="section">
+    <h2>IndexedDB</h2>
+    <button id="idbExportBtn">Экспорт</button>
+    <button id="idbImportBtn">Импорт</button>
+    <textarea id="idbArea" placeholder="Здесь появится закодированный JSON со всеми базами и хранилищами…"></textarea>
+  </div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* =========================================================
+     УТИЛИТЫ
+     ========================================================= */
+
+  const $ = (id) => document.getElementById(id);
+
+  // UTF-8 ⟷ base64
+  function encodeUTF8(str) {
+    const bytes = new TextEncoder().encode(str);
+    let binary = '';
+    const CHUNK = 0x8000;
+    for (let i = 0; i < bytes.length; i += CHUNK) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
+    }
+    return btoa(binary);
+  }
+  function decodeUTF8(b64) {
+    const binary = atob(b64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return new TextDecoder().decode(bytes);
+  }
+
+  function fmtSize(n) {
+    if (n < 1024) return n + ' симв.';
+    if (n < 1048576) return (n / 1024).toFixed(1) + ' К симв.';
+    return (n / 1048576).toFixed(2) + ' М симв.';
+  }
+  function shortStr(v, max) {
+    let s;
+    try { s = JSON.stringify(v); } catch (e) { s = String(v); }
+    if (s === undefined || s === null) s = String(v);
+    return s.length > max ? s.slice(0, max - 1) + '…' : s;
+  }
+
+  const selectiveCb = $('selective');
+
+  /* =========================================================
+     LOCALSTORAGE — ДЕРЕВО ВЫБОРА
+     ========================================================= */
+
+  function buildLsTree() {
+    const box = $('lsTree');
+    box.innerHTML = '';
+    let keys = [];
+    try {
+      for (let i = 0; i < localStorage.length; i++) keys.push(localStorage.key(i));
+    } catch (e) {
+      box.innerHTML = '<div class="empty">LocalStorage недоступен</div>';
+      return;
+    }
+    keys.sort();
+    if (!keys.length) {
+      box.innerHTML = '<div class="empty">Нет данных</div>';
+      return;
+    }
+    for (const key of keys) {
+      const val = localStorage.getItem(key) || '';
+      const row = document.createElement('label');
+      row.className = 'row';
+
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.className = 'ls-cb';
+      cb.checked = true;
+      cb.dataset.key = key;
+
+      const name = document.createElement('span');
+      name.className = 'name';
+      name.textContent = key;
+
+      const meta = document.createElement('span');
+      meta.className = 'meta';
+      meta.textContent = fmtSize(val.length);
+
+      row.append(cb, name, meta);
+      box.appendChild(row);
+    }
+  }
+
+  function collectLsSelection() {
+    const out = [];
+    for (const cb of document.querySelectorAll('#lsTree .ls-cb')) {
+      if (cb.checked) out.push(cb.dataset.key);
+    }
+    return out;
+  }
+
+  /* =========================================================
+     INDEXEDDB — ОБЁРТКИ
+     ========================================================= */
+
+  let manualDbs = [];
+
+  function openDB(name, version, onUpgrade) {
+    return new Promise((resolve, reject) => {
+      let req;
+      try {
+        req = (version == null) ? indexedDB.open(name) : indexedDB.open(name, version);
+      } catch (e) { reject(e); return; }
+      req.onupgradeneeded = (ev) => {
+        if (onUpgrade) {
+          try { onUpgrade(req.result, req.transaction, ev); } catch (e) { console.error(e); }
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error || new Error('Не удалось открыть БД «' + name + '»'));
+      req.onblocked = () => reject(new Error('БД «' + name + '» заблокирована другой вкладкой'));
+    });
+  }
+
+  async function listDatabases() {
+    const names = new Set(manualDbs);
+    if (indexedDB.databases) {
+      try {
+        const list = await indexedDB.databases();
+        for (const d of list) if (d && d.name) names.add(d.name);
+      } catch (e) { /* игнорируем */ }
+    }
+    return [...names];
+  }
+
+  async function dbExists(name) {
+    if (!indexedDB.databases) return null;
+    try {
+      const list = await indexedDB.databases();
+      return list.some((d) => d && d.name === name);
+    } catch (e) { return null; }
+  }
+
+  function readStore(db, storeName) {
+    return new Promise((resolve, reject) => {
+      let tx;
+      try { tx = db.transaction(storeName, 'readonly'); }
+      catch (e) { reject(e); return; }
+      const out = [];
+      const req = tx.objectStore(storeName).openCursor();
+      req.onsuccess = () => {
+        const cur = req.result;
+        if (cur) {
+          out.push({ key: cur.key, value: cur.value });
+          cur.continue();
+        } else {
+          resolve(out);
+        }
+      };
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  function storeMeta(store) {
+    return {
+      keyPath: (store.keyPath === undefined ? null : store.keyPath),
+      autoIncrement: !!store.autoIncrement,
+      indexes: Array.from(store.indexNames).map((iName) => {
+        const idx = store.index(iName);
+        return {
+          name: idx.name,
+          keyPath: idx.keyPath,
+          unique: !!idx.unique,
+          multiEntry: !!idx.multiEntry
+        };
+      })
+    };
+  }
+
+  /* =========================================================
+     INDEXEDDB — ДЕРЕВО ВЫБОРА
+     ========================================================= */
+
+  async function buildIdbTree() {
+    const box = $('idbTree');
+    box.innerHTML = '<div class="empty">Загрузка списка баз…</div>';
+
+    let names = [];
+    try { names = await listDatabases(); } catch (e) { names = []; }
+    names.sort();
+    box.innerHTML = '';
+
+    if (!names.length) {
+      const hint = indexedDB.databases
+        ? 'Базы не найдены.'
+        : 'Браузер не умеет перечислять базы — добавьте их вручную кнопкой «+ БД вручную».';
+      box.innerHTML = '<div class="empty">' + hint + '</div>';
+      return;
+    }
+
+    for (const name of names) {
+      box.appendChild(makeDbNode(name));
+      fillDbDetails(box.lastChild, name); // асинхронно
+    }
+  }
+
+  function makeDbNode(name) {
+    const dbDetails = document.createElement('details');
+    dbDetails.className = 'db';
+    dbDetails.dataset.db = name;
+
+    const summary = document.createElement('summary');
+    const dbCb = document.createElement('input');
+    dbCb.type = 'checkbox';
+    dbCb.className = 'db-cb';
+    dbCb.checked = true;
+
+    // клик по чекбоксу не должен раскрывать/сворачивать <details>
+    dbCb.addEventListener('click', (e) => e.stopPropagation());
+    dbCb.addEventListener('change', () => {
+      for (const sd of dbDetails.querySelectorAll('details.store')) {
+        const scb = sd.querySelector('.store-cb');
+        scb.checked = dbCb.checked;
+        scb.indeterminate = false;
+        for (const rcb of sd.querySelectorAll('.rec-cb')) rcb.checked = dbCb.checked;
+      }
+      dbCb.indeterminate = false;
+    });
+
+    const label = document.createElement('span');
+    label.textContent = name;
+
+    summary.append(dbCb, label);
+    dbDetails.appendChild(summary);
+    return dbDetails;
+  }
+
+  async function fillDbDetails(dbDetails, name) {
+    let db;
+    try {
+      db = await openDB(name);
+    } catch (e) {
+      dbDetails.appendChild(msgNode('Ошибка открытия: ' + e.message));
+      return;
+    }
+    try {
+      const storeNames = Array.from(db.objectStoreNames);
+      if (!storeNames.length) {
+        dbDetails.appendChild(msgNode('Нет хранилищ'));
+        return;
+      }
+      for (const sName of storeNames) {
+        let meta = { keyPath: null, autoIncrement: false, indexes: [] };
+        try {
+          const st = db.transaction(sName, 'readonly').objectStore(sName);
+          meta = storeMeta(st);
+        } catch (e) { /* игнорируем */ }
+        dbDetails.appendChild(makeStoreNode(dbDetails, name, sName, meta));
+      }
+    } finally {
+      try { db.close(); } catch (e) {}
+    }
+  }
+
+  function makeStoreNode(dbDetails, dbName, storeName, meta) {
+    const sd = document.createElement('details');
+    sd.className = 'store';
+    sd.dataset.store = storeName;
+
+    const summary = document.createElement('summary');
+    const scb = document.createElement('input');
+    scb.type = 'checkbox';
+    scb.className = 'store-cb';
+    scb.checked = true;
+
+    scb.addEventListener('click', (e) => e.stopPropagation());
+    scb.addEventListener('change', () => {
+      for (const rcb of sd.querySelectorAll('.rec-cb')) rcb.checked = scb.checked;
+      scb.indeterminate = false;
+      syncDbCheckbox(dbDetails);
+    });
+
+    const label = document.createElement('span');
+    label.textContent = storeName;
+
+    const metaSpan = document.createElement('span');
+    metaSpan.className = 'meta';
+    metaSpan.textContent = ' keyPath: ' + (meta.keyPath === null ? '—' : JSON.stringify(meta.keyPath));
+
+    summary.append(scb, label, metaSpan);
+    sd.appendChild(summary);
+
+    const recBox = document.createElement('div');
+    recBox.className = 'records';
+    sd.appendChild(recBox);
+
+    sd.addEventListener('toggle', () => {
+      if (sd.open) loadRecords(sd, dbName, storeName);
+    });
+
+    return sd;
+  }
+
+  async function loadRecords(storeDetails, dbName, storeName) {
+    if (storeDetails.dataset.loaded === '1') return;
+    storeDetails.dataset.loaded = '1';
+
+    const recBox = storeDetails.querySelector('.records');
+    recBox.textContent = 'Загрузка…';
+
+    let db;
+    try {
+      db = await openDB(dbName);
+    } catch (e) {
+      recBox.textContent = 'Ошибка открытия: ' + e.message;
+      return;
+    }
+
+    let records;
+    try {
+      records = await readStore(db, storeName);
+    } catch (e) {
+      recBox.textContent = 'Ошибка чтения: ' + e.message;
+      try { db.close(); } catch (e2) {}
+      return;
+    }
+    try { db.close(); } catch (e) {}
+
+    storeDetails._records = records;
+    recBox.innerHTML = '';
+
+    if (!records.length) {
+      recBox.innerHTML = '<div class="empty">Пусто</div>';
+      return;
+    }
+
+    const scb = storeDetails.querySelector('.store-cb');
+    const initiallyChecked = scb.checked;
+
+    records.forEach((rec, idx) => {
+      const row = document.createElement('label');
+      row.className = 'row';
+
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.className = 'rec-cb';
+      cb.dataset.idx = String(idx);
+      cb.checked = initiallyChecked;
+      cb.addEventListener('change', () => {
+        const cbs = storeDetails.querySelectorAll('.rec-cb');
+        let n = 0;
+        for (const c of cbs) if (c.checked) n++;
+        scb.checked = n > 0;
+        scb.indeterminate = n > 0 && n < cbs.length;
+        syncDbCheckbox(storeDetails.closest('details.db'));
+      });
+
+      const name = document.createElement('span');
+      name.className = 'name';
+      name.textContent = shortStr(rec.key, 70);
+
+      const meta = document.createElement('span');
+      meta.className = 'meta';
+      meta.textContent = shortStr(rec.value, 40);
+
+      row.append(cb, name, meta);
+      recBox.appendChild(row);
+    });
+  }
+
+  function syncDbCheckbox(dbDetails) {
+    if (!dbDetails) return;
+    const scbs = dbDetails.querySelectorAll('.store-cb');
+    if (!scbs.length) return;
+    let any = 0, full = 0;
+    for (const c of scbs) {
+      if (c.checked || c.indeterminate) any++;
+      if (c.checked && !c.indeterminate) full++;
+    }
+    const dcb = dbDetails.querySelector('.db-cb');
+    if (!dcb) return;
+    dcb.checked = any > 0;
+    dcb.indeterminate = any > 0 && full < scbs.length;
+  }
+
+  function msgNode(text) {
+    const d = document.createElement('div');
+    d.className = 'empty';
+    d.textContent = text;
+    return d;
+  }
+
+  /**
+   * Возвращает массив: [{ name: 'dbName', stores: Map<storeName, records[]|null> }]
+   * records[] — уже загруженные и отмеченные записи; null — «взять всё хранилище целиком».
+   */
+  function collectIdbSelection() {
+    const out = [];
+    for (const dbDetails of document.querySelectorAll('#idbTree details.db')) {
+      const dbCb = dbDetails.querySelector('.db-cb');
+      if (!dbCb || (!dbCb.checked && !dbCb.indeterminate)) continue;
+
+      const stores = new Map();
+      for (const sd of dbDetails.querySelectorAll('details.store')) {
+        const scb = sd.querySelector('.store-cb');
+        if (!scb || (!scb.checked && !scb.indeterminate)) continue;
+
+        const storeName = sd.dataset.store;
+        if (sd._records) {
+          const checked = new Set();
+          for (const cb of sd.querySelectorAll('.rec-cb')) {
+            if (cb.checked) checked.add(Number(cb.dataset.idx));
+          }
+          const recs = sd._records.filter((_, i) => checked.has(i));
+          if (recs.length) stores.set(storeName, recs);
+        } else {
+          stores.set(storeName, null); // хранилище не раскрывалось — берём всё
+        }
+      }
+      if (stores.size) out.push({ name: dbDetails.dataset.db, stores });
+    }
+    return out;
+  }
+
+  /* =========================================================
+     ЭКСПОРТ / ИМПОРТ — LOCALSTORAGE
+     ========================================================= */
+
+  function doExportLS() {
+    try {
+      if (!window.localStorage) throw new Error('LocalStorage не поддерживается');
+
+      const dump = {};
+      if (selectiveCb.checked) {
+        const cbs = document.querySelectorAll('#lsTree .ls-cb');
+        if (!cbs.length) throw new Error('Список элементов пуст — нажмите «Обновить» в панели выбора');
+        let n = 0;
+        for (const cb of cbs) {
+          if (!cb.checked) continue;
+          dump[cb.dataset.key] = localStorage.getItem(cb.dataset.key);
+          n++;
+        }
+        if (!n) throw new Error('Не выбрано ни одного элемента');
+      } else {
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          dump[key] = localStorage.getItem(key);
+        }
+      }
+
+      $('dataArea').value = encodeUTF8(JSON.stringify(dump));
+    } catch (err) {
+      alert('Ошибка при экспорте LocalStorage: ' + err.message);
+    }
+  }
+
+  function doImportLS() {
+    try {
+      if (!window.localStorage) throw new Error('LocalStorage не поддерживается');
+
+      const encoded = $('dataArea').value.trim();
+      if (!encoded) throw new Error('Поле ввода пустое');
+
+      let json;
+      try { json = decodeUTF8(encoded); }
+      catch (e) { throw new Error('Неверный формат base64 или повреждённые данные'); }
+
+      let obj;
+      try { obj = JSON.parse(json); }
+      catch (e) { throw new Error('Не удалось распарсить JSON'); }
+
+      if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
+        throw new Error('Ожидался объект вида { "ключ": "значение" }');
+      }
+
+      if (selectiveCb.checked) {
+        if (!confirm('Выборочный режим: данные из поля будут добавлены/перезаписаны, ' +
+                     'остальные ключи LocalStorage останутся без изменений. Продолжить?')) return;
+      } else {
+        if (localStorage.length > 0 &&
+            !confirm('Все текущие данные LocalStorage будут удалены и заменены данными из поля. Продолжить?')) {
+          return;
+        }
+        localStorage.clear();
+      }
+
+      let n = 0;
+      for (const key of Object.keys(obj)) {
+        localStorage.setItem(key, obj[key]);
+        n++;
+      }
+
+      alert('Импорт LocalStorage выполнен. Записей: ' + n);
+      if (selectiveCb.checked) buildLsTree();
+    } catch (err) {
+      alert('Ошибка при импорте LocalStorage: ' + err.message);
+    }
+  }
+
+  /* =========================================================
+     ЭКСПОРТ / ИМПОРТ — INDEXEDDB
+     ========================================================= */
+
+  async function doExportIDB() {
+    const btn = $('idbExportBtn');
+    btn.disabled = true;
+    try {
+      if (!window.indexedDB) throw new Error('IndexedDB не поддерживается');
+
+      const selective = selectiveCb.checked;
+      let targets;
+
+      if (selective) {
+        const sel = collectIdbSelection();
+        if (!sel.length) throw new Error('Ничего не выбрано (или список баз ещё не загружен)');
+        targets = sel;
+      } else {
+        const names = await listDatabases();
+        if (!names.length) {
+          throw new Error('Базы не найдены. Включите выборочный режим и добавьте базу кнопкой «+ БД вручную».');
+        }
+        targets = names.sort().map((name) => ({ name, stores: null }));
+      }
+
+      const databases = {};
+      const problems = [];
+
+      for (const t of targets) {
+        let db;
+        try {
+          db = await openDB(t.name);
+        } catch (e) {
+          problems.push(t.name + ' — ' + e.message);
+          continue;
+        }
+        try {
+          const dbObj = { version: db.version, stores: {} };
+          const storeNames = t.stores ? [...t.stores.keys()] : Array.from(db.objectStoreNames);
+
+          for (const sName of storeNames) {
+            if (!db.objectStoreNames.contains(sName)) continue;
+
+            const st = db.transaction(sName, 'readonly').objectStore(sName);
+            const meta = storeMeta(st);
+
+            let records;
+            if (t.stores) {
+              const cached = t.stores.get(sName);
+              records = cached ? cached : await readStore(db, sName);
+            } else {
+              records = await readStore(db, sName);
+            }
+
+            dbObj.stores[sName] = {
+              keyPath: meta.keyPath,
+              autoIncrement: meta.autoIncrement,
+              indexes: meta.indexes,
+              records: records
+            };
+          }
+          databases[t.name] = dbObj;
+        } catch (e) {
+          problems.push(t.name + ' — ' + e.message);
+        } finally {
+          try { db.close(); } catch (e) {}
+        }
+      }
+
+      if (!Object.keys(databases).length) {
+        throw new Error('Не удалось прочитать ни одной базы' +
+          (problems.length ? ':\n' + problems.join('\n') : ''));
+      }
+
+      const payload = {
+        __type: 'indexeddb-export',
+        __version: 1,
+        exportedAt: new Date().toISOString(),
+        databases: databases
+      };
+
+      $('idbArea').value = encodeUTF8(JSON.stringify(payload));
+
+      if (problems.length) {
+        alert('Экспорт завершён с замечаниями:\n' + problems.join('\n'));
+      }
+    } catch (err) {
+      alert('Ошибка при экспорте IndexedDB: ' + err.message);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function createStores(db, storesInfo) {
+    for (const sName of Object.keys(storesInfo)) {
+      if (db.objectStoreNames.contains(sName)) continue;
+      const si = storesInfo[sName] || {};
+      const opts = {};
+      if (si.keyPath !== null && si.keyPath !== undefined) opts.keyPath = si.keyPath;
+      if (si.autoIncrement) opts.autoIncrement = true;
+
+      let os;
+      try { os = db.createObjectStore(sName, opts); }
+      catch (e) { console.warn('Не удалось создать хранилище', sName, e); continue; }
+
+      for (const ix of (si.indexes || [])) {
+        try {
+          os.createIndex(ix.name, ix.keyPath, { unique: !!ix.unique, multiEntry: !!ix.multiEntry });
+        } catch (e) { /* индекс уже есть или некорректен */ }
+      }
+    }
+  }
+
+  function writeStore(db, storeName, info, merge) {
+    return new Promise((resolve, reject) => {
+      let tx;
+      try { tx = db.transaction(storeName, 'readwrite'); }
+      catch (e) { reject(e); return; }
+
+      const store = tx.objectStore(storeName);
+      if (!merge) {
+        try { store.clear(); } catch (e) { /* игнорируем */ }
+      }
+
+      let count = 0;
+      const records = (info && info.records) ? info.records : [];
+      for (const rec of records) {
+        try {
+          if (store.keyPath === null) {
+            if (rec.key === undefined || rec.key === null) store.add(rec.value);
+            else store.put(rec.value, rec.key);
+          } else {
+            store.put(rec.value);
+          }
+          count++;
+        } catch (e) {
+          console.warn('Запись пропущена в', storeName, e);
+        }
+      }
+
+      tx.oncomplete = () => resolve(count);
+      tx.onerror = () => reject(tx.error || new Error('Ошибка транзакции'));
+      tx.onabort = () => reject(tx.error || new Error('Транзакция прервана'));
+    });
+  }
+
+  async function doImportIDB() {
+    const btn = $('idbImportBtn');
+    btn.disabled = true;
+    try {
+      if (!window.indexedDB) throw new Error('IndexedDB не поддерживается');
+
+      const encoded = $('idbArea').value.trim();
+      if (!encoded) throw new Error('Поле ввода пустое');
+
+      let json;
+      try { json = decodeUTF8(encoded); }
+      catch (e) { throw new Error('Неверный формат base64 или повреждённые данные'); }
+
+      let data;
+      try { data = JSON.parse(json); }
+      catch (e) { throw new Error('Не удалось распарсить JSON'); }
+
+      const dbs = (data && data.databases) ? data.databases : data;
+      if (!dbs || typeof dbs !== 'object' || Array.isArray(dbs)) {
+        throw new Error('Неверная структура данных (ожидался объект баз)');
+      }
+
+      const dbNames = Object.keys(dbs);
+      if (!dbNames.length) throw new Error('В данных нет ни одной базы');
+
+      const selective = selectiveCb.checked;
+      const modeText = selective
+        ? 'ВЫБОРОЧНЫЙ РЕЖИМ: данные будут добавлены/перезаписаны, существующие записи в затронутых хранилищах сохранятся.'
+        : 'ВНИМАНИЕ: содержимое затронутых хранилищ будет ПОЛНОСТЬЮ ОЧИЩЕНО перед импортом.';
+
+      if (!confirm('Будут обработаны базы: ' + dbNames.join(', ') + '\n\n' + modeText + '\n\nПродолжить?')) {
+        return;
+      }
+
+      const report = [];
+
+      for (const dbName of dbNames) {
+        const info = dbs[dbName] || {};
+        const storesInfo = info.stores || {};
+        const storeNames = Object.keys(storesInfo);
+
+        if (!storeNames.length) { report.push(dbName + ': нет хранилищ в данных'); continue; }
+
+        let db;
+        try {
+          const exists = await dbExists(dbName);
+          if (exists === false && info.version) {
+            // базы ещё нет — создаём сразу с нужной версией
+            db = await openDB(dbName, info.version, (db2) => createStores(db2, storesInfo));
+          } else {
+            db = await openDB(dbName);
+            const missing = storeNames.filter((s) => !db.objectStoreNames.contains(s));
+            if (missing.length) {
+              const newVersion = db.version + 1;
+              db.close();
+              db = await openDB(dbName, newVersion, (db2) => createStores(db2, storesInfo));
+            }
+          }
+        } catch (e) {
+          report.push(dbName + ': ошибка открытия — ' + e.message);
+          continue;
+        }
+
+        try {
+          let total = 0;
+          const skipped = [];
+          for (const sName of storeNames) {
+            if (!db.objectStoreNames.contains(sName)) { skipped.push(sName); continue; }
+            total += await writeStore(db, sName, storesInfo[sName], selective);
+          }
+          report.push(dbName + ': записей ' + total +
+            (skipped.length ? ' (пропущены хранилища: ' + skipped.join(', ') + ')' : ''));
+        } catch (e) {
+          report.push(dbName + ': ошибка записи — ' + e.message);
+        } finally {
+          try { db.close(); } catch (e) {}
+        }
+      }
+
+      alert('Импорт IndexedDB завершён:\n\n' + report.join('\n'));
+      if (selectiveCb.checked) buildIdbTree();
+    } catch (err) {
+      alert('Ошибка при импорте IndexedDB: ' + err.message);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  /* =========================================================
+     СОБЫТИЯ
+     ========================================================= */
+
+  // панель выборочного режима
+  selectiveCb.addEventListener('change', () => {
+    const on = selectiveCb.checked;
+    $('selectivePanel').hidden = !on;
+    if (on) {
+      buildLsTree();
+      buildIdbTree();
+    }
+  });
+
+  // LocalStorage — кнопки панели
+  $('lsRefresh').addEventListener('click', buildLsTree);
+  $('lsAll').addEventListener('click', () => {
+    for (const cb of document.querySelectorAll('#lsTree .ls-cb')) cb.checked = true;
+  });
+  $('lsNone').addEventListener('click', () => {
+    for (const cb of document.querySelectorAll('#lsTree .ls-cb')) cb.checked = false;
+  });
+
+  // IndexedDB — кнопки панели
+  $('idbRefresh').addEventListener('click', buildIdbTree);
+  $('idbAll').addEventListener('click', () => {
+    for (const cb of document.querySelectorAll('#idbTree input[type="checkbox"]')) {
+      cb.checked = true;
+      cb.indeterminate = false;
+    }
+  });
+  $('idbNone').addEventListener('click', () => {
+    for (const cb of document.querySelectorAll('#idbTree input[type="checkbox"]')) {
+      cb.checked = false;
+      cb.indeterminate = false;
+    }
+  });
+  $('idbAdd').addEventListener('click', () => {
+    const name = prompt('Имя базы IndexedDB:');
+    if (!name) return;
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    if (!manualDbs.includes(trimmed)) manualDbs.push(trimmed);
+    buildIdbTree();
+  });
+
+  // Основные кнопки
+  $('exportBtn').addEventListener('click', doExportLS);
+  $('importBtn').addEventListener('click', doImportLS);
+  $('idbExportBtn').addEventListener('click', doExportIDB);
+  $('idbImportBtn').addEventListener('click', doImportIDB);
+
+  // Первичное построение LS-дерева (на случай, если режим уже включён)
+  try { buildLsTree(); } catch (e) {}
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<title>Настройки — Glist tools</title>
+<style>
+  :root{
+    --bg:#808080;
+    --panel-bg: rgba(255,255,255,0.04);
+    --accent:#000;
+    --text-dark:#111;
+    --text-light:#fff;
+    --gap:14px;
+    --header-h:56px;
+  }
+  html,body{height:100%;margin:0;padding:0;background:var(--bg);font-family:Inter,Arial,system-ui; color:var(--text-light);-webkit-font-smoothing:antialiased;}
+  header{height:var(--header-h);display:flex;align-items:center;gap:12px;padding:0 14px;background:rgba(255,255,255,0.06);backdrop-filter:blur(6px);box-sizing:border-box;}
+  #backBtn{background:transparent;border:0;color:var(--text-dark);font-size:18px;padding:8px;cursor:pointer;touch-action:manipulation}
+  h1{margin:0;font-family:Georgia,serif;color:var(--text-dark);font-size:17px}
+  .hdr-right{margin-left:auto;color:var(--text-dark);opacity:0.8;font-size:13px}
+
+  main{padding:18px;box-sizing:border-box;height:calc(100vh - var(--header-h));overflow:auto;-webkit-overflow-scrolling:touch}
+  .card{width:100%;background:var(--panel-bg);border:1px solid rgba(0,0,0,0.12);padding:14px;box-sizing:border-box;border-radius:8px}
+  .row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid rgba(0,0,0,0.06)}
+  .row:last-child{border-bottom:0}
+  .label{font-size:16px;color:var(--text-dark);line-height:1.2}
+  
+  /* Стили переключателя */
+  .toggle{width:64px;height:36px;border-radius:999px;background:#222;position:relative;flex:0 0 64px;cursor:pointer;display:inline-flex;align-items:center;padding:4px;box-sizing:border-box;touch-action:manipulation}
+  .knob{width:28px;height:28px;border-radius:50%;background:#fff;transition:transform 160ms cubic-bezier(.2,.9,.2,1)}
+  .toggle.on{background:linear-gradient(90deg,#111,#000)}
+  .toggle.on .knob{transform:translateX(28px)}
+  
+  /* Стили селекта меню */
+  .menu-select{
+    appearance: none;
+    -webkit-appearance: none;
+    background: #111;
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.2);
+    padding: 8px 30px 8px 12px;
+    font-size: 14px;
+    border-radius: 6px;
+    outline: none;
+    cursor: pointer;
+    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23FFF%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px top 50%;
+    background-size: 10px auto;
+  }
+  .menu-select:focus{border-color: #fff;}
+
+  .status{font-size:13px;color:#eee;opacity:0.9;text-align:center;margin-top:12px;min-height:20px}
+  @media (min-width:520px){
+    main{max-width:720px;margin:12px auto}
+    .card{padding:18px}
+    .toggle{width:72px;height:40px}
+    .toggle.on .knob{transform:translateX(32px)}
+  }
+</style>
+</head>
+<body>
+  <header>
+    <button id="backBtn" aria-label="Назад">← Назад</button>
+    <h1>Glist tools</h1>
+    <div class="hdr-right">8===э</div>
+  </header>
+
+  <main>
+    <div class="card" role="region" aria-label="Настройки">
+      <div id="settingsList">
+        <!-- Выбор типа меню -->
+        <div class="row" id="row-menu-type">
+          <div class="label">Тип главного меню</div>
+          <select id="menuTypeSelect" class="menu-select">
+            <option value="new">Новое меню</option>
+            <option value="oldmenu">Пожилое меню</option>
+            <option value="98">Древнее меню (Win98)</option>
+          </select>
+        </div>
+        
+        <!-- Остальные опции (тумблеры) будут отрендерены ниже -->
+        <div id="dynamicToggles"></div>
+      </div>
+
+      <div id="status" class="status" aria-live="polite"></div>
+    </div>
+  </main>
+
+<script>
+// Список стандартных булевых тумблеров
+const TOGGLE_SETTINGS = [
+  { id: 'novideomeme', label: 'Выключить видеомемы', key: 'novideomeme', default: false }
+];
+
+const menuTypeSelect = document.getElementById('menuTypeSelect');
+const dynamicToggles = document.getElementById('dynamicToggles');
+const statusEl = document.getElementById('status');
+const backBtn = document.getElementById('backBtn');
+
+backBtn.addEventListener('click', () => window.location.href = 'glist.html');
+
+// ---- Чтение массива из localStorage ----
+function readSettingsArray() {
+  const raw = localStorage.getItem('main_settings');
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed.map(String);
+    if (parsed && typeof parsed === 'object') {
+      const keys = [];
+      for (const k in parsed) {
+        if (Object.prototype.hasOwnProperty.call(parsed, k) && parsed[k]) keys.push(String(k));
+      }
+      return keys;
+    }
+    const s = String(parsed);
+    const found = [];
+    ['oldmenu', '98', 'novideomeme'].forEach(k => {
+      if (s.indexOf(k) !== -1) found.push(k);
+    });
+    return found;
+  } catch (e) {
+    const s = String(raw || '');
+    const found = [];
+    ['oldmenu', '98', 'novideomeme'].forEach(k => {
+      if (s.indexOf(k) !== -1) found.push(k);
+    });
+    return found;
+  }
+}
+
+// ---- Запись массива в localStorage ----
+function writeSettingsArray(arr) {
+  try {
+    const normalized = Array.isArray(arr) ? arr.filter(v => typeof v === 'string').map(String) : [];
+    localStorage.setItem('main_settings', JSON.stringify(normalized));
+  } catch (e) {
+    console.error('writeSettingsArray', e);
+  }
+}
+
+function showStatus(msg = 'Сохранено', ms = 1200) {
+  statusEl.textContent = msg;
+  clearTimeout(showStatus._t);
+  showStatus._t = setTimeout(() => statusEl.textContent = '', ms);
+}
+
+// ---- Инициализация селектора меню ----
+function initMenuSelector(currentArray) {
+  if (currentArray.includes('98')) {
+    menuTypeSelect.value = '98';
+  } else if (currentArray.includes('oldmenu')) {
+    menuTypeSelect.value = 'oldmenu';
+  } else {
+    menuTypeSelect.value = 'new';
+  }
+
+  menuTypeSelect.addEventListener('change', (e) => {
+    const val = e.target.value;
+    let arr = readSettingsArray();
+
+    // Удаляем оба взаимоисключающих ключа
+    arr = arr.filter(k => k !== 'oldmenu' && k !== '98');
+
+    // Добавляем выбранный, если это не "новое меню"
+    if (val === 'oldmenu') {
+      arr.push('oldmenu');
+    } else if (val === '98') {
+      arr.push('98');
+    }
+
+    writeSettingsArray(arr);
+    showStatus('Сохранено');
+  });
+}
+
+// ---- Создание строки с тумблером ----
+function createToggleRow(def, currentArray) {
+  const row = document.createElement('div'); 
+  row.className = 'row'; 
+  row.id = 'row-' + def.id;
+
+  const label = document.createElement('div'); 
+  label.className = 'label'; 
+  label.textContent = def.label;
+
+  const toggle = document.createElement('div'); 
+  toggle.className = 'toggle'; 
+  toggle.tabIndex = 0; 
+  toggle.setAttribute('role', 'switch');
+
+  const knob = document.createElement('div'); 
+  knob.className = 'knob';
+  toggle.appendChild(knob);
+
+  const checked = currentArray.includes(def.key);
+  if (checked) {
+    toggle.classList.add('on');
+    toggle.setAttribute('aria-checked', 'true');
+  } else {
+    toggle.setAttribute('aria-checked', 'false');
+  }
+
+  function commitToggle(state) {
+    toggle.classList.toggle('on', !!state);
+    toggle.setAttribute('aria-checked', !!state ? 'true' : 'false');
+    
+    let arr = readSettingsArray();
+    const has = arr.includes(def.key);
+    if (state && !has) {
+      arr.push(def.key);
+      writeSettingsArray(arr);
+      showStatus('Сохранено');
+    } else if (!state && has) {
+      arr = arr.filter(k => k !== def.key);
+      writeSettingsArray(arr);
+      showStatus('Сохранено');
+    }
+  }
+
+  toggle.addEventListener('click', () => commitToggle(!toggle.classList.contains('on')));
+  toggle.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      commitToggle(!toggle.classList.contains('on'));
+    }
+  });
+
+  row.appendChild(label);
+  row.appendChild(toggle);
+  return row;
+}
+
+// ---- Первичный рендер всех настроек ----
+function initSettings() {
+  const cur = readSettingsArray();
+  
+  // Привязка селекта
+  initMenuSelector(cur);
+
+  // Рендер тумблеров
+  dynamicToggles.innerHTML = '';
+  TOGGLE_SETTINGS.forEach(def => {
+    const row = createToggleRow(def, cur);
+    dynamicToggles.appendChild(row);
+  });
+}
+
+initSettings();
+</script>
+</body>
+</html>

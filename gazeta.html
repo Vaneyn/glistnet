@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Telegram Channel Viewer</title>
+<style>
+  html,body{height:100%;margin:0;font-family:Arial,sans-serif;background:#f9f9f9;color:#111}
+  body{display:flex;flex-direction:column}
+
+  header{
+    display:flex;align-items:center;gap:10px;padding:8px 12px;
+    background:#2b2b2b;color:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);
+    position:sticky;top:0;z-index:10
+  }
+  header h1{margin:0;font-size:16px;flex:1}
+  header button{
+    background:#000;color:#fff;border:0;padding:8px 12px;font-size:13px;cursor:pointer;
+  }
+  #status{padding:6px 12px;font-size:13px;color:#333;background:#ececec}
+  #bar{height:3px;background:#ddd}
+  #barIn{height:100%;width:0;background:#0088cc;transition:width .15s}
+
+  #messages{flex:1;overflow-y:auto;padding:12px;-webkit-overflow-scrolling:touch;scroll-padding-bottom:40px}
+  .message{
+    background:#fff;border:1px solid #e0e0e0;border-radius:6px;
+    padding:10px 12px;margin-bottom:10px;box-shadow:0 1px 2px rgba(0,0,0,.05);
+    word-break:break-word;
+  }
+  .message .head{
+    display:flex;justify-content:space-between;gap:8px;margin-bottom:6px;
+    font-size:12px;color:#666;
+  }
+  .message .txt{white-space:pre-wrap;margin:4px 0;font-size:14px}
+  .message .file{
+    display:block;padding:6px 8px;margin-top:6px;background:#f0f7ff;
+    border:1px solid #cfe3f7;border-radius:4px;font-size:13px;
+  }
+  .message .file .sz{color:#666;margin-left:6px;font-size:12px}
+  .message img.ph{
+    max-width:100%;max-height:420px;border-radius:6px;margin-top:6px;display:block;
+    background:#eee;cursor:zoom-in;
+  }
+  .message video{
+    max-width:100%;max-height:420px;border-radius:6px;margin-top:6px;display:block;
+    background:#000;
+  }
+
+  #lightbox{
+    position:fixed;inset:0;background:rgba(0,0,0,.92);
+    display:none;align-items:center;justify-content:center;
+    z-index:99999;padding:20px;box-sizing:border-box;
+    -webkit-tap-highlight-color:transparent;
+  }
+  #lightbox.show{display:flex}
+  #lightbox img{
+    max-width:100%;max-height:100%;object-fit:contain;
+    border-radius:4px;box-shadow:0 8px 40px rgba(0,0,0,.6);
+    user-select:none;-webkit-user-drag:none;
+  }
+  #lightboxClose{
+    position:fixed;top:16px;right:16px;
+    width:48px;height:48px;border-radius:50%;
+    background:rgba(255,255,255,.12);color:#fff;
+    border:0;font-size:28px;line-height:48px;text-align:center;
+    cursor:pointer;backdrop-filter:blur(4px);
+    transition:background .15s, transform .15s;
+    z-index:100000;padding:0;
+  }
+  #lightboxClose:hover{background:rgba(255,255,255,.25);transform:scale(1.06)}
+  #lightboxClose:active{transform:scale(.95)}
+  #lightboxHint{
+    position:fixed;bottom:14px;left:50%;transform:translateX(-50%);
+    color:rgba(255,255,255,.6);font-size:12px;pointer-events:none;
+    z-index:100000;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Канал @glist_channel</h1>
+  <button onclick="location.href='glist.html'">НАЗАД</button>
+</header>
+
+<div id="status">Готов к загрузке…</div>
+<div id="bar"><div id="barIn"></div></div>
+<div id="messages"></div>
+
+<div id="lightbox" aria-hidden="true">
+  <button id="lightboxClose" aria-label="Закрыть">✕</button>
+  <img id="lightboxImg" alt="">
+  <div id="lightboxHint">клик по фону / Esc — закрыть</div>
+</div>
+
+<script>
+/* =========================================================================
+   Telegram Channel Viewer + Lightbox + autoscroll + dedup by text (99%)
+   ========================================================================= */
+
+const CHANNEL     = 'glist_channel';
+const START_FROM  = 1;
+const BATCH       = 50;
+const MAX_GAP     = 100;
+const RETRIES     = 3;
+
+const messagesDiv = document.getElementById('messages');
+const statusEl    = document.getElementById('status');
+const barIn       = document.getElementById('barIn');
+
+let running = false;
+let stopFlag = false;
+let totalPosts = 0;
+let totalFiles = 0;
+
+/* --- дедуп по тексту --- */
+const seenTexts = [];      // нормализованные тексты уже показанных постов
+
+/* =========================================================================
+   Нормализация и нечёткое сравнение текстов
+   ========================================================================= */
+function normalizeText(t){
+  return String(t || '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/* Levenshtein с ранним выходом по maxDist (не считаем всё, если уже перебор) */
+function levenshteinWithin(a, b, maxDist){
+  const m = a.length, n = b.length;
+  if(Math.abs(m - n) > maxDist) return maxDist + 1;
+  if(m === 0) return n;
+  if(n === 0) return m;
+
+  let prev = new Array(n + 1);
+  let curr = new Array(n + 1);
+  for(let j = 0; j <= n; j++) prev[j] = j;
+
+  for(let i = 1; i <= m; i++){
+    curr[0] = i;
+    let rowMin = curr[0];
+    const ca = a.charCodeAt(i - 1);
+    for(let j = 1; j <= n; j++){
+      const cost = ca === b.charCodeAt(j - 1) ? 0 : 1;
+      const v = Math.min(prev[j] + 1, curr[j-1] + 1, prev[j-1] + cost);
+      curr[j] = v;
+      if(v < rowMin) rowMin = v;
+    }
+    if(rowMin > maxDist) return maxDist + 1;
+    const tmp = prev; prev = curr; curr = tmp;
+  }
+  return prev[n];
+}
+
+/* 99% схожести = допускаем не более 1% различий по длине текста */
+function isDuplicateText(normText){
+  if(!normText) return false;
+  const len = normText.length;
+  if(len === 0) return false;
+  const maxDiff = Math.max(1, Math.floor(len * 0.01));  // 1% от длины, минимум 1 символ
+
+  for(let i = 0; i < seenTexts.length; i++){
+    const other = seenTexts[i];
+    // быстрая отсечка по длине
+    const lenDiff = Math.abs(other.length - len);
+    if(lenDiff > maxDiff + 1) continue;
+    if(other === normText) return true;
+    const dist = levenshteinWithin(normText, other, maxDiff);
+    if(dist <= maxDiff) return true;
+  }
+  return false;
+}
+
+function setStatus(t){ statusEl.textContent = t; }
+function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+
+/* =========================================================================
+   Автоскролл, уважающий пользователя
+   ========================================================================= */
+let autoScrollCancelled = false;
+
+(function attachUserScrollWatchers(){
+  const cancel = ()=>{ autoScrollCancelled = true; };
+  messagesDiv.addEventListener('wheel', cancel, {passive:true});
+  messagesDiv.addEventListener('touchstart', cancel, {passive:true});
+  messagesDiv.addEventListener('touchmove',  cancel, {passive:true});
+  messagesDiv.addEventListener('pointerdown', cancel, {passive:true});
+  messagesDiv.addEventListener('keydown', (e)=>{
+    if(['ArrowUp','ArrowDown','PageUp','PageDown','Home','End',' '].indexOf(e.key) !== -1){
+      cancel();
+    }
+  });
+  let lastTop = 0;
+  messagesDiv.addEventListener('scroll', ()=>{
+    const t = messagesDiv.scrollTop;
+    if(t < lastTop - 30) cancel();
+    lastTop = t;
+  }, {passive:true});
+})();
+
+function scrollToBottomSmoothOnce(){
+  if(autoScrollCancelled) return;
+  try{
+    messagesDiv.scrollTo({ top: messagesDiv.scrollHeight + 9999, behavior: 'smooth' });
+  }catch(e){
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  }
+}
+
+function scrollToBottomRelentlessly(duration){
+  duration = duration || 2500;
+  if(autoScrollCancelled) return;
+  const start = performance.now();
+  let lastHeight = -1, stableFrames = 0;
+  function tick(){
+    if(autoScrollCancelled) return;
+    const h = messagesDiv.scrollHeight;
+    messagesDiv.scrollTop = h;
+    if(h === lastHeight){ stableFrames++; if(stableFrames > 10) return; }
+    else { stableFrames = 0; lastHeight = h; }
+    if(performance.now() - start < duration) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+function keepScrolledToBottomFor(ms){
+  if(autoScrollCancelled) return;
+  const until = performance.now() + ms;
+  function tick(){
+    if(autoScrollCancelled) return;
+    if(performance.now() > until) return;
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+/* =========================================================================
+   Lightbox
+   ========================================================================= */
+const lightbox     = document.getElementById('lightbox');
+const lightboxImg  = document.getElementById('lightboxImg');
+const lightboxBtn  = document.getElementById('lightboxClose');
+
+function openLightbox(src){
+  if(!src) return;
+  lightboxImg.src = src;
+  lightbox.classList.add('show');
+  lightbox.setAttribute('aria-hidden','false');
+  document.body.style.overflow = 'hidden';
+}
+function closeLightbox(){
+  lightbox.classList.remove('show');
+  lightbox.setAttribute('aria-hidden','true');
+  document.body.style.overflow = '';
+  setTimeout(()=> { if(!lightbox.classList.contains('show')) lightboxImg.src = ''; }, 150);
+}
+
+lightboxBtn.addEventListener('click', (e)=>{ e.stopPropagation(); closeLightbox(); });
+lightbox.addEventListener('click', (e)=>{ if(e.target === lightbox) closeLightbox(); });
+document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape' && lightbox.classList.contains('show')) closeLightbox(); });
+
+messagesDiv.addEventListener('click', (e)=>{
+  const img = e.target.closest('img.ph');
+  if(!img) return;
+  e.preventDefault();
+  openLightbox(img.src);
+});
+
+/* =========================================================================
+   Парсинг embed-поста
+   ========================================================================= */
+function parsePost(html, idx){
+  if(!html) return {ok:false, i:idx};
+  if(html.indexOf('tgme_widget_message_error') !== -1) return {ok:false, i:idx};
+  if(html.indexOf('data-post="') === -1 && html.indexOf('tgme_widget_message') === -1){
+    return {ok:false, i:idx};
+  }
+
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const out = {ok:true, i:idx, text:'', files:[], photos:[], videos:[]};
+
+  const tx = doc.querySelector('.tgme_widget_message_text');
+  if(tx) out.text = tx.textContent.trim();
+
+  const docs = doc.querySelectorAll('.tgme_widget_message_document');
+  for(let k=0;k<docs.length;k++){
+    const t = docs[k].querySelector('.tgme_widget_message_document_title');
+    const e = docs[k].querySelector('.tgme_widget_message_document_extra');
+    if(t) out.files.push({name: t.textContent.trim(), size: e ? e.textContent.trim() : ''});
+  }
+  if(!out.files.length){
+    const t2 = doc.querySelectorAll(
+      '.tgme_widget_message_document_title, .tgme_widget_message_audio_title'
+    );
+    for(let m=0;m<t2.length;m++){
+      const nm = t2[m].textContent.trim();
+      if(nm) out.files.push({name: nm, size: ''});
+    }
+  }
+
+  const photos = doc.querySelectorAll('.tgme_widget_message_photo_wrap');
+  for(let p=0;p<photos.length;p++){
+    const st = photos[p].getAttribute('style') || '';
+    const m = st.match(/background-image:\s*url\(['"]?(.*?)['"]?\)/i);
+    if(m && m[1]) out.photos.push(m[1].replace(/\\/g, ''));
+  }
+
+  const vids = doc.querySelectorAll('video');
+  for(let v=0;v<vids.length;v++){
+    const src = vids[v].getAttribute('src') || vids[v].getAttribute('data-src');
+    const poster = vids[v].getAttribute('poster') || '';
+    if(src) out.videos.push({src: src, poster: poster});
+  }
+  if(!out.videos.length){
+    const links = doc.querySelectorAll('a.tgme_widget_message_video_player, a[href$=".mp4"]');
+    for(let l=0;l<links.length;l++){
+      const href = links[l].getAttribute('href');
+      if(href) out.videos.push({src: href, poster: ''});
+    }
+  }
+  if(!out.videos.length){
+    const wrap = doc.querySelectorAll('.tgme_widget_message_video_thumb');
+    for(let w=0;w<wrap.length;w++){
+      const st = wrap[w].getAttribute('style') || '';
+      const m = st.match(/background-image:\s*url\(['"]?(.*?)['"]?\)/i);
+      if(m && m[1]) out.photos.push(m[1].replace(/\\/g, ''));
+    }
+  }
+
+  return out;
+}
+
+/* =========================================================================
+   fetch с ретраями
+   ========================================================================= */
+async function fetchPost(i){
+  const url = 'https://t.me/' + CHANNEL + '/' + i + '?embed=1&mode=tme';
+  for(let t=0;t<RETRIES;t++){
+    try{
+      const r = await fetch(url);
+      if(r.status === 404) return {ok:false, i:i};
+      if(r.status === 429 || r.status >= 500){ await sleep(600 * (t+1)); continue; }
+      const html = await r.text();
+      return parsePost(html, i);
+    }catch(e){ await sleep(300 * (t+1)); }
+  }
+  return {ok:false, i:i, err:true};
+}
+
+/* =========================================================================
+   Рендер
+   ========================================================================= */
+function esc(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+                  .replace(/"/g,'&quot;');
+}
+
+function renderPost(p){
+  let inner = '';
+  inner += '<div class="head"><span>#' + p.i + '</span></div>';
+
+  if(p.text){
+    inner += '<div class="txt">' + esc(p.text) + '</div>';
+  }
+
+  for(const f of p.files){
+    inner += '<div class="file">📎 ' + esc(f.name)
+          + (f.size ? '<span class="sz">' + esc(f.size) + '</span>' : '')
+          + '</div>';
+  }
+
+  for(const url of p.photos){
+    inner += '<img class="ph" src="' + esc(url) + '" loading="lazy" alt="photo">';
+  }
+
+  for(const v of p.videos){
+    if(/\.mp4(\?|$)/i.test(v.src) || v.src.indexOf('t.me') !== -1){
+      inner += '<video controls preload="metadata"'
+            +  (v.poster ? ' poster="' + esc(v.poster) + '"' : '')
+            +  ' src="' + esc(v.src) + '"></video>';
+    } else {
+      inner += '<div class="file">🎬 <a href="' + esc(v.src)
+            +  '" target="_blank">видео</a></div>';
+    }
+  }
+
+  if(!p.text && !p.files.length && !p.photos.length && !p.videos.length){
+    return '';
+  }
+  return '<div class="message">' + inner + '</div>';
+}
+
+/* =========================================================================
+   Батч
+   ========================================================================= */
+async function runBatch(next){
+  const batch = [];
+  for(let k=0;k<BATCH;k++) batch.push(fetchPost(next + k));
+  const res = await Promise.all(batch);
+
+  let chunk = '';
+  let gap = 0;
+  let anyOk = false;
+  let allErr = true;
+
+  for(let j=0;j<res.length;j++){
+    const r = res[j];
+    if(!r.err) allErr = false;
+
+    if(r.ok){
+      anyOk = true;
+      gap = 0;
+
+      const isEmpty = !r.text && !r.files.length && !r.photos.length && !r.videos.length;
+      if(isEmpty) continue;
+
+      // дедуп ТОЛЬКО по тексту: если текст есть и он 99% совпадает с уже виденным — режем
+      if(r.text){
+        const norm = normalizeText(r.text);
+        if(norm){
+          if(isDuplicateText(norm)) continue;
+          seenTexts.push(norm);
+        }
+      }
+
+      const piece = renderPost(r);
+      if(piece){
+        chunk += piece;
+        totalPosts++;
+        totalFiles += r.files.length + r.photos.length + r.videos.length;
+      }
+    } else {
+      gap++;
+    }
+  }
+  return {chunk, gap, anyOk, allErr};
+}
+
+/* =========================================================================
+   Основной цикл
+   ========================================================================= */
+async function loadAll(){
+  if(running) return;
+  running = true;
+  stopFlag = false;
+  autoScrollCancelled = false;
+  messagesDiv.innerHTML = '';
+  totalPosts = 0;
+  totalFiles = 0;
+  seenTexts.length = 0;
+
+  let next = START_FROM;
+  let emptyStreak = 0;
+  let scanned = 0;
+  let first = true;
+  let confirmRound = false;
+  let ended = false;
+
+  const startedAt = Date.now();
+
+  while(!stopFlag && !ended){
+    const {chunk, gap, allErr} = await runBatch(next);
+
+    if(first){
+      first = false;
+      if(allErr){
+        setStatus('Все запросы упали. Проверь сеть/консоль (возможно CORS).');
+        break;
+      }
+    }
+
+    scanned += BATCH;
+    if(chunk) messagesDiv.insertAdjacentHTML('beforeend', chunk);
+    next += BATCH;
+
+    if(gap === BATCH) emptyStreak += gap;
+    else              emptyStreak = gap;
+
+    const elapsed = ((Date.now() - startedAt) / 1000).toFixed(1);
+    setStatus('Проверено до №' + (next - 1)
+            + ' | постов с контентом: ' + totalPosts
+            + ' | файлов/медиа: ' + totalFiles
+            + ' | прошло: ' + elapsed + 'с');
+    barIn.style.width = Math.min(95, Math.round(scanned / (scanned + MAX_GAP) * 100)) + '%';
+
+    if(emptyStreak >= MAX_GAP){
+      if(!confirmRound){
+        confirmRound = true;
+        setStatus('Похоже на конец канала, проверяю ещё раз…');
+        continue;
+      } else {
+        ended = true;
+      }
+    } else {
+      if(emptyStreak < MAX_GAP) confirmRound = false;
+    }
+  }
+
+  barIn.style.width = '100%';
+  setStatus('Готово. Постов с контентом: ' + totalPosts
+          + ' | файлов/медиа: ' + totalFiles);
+
+  if(autoScrollCancelled) { running = false; return; }
+
+  scrollToBottomSmoothOnce();
+  scrollToBottomRelentlessly(2500);
+  keepScrolledToBottomFor(4000);
+
+  const imgs = messagesDiv.querySelectorAll('img.ph');
+  let pending = 0;
+  imgs.forEach(img => {
+    if(!img.complete){
+      pending++;
+      img.addEventListener('load',  ()=>{ if(!autoScrollCancelled) messagesDiv.scrollTop = messagesDiv.scrollHeight; }, {once:true});
+      img.addEventListener('error', ()=>{ if(!autoScrollCancelled) messagesDiv.scrollTop = messagesDiv.scrollHeight; }, {once:true});
+    }
+  });
+
+  if(pending){
+    const t0 = performance.now();
+    const iv = setInterval(()=>{
+      if(autoScrollCancelled){ clearInterval(iv); return; }
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      if(performance.now() - t0 > 15000) clearInterval(iv);
+    }, 400);
+  }
+
+  setTimeout(()=>{ if(!autoScrollCancelled) messagesDiv.scrollTop = messagesDiv.scrollHeight; }, 3000);
+
+  running = false;
+}
+
+loadAll();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Иди нах</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #000;
+      color: white;
+      font-family: sans-serif;
+    }
+    #centerText {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 32px;
+      text-align: center;
+      z-index: 1;
+      white-space: nowrap;
+    }
+    .heart {
+      position: absolute;
+      font-size: 20px;
+      pointer-events: none;
+      animation: floatHeart 4s ease-in forwards;
+    }
+    @keyframes floatHeart {
+      0% {
+        transform: translate(0, 0) scale(1);
+        opacity: 1;
+      }
+      40% {
+        opacity: 1;
+      }
+      100% {
+        transform: translate(var(--dx), var(--dy)) scale(0.8);
+        opacity: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="centerText">Иди нахуй</div>
+
+  <script>
+    const emojis = ['♥️', '💖', '💓', '💞', '💗', '💕', '❤️‍🔥'];
+    const centerText = document.getElementById('centerText');
+
+    function emitHeart() {
+      const rect = centerText.getBoundingClientRect();
+      const textLength = centerText.innerText.length;
+
+      const spanIndex = Math.floor(Math.random() * textLength);
+      const span = centerText.children[spanIndex];
+      if (!span) return;
+
+      const spanRect = span.getBoundingClientRect();
+      const x = spanRect.left + spanRect.width / 2;
+      const y = spanRect.top + spanRect.height / 2;
+
+      const heart = document.createElement('div');
+      heart.className = 'heart';
+      heart.innerText = emojis[Math.floor(Math.random() * emojis.length)];
+      heart.style.left = x + 'px';
+      heart.style.top = y + 'px';
+
+      const dx = (Math.random() - 0.5) * 300;
+      const dy = -Math.random() * 100 - 50 + Math.random() * 300; // вверх, потом вниз
+      heart.style.setProperty('--dx', dx + 'px');
+      heart.style.setProperty('--dy', dy + 'px');
+
+      document.body.appendChild(heart);
+      setTimeout(() => heart.remove(), 4000);
+    }
+
+    // Разделим каждый символ в тексте в отдельный span
+    const text = centerText.innerText;
+    centerText.innerHTML = '';
+    for (let char of text) {
+      const span = document.createElement('span');
+      span.innerText = char;
+      centerText.appendChild(span);
+    }
+
+    setInterval(emitHeart, 80);
+// Да, я сделал даже ЭТОТ код. Вот такой. Если ты скажешь мне учить химию вместо этого, то иди нахуй (Love you).
+  </script>
+</body>
+</html>

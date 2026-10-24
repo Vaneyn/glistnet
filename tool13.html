@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Онлайн шняга</title>
+  <style>
+    body {
+      background-color: gray;
+      color: black;
+    }
+  </style>
+</head>
+<body>
+  <button id="myButton"><img src="button.png"></button>
+  <p id="scoreDisplay">Всемирный счёт: 0</p>
+
+  <script>
+    var button = document.getElementById("myButton");
+    var scoreDisplay = document.getElementById("scoreDisplay");
+    var score = 0;
+    var startscore = 0;
+
+    // Определяем URL-адреса для отправки GET-запросов
+    var url1 = "http://d90930x1.beget.tech/PocketCodeDB/DATABASE/echo/echo.php?slot=3&token=35733253709vaneyn2007@gmail.com46774546073";
+    var url2 = "http://d90930x1.beget.tech/PocketCodeDB/DATABASE/get/get.php?slot=3&token=35733253709vaneyn2007@gmail.com46774546073&get_pe=";
+
+    // Функция для установки значения startscore и обновления scoreDisplay
+    function setScore(responseText) {
+      score = parseInt(responseText);
+      startscore = score;
+      scoreDisplay.innerHTML = "Всемирный счёт: " + score;
+    }
+
+    // Отправляем GET-запрос на сайт url1 и записываем результаты в переменные "score" и "startscore"
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", url1, true);
+    xhr.onload = function() {
+      if (xhr.status === 200) {
+        setScore(xhr.responseText);
+      }
+    };
+    xhr.send();
+
+    // Обрабатываем клик на кнопке
+    button.onclick = function() {
+      // Увеличиваем значение "score" на 1
+      score++;
+
+      // Если разница между "score" и "startscore" становится равной 25, отправляем GET-запрос на сайт url1
+      // и затем отправляем GET-запрос на сайт url2 с параметром "score+25"
+      if (score - startscore === 25) {
+        var xhr1 = new XMLHttpRequest();
+        xhr1.open("GET", url1, true);
+        xhr1.onload = function() {
+          if (xhr1.status === 200) {
+            setScore(xhr1.responseText);
+            var xhr2 = new XMLHttpRequest();
+            xhr2.open("GET", url2 + (score + 25), true);
+            xhr2.send();
+            
+          }
+        };
+        xhr1.send();
+      }
+
+      scoreDisplay.innerHTML = "Всемирный счёт: " + (score+25);
+    };
+  </script>
+  	<script>
+		function runTool(toolName) {
+			var url = toolName + ".html";
+			window.open(url, "_blank");
+		}
+	</script>
+	</script>
+  <button onclick="runTool('glist')">НАЗАД</button>
+</script>
+</body>
+</html>
+
+</body>
+</html>

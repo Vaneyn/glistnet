@@ -1,0 +1,353 @@
+
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Destruction Physics</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.18.0/matter.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #121212;
+            color: #fff;
+            overflow: hidden;
+            touch-action: none;
+        }
+        #status {
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            font-family: Arial, sans-serif;
+            font-size: 18px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+    <button onclick="location.href='glist.html'">Назад</button>
+
+    <div id="status">HEALTH: <span id="health-value">10</span>HP</div>
+    <script>
+        // Game Configuration
+        const CONFIG = {
+            MATERIALS: {
+                glass:    { hp: 10,  color: '#2684ff', density: 0.9, spawnChance: 40 },
+                wood:     { hp: 50,  color: '#8b4513', density: 0.7, spawnChance: 30 },
+                stone:    { hp: 150, color: '#666666', density: 2.3, spawnChance: 20 },
+                heavy:    { hp: 500, color: '#ff4444', density: 3.5, spawnChance: 10 }
+            },
+            DAMAGE: {
+                MIN_SPEED: 1.5,
+                MIN_FORCE: 1.5,
+                MULT: 0.40
+            },
+            PLAYER: {
+                RADIUS: 17,
+                HP: 10,
+                COLOR: '#44ff77',
+                PLATFORM: { width: 220, height: 45 }
+            },
+            SPAWN: {
+                INTERVAL: 1800,
+                INITIAL_DELAY: 1500
+            }
+        };
+
+        // Matter.js Setup
+        const Engine = Matter.Engine,
+            Render = Matter.Render,
+            World = Matter.World,
+            Bodies = Matter.Bodies,
+            Body = Matter.Body,
+            Events = Matter.Events,
+            Mouse = Matter.Mouse,
+            MouseConstraint = Matter.MouseConstraint;
+
+        const engine = Engine.create();
+        const render = Render.create({
+            element: document.body,
+            engine: engine,
+            options: {
+                width: window.innerWidth,
+                height: window.innerHeight,
+                wireframes: false,
+                background: '#000000'
+            }
+        });
+
+        // Game State Variables
+        let player;
+        let spawnInterval;
+
+        // Initialize Game
+        function init() {
+            createWalls();
+            setupPlayer();
+            setupControls();
+            setupCollisions();
+            startSpawning();
+            Engine.run(engine);
+            Render.run(render);
+        }
+
+        // Create Boundary Walls
+        function createWalls() {
+            const thickness = 25;
+            World.add(engine.world, [
+                Bodies.rectangle(0, window.innerHeight/2, thickness, window.innerHeight*2, { 
+                    isStatic: true, 
+                    render: { fillStyle: '#3a3a3a' },
+                    friction: 0
+                }),
+                Bodies.rectangle(window.innerWidth, window.innerHeight/2, thickness, window.innerHeight*2, { 
+                    isStatic: true,
+                    render: { fillStyle: '#3a3a3a' },
+                    friction: 0
+                }),
+                Bodies.rectangle(window.innerWidth/2, window.innerHeight, window.innerWidth, thickness, { 
+                    isStatic: true,
+                    render: { fillStyle: '#3a3a3a' },
+                    collisionFilter: { group: -1 },
+                    frictionStatic: 0.3
+                })
+            ]);
+        }
+
+        // Setup Player and Platform
+        function setupPlayer() {
+            const platform = Bodies.rectangle(
+                window.innerWidth/2,
+                window.innerHeight - 40,
+                CONFIG.PLAYER.PLATFORM.width,
+                CONFIG.PLAYER.PLATFORM.height,
+                {
+                    isStatic: true,
+                    render: { fillStyle: '#333333' },
+                    frictionStatic: 0.4
+                }
+            );
+
+            player = Bodies.circle(
+                window.innerWidth/2, 
+                window.innerHeight - 90, 
+                CONFIG.PLAYER.RADIUS,
+                {
+                    label: 'player',
+                    restitution: 0.3,
+                    mass: 100,
+                    friction: 0.05,
+                    frictionAir: 0.02,
+                    render: { fillStyle: CONFIG.PLAYER.COLOR },
+                    originalColor: CONFIG.PLAYER.COLOR,
+                    health: CONFIG.PLAYER.HP,
+                    maxHealth: CONFIG.PLAYER.HP
+                }
+            );
+
+            World.add(engine.world, [platform, player]);
+        }
+
+        // Mouse/Touch Controls
+        function setupControls() {
+            const mouse = Mouse.create(render.canvas);
+            const mouseConstraint = MouseConstraint.create(engine, {
+                mouse: mouse,
+                constraint: {
+                    stiffness: 0.15,
+                    render: { visible: false }
+                }
+            });
+            World.add(engine.world, mouseConstraint);
+        }
+
+        // Collision Handling
+        function setupCollisions() {
+            Events.on(engine, 'collisionStart', event => {
+                event.pairs.forEach(pair => {
+                    const { bodyA, bodyB, collision } = pair;
+                    const normal = collision.normal;
+                    const tangent = collision.tangent;
+
+                    // Calculate Impact Forces
+                    const relVelocity = Matter.Vector.sub(bodyB.velocity, bodyA.velocity);
+                    const normalSpeed = Matter.Vector.dot(relVelocity, normal);
+                    const tangentSpeed = Matter.Vector.dot(relVelocity, tangent);
+
+                    [bodyA, bodyB].forEach((body, idx) => {
+                        const otherBody = idx === 0 ? bodyB : bodyA;
+                        const impact = Math.abs(normalSpeed) * (idx === 0 ? 1 : -1);
+
+                        if (Math.abs(impact) < CONFIG.DAMAGE.MIN_SPEED) return;
+
+                        // Calculate Damage
+                        const force = (otherBody.mass * impact * 0.5) / 1000;
+                        const damage = force * CONFIG.DAMAGE.MULT;
+                        
+                        if (damage < CONFIG.DAMAGE.MIN_FORCE) return;
+
+                        if (body.health !== undefined) {
+                            body.health = Math.max(0, body.health - damage);
+                            updateHealthDisplay();
+                            updateDamageVisual(body, damage);
+                            
+                            if (body.health <= 0) {
+                                body.label === 'player' ? gameOver() : destroyObject(body);
+                            }
+                        }
+                    });
+                });
+            });
+        }
+
+        // Object Spawning
+        function startSpawning() {
+            let spamCounter = 1;
+            const spawn = () => {
+                const materials = Object.entries(CONFIG.MATERIALS);
+                let totalChance = materials.reduce((sum, [, m]) => sum + m.spawnChance, 0);
+                let random = Math.random() * totalChance;
+
+                for (const [type, config] of materials) {
+                    random -= config.spawnChance;
+                    if (random <= 0) {
+                        createObject(type, config);
+                        console.log(`Spawn #${spamCounter++}: ${type}`);
+                        break;
+                    }
+                }
+            };
+            setTimeout(spawn, CONFIG.SPAWN.INITIAL_DELAY);
+            spawnInterval = setInterval(spawn, CONFIG.SPAWN.INTERVAL);
+        }
+
+        function createObject(type, config) {
+            const isHeavy = type === 'heavy';
+            const body = isHeavy ? 
+                Bodies.circle(
+                    Math.random() * (window.innerWidth - 100) + 50, 
+                    -50, 
+                    28, 
+                    { 
+                        label: type,
+                        density: config.density,
+                        friction: 0.05,
+                        frictionAir: 0.02,
+                        render: { 
+                            fillStyle: config.color,
+                            lineWidth: 0
+                        }
+                    }
+                ) :
+                Bodies.rectangle(
+                    Math.random() * (window.innerWidth - 100) + 50, 
+                    -50, 
+                    58, 34, 
+                    {
+                        label: type,
+                        density: config.density,
+                        friction: 0.5,
+                        frictionAir: 0.02,
+                        chamfer: { radius: 6 },
+                        render: { 
+                            fillStyle: config.color,
+                            lineWidth: 0
+                        }
+                    }
+                );
+
+            body.originalColor = config.color;
+            body.health = config.hp;
+            body.maxHealth = config.hp;
+            World.add(engine.world, body);
+        }
+
+        // Update Visual Damage Effect
+        function updateDamageVisual(body, damage) {
+            try {
+                const baseColor = body.originalColor || '#FFFFFF';
+                const damageRatio = (damage / body.maxHealth) * 0.5;
+                body.render.fillStyle = shadeColor(baseColor, -damageRatio * 70);
+            } catch(e) {
+                console.error("Color update error:", e);
+            }
+        }
+
+        function destroyObject(body) {
+            World.remove(engine.world, body);
+            createDebris(body);
+        }
+
+        // Create Debris Particles
+        function createDebris(body) {
+            const debrisCount = Math.floor(Math.random() * 9) + 7;
+            for (let i = 0; i < debrisCount; i++) {
+                const debris = Bodies.circle(
+                    body.position.x, 
+                    body.position.y, 
+                    4 + Math.random() * 3, 
+                    {
+                        render: { fillStyle: body.render.fillStyle },
+                        density: 0.03,
+                        friction: 0.1,
+                        frictionAir: 0.15,
+                        timeToLive: 2.4
+                    }
+                );
+                World.add(engine.world, debris);
+                setTimeout(() => World.remove(engine.world, debris), 2400);
+            }
+        }
+
+        // Update Health Display
+        function updateHealthDisplay() {
+            document.getElementById('health-value').textContent = 
+                Math.max(0, Math.floor(player.health));
+        }
+
+        // Game Over Handling
+        function gameOver() {
+            clearInterval(spawnInterval);
+            Engine.clear(engine);
+            Render.stop(render);
+            document.body.innerHTML = `
+                <div style="text-align:center; margin-top:40vh; font-size:2.5em">
+                    GAME OVER<br>
+                    <button style="font-size:0.6em; margin-top:20px; padding:10px 20px" 
+                            onclick="window.location.reload()">
+                        RESTART
+                    </button>
+                </div>
+            `;
+        }
+
+        // Color Manipulation
+        function shadeColor(hex, percent) {
+            const f = parseInt(hex.slice(1), 16);
+            const t = percent < 0 ? 0 : 255;
+            const p = Math.abs(percent) / 100;
+            
+            const R = f >> 16;
+            const G = f >> 8 & 0x00FF;
+            const B = f & 0x0000FF;
+            
+            return `rgb(${Math.round(R - (R - t) * p)},${Math.round(G - (G - t) * p)},${Math.round(B - (B - t) * p)})`;
+        }
+
+        // Initialize the Game
+        init();
+
+        // Window Resize Handler
+        window.addEventListener('resize', () => {
+            render.canvas.width = window.innerWidth;
+            render.canvas.height = window.innerHeight;
+        });
+    </script>
+</body>
+  </html>

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        #fullscreen-image {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 9999;
+            background-size: contain; /* Изменили значение на contain */
+            background-position: center;
+            background-repeat: no-repeat; /* Добавили запрет на повторение фона */
+            transform: rotate (90deg);
+        }
+    </style>
+</head>
+<body>
+    <div id="fullscreen-image"></div>
+	
+    <script>
+        var imageLinks = [
+            "https://i.postimg.cc/505GCcvF/IMG-20231226-135114-182.png",
+            "https://i.postimg.cc/FzQHmJXX/IMG-20231226-140253-789.jpg",
+            "https://i.postimg.cc/5t0QyrK9/IMG-20231226-140732-810.png",
+            // Добавьте остальные ссылки на изображения
+        ];
+
+        var imageIndex = 1;
+        var imageElement = document.getElementById("fullscreen-image");
+
+        imageElement.addEventListener("click", function() {
+            window.location.href = "glist.html"; // Переходим на страницу glist.html при клике на изображение [[1]](https://poe.com/citation?message_id=83919070614&citation=1).
+        });
+
+        function changeImage() {
+            var randomIndex = Math.floor(Math.random() * imageLinks.length); // Случайным образом выбираем индекс на основе количества ссылок на изображения [[3]](https://poe.com/citation?message_id=83919070614&citation=3).
+            imageElement.style.backgroundImage = "url(" + imageLinks[randomIndex] + ")"; // Изменяем фоновое изображение элемента на случайное изображение [[1]](https://poe.com/citation?message_id=83919070614&citation=1)[[3]](https://poe.com/citation?message_id=83919070614&citation=3).
+        }
+
+        setInterval(changeImage, 60000); // Меняем изображение каждую минуту [[1]](https://poe.com/citation?message_id=83919070614&citation=1).
+    </script>
+</body>
+</html>
