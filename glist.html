@@ -307,7 +307,7 @@ h1#brand{
 <body>
 <header>
   <button id="menuButton" aria-label="menu">☰</button>
-  <h1 id="brand">Glist tools v2.0</h1>
+  <h1 id="brand">Glist tools v2.0 online</h1>
   <div class="hdr-right">Van Eyn</div>
 </header>
 
@@ -572,7 +572,7 @@ async function loadTgLatest(force){
                      nameEl.textContent !== 'Загрузка…' &&
                      nameEl.textContent.indexOf('Не удалось') === -1;
     if(!hasCache){
-      tgShow('Не удалось загрузить (тапни, чтобы повторить)', '', 0);
+      tgShow('Недоступно для online версии', '', 0);
       tgStatus('Ни одного поста с файлами не найдено. Ошибок: ' + errCount);
     } else {
       tgStatus('Свежий скан не дал файлов, показан кэш.');
