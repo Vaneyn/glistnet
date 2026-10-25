@@ -4,25 +4,7 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Glist tools v2.0</title>
-<script>
-/* ============================================================
-   Гейт first_run: если в localStorage не "0" — уводим на презентацию
-   ============================================================ */
-(function(){
-  try {
-    const fr = localStorage.getItem('first_run');
-    if (fr !== '0') {
-      console.log('[gate] first_run = ' + fr + ' — редирект на презентацию');
-      window.location.replace('glist_presentation.html');
-    } else {
-      console.log('[gate] first_run = 0 — пропускаем');
-    }
-  } catch (e) {
-    // localStorage заблокирован: не редиректим, иначе вечный цикл
-    console.warn('[gate] localStorage недоступен, пропускаем:', e);
-  }
-})();
-</script>
+
 <style>
 :root{
   --bg:#09090b;
